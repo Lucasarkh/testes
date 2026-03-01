@@ -37,18 +37,20 @@ export class BackupService {
   }
 
   /**
-   * Backup a cada 30 minutos
+   * Backup a cada 30 minutos (somente em produção)
    */
   @Cron('0 */30 * * * *')
   async handlePeriodicBackup() {
+    if (process.env.NODE_ENV !== 'production') return;
     await this.createBackup('periodic');
   }
 
   /**
-   * Limpeza de backups antigos (executa 1x por dia às 03:00)
+   * Limpeza de backups antigos (executa 1x por dia às 03:00, somente em produção)
    */
   @Cron('0 0 3 * * *')
   async handleCleanup() {
+    if (process.env.NODE_ENV !== 'production') return;
     await this.cleanupOldBackups();
   }
 

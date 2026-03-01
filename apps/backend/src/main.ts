@@ -34,8 +34,8 @@ async function bootstrap() {
   app.use(urlencoded({ limit: '10mb', extended: true }));
 
   const config = new DocumentBuilder()
-    .setTitle('CondoSaaS API')
-    .setDescription('API do sistema de gestão de condomínios')
+    .setTitle('lotio API')
+    .setDescription('API para gerenciamento de mapas e projetos no lotio')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -106,7 +106,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 8080;
   await app.listen(port);
-  console.log(`CondoSaaS API running on http://localhost:${port}`);
+  console.log(`lotio API running on http://localhost:${port}`);
   console.log(`Swagger docs at http://localhost:${port}/docs`);
 }
 
