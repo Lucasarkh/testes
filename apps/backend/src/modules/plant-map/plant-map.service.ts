@@ -217,14 +217,13 @@ export class PlantMapService {
       let linkId = dto.linkId;
       let linkType = dto.linkType || 'NONE';
 
-      // Se não tiver link vinculado, cria automaticamente um MapElement e LotDetails
-      // permitindo que qualquer ponto (Lote, Quadra, etc) tenha sua própria ficha/página
-      if (!linkId || linkId === '') {
+      // Criar página (MapElement/LotDetails) automaticamente APENAS para hotspots do tipo LOTE
+      if (dto.type === 'LOTE' && (!linkId || linkId === '')) {
         const mapElement = await tx.mapElement.create({
           data: {
             tenantId,
             projectId: plantMap.projectId,
-            type: dto.type === 'LOTE' ? 'LOT' : 'LABEL',
+            type: 'LOT',
             name: dto.title,
             code: dto.label || dto.title,
             geometryType: 'POLYGON', // Mantido para compatibilidade com o sistema de páginas

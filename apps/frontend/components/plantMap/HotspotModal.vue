@@ -64,8 +64,11 @@
 
             <!-- Hint about automatic creation -->
             <div v-if="!isEdit" class="pm-field">
-              <p class="pm-hint">
-                ✨ Qualquer ponto criado na planta terá automaticamente uma página pública e ficha técnica para edição de fotos, preços e detalhes.
+              <p v-if="form.type === 'LOTE'" class="pm-hint">
+                ✨ Hotspots do tipo Lote ganham automaticamente uma página pública e ficha técnica para edição de fotos, preços e detalhes.
+              </p>
+              <p v-else class="pm-hint" style="color: #6b7280;">
+                ℹ️ Hotspots informativos (portarias, áreas comuns, etc) não possuem página individual própria.
               </p>
             </div>
 
