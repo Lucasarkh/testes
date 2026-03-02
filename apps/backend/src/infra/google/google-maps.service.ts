@@ -99,6 +99,7 @@ export class GoogleMapsService {
               },
             },
             maxResultCount: Math.min(maxResults, 20),
+            rankPreference: 'DISTANCE',
             languageCode: 'pt-BR',
           },
           {

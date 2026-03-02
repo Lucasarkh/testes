@@ -950,37 +950,88 @@
                   <h3 style="margin:0; font-size: 1rem;">Proximidades</h3>
                   <p style="margin: 2px 0 0; font-size: 0.7rem; color: #888;">Locais próximos ao empreendimento</p>
                 </div>
-                <label class="toggle-switch" style="margin-left: auto;">
-                  <input type="checkbox" v-model="nearbyEnabled" @change="toggleNearby" :disabled="!authStore.canEdit" />
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div v-if="nearbyStatus" style="margin-bottom: 16px;">
-                <div v-if="nearbyStatus.status === 'ok'" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border-radius: 8px; font-size: 0.8rem;">
-                  <span style="color: #10b981;">✓</span>
-                  <span style="color: #6b7280;">{{ nearbyStatus.itemCount }} locais encontrados</span>
-                  <span v-if="nearbyStatus.generatedAt" style="color: #9ca3af; margin-left: auto; font-size: 0.7rem;">{{ new Date(nearbyStatus.generatedAt).toLocaleDateString('pt-BR') }}</span>
-                </div>
-                <div v-else-if="nearbyStatus.status === 'error'" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; font-size: 0.8rem;">
-                  <span style="color: #ef4444;">✗</span>
-                  <span style="color: #6b7280;">{{ nearbyStatus.errorMessage || 'Erro ao gerar proximidades' }}</span>
-                </div>
-                <div v-else style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(107, 114, 128, 0.08); border-radius: 8px; font-size: 0.8rem;">
-                  <span style="color: #9ca3af;">—</span>
-                  <span style="color: #6b7280;">Proximidades ainda não geradas</span>
+                <div v-if="hasAddress" class="toggle-switch" style="margin-left: auto;" title="Mostrar ou esconder proximidades na página pública">
+                  <input type="checkbox" id="nearby-toggle" v-model="nearbyEnabled" @change="toggleNearby" :disabled="!authStore.canEdit" />
+                  <label for="nearby-toggle"></label>
                 </div>
               </div>
 
-              <button
-                class="btn btn-secondary btn-sm"
-                style="width: 100%;"
-                @click="regenerateNearby"
-                :disabled="!authStore.canEdit || nearbyRegenerating"
-              >
-                <span v-if="nearbyRegenerating">Gerando...</span>
-                <span v-else>🔄 Regerar Proximidades</span>
-              </button>
+              <!-- No address warning -->
+              <div v-if="!hasAddress" style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 10px; font-size: 0.8rem;">
+                <span style="font-size: 1.1rem;">📍</span>
+                <div>
+                  <span style="color: #d97706; font-weight: 500;">Endereço não cadastrado</span>
+                  <p style="margin: 4px 0 0; color: #888; font-size: 0.72rem;">Cadastre o endereço do empreendimento acima para gerar as proximidades automaticamente.</p>
+                </div>
+              </div>
+
+              <!-- Has address -->
+              <template v-else>
+                <!-- Status -->
+                <div v-if="nearbyStatus" style="margin-bottom: 16px;">
+                  <div v-if="nearbyStatus.status === 'ok' && nearbyStatus.itemCount > 0" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border-radius: 8px; font-size: 0.8rem;">
+                    <span style="color: #10b981;">✓</span>
+                    <span style="color: #6b7280;">{{ nearbyStatus.itemCount }} locais encontrados</span>
+                    <span v-if="nearbyEnabled" style="color: #10b981; font-size: 0.65rem; margin-left: 4px;">• visível no site</span>
+                    <span v-else style="color: #9ca3af; font-size: 0.65rem; margin-left: 4px;">• oculto no site</span>
+                    <span v-if="nearbyStatus.generatedAt" style="color: #9ca3af; margin-left: auto; font-size: 0.7rem;">{{ new Date(nearbyStatus.generatedAt).toLocaleDateString('pt-BR') }}</span>
+                  </div>
+                  <div v-else-if="nearbyStatus.status === 'ok' && nearbyStatus.itemCount === 0" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(107, 114, 128, 0.08); border-radius: 8px; font-size: 0.8rem;">
+                    <span style="color: #9ca3af;">—</span>
+                    <span style="color: #6b7280;">Nenhum local próximo encontrado no raio de busca</span>
+                  </div>
+                  <div v-else-if="nearbyStatus.status === 'error'" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(239, 68, 68, 0.08); border-radius: 8px; font-size: 0.8rem;">
+                    <span style="color: #ef4444;">✗</span>
+                    <span style="color: #6b7280;">{{ nearbyStatus.errorMessage || 'Erro ao gerar proximidades' }}</span>
+                  </div>
+                  <div v-else style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(107, 114, 128, 0.08); border-radius: 8px; font-size: 0.8rem;">
+                    <span style="color: #9ca3af;">—</span>
+                    <span style="color: #6b7280;">Proximidades ainda não geradas</span>
+                  </div>
+                </div>
+
+                <button
+                  class="btn btn-secondary btn-sm"
+                  style="width: 100%;"
+                  @click="regenerateNearby"
+                  :disabled="!authStore.canEdit || nearbyRegenerating"
+                >
+                  <span v-if="nearbyRegenerating">⏳ Gerando proximidades...</span>
+                  <span v-else-if="nearbyStatus?.status === 'ok' && nearbyStatus?.itemCount > 0">🔄 Regerar Proximidades</span>
+                  <span v-else>🔍 Gerar Proximidades</span>
+                </button>
+
+                <!-- Nearby items list -->
+                <div v-if="nearbyStatus?.items?.length" style="margin-top: 16px;">
+                  <div v-for="group in nearbyGrouped" :key="group.category" style="margin-bottom: 14px;">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                      <span style="font-size: 0.9rem;">{{ nearbyCategoryIcon(group.category) }}</span>
+                      <span style="font-size: 0.78rem; font-weight: 600; color: #d1d5db;">{{ group.categoryLabel }}</span>
+                      <span style="font-size: 0.65rem; color: #6b7280; margin-left: 2px;">({{ group.items.length }})</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0;">
+                      <div
+                        v-for="(item, idx) in group.items"
+                        :key="item.name"
+                        style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; font-size: 0.75rem; border-radius: 6px;"
+                        :style="idx % 2 === 0 ? 'background: rgba(255,255,255,0.03)' : ''"
+                      >
+                        <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #d1d5db;">{{ item.name }}</span>
+                        <span style="color: #6b7280; white-space: nowrap; font-size: 0.7rem;">{{ item.distanceLabel }}</span>
+                        <span v-if="item.drivingLabel" style="color: #6b7280; white-space: nowrap; font-size: 0.68rem;">🚗 {{ item.drivingLabel }}</span>
+                        <span v-if="item.walkingLabel" style="color: #6b7280; white-space: nowrap; font-size: 0.68rem;">🚶 {{ item.walkingLabel }}</span>
+                        <a
+                          :href="item.routeUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style="color: #60a5fa; font-size: 0.68rem; text-decoration: none; white-space: nowrap; flex-shrink: 0;"
+                          title="Ver rota"
+                        >↗ Rota</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </section>
           </div>
 
@@ -1823,9 +1874,28 @@ const newHighlight = ref({ label: '', value: '' })
 const newWorkStage = ref({ label: '', percentage: 0 })
 
 // ── Nearby Places ─────────────────────────────────────────
+const hasAddress = computed(() => !!pubInfoForm.value.address?.trim())
 const nearbyEnabled = ref(true)
 const nearbyStatus = ref<any>(null)
 const nearbyRegenerating = ref(false)
+
+const NEARBY_ICONS: Record<string, string> = {
+  school: '🎓', supermarket: '🛒', pharmacy: '💊', hospital: '🏥',
+  park: '🌳', restaurant: '🍽️', gym: '🏋️', shopping_mall: '🛍️',
+}
+const nearbyCategoryIcon = (cat: string) => NEARBY_ICONS[cat] || '📍'
+
+const nearbyGrouped = computed(() => {
+  const items = nearbyStatus.value?.items || []
+  const groups: Record<string, { category: string; categoryLabel: string; items: any[] }> = {}
+  for (const item of items) {
+    if (!groups[item.category]) {
+      groups[item.category] = { category: item.category, categoryLabel: item.categoryLabel, items: [] }
+    }
+    groups[item.category].items.push(item)
+  }
+  return Object.values(groups)
+})
 
 const loadNearbyStatus = async () => {
   if (!project.value?.id) return

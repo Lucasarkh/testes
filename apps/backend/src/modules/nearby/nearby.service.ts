@@ -143,7 +143,10 @@ export class NearbyService {
       const maxTotal = parseInt(this.config.get('NEARBY_MAX_TOTAL_RESULTS') || '8', 10);
       const walkingEnabled = this.config.get('NEARBY_WALKING_MODE_ENABLED') !== 'false';
 
-      this.logger.log(`Searching nearby places in ${categories.length} categories`);
+      // Over-fetch from API: request 2x per category (capped at 20) so that
+      // any places filtered out by distance-matrix still leave enough results.
+      const apiFetchCount = Math.min(maxPerCategory * 2, 20);
+      this.logger.log(`Searching nearby places in ${categories.length} categories (fetching up to ${apiFetchCount} per category)`);
 
       const allPlaces: NearbyPlace[] = [];
       for (const category of categories) {
@@ -152,8 +155,9 @@ export class NearbyService {
           geo.lng,
           category,
           radiusMeters,
-          maxPerCategory,
+          apiFetchCount,
         );
+        this.logger.log(`  ${category}: ${places.length} results from API`);
         allPlaces.push(...places);
       }
 
@@ -299,7 +303,17 @@ export class NearbyService {
         nearbyGeneratedAt: true,
         latitude: true,
         longitude: true,
-        _count: { select: { nearbyItems: true } },
+        nearbyItems: {
+          orderBy: { distanceMeters: 'asc' },
+          select: {
+            category: true,
+            name: true,
+            distanceLabel: true,
+            drivingLabel: true,
+            walkingLabel: true,
+            routeUrl: true,
+          },
+        },
       },
     });
 
@@ -309,7 +323,16 @@ export class NearbyService {
       errorMessage: project?.nearbyErrorMessage || null,
       generatedAt: project?.nearbyGeneratedAt || null,
       hasCoordinates: !!(project?.latitude && project?.longitude),
-      itemCount: project?._count?.nearbyItems || 0,
+      itemCount: project?.nearbyItems?.length || 0,
+      items: (project?.nearbyItems || []).map((item) => ({
+        category: item.category,
+        categoryLabel: CATEGORY_LABELS[item.category] || item.category,
+        name: item.name,
+        distanceLabel: item.distanceLabel,
+        drivingLabel: item.drivingLabel,
+        walkingLabel: item.walkingLabel,
+        routeUrl: item.routeUrl,
+      })),
     };
   }
 

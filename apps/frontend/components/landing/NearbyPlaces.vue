@@ -1,9 +1,9 @@
 <template>
-  <section v-if="visible && groupedItems.length" class="v4-section" id="proximidades">
+  <section v-if="visible" class="v4-section v4-section-alt" id="proximidades">
     <div class="v4-container">
       <div class="v4-section-header center">
-        <h2 class="v4-section-title">Proximidades</h2>
-        <p class="v4-section-subtitle" style="max-width: 600px; margin: 0 auto;">
+        <h2 class="v4-section-title">Proximidades do Empreendimento</h2>
+        <p class="v4-section-subtitle">
           Distâncias estimadas a partir do endereço do empreendimento.
         </p>
       </div>
@@ -20,9 +20,9 @@
               <div class="nearby-item-info">
                 <span class="nearby-item-name">{{ item.name }}</span>
                 <span class="nearby-item-meta">
-                  {{ item.distanceLabel }}
-                  <template v-if="item.drivingLabel"> · {{ item.drivingLabel }} de carro</template>
-                  <template v-if="item.walkingLabel"> · {{ item.walkingLabel }} a pé</template>
+                  <span class="nearby-meta-distance">{{ item.distanceLabel }}</span>
+                  <span v-if="item.drivingLabel" class="nearby-meta-chip"><span class="nearby-meta-emoji">🚗</span> {{ item.drivingLabel }}</span>
+                  <span v-if="item.walkingLabel" class="nearby-meta-chip"><span class="nearby-meta-emoji">🚶</span> {{ item.walkingLabel }}</span>
                 </span>
               </div>
               <a
@@ -32,12 +32,12 @@
                 class="nearby-route-btn"
                 title="Ver rota no Google Maps"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                   <polyline points="15 3 21 3 21 9"></polyline>
                   <line x1="10" y1="14" x2="21" y2="3"></line>
                 </svg>
-                <span>Ver rota</span>
+                <span class="nearby-route-label">Ver rota</span>
               </a>
             </div>
           </div>
@@ -48,10 +48,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 const props = defineProps<{
   projectSlug: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:visible', value: boolean): void
 }>()
 
 interface NearbyItem {
@@ -72,14 +76,17 @@ interface NearbyResponse {
   items: NearbyItem[]
 }
 
+const { fetchPublic } = usePublicApi()
 const data = ref<NearbyResponse | null>(null)
-const visible = computed(() => data.value?.enabled && data.value?.items?.length > 0)
+const visible = computed(() => !!(data.value?.enabled && data.value?.items?.length))
+
+watch(visible, (val) => emit('update:visible', val), { immediate: true })
 
 const groupedItems = computed(() => {
   if (!data.value?.items?.length) return []
-  
+
   const groups: Record<string, { category: string; categoryLabel: string; items: NearbyItem[] }> = {}
-  
+
   for (const item of data.value.items) {
     if (!groups[item.category]) {
       groups[item.category] = {
@@ -90,7 +97,7 @@ const groupedItems = computed(() => {
     }
     groups[item.category].items.push(item)
   }
-  
+
   return Object.values(groups)
 })
 
@@ -107,69 +114,122 @@ const ICONS: Record<string, string> = {
 
 const categoryIcon = (category: string) => ICONS[category] || '📍'
 
-onMounted(async () => {
+async function loadNearby() {
+  if (!props.projectSlug) return
   try {
-    const config = useRuntimeConfig()
-    const baseUrl = `${config.public.apiBase}/api`
-    const res = await fetch(`${baseUrl}/p/${props.projectSlug}/nearby`, {
-      credentials: 'include',
-    })
-    if (res.ok) {
-      data.value = await res.json()
-    }
+    data.value = await fetchPublic(`/p/${props.projectSlug}/nearby`)
   } catch {
-    // Silently ignore — section just won't show
+    // Section won't show
   }
-})
+}
+
+onMounted(loadNearby)
+watch(() => props.projectSlug, loadNearby)
 </script>
 
 <style scoped>
+/* ========================================
+   Base Design-System tokens (mirrored from
+   ProjectLandingView scoped styles so they
+   apply inside this child component)
+   ======================================== */
+
+.v4-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.v4-section-header {
+  margin-bottom: 56px;
+  max-width: 800px;
+}
+
+.v4-section-header.center {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.v4-section-title {
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.003em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  color: var(--v4-text, #1d1d1f);
+}
+
+.v4-section-subtitle {
+  font-size: 21px;
+  line-height: 1.38105;
+  color: var(--v4-text-muted, #86868b);
+  font-weight: 400;
+}
+
+/* ========================================
+   Grid — 2 cols on desktop, 1 col mobile
+   ======================================== */
 .nearby-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 32px;
-  margin-top: 48px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
 }
 
+/* ========================================
+   Category card
+   ======================================== */
 .nearby-category {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 20px;
-  padding: 24px;
-  backdrop-filter: blur(10px);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 28px 28px 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
 }
 
+.nearby-category:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* ========================================
+   Category header
+   ======================================== */
 .nearby-category-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .nearby-category-icon {
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--v4-bg-alt, #f5f5f7);
   border-radius: 10px;
+  flex-shrink: 0;
 }
 
 .nearby-category-title {
-  font-size: 0.9rem;
+  font-size: 15px;
   font-weight: 600;
-  color: #1d1d1f;
+  color: var(--v4-text, #1d1d1f);
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
+/* ========================================
+   Items list
+   ======================================== */
 .nearby-items {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .nearby-item {
@@ -177,44 +237,74 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
+  padding: 12px 0;
 }
 
 .nearby-item:not(:last-child) {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .nearby-item-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
 }
 
 .nearby-item-name {
-  font-size: 0.85rem;
+  font-size: 15px;
   font-weight: 500;
-  color: #1d1d1f;
+  color: var(--v4-text, #1d1d1f);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* ========================================
+   Meta chips
+   ======================================== */
 .nearby-item-meta {
-  font-size: 0.75rem;
-  color: #86868b;
-  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--v4-text-muted, #86868b);
+  line-height: 1;
 }
 
+.nearby-meta-distance {
+  font-weight: 500;
+  color: var(--v4-text-muted, #86868b);
+}
+
+.nearby-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.nearby-meta-emoji {
+  font-size: 12px;
+}
+
+/* ========================================
+   Route button
+   ======================================== */
 .nearby-route-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  font-size: 0.72rem;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: #0071e3;
+  color: var(--v4-primary, #0071e3);
   background: rgba(0, 113, 227, 0.06);
   border-radius: 8px;
   text-decoration: none;
@@ -232,31 +322,64 @@ onMounted(async () => {
   height: 13px;
 }
 
-/* Dark section variant (if inside dark bg) */
-:deep(.v4-section[style*="background: #1d1d1f"]) .nearby-category-title,
-:deep(.v4-section[style*="background:#1d1d1f"]) .nearby-category-title {
-  color: white;
-}
+/* ========================================
+   Responsive — tablet (≤ 768px)
+   ======================================== */
+@media (max-width: 768px) {
+  .v4-container {
+    padding: 0 20px;
+  }
 
-/* Responsive */
-@media (max-width: 640px) {
+  .v4-section-header {
+    margin-bottom: 32px;
+  }
+
+  .v4-section-title {
+    font-size: 28px;
+  }
+
+  .v4-section-subtitle {
+    font-size: 17px;
+  }
+
   .nearby-grid {
     grid-template-columns: 1fr;
-    gap: 20px;
-    margin-top: 32px;
+    gap: 16px;
   }
 
   .nearby-category {
-    padding: 20px;
+    padding: 22px;
+  }
+}
+
+/* ========================================
+   Responsive — small mobile (≤ 480px)
+   ======================================== */
+@media (max-width: 480px) {
+  .nearby-category {
+    padding: 18px;
+    border-radius: 14px;
   }
 
-  .nearby-route-btn span {
+  .nearby-route-label {
     display: none;
   }
 
   .nearby-route-btn {
-    padding: 8px;
+    padding: 7px;
     border-radius: 50%;
+    min-width: 30px;
+    min-height: 30px;
+    justify-content: center;
+  }
+
+  .nearby-item-name {
+    font-size: 14px;
+  }
+
+  .nearby-meta-chip {
+    font-size: 11px;
+    padding: 2px 6px;
   }
 }
 </style>

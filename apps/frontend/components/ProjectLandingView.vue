@@ -347,7 +347,7 @@
       </section>
 
       <!-- Proximidades -->
-      <NearbyPlaces v-if="projectSlug" :project-slug="projectSlug" />
+      <LandingNearbyPlaces v-if="projectSlug" :project-slug="projectSlug" @update:visible="hasNearbyData = $event" />
 
       <!-- Agendamento Section -->
       <section v-if="project && schedulingConfig?.enabled" class="v4-section" id="agendamento" style="background: #1d1d1f; color: white;">
@@ -1051,12 +1051,7 @@ onMounted(async () => {
       getPublicPanoramas(p.value.id, isPreview.value).then((panos) => {
         panoramas.value = panos ?? []
       }).catch(() => {})
-      // Check if nearby data exists (non-blocking, for side menu)
-      if (!isPreview.value) {
-        fetchPublic(`/p/${projectSlug.value}/nearby`).then((res) => {
-          hasNearbyData.value = res?.enabled && res?.items?.length > 0
-        }).catch(() => {})
-      }
+      // NearbyPlaces component emits @update:visible for side menu
     }
     else error.value = (p.reason as any)?.message || 'Projeto não encontrado'
     if (c.status === 'fulfilled' && c.value) corretor.value = c.value
