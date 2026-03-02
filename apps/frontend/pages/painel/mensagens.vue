@@ -15,10 +15,12 @@
       <div class="loading-spinner"></div>
     </div>
     
-    <div v-else-if="leads.length === 0" class="empty-state">
-      <i class="pi pi-envelope text-4xl mb-4" style="font-size: 3rem; color: var(--gray-300);"></i>
-      <h3>Nenhuma mensagem</h3>
-      <p>Mensagens aparecerão aqui quando alguém se interessar pela plataforma.</p>
+    <div v-else-if="leads.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+      <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+        <div class="icon-blob mx-auto mb-4">✉️</div>
+        <h3 class="fw-bold mb-3">Nenhuma mensagem</h3>
+        <p class="mb-4 px-4">Mensagens aparecerão aqui quando alguém se interessar pela plataforma.</p>
+      </div>
     </div>
 
     <div v-else class="table-wrapper">
@@ -35,15 +37,15 @@
         <tbody>
           <tr v-for="lead in leads" :key="lead.id">
             <td>
-              <div style="font-weight: 600; color: var(--gray-900);">{{ lead.name }}</div>
-              <div v-if="lead.message" style="font-size: 0.75rem; color: var(--gray-500); margin-top: 2px;">
+              <div style="font-weight: 600; color: var(--color-surface-50);">{{ lead.name }}</div>
+              <div v-if="lead.message" style="font-size: 0.75rem; color: var(--color-surface-400); margin-top: 2px;">
                 "{{ lead.message }}"
               </div>
             </td>
             <td>
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <a :href="'mailto:' + lead.email" class="text-primary" style="font-size: 0.8125rem;" v-if="lead.email">{{ lead.email }}</a>
-                <a :href="'https://wa.me/' + lead.phone.replace(/\D/g, '')" target="_blank" style="color: var(--success); font-size: 0.8125rem; display: flex; align-items: center; gap: 4px;" v-if="lead.phone">
+                <a :href="'https://wa.me/' + lead.phone.replace(/\D/g, '')" target="_blank" style="color: var(--color-success); font-size: 0.8125rem; display: flex; align-items: center; gap: 4px;" v-if="lead.phone">
                   <i class="pi pi-whatsapp"></i>
                   {{ lead.phone }}
                 </a>

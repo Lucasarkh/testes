@@ -64,10 +64,12 @@
       <div class="loading-spinner"></div>
     </div>
 
-    <div v-else-if="leads.length === 0" class="empty-state py-12">
-      <div class="empty-icon">📭</div>
-      <h3>Nenhum lead encontrado</h3>
-      <p>Ajuste os filtros ou cadastre um novo lead manual.</p>
+    <div v-else-if="leads.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+      <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+        <div class="icon-blob mx-auto mb-4">📭</div>
+        <h3 class="fw-bold mb-3">Nenhum lead encontrado</h3>
+        <p class="mb-4 px-4">Ajuste os filtros ou cadastre um novo lead manual.</p>
+      </div>
     </div>
 
     <div v-else class="content-view">
@@ -224,10 +226,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-header { margin-bottom: var(--space-6); border-bottom: 2px solid var(--gray-100); padding-bottom: var(--space-4); }
+.page-header { margin-bottom: 24px; border-bottom: 2px solid var(--glass-border-subtle); padding-bottom: 16px; }
 
 .view-toggle { 
-  background: var(--gray-100); 
+  background: var(--glass-bg); 
   border-radius: var(--radius-md); 
   display: flex; 
   padding: 4px; 
@@ -240,7 +242,7 @@ onMounted(async () => {
   padding: 0 16px; 
   font-weight: 600; 
   font-size: 0.875rem; 
-  color: var(--gray-500); 
+  color: var(--color-surface-400); 
   cursor: pointer; 
   border-radius: var(--radius-sm);
   transition: all 200ms ease;
@@ -248,22 +250,22 @@ onMounted(async () => {
   white-space: nowrap;
 }
 .toggle-btn.active { 
-  background: white; 
-  color: var(--primary); 
-  box-shadow: var(--shadow-sm);
+  background: rgba(255, 255, 255, 0.06); 
+  color: var(--color-primary-500); 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .filter-card { 
-  background: white; 
+  background: var(--glass-bg); 
   border-radius: var(--radius-lg); 
-  padding: var(--space-5); 
-  margin-bottom: var(--space-6); 
-  box-shadow: var(--shadow-sm); 
+  padding: 20px; 
+  margin-bottom: 24px; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
   display: flex; 
-  gap: var(--space-5); 
+  gap: 20px; 
   align-items: flex-end; 
   flex-wrap: wrap; 
-  border: 1px solid var(--gray-200); 
+  border: 1px solid var(--glass-border-subtle); 
 }
 .filter-group { flex: 1; min-width: 200px; }
 .flex-2 { flex: 2; }
@@ -271,14 +273,14 @@ onMounted(async () => {
 
 .table-modern { width: 100%; border-collapse: collapse; }
 .clickable-row { cursor: pointer; transition: background 150ms; }
-.clickable-row:hover { background: var(--gray-50); }
+.clickable-row:hover { background: var(--glass-bg-heavy); }
 
-.small-info { display: flex; flex-direction: column; font-size: 0.8125rem; color: var(--gray-600); gap: 2px; }
+.small-info { display: flex; flex-direction: column; font-size: 0.8125rem; color: var(--color-surface-200); gap: 2px; }
 
 .badge-recurrent-tag { 
   font-size: 0.625rem; 
-  background: var(--warning-light); 
-  color: var(--warning); 
+  background: rgba(245, 158, 11, 0.1); 
+  color: var(--color-warning); 
   padding: 1px 6px; 
   border-radius: 4px; 
   font-weight: 700; 
@@ -287,29 +289,29 @@ onMounted(async () => {
 }
 
 .table-wrapper { 
-  background: white; 
-  border: 1px solid var(--gray-200); 
+  background: var(--glass-bg); 
+  border: 1px solid var(--glass-border-subtle); 
   border-radius: var(--radius-lg); 
   overflow: hidden; 
 }
 
 .loading-state, .empty-state {
   text-align: center;
-  background: white;
+  background: var(--glass-bg);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--glass-border-subtle);
 }
 
-.empty-icon { font-size: 2.5rem; margin-bottom: var(--space-4); }
+.empty-icon { font-size: 2.5rem; margin-bottom: 16px; }
 
 .d-flex { display: flex; }
 .justify-content-between { justify-content: space-between; }
 .align-items-center { align-items: center; }
 .flex-column { flex-direction: column; }
-.gap-1 { gap: var(--space-1); }
-.gap-2 { gap: var(--space-2); }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
 .mt-auto { margin-top: auto; }
-.py-12 { padding-top: var(--space-12); padding-bottom: var(--space-12); }
-.p-4 { padding: var(--space-4); }
-.border-top { border-top: 1px solid var(--gray-100); }
+.py-12 { padding-top: 48px; padding-bottom: 48px; }
+.p-4 { padding: 16px; }
+.border-top { border-top: 1px solid var(--glass-border-subtle); }
 </style>

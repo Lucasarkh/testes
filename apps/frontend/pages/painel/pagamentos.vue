@@ -125,11 +125,13 @@ onMounted(fetchData)
       <div class="loader"></div>
     </div>
 
-    <div v-else-if="configs.length === 0" class="empty-state">
-      <div class="empty-icon">💳</div>
-      <h3>Nenhum gateway configurado</h3>
-      <p>Configure um gateway (Stripe, Asaas, etc) para permitir reservas online nos seus projetos.</p>
-      <button class="btn btn-primary" @click="openCreate">Configurar Primeiro Gateway</button>
+    <div v-else-if="configs.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+      <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+        <div class="icon-blob mx-auto mb-4">💳</div>
+        <h3 class="fw-bold mb-3">Nenhum gateway configurado</h3>
+        <p class="mb-4 px-4">Configure um gateway (Stripe, Asaas, etc) para permitir reservas online nos seus projetos.</p>
+        <button class="btn btn-primary btn-lg rounded-pill px-5" @click="openCreate">Configurar Primeiro Gateway</button>
+      </div>
     </div>
 
     <div v-else class="grid gap-6">
@@ -262,14 +264,17 @@ onMounted(fetchData)
 </template>
 
 <style scoped>
+.page-container {
+  padding: 24px;
+}
 .payment-config-card {
-  border-left: 4px solid var(--gray-300);
+  border-left: 4px solid var(--color-surface-600);
   transition: all 0.2s;
 }
 .payment-config-card:hover {
-  border-left-color: var(--primary);
+  border-left-color: var(--color-primary-500);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
 .provider-badge {
@@ -295,7 +300,7 @@ onMounted(fetchData)
 .config-status {
   font-size: 0.8rem;
   margin: 4px 0 0 0;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
 }
 .status-active { color: #10b981; }
 
@@ -303,31 +308,31 @@ onMounted(fetchData)
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--gray-100);
+  background: var(--glass-bg);
   padding: 8px 12px;
   border-radius: 6px;
   margin-top: 4px;
 }
 .webhook-box code {
   font-size: 0.8rem;
-  color: var(--gray-700);
+  color: var(--color-surface-200);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .btn-copy {
-  background: white;
-  border: 1px solid var(--gray-300);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 0.7rem;
   cursor: pointer;
 }
-.btn-copy:hover { background: var(--gray-50); }
+.btn-copy:hover { background: var(--glass-bg-heavy); }
 
 .detail-item .label {
   font-size: 0.85rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
 }
 .detail-item .value {
   font-size: 0.85rem;

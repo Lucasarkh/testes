@@ -115,7 +115,7 @@ onUnmounted(() => {
   top: 50%;
   transform: translateY(-50%) translateX(-100px);
   z-index: 100;
-  background: white;
+  background: var(--glass-bg);
   padding: 24px 12px;
   border-radius: 999px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -163,16 +163,16 @@ onUnmounted(() => {
 }
 
 .menu-item:hover .label {
-  color: var(--primary);
+  color: var(--color-primary-500);
 }
 
 .menu-item.is-active .dot {
-  background: var(--primary);
+  background: var(--color-primary-500);
   transform: scale(1.2);
 }
 
 .menu-item.is-active .label {
-  color: var(--primary);
+  color: var(--color-primary-500);
 }
 
 @media (max-width: 768px) {

@@ -223,7 +223,7 @@ definePageMeta({
 
 <style scoped>
 .page-container {
-  padding: var(--space-8);
+  padding: 32px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -232,82 +232,82 @@ definePageMeta({
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: var(--space-8);
+  margin-bottom: 32px;
 }
 
 .back-link {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  color: var(--gray-500);
+  gap: 8px;
+  color: var(--color-surface-400);
   font-size: 0.875rem;
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
   text-decoration: none;
 }
 
 .back-link:hover {
-  color: var(--primary);
+  color: var(--color-primary-500);
 }
 
 .subtitle {
-  color: var(--gray-500);
-  margin-top: var(--space-1);
+  color: var(--color-surface-400);
+  margin-top: 4px;
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-4);
-  margin-bottom: var(--space-8);
+  gap: 16px;
+  margin-bottom: 32px;
 }
 
 .metric-card {
-  background: white;
-  padding: var(--space-5);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
-  box-shadow: var(--shadow-sm);
+  background: var(--glass-bg);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border-subtle);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-.metric-card.primary { border-top: 4px solid var(--primary); }
-.metric-card.success { border-top: 4px solid var(--success); }
+.metric-card.primary { border-top: 4px solid var(--color-primary-500); }
+.metric-card.success { border-top: 4px solid var(--color-success); }
 .metric-card.royal { border-top: 4px solid #7c3aed; }
 
 .metric-label {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
   font-weight: 600;
   text-transform: uppercase;
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
 }
 
 .metric-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
 }
 
 .metric-value.negative {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .metric-footer {
-  margin-top: var(--space-2);
+  margin-top: 8px;
   font-size: 0.75rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .main-content {
   display: grid;
   grid-template-columns: 1fr 320px;
-  gap: var(--space-6);
+  gap: 24px;
 }
 
 .card {
-  background: white;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
-  padding: var(--space-6);
+  background: var(--glass-bg);
+  border-radius: 12px;
+  border: 1px solid var(--glass-border-subtle);
+  padding: 24px;
 }
 
 .chart-container {
@@ -318,7 +318,7 @@ definePageMeta({
 
 .chart-container h2 {
   font-size: 1.125rem;
-  margin-bottom: var(--space-6);
+  margin-bottom: 24px;
 }
 
 .simple-chart {
@@ -327,7 +327,7 @@ definePageMeta({
   align-items: flex-end;
   justify-content: space-around;
   padding: 2rem 0;
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--glass-border-subtle);
 }
 
 .chart-column {
@@ -350,12 +350,12 @@ definePageMeta({
   min-height: 2px;
 }
 
-.bar.sessions { background: var(--primary-light); background-color: #3b82f633; border: 1px solid var(--primary); }
-.bar.leads { background: var(--success-light); background-color: #10b98133; border: 1px solid var(--success); }
+.bar.sessions { background: rgba(16, 185, 129, 0.1); background-color: #3b82f633; border: 1px solid var(--color-primary-500); }
+.bar.leads { background: rgba(16, 185, 129, 0.1); background-color: #10b98133; border: 1px solid var(--color-success); }
 
 .day-label {
   font-size: 0.625rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .chart-legend {
@@ -370,7 +370,7 @@ definePageMeta({
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
 }
 
 .dot {
@@ -379,15 +379,15 @@ definePageMeta({
   border-radius: 50%;
 }
 
-.dot.sessions { background: var(--primary); }
-.dot.leads { background: var(--success); }
+.dot.sessions { background: var(--color-primary-500); }
+.dot.leads { background: var(--color-success); }
 
 .investment-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 0;
-  border-bottom: 1px solid var(--gray-50);
+  border-bottom: 1px solid var(--glass-border-subtle);
 }
 
 .inv-info {
@@ -397,21 +397,21 @@ definePageMeta({
 
 .inv-date {
   font-size: 0.75rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .inv-amount {
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--color-surface-200);
 }
 
 .empty-mini {
   padding: 1rem;
   text-align: center;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   font-size: 0.875rem;
-  background: var(--gray-50);
-  border-radius: var(--radius-md);
+  background: var(--glass-bg-heavy);
+  border-radius: 8px;
 }
 
 .input-with-prefix {
@@ -423,7 +423,7 @@ definePageMeta({
 .input-with-prefix .prefix {
   position: absolute;
   left: 0.75rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   font-weight: 500;
   pointer-events: none;
 }
@@ -442,7 +442,7 @@ definePageMeta({
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
   font-size: 0.875rem;
 }
 </style>

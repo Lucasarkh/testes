@@ -140,8 +140,12 @@ definePageMeta({
     <div v-if="loading" class="loading">Carregando...</div>
     
     <div v-else class="card">
-      <div v-if="campaigns.length === 0" class="empty-state">
-        <p>Nenhuma campanha cadastrada ainda.</p>
+      <div v-if="campaigns.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+        <div class="text-center p-5 max-w-500">
+          <div class="icon-blob mx-auto mb-4">📢</div>
+          <h3 class="fw-bold mb-3">Nenhuma campanha cadastrada</h3>
+          <p class="mb-4 px-4">Crie campanhas UTM para rastrear a origem dos seus leads.</p>
+        </div>
       </div>
       
       <table v-else class="table">
@@ -272,7 +276,7 @@ definePageMeta({
 
 <style scoped>
 .page-container {
-  padding: var(--space-8);
+  padding: 32px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -281,19 +285,19 @@ definePageMeta({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-8);
+  margin-bottom: 32px;
 }
 
 .subtitle {
-  color: var(--gray-500);
-  margin-top: var(--space-1);
+  color: var(--color-surface-400);
+  margin-top: 4px;
 }
 
 .card {
-  background: white;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
+  background: var(--glass-bg);
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  border: 1px solid var(--glass-border-subtle);
 }
 
 .table {
@@ -303,63 +307,63 @@ definePageMeta({
 
 .table th {
   text-align: left;
-  padding: var(--space-4);
-  background: var(--gray-50);
-  color: var(--gray-500);
+  padding: 16px;
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-400);
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--glass-border-subtle);
 }
 
 .table td {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--gray-100);
-  color: var(--gray-700);
+  padding: 16px;
+  border-bottom: 1px solid var(--glass-border-subtle);
+  color: var(--color-surface-200);
   vertical-align: middle;
 }
 
 .utm-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .badge {
   padding: 2px 8px;
-  background: var(--gray-100);
-  border-radius: var(--radius-sm);
+  background: var(--glass-bg);
+  border-radius: 6px;
   font-size: 0.6875rem;
-  color: var(--gray-600);
+  color: var(--color-surface-200);
 }
 
 .status-badge {
   padding: 4px 12px;
-  border-radius: var(--radius-full);
+  border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
 }
 
 .status-badge.active {
-  background: var(--success-light);
-  color: var(--success);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
 }
 
 .status-badge.inactive {
-  background: var(--danger-light);
-  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .text-danger {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .modal-overlay {
@@ -374,12 +378,12 @@ definePageMeta({
 }
 
 .modal-content {
-  background: white;
-  padding: var(--space-8);
-  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  padding: 32px;
+  border-radius: 16px;
   width: 100%;
   max-width: 600px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.5);
 }
 
 .modal-header {
@@ -391,25 +395,25 @@ definePageMeta({
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .empty-state, .loading {
-  padding: var(--space-12);
+  padding: 48px;
   text-align: center;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .mt-6 { margin-top: 1.5rem; }

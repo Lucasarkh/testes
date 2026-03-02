@@ -30,17 +30,19 @@
     </div>
 
     <!-- Metrics Table -->
-    <div style="margin-top: var(--space-8);">
+    <div style="margin-top: 32px;">
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner"></div>
         <span>Carregando métricas...</span>
       </div>
 
-      <div v-else-if="team.length === 0" class="empty-state" style="background: white; border-radius: var(--radius-lg); border: 1px solid var(--gray-200); padding: var(--space-12);">
-        <div class="empty-state-icon">📊</div>
-        <h3>Nenhum corretor na equipe</h3>
-        <p>Convide corretores para começar a acompanhar métricas.</p>
-        <button class="btn btn-primary" style="margin-top: var(--space-4);" @click="openInviteModal">Convidar Corretor</button>
+      <div v-else-if="team.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+        <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+          <div class="icon-blob mx-auto mb-4">📊</div>
+          <h3 class="fw-bold mb-3">Nenhum corretor na equipe</h3>
+          <p class="mb-4 px-4">Convide corretores para começar a acompanhar métricas.</p>
+          <button class="btn btn-primary btn-lg rounded-pill px-5" @click="openInviteModal">Convidar Corretor</button>
+        </div>
       </div>
 
       <div v-else class="table-wrapper">
@@ -100,12 +102,12 @@
           </div>
 
           <div class="modal-body">
-            <p style="color: var(--gray-500); font-size: 0.875rem; margin-bottom: var(--space-6);">
+            <p style="color: var(--color-surface-400); font-size: 0.875rem; margin-bottom: 24px;">
               O corretor receberá um link para criar sua conta e será automaticamente vinculado à sua equipe.
             </p>
             <form @submit.prevent="sendInvite">
               <div class="form-group">
-                <label class="form-label">Email do Corretor <span style="color: var(--danger);">*</span></label>
+                <label class="form-label">Email do Corretor <span style="color: var(--color-danger);">*</span></label>
                 <input
                   v-model="inviteForm.email"
                   type="email"
@@ -206,7 +208,7 @@ definePageMeta({ layout: 'default' })
 <style scoped>
 /* Stat highlight variant */
 .stat-card--highlight {
-  background: linear-gradient(135deg, var(--primary) 0%, #0062CC 100%);
+  background: linear-gradient(135deg, var(--color-primary-500) 0%, #0062CC 100%);
   border-color: transparent !important;
   color: white;
 }
@@ -222,12 +224,12 @@ definePageMeta({ layout: 'default' })
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
-  margin-bottom: var(--space-3);
+  margin-bottom: 12px;
 }
 
-.stat-icon--blue { background: #e0f2fe; color: var(--primary); }
-.stat-icon--green { background: #dcfce7; color: #16a34a; }
-.stat-icon--purple { background: #f3e8ff; color: #9333ea; }
+.stat-icon--blue { background: rgba(59, 130, 246, 0.12); color: var(--color-primary-500); }
+.stat-icon--green { background: rgba(16, 185, 129, 0.12); color: #16a34a; }
+.stat-icon--purple { background: rgba(147, 51, 234, 0.12); color: #9333ea; }
 
 /* Table */
 .text-center-col { text-align: center; }
@@ -235,14 +237,14 @@ definePageMeta({ layout: 'default' })
 .realtor-info {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .realtor-avatar-circle {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--color-primary-500);
   color: white;
   display: flex;
   align-items: center;
@@ -254,7 +256,7 @@ definePageMeta({ layout: 'default' })
 
 .realtor-name-text {
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
   font-size: 0.875rem;
 }
 
@@ -262,24 +264,24 @@ definePageMeta({ layout: 'default' })
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   letter-spacing: 0.04em;
 }
 
 .metric-number {
   font-weight: 600;
-  color: var(--gray-600);
+  color: var(--color-surface-200);
   font-size: 0.875rem;
 }
 
 .metric-conversion-val {
   font-size: 0.875rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   font-style: italic;
 }
 
 .text-muted-cell {
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .me-2 { margin-right: 0.5rem; }

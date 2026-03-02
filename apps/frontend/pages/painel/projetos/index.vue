@@ -10,10 +10,12 @@
 
     <div v-if="loading" class="loading-state"><div class="loading-spinner"></div></div>
 
-    <div v-else-if="projects.length === 0" class="empty-state">
-      <div class="empty-state-icon">📂</div>
-      <h3>Nenhum projeto ainda</h3>
-      <p>Crie seu primeiro loteamento</p>
+    <div v-else-if="projects.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+      <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+        <div class="icon-blob mx-auto mb-4">📂</div>
+        <h3 class="fw-bold mb-3">Nenhum projeto ainda</h3>
+        <p class="mb-4 px-4">Crie seu primeiro loteamento para começar a gerenciar unidades e leads.</p>
+      </div>
     </div>
 
     <div v-else class="grid grid-cols-3">
@@ -41,7 +43,7 @@
             <label class="form-label">Slug</label>
             <input v-model="form.slug" class="form-input" :class="{ 'input-error': slugTaken }" placeholder="parque-dos-ipes" required @input="onSlugInput" />
             <small v-if="slugTaken" style="color:var(--error-color); font-size:0.75rem">Este slug já está em uso!</small>
-            <small v-else style="color:var(--gray-500); font-size:0.75rem">URL pública: /{{ form.slug || '...' }}</small>
+            <small v-else style="color:var(--color-surface-400); font-size:0.75rem">URL pública: /{{ form.slug || '...' }}</small>
           </div>
           <div class="form-group">
             <label class="form-label">Descrição</label>

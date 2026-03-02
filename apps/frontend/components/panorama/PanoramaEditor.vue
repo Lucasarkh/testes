@@ -854,10 +854,10 @@ function clientToNormalized(clientX: number, clientY: number) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--gray-50);
+  background: var(--glass-bg-heavy);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--glass-border-subtle);
 }
 
 /* ─── Toolbar ─────────────────────────────────────── */
@@ -867,8 +867,8 @@ function clientToNormalized(clientX: number, clientY: number) {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid var(--gray-200);
+  background: var(--glass-bg);
+  border-bottom: 1px solid var(--glass-border-subtle);
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -883,10 +883,10 @@ function clientToNormalized(clientX: number, clientY: number) {
 
 .pe-select {
   padding: 6px 10px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--glass-border-subtle);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
-  background: #fff;
+  background: var(--glass-bg);
 }
 
 /* ─── Main Layout ─────────────────────────────────── */
@@ -901,13 +901,13 @@ function clientToNormalized(clientX: number, clientY: number) {
 .pe-sidebar {
   width: 280px;
   min-width: 280px;
-  border-right: 1px solid var(--gray-200);
-  background: #fff;
+  border-right: 1px solid var(--glass-border-subtle);
+  background: var(--glass-bg);
   overflow-y: auto;
 }
 
 .pe-section {
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--glass-border-subtle);
   padding: 12px;
 }
 
@@ -921,7 +921,7 @@ function clientToNormalized(clientX: number, clientY: number) {
 .pe-section-header h3 {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--color-surface-200);
 }
 
 .pe-list {
@@ -941,12 +941,12 @@ function clientToNormalized(clientX: number, clientY: number) {
 }
 
 .pe-list-item:hover {
-  background: var(--gray-50);
+  background: var(--glass-bg-heavy);
 }
 
 .pe-list-item--active {
-  background: var(--primary-light);
-  border: 1px solid var(--primary);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--color-primary-500);
 }
 
 .pe-thumb {
@@ -972,7 +972,7 @@ function clientToNormalized(clientX: number, clientY: number) {
 
 .pe-list-item-meta {
   font-size: 0.72rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .pe-list-item-del {
@@ -993,7 +993,7 @@ function clientToNormalized(clientX: number, clientY: number) {
 
 .pe-empty {
   font-size: 0.82rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   padding: 8px 0;
 }
 
@@ -1018,7 +1018,7 @@ function clientToNormalized(clientX: number, clientY: number) {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   font-size: 0.9rem;
 }
 
@@ -1093,13 +1093,13 @@ function clientToNormalized(clientX: number, clientY: number) {
 }
 
 .modal-content {
-  background: #fff;
+  background: var(--glass-bg);
   border-radius: var(--radius-lg);
   padding: 24px;
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.5);
 }
 
 .modal-content h2 {
@@ -1123,14 +1123,14 @@ function clientToNormalized(clientX: number, clientY: number) {
   display: block;
   font-size: 0.82rem;
   font-weight: 500;
-  color: var(--gray-600);
+  color: var(--color-surface-200);
   margin-bottom: 4px;
 }
 
 .form-input {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--glass-border-subtle);
   border-radius: var(--radius-sm);
   font-size: 0.85rem;
 }
@@ -1148,9 +1148,9 @@ function clientToNormalized(clientX: number, clientY: number) {
 
 .pe-style-btn {
   padding: 6px 14px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--glass-border-subtle);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--glass-bg);
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.15s;
@@ -1160,7 +1160,7 @@ function clientToNormalized(clientX: number, clientY: number) {
 
 .pe-style-btn--active {
   border-color: var(--btn-color);
-  background: color-mix(in srgb, var(--btn-color) 10%, #fff);
+  background: color-mix(in srgb, var(--btn-color) 10%, var(--glass-bg));
 }
 
 .pe-checkbox-label {
@@ -1172,13 +1172,13 @@ function clientToNormalized(clientX: number, clientY: number) {
 
 .pe-upload-progress {
   font-size: 0.82rem;
-  color: var(--primary);
+  color: var(--color-primary-500);
   margin-top: 4px;
 }
 
 .pe-current-file {
   font-size: 0.78rem;
-  color: var(--success);
+  color: var(--color-success);
   margin-top: 4px;
 }
 </style>

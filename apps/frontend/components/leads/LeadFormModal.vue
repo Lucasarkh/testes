@@ -13,7 +13,7 @@
               <input v-model="form.name" type="text" class="form-control" required placeholder="Ex: João da Silva">
             </div>
             <div class="col-md-4 form-group mb-3 text-dark position-relative">
-              <label class="form-label" style="color: #1a1a1a !important;">Projeto</label>
+              <label class="form-label" style="color: var(--color-surface-50) !important;">Projeto</label>
               
               <!-- Custom Select for absolute color control -->
               <div class="custom-select-wrapper" v-click-outside="() => showDropdown = false">
@@ -274,9 +274,9 @@ const save = async () => {
 }
 
 .modal {
-  background: white;
+  background: var(--glass-bg);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 25px 50px rgba(0,0,0,0.6);
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -287,15 +287,15 @@ const save = async () => {
 .modal-lg { width: 100%; max-width: 800px; }
 
 .modal-header {
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--gray-100);
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--glass-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .modal-body {
-  padding: var(--space-6);
+  padding: 24px;
   overflow-y: auto;
 }
 
@@ -303,24 +303,24 @@ const save = async () => {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   cursor: pointer;
   padding: 4px;
   line-height: 1;
 }
 
-.modal-close:hover { color: var(--danger); }
+.modal-close:hover { color: var(--color-danger); }
 
 /* Force select options visibility */
 .form-select, .form-control {
-  background-color: #ffffff !important;
-  color: #1a1a1a !important;
-  border: 1px solid var(--gray-300);
+  background: var(--glass-bg-heavy) !important;
+  color: var(--color-surface-50) !important;
+  border: 1px solid var(--glass-border);
 }
 
 select.form-select option {
-  color: #1a1a1a !important;
-  background-color: #ffffff !important;
+  color: var(--color-surface-50) !important;
+  background: var(--glass-bg) !important;
   appearance: none;
   -webkit-appearance: none;
 }
@@ -328,13 +328,13 @@ select.form-select option {
 /* Specific hack for dark mode browser overrides */
 @media (prefers-color-scheme: dark) {
   select.form-select {
-    background-color: #ffffff !important;
-    color: #1a1a1a !important;
+    background: var(--glass-bg-heavy) !important;
+    color: var(--color-surface-50) !important;
   }
 }
 
 .text-dark {
-  color: #1a1a1a !important;
+  color: var(--color-surface-50) !important;
 }
 
 /* Custom Select Dropdown Styles */
@@ -345,9 +345,9 @@ select.form-select option {
 }
 
 .custom-select-trigger {
-  background: #ffffff !important;
-  border: 1px solid var(--gray-300);
-  padding: var(--space-3) var(--space-4);
+  background: var(--glass-bg-heavy) !important;
+  border: 1px solid var(--glass-border);
+  padding: 12px 16px;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 500;
@@ -356,18 +356,18 @@ select.form-select option {
   align-items: center;
   cursor: pointer;
   height: 44px;
-  color: #1a1a1a !important;
+  color: var(--color-surface-50) !important;
 }
 
 .custom-select-trigger.disabled {
-  background-color: var(--gray-100) !important;
+  background: var(--glass-bg) !important;
   cursor: not-allowed;
   opacity: 0.7;
 }
 
 .custom-select-trigger .arrow {
   font-size: 0.6rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
 }
 
 .custom-options-container {
@@ -375,22 +375,22 @@ select.form-select option {
   top: 105%;
   left: 0;
   right: 0;
-  background: #ffffff !important;
-  border: 1px solid var(--gray-300);
+  background: var(--glass-bg) !important;
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.5);
   z-index: 1050;
   max-height: 250px;
   overflow-y: auto;
 }
 
 .custom-option {
-  padding: var(--space-3) var(--space-4);
+  padding: 12px 16px;
   cursor: pointer;
   font-size: 0.875rem;
-  color: #111111 !important;
-  background-color: #ffffff !important;
-  border-bottom: 1px solid var(--gray-100);
+  color: var(--color-surface-50) !important;
+  background: var(--glass-bg) !important;
+  border-bottom: 1px solid var(--glass-border-subtle);
   transition: background 0.2s;
 }
 
@@ -399,7 +399,7 @@ select.form-select option {
 }
 
 .custom-option:hover {
-  background-color: var(--primary-50) !important;
-  color: var(--primary) !important;
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: var(--color-primary-500) !important;
 }
 </style>

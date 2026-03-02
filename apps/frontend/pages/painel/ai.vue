@@ -167,11 +167,13 @@ onMounted(() => {
       <div class="loading-spinner"></div>
     </div>
 
-    <div v-else-if="configs.length === 0" class="empty-state card">
-      <div class="empty-state-icon">🤖</div>
-      <h3>Nenhuma configuração de IA</h3>
-      <p>Crie sua primeira configuração para habilitar o assistente nos seus projetos.</p>
-      <button class="btn btn-primary" @click="openCreate">Começar agora</button>
+    <div v-else-if="configs.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+      <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+        <div class="icon-blob mx-auto mb-4">🤖</div>
+        <h3 class="fw-bold mb-3">Nenhuma configuração de IA</h3>
+        <p class="mb-4 px-4">Crie sua primeira configuração para habilitar o assistente nos seus projetos.</p>
+        <button class="btn btn-primary btn-lg rounded-pill px-5" @click="openCreate">Começar agora</button>
+      </div>
     </div>
 
     <div v-else class="ai-config-grid">
@@ -283,30 +285,30 @@ onMounted(() => {
 
 <style scoped>
 .page-container {
-  padding: var(--space-6);
+  padding: 24px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--space-8);
+  margin-bottom: 32px;
 }
 
 .page-title {
   font-size: 1.875rem;
   font-weight: 700;
-  margin-bottom: var(--space-1);
+  margin-bottom: 4px;
 }
 
 .page-subtitle {
-  color: var(--gray-500);
+  color: var(--color-surface-400);
 }
 
 .ai-config-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 400px));
-  gap: var(--space-6);
+  gap: 24px;
 }
 
 .ai-config-card {
@@ -314,35 +316,35 @@ onMounted(() => {
   flex-direction: column;
   transition: all 0.2s ease;
   min-height: 220px;
-  background: white;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
-  padding: var(--space-6);
+  background: var(--glass-bg);
+  border-radius: 12px;
+  border: 1px solid var(--glass-border-subtle);
+  padding: 24px;
 }
 
 .ai-config-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-light);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.5);
+  border-color: rgba(16, 185, 129, 0.1);
 }
 
 .ai-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--space-6);
+  margin-bottom: 24px;
 }
 
 .ai-card-info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 4px;
 }
 
 .config-name {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
   margin: 0;
 }
 
@@ -353,38 +355,38 @@ onMounted(() => {
   font-size: 0.6rem;
   font-weight: 800;
   letter-spacing: 0.1em;
-  background: var(--gray-100);
+  background: var(--glass-bg);
   min-width: 70px;
   height: 28px;
-  border-radius: var(--radius-sm);
-  color: var(--gray-500);
-  border: 1px solid var(--gray-200);
-  padding: 0 var(--space-2);
+  border-radius: 6px;
+  color: var(--color-surface-400);
+  border: 1px solid var(--glass-border-subtle);
+  padding: 0 8px;
   text-transform: uppercase;
 }
 
 .ai-config-card:hover .provider-badge {
-  background: white;
-  border-color: var(--primary-light);
-  color: var(--primary);
+  background: var(--glass-bg);
+  border-color: rgba(16, 185, 129, 0.1);
+  color: var(--color-primary-500);
 }
 
 .ai-config-details {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 .detail-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-1) 0;
+  padding: 4px 0;
 }
 
 .detail-label {
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -394,7 +396,7 @@ onMounted(() => {
 .detail-value {
   font-weight: 600;
   font-size: 0.875rem;
-  color: var(--gray-700);
+  color: var(--color-surface-200);
 }
 
 .font-mono {
@@ -404,21 +406,21 @@ onMounted(() => {
 .ai-card-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .text-danger {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .empty-state {
   text-align: center;
-  padding: var(--space-12);
+  padding: 48px;
 }
 
 .empty-state-icon {
   font-size: 3rem;
-  margin-bottom: var(--space-4);
+  margin-bottom: 16px;
 }
 
 .modal-overlay {
@@ -432,36 +434,36 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: var(--space-4);
+  padding: 16px;
 }
 
 .modal-card {
-  background: white;
-  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  border-radius: 12px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
 }
 
 .modal-header {
-  padding: var(--space-6);
-  border-bottom: 1px solid var(--gray-100);
+  padding: 24px;
+  border-bottom: 1px solid var(--glass-border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .modal-body {
-  padding: var(--space-6);
+  padding: 24px;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--gray-100);
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--glass-border-subtle);
 }
 
 .model-selection-wrapper {
@@ -470,12 +472,12 @@ onMounted(() => {
 
 .model-hint {
   font-size: 0.7rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
   margin-top: 4px;
 }
 
 .hint-btn {
-  background: var(--gray-100);
+  background: var(--glass-bg);
   border: none;
   border-radius: 4px;
   padding: 1px 6px;
@@ -484,15 +486,15 @@ onMounted(() => {
 }
 
 .hint-btn:hover {
-  background: var(--gray-200);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .input-error {
-  border-color: var(--danger) !important;
+  border-color: var(--color-danger) !important;
 }
 
 .error-msg {
-  color: var(--danger);
+  color: var(--color-danger);
   font-size: 0.75rem;
   display: block;
   margin-top: 4px;
@@ -503,6 +505,6 @@ onMounted(() => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 </style>

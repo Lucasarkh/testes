@@ -7,7 +7,7 @@
       <div class="sidebar-brand">
         <NuxtLink to="/painel" class="sidebar-logo-link">
           <img v-if="sidebarCollapsed" src="/img/logo-icon.svg" alt="Lotio" class="sidebar-logo-icon" />
-          <img v-else src="/img/logo.svg" alt="Lotio" class="sidebar-logo" />
+          <img v-else src="/img/logo-white.svg" alt="Lotio" class="sidebar-logo" />
         </NuxtLink>
       </div>
 
@@ -203,27 +203,30 @@ const handleLogout = async () => {
 </script>
 
 <style scoped>
-.layout { display: flex; min-height: 100vh; }
+.layout { display: flex; min-height: 100vh; background: var(--color-surface-950); }
 
 .sidebar {
   width: 260px;
-  background: white;
-  border-right: 1px solid var(--gray-200);
+  background: rgba(10, 15, 13, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(52, 211, 153, 0.1);
   display: flex;
   flex-direction: column;
-  transition: width 0.2s ease;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: fixed;
   top: 0; left: 0; bottom: 0;
   z-index: 100;
   overflow-y: auto;
+  overflow-x: hidden;
 }
-.sidebar.collapsed { width: 64px; }
+.sidebar.collapsed { width: 68px; }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
-  padding: var(--space-5) var(--space-4);
-  border-bottom: 1px solid var(--gray-100);
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.1);
 }
 .sidebar-logo-link {
   display: flex;
@@ -231,109 +234,127 @@ const handleLogout = async () => {
   text-decoration: none;
   width: 100%;
 }
-.sidebar-logo {
-  height: 32px;
-}
-.sidebar-logo-icon {
-  height: 32px;
-  width: 32px;
-}
-.brand-text { font-weight: 700; font-size: 1.1rem; color: var(--gray-900); }
+.sidebar-logo { height: 30px; }
+.sidebar-logo-icon { height: 30px; width: 30px; }
 
 .user-card {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin: var(--space-3) var(--space-3) 0;
-  background: var(--gray-50);
+  gap: 12px;
+  padding: 14px;
+  margin: 12px 12px 0;
+  background: rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-md);
-  border: 1px solid var(--gray-300);
+  border: 1px solid rgba(52, 211, 153, 0.1);
 }
 .user-avatar {
-  width: 34px; height: 34px;
-  border-radius: var(--radius-full);
-  background: var(--primary-light);
-  color: var(--primary);
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-primary-400);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.75rem; font-weight: 700;
   flex-shrink: 0;
-  border: 1px solid var(--primary);
+  border: 1.5px solid var(--color-primary-600);
 }
 .user-details { overflow: hidden; }
-.user-name { font-size: 0.8125rem; font-weight: 600; color: var(--gray-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.user-role { font-size: 0.75rem; color: var(--gray-500); }
+.user-name { font-size: 0.8125rem; font-weight: 600; color: var(--color-surface-50); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 0.6875rem; color: var(--color-surface-200); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
 
-.sidebar-nav { flex: 1; padding: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
-.nav-group-label { padding: var(--space-3) var(--space-3) var(--space-1); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-400); margin-top: var(--space-3); }
+.sidebar-nav { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.nav-group-label { padding: 12px 12px 4px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-surface-400); margin-top: 12px; }
 
 .nav-item {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-3);
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
   border-radius: var(--radius-md);
-  color: var(--gray-600);
+  color: var(--color-surface-200);
   font-size: 0.875rem; font-weight: 500;
   text-decoration: none;
-  transition: all var(--transition);
+  transition: all 150ms ease;
   cursor: pointer; border: none; background: none; width: 100%; text-align: left;
-  font-family: var(--font-sans);
+  font-family: inherit;
 }
-.nav-item:hover { background: var(--gray-100); color: var(--gray-900); }
-.nav-item.router-link-active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--color-surface-50); }
+.nav-item.router-link-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--color-primary-400);
+  font-weight: 600;
+  border-left: 3px solid var(--color-primary-500);
+  margin-left: -3px;
+}
 .nav-icon { width: 20px; height: 20px; flex-shrink: 0; }
 
 .sidebar-footer {
-  padding: var(--space-3);
-  border-top: 1px solid var(--gray-100);
+  padding: 12px;
+  border-top: 1px solid rgba(52, 211, 153, 0.1);
   display: flex; flex-direction: column; gap: 2px;
 }
-.logout-btn:hover { color: var(--danger); }
+.logout-btn:hover { color: #f87171; background: rgba(239, 68, 68, 0.1); }
 .collapse-btn {
   display: flex; align-items: center; justify-content: center;
-  padding: var(--space-2);
+  padding: 8px;
   border: none; background: none; cursor: pointer;
-  color: var(--gray-400); border-radius: var(--radius-md);
+  color: var(--color-surface-400); border-radius: var(--radius-md);
+  transition: all 150ms ease;
 }
-.collapse-btn:hover { background: var(--gray-100); color: var(--gray-600); }
+.collapse-btn:hover { background: rgba(255, 255, 255, 0.06); color: var(--color-surface-200); }
 
 .main-content {
   flex: 1; margin-left: 260px;
-  padding: var(--space-8);
-  transition: margin-left 0.2s ease;
+  padding: 32px;
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 100vh;
   max-width: 100%;
   overflow-x: hidden;
+  background:
+    linear-gradient(rgba(10, 15, 13, 0.62), rgba(10, 15, 13, 0.62)),
+    url('/img/banner-hero.jpg') center / cover fixed;
+  background-attachment: fixed;
+  position: relative;
 }
-.main-content.sidebar-collapsed { margin-left: 64px; }
+.main-content > :deep(*) {
+  position: relative;
+}
+.main-content.sidebar-collapsed { margin-left: 68px; }
 .main-content.no-sidebar { margin-left: 0; }
 
 @media (max-width: 768px) {
-  .sidebar { width: 260px; left: -260px; transition: left 0.25s ease; }
+  .sidebar { width: 260px; left: -260px; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
   .sidebar.mobile-open { left: 0; }
   .sidebar .brand-text,
   .sidebar .user-card,
   .sidebar .nav-group-label,
   .sidebar .nav-item span,
   .sidebar .logout-btn span { display: revert; }
-  .main-content { margin-left: 0 !important; padding-top: 56px; }
+  .main-content { margin-left: 0 !important; padding: 20px; padding-top: 60px; }
   .mobile-hamburger { display: flex; }
 }
 
-.mobile-overlay {
-  display: none;
+@media (max-width: 480px) {
+  .main-content { padding: 16px; padding-top: 56px; }
 }
+
+.mobile-overlay { display: none; }
 
 .mobile-hamburger {
   display: none;
-  position: fixed; top: var(--space-3); left: var(--space-3); z-index: 99;
-  background: white; border: 1px solid var(--gray-200); border-radius: var(--radius-md);
-  padding: var(--space-2); cursor: pointer; color: var(--gray-700);
-  box-shadow: var(--shadow-sm); align-items: center; justify-content: center;
+  position: fixed; top: 12px; left: 12px; z-index: 99;
+  background: rgba(10, 15, 13, 0.85); border: 1px solid rgba(52, 211, 153, 0.12);
+  border-radius: var(--radius-md);
+  padding: 8px; cursor: pointer; color: var(--color-surface-200);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  align-items: center; justify-content: center;
+  transition: all 150ms ease;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
+.mobile-hamburger:hover { background: rgba(10, 15, 13, 0.95); color: var(--color-surface-50); }
 
 @media (max-width: 768px) {
   .mobile-overlay {
-    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 99;
+    display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99;
+    backdrop-filter: blur(4px);
   }
   .sidebar.mobile-open { z-index: 200; }
   .mobile-hamburger { display: flex; }

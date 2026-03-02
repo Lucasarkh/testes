@@ -1,15 +1,15 @@
 <template>
   <div>
     <!-- Header -->
-    <div class="page-header" style="border-bottom: 1px solid var(--gray-100); padding-bottom: var(--space-6); margin-bottom: var(--space-6);">
+    <div class="page-header" style="border-bottom: 1px solid var(--glass-border-subtle); padding-bottom: 24px; margin-bottom: 24px;">
       <div style="flex: 1;">
-        <div class="flex items-center gap-2" style="margin-bottom: var(--space-1);">
-          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--gray-500);">
+        <div class="flex items-center gap-2" style="margin-bottom: 4px;">
+          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--color-surface-400);">
             ← {{ projectName || 'Projeto' }}
           </NuxtLink>
         </div>
         <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">🗺️ Planta Interativa</h1>
-        <p style="margin: 0; color: var(--gray-500); font-weight: 500;">Gerencie a planta do loteamento com hotspots interativos.</p>
+        <p style="margin: 0; color: var(--color-surface-400); font-weight: 500;">Gerencie a planta do loteamento com hotspots interativos.</p>
       </div>
 
       <div class="flex items-center gap-2">
@@ -18,7 +18,7 @@
           :href="`/${projectSlug}#planta`"
           target="_blank"
           class="btn btn-sm btn-primary"
-          style="border-radius: var(--radius-full); padding-left: var(--space-5); padding-right: var(--space-5); height: 38px;"
+          style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
         >
           <span style="font-size: 1rem;">🌐</span>
           <span>Ver página pública</span>
@@ -32,7 +32,7 @@
     </div>
 
     <!-- Error -->
-    <div v-else-if="loadError" class="card" style="max-width: 500px; color: var(--danger);">
+    <div v-else-if="loadError" class="card" style="max-width: 500px; color: var(--color-danger);">
       {{ loadError }}
     </div>
 

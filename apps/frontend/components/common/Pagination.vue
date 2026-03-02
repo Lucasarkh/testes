@@ -98,33 +98,33 @@ const displayedPages = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-4) 0;
-  margin-top: var(--space-4);
-  border-top: 1px solid var(--gray-200);
+  padding: 16px 0;
+  margin-top: 16px;
+  border-top: 1px solid var(--glass-border-subtle);
 }
 
 .pagination-info {
   font-size: 0.875rem;
-  color: var(--gray-600);
+  color: var(--color-surface-200);
 }
 
 .pagination-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: 8px;
   align-items: center;
 }
 
 .pagination-pages {
   display: flex;
-  gap: var(--space-1);
+  gap: 4px;
 }
 
 .pagination-btn {
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--gray-300);
-  background: white;
-  color: var(--gray-700);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--color-surface-200);
+  border-radius: 8px;
   font-size: 0.875rem;
   cursor: pointer;
   min-width: 2.5rem;
@@ -132,9 +132,9 @@ const displayedPages = computed(() => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: var(--primary, #2563eb);
-  color: var(--primary, #2563eb);
-  background: var(--primary-light, #eff6ff);
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-500);
+  background: rgba(16, 185, 129, 0.1);
 }
 
 .pagination-btn:disabled {
@@ -143,9 +143,9 @@ const displayedPages = computed(() => {
 }
 
 .pagination-btn.active {
-  background: var(--primary, #2563eb);
+  background: var(--color-primary-500);
   color: white;
-  border-color: var(--primary, #2563eb);
+  border-color: var(--color-primary-500);
 }
 
 .pagination-pages button[disabled] {

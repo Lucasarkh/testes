@@ -12,11 +12,15 @@
 
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="btn btn-primary" style="margin-top: var(--space-4);" @click="loadUsers">Tentar novamente</button>
+      <button class="btn btn-primary" style="margin-top: 16px;" @click="loadUsers">Tentar novamente</button>
     </div>
 
-    <div v-else-if="users.length === 0" class="empty-state">
-      <h3>Nenhum usuário</h3>
+    <div v-else-if="users.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+      <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+        <div class="icon-blob mx-auto mb-4">👤</div>
+        <h3 class="fw-bold mb-3">Nenhum usuário</h3>
+        <p class="mb-4 px-4">Os usuários do sistema aparecerão aqui.</p>
+      </div>
     </div>
 
     <div v-else class="table-wrapper">
@@ -42,7 +46,7 @@
         </tbody>
       </table>
       
-      <div v-if="meta.totalPages > 1" style="margin-top: var(--space-4); padding: 0 var(--space-4) var(--space-4);">
+      <div v-if="meta.totalPages > 1" style="margin-top: 16px; padding: 0 16px 16px;">
         <CommonPagination 
           :current-page="meta.currentPage" 
           :total-pages="meta.totalPages" 

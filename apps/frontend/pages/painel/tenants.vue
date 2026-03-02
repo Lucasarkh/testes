@@ -32,8 +32,8 @@
           <tr v-for="t in tenants" :key="t.id">
             <td>
               <div style="font-weight: 600;">{{ t.name }}</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">{{ t.slug }}</div>
-              <div v-if="t.customDomain" style="font-size: 0.75rem; color: var(--primary);">🌐 {{ t.customDomain }}</div>
+              <div style="font-size: 0.8rem; color: var(--color-surface-400);">{{ t.slug }}</div>
+              <div v-if="t.customDomain" style="font-size: 0.75rem; color: var(--color-primary-500);">🌐 {{ t.customDomain }}</div>
             </td>
             <td>{{ t.metrics.projects }}</td>
             <td>{{ t.metrics.brokers }}</td>
@@ -82,9 +82,9 @@
             <label class="form-label">Domínio Customizado (Ex: vendas.loteadora.com)</label>
             <input v-model="form.customDomain" class="form-input" placeholder="vendas.meu-site.com.br" />
           </div>
-          <hr v-if="!editingId" style="margin: var(--space-6) 0; border: 0; border-top: 1px solid var(--border-color);" />
+          <hr v-if="!editingId" style="margin: 24px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
           <div v-if="!editingId">
-            <h3 style="margin-bottom: var(--space-4);">Usuário Administrador</h3>
+            <h3 style="margin-bottom: 16px;">Usuário Administrador</h3>
             <div class="form-group">
               <label class="form-label">Nome do Responsável</label>
               <input v-model="form.name" class="form-input" placeholder="João Silva" required />
@@ -96,7 +96,7 @@
             <div class="form-group">
               <label class="form-label">Senha Inicial</label>
               <input v-model="form.password" type="password" class="form-input" placeholder="Min. 6 caracteres" required minlength="6" autocomplete="new-password" />
-              <small style="color: var(--text-muted)">O cliente poderá alterar esta senha depois.</small>
+              <small style="color: var(--color-surface-400)">O cliente poderá alterar esta senha depois.</small>
             </div>
           </div>
           
@@ -118,7 +118,7 @@
         <div class="modal-header">
           <div>
             <h2>Empreendimentos - {{ selectedTenant?.name }}</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Configure domínios customizados para projetos desta loteadora.</p>
+            <p style="font-size: 0.85rem; color: var(--color-surface-400); margin: 0;">Configure domínios customizados para projetos desta loteadora.</p>
           </div>
           <button class="close-btn" @click="showProjectsModal = false">&times;</button>
         </div>

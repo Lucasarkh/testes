@@ -10,7 +10,7 @@
       <div class="pub-error-card card">
         <h2>Lote não encontrado</h2>
         <p>{{ error }}</p>
-        <NuxtLink :to="projectUrl" class="btn btn-primary" style="margin-top: var(--space-4);">
+        <NuxtLink :to="projectUrl" class="btn btn-primary" style="margin-top: 16px;">
           ← Ver Loteamento
         </NuxtLink>
       </div>
@@ -237,7 +237,7 @@
                 <div class="sim-header">
                   <div class="h-item">
                     <span class="l">Valor do Lote</span>
-                    <span class="v" style="font-size: 1.5rem; color: var(--primary);">{{ formatCurrencyToBrasilia(details?.price || 0) }}</span>
+                    <span class="v" style="font-size: 1.5rem; color: var(--color-primary-500);">{{ formatCurrencyToBrasilia(details?.price || 0) }}</span>
                   </div>
                 </div>
 

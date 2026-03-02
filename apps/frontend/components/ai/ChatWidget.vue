@@ -264,8 +264,8 @@ onMounted(() => {
 <style scoped>
 .ai-widget {
   position: fixed;
-  bottom: var(--space-6);
-  left: var(--space-6);
+  bottom: 24px;
+  left: 24px;
   z-index: 2147483647;
   font-family: var(--font-sans, sans-serif);
 }
@@ -313,7 +313,7 @@ onMounted(() => {
 }
 
 .ai-bubble.is-open {
-  background: var(--gray-800, #1f2937);
+  background: var(--color-surface-100);
 }
 
 .ai-tooltip {
@@ -321,8 +321,8 @@ onMounted(() => {
   left: 70px;
   top: 50%;
   transform: translateY(-50%);
-  background: white;
-  color: var(--gray-800);
+  background: var(--glass-bg);
+  color: var(--color-surface-100);
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 0.825rem;
@@ -347,7 +347,7 @@ onMounted(() => {
   max-width: calc(100vw - 40px);
   height: 500px;
   max-height: calc(100vh - 120px);
-  background: white;
+  background: var(--glass-bg);
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.15);
   display: flex;
@@ -423,7 +423,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
 }
 
 .ai-msg {
@@ -444,7 +444,7 @@ onMounted(() => {
   display: flex !important;
   align-items: center;
   gap: 10px;
-  background: #f1f5f9 !important;
+  background: var(--glass-bg-heavy) !important;
   color: #64748b !important;
   font-style: italic;
   font-size: 0.85rem;
@@ -483,14 +483,14 @@ onMounted(() => {
 }
 
 .ai-msg-user .ai-msg-bubble {
-  background: var(--primary, #0071e3);
+  background: var(--color-primary-500);
   color: white;
   border-bottom-right-radius: 2px;
 }
 
 .ai-msg-ai .ai-msg-bubble {
-  background: white;
-  color: var(--gray-800);
+  background: var(--glass-bg);
+  color: var(--color-surface-100);
   border-bottom-left-radius: 2px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
@@ -501,7 +501,7 @@ onMounted(() => {
 
 /* Lot Mini Card */
 .lot-mini-card {
-  background: white;
+  background: var(--glass-bg);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
@@ -520,7 +520,7 @@ onMounted(() => {
 
 .lot-mini-footer {
   padding: 8px 12px;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
   border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
@@ -558,7 +558,7 @@ onMounted(() => {
 
 .lot-mini-header {
   padding: 10px 12px;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
@@ -567,7 +567,7 @@ onMounted(() => {
 
 .lot-mini-code {
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
 }
 
 .lot-mini-status {
@@ -579,12 +579,12 @@ onMounted(() => {
 }
 
 .lot-mini-status.disponível {
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
 }
 
 .lot-mini-status.vendido {
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.12);
   color: #991b1b;
 }
 
@@ -620,7 +620,7 @@ onMounted(() => {
 
 .lot-mini-tags .tag {
   font-size: 0.7rem;
-  background: #f1f5f9;
+  background: var(--glass-bg-heavy);
   color: #475569;
   padding: 2px 6px;
   border-radius: 4px;
@@ -628,7 +628,7 @@ onMounted(() => {
 
 .ai-input-area {
   padding: 12px 15px;
-  background: white;
+  background: var(--glass-bg);
   border-top: 1px solid #e2e8f0;
   display: flex;
   gap: 10px;
@@ -650,12 +650,12 @@ onMounted(() => {
   font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
 }
 
 .ai-input-area input:focus {
-  border-color: var(--primary, #0071e3);
-  background: white;
+  border-color: var(--color-primary-500);
+  background: var(--glass-bg);
   box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.05);
 }
 
@@ -673,7 +673,7 @@ onMounted(() => {
 }
 
 .ai-input-area button {
-  background: var(--primary, #0071e3);
+  background: var(--color-primary-500);
   color: white;
   border: none;
   width: 40px;

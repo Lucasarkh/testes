@@ -100,7 +100,7 @@
             <!-- Custom Breaks -->
             <div class="custom-breaks-list" style="margin-top: 16px;">
               <header class="flex justify-between items-center mb-3">
-                <span style="font-size: 0.8rem; font-weight: 600; color: #666;">☕ Outras Pausas</span>
+                <span style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.55);">☕ Outras Pausas</span>
                 <button class="btn-text-sm" @click="addBreak">+ Adicionar</button>
               </header>
 
@@ -108,7 +108,7 @@
                    class="break-item-row">
                 <input v-model="b.name" placeholder="Motivo" class="base-input sm-input" style="flex: 2">
                 <input v-model="b.start" type="time" class="base-input sm-input" style="flex: 1">
-                <span style="font-size: 10px; color: #999;">até</span>
+                <span style="font-size: 10px; color: rgba(255,255,255,0.5);">até</span>
                 <input v-model="b.end" type="time" class="base-input sm-input" style="flex: 1">
                 <button class="btn-delete-sm" @click="removeBreak(idx)">&times;</button>
               </div>
@@ -223,7 +223,7 @@ const save = async () => {
 <style scoped>
 /* RESET & FOUNDATION */
 .modal-content {
-  background: #ffffff;
+  background: var(--glass-bg);
   border-radius: 12px; /* Smooth but professional */
   width: 100%;
   max-width: 520px;
@@ -234,7 +234,7 @@ const save = async () => {
 
 .modal-header {
   padding: 24px 32px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -243,7 +243,7 @@ const save = async () => {
 .modal-header h2 {
   font-size: 1.15rem;
   font-weight: 600; /* Regular semi-bold for senior UI */
-  color: #1a1a1a;
+  color: var(--color-surface-50);
   margin: 0;
 }
 
@@ -251,14 +251,14 @@ const save = async () => {
   background: transparent;
   border: none;
   font-size: 1.5rem;
-  color: #999;
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   padding: 4px;
   line-height: 1;
   transition: color 0.2s;
 }
 
-.close-btn:hover { color: #333; }
+.close-btn:hover { color: var(--color-surface-100); }
 
 .modal-body {
   display: flex;
@@ -282,7 +282,7 @@ const save = async () => {
 .section-title {
   font-size: 0.825rem;
   font-weight: 600;
-  color: #666;
+  color: rgba(255, 255, 255, 0.55);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0;
@@ -290,8 +290,8 @@ const save = async () => {
 
 /* CARDS */
 .toggle-card {
-  background: #f8fafc;
-  border: 1px solid #eef2f6;
+  background: var(--glass-bg-heavy);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 24px;
   border-radius: 10px;
   display: flex;
@@ -303,13 +303,13 @@ const save = async () => {
 .card-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-surface-50);
   margin: 0 0 4px 0;
 }
 
 .card-description {
   font-size: 0.85rem;
-  color: #71717a;
+  color: rgba(255, 255, 255, 0.55);
   margin: 0;
   line-height: 1.5;
 }
@@ -331,7 +331,7 @@ const save = async () => {
 .field-label {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #444;
+  color: var(--color-surface-100);
 }
 
 /* INPUTS & SELECTS */
@@ -339,18 +339,18 @@ const save = async () => {
   width: 100%;
   height: 44px;
   padding: 0 16px;
-  background: #ffffff;
-  border: 1px solid #dcdcdc;
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   font-size: 0.95rem;
-  color: #333;
+  color: var(--color-surface-100);
   transition: all 0.2s ease;
   outline: none;
 }
 
 .base-input:focus, .base-select:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
 /* TOGGLE TRACK */
@@ -368,7 +368,7 @@ const save = async () => {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #e4e4e7;
+  background-color: rgba(255, 255, 255, 0.15);
   transition: .3s;
   border-radius: 30px;
 }
@@ -381,7 +381,7 @@ const save = async () => {
   background-color: white;
   transition: .3s;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
 }
 
 input:checked + .toggle-track { background-color: #2563eb; }
@@ -405,16 +405,16 @@ input:checked + .toggle-track:before { transform: translateX(22px); }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border: 1px solid #dcdcdc;
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #666;
+  color: rgba(255, 255, 255, 0.55);
   transition: all 0.2s;
 }
 
-.day-input:hover .day-box { border-color: #999; }
+.day-input:hover .day-box { border-color: rgba(255, 255, 255, 0.5); }
 
 .hidden-check:checked + .day-box {
   background: #2563eb;
@@ -425,7 +425,7 @@ input:checked + .toggle-track:before { transform: translateX(22px); }
 
 .section-hint {
   font-size: 0.75rem;
-  color: #a1a1aa;
+  color: rgba(255, 255, 255, 0.4);
   margin-top: 4px;
 }
 
@@ -433,11 +433,11 @@ input:checked + .toggle-track:before { transform: translateX(22px); }
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-  background: #f8fafc !important;
+  background: var(--glass-bg-heavy) !important;
   padding: 8px !important;
   border-radius: 8px !important;
   margin-bottom: 8px !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .sm-input {
@@ -469,8 +469,8 @@ input:checked + .toggle-track:before { transform: translateX(22px); }
 /* FOOTER */
 .modal-footer {
   padding: 20px 32px;
-  background: #fcfcfc;
-  border-top: 1px solid #f0f0f0;
+  background: var(--glass-bg);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   gap: 12px;
   justify-content: flex-end;
@@ -488,12 +488,12 @@ input:checked + .toggle-track:before { transform: translateX(22px); }
 }
 
 .btn-secondary {
-  background: #fff;
-  border: 1px solid #dcdcdc;
-  color: #444;
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--color-surface-100);
 }
 
-.btn-secondary:hover { background: #f5f5f5; }
+.btn-secondary:hover { background: var(--glass-bg-heavy); }
 
 .btn-primary {
   background: #1a1a1a; /* Professional dark primary */
@@ -507,13 +507,13 @@ input:checked + .toggle-track:before { transform: translateX(22px); }
 .loading-state {
   padding: 40px;
   text-align: center;
-  color: #666;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .spinner {
   width: 24px;
   height: 24px;
-  border: 3px solid #f3f3f3;
+  border: 3px solid var(--glass-border-subtle);
   border-top: 3px solid #2563eb;
   border-radius: 50%;
   animation: spin 1s linear infinite;

@@ -14,7 +14,7 @@
 
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="btn btn-primary" style="margin-top: var(--space-4);" @click="loadDashboard">Tentar novamente</button>
+      <button class="btn btn-primary" style="margin-top: 16px;" @click="loadDashboard">Tentar novamente</button>
     </div>
 
     <template v-else>
@@ -37,13 +37,13 @@
         </div>
       </div>
 
-      <div style="margin-top: var(--space-8);">
-        <h2 style="margin-bottom: var(--space-5);">Projetos Recentes</h2>
+      <div style="margin-top: 32px;">
+        <h2 style="margin-bottom: 20px;">Projetos Recentes</h2>
         <div v-if="projects.length === 0" class="empty-state">
           <div class="empty-state-icon">📂</div>
           <h3>Nenhum projeto ainda</h3>
           <p>Crie seu primeiro projeto para começar</p>
-          <NuxtLink to="/painel/projetos" class="btn btn-primary" style="margin-top: var(--space-4);">
+          <NuxtLink to="/painel/projetos" class="btn btn-primary" style="margin-top: 16px;">
             Criar Projeto
           </NuxtLink>
         </div>
@@ -57,8 +57,8 @@
         </div>
       </div>
 
-      <div v-if="recentLeads.length" style="margin-top: var(--space-8);">
-        <h2 style="margin-bottom: var(--space-5);">Leads Recentes</h2>
+      <div v-if="recentLeads.length" style="margin-top: 32px;">
+        <h2 style="margin-bottom: 20px;">Leads Recentes</h2>
         <div class="table-wrapper">
           <table>
             <thead>

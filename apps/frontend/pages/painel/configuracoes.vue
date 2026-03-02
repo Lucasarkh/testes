@@ -10,7 +10,7 @@
     <div class="grid grid-cols-3">
       <!-- Settings Card -->
       <div class="card col-span-1">
-        <h2 class="card-title" style="margin-bottom: var(--space-5);">
+        <h2 class="card-title" style="margin-bottom: 20px;">
           <i class="pi pi-cog mr-2 text-primary"></i>
           Landing Page
         </h2>
@@ -28,7 +28,7 @@
               placeholder="(00) 00000-0000"
               v-maska="'(##) #####-####'"
             >
-            <p class="text-xs text-gray-400 mt-1" style="color: var(--gray-500); font-size: 0.75rem; margin-top: 4px;">Se preenchido, o site mostrará o botão de WhatsApp.</p>
+            <p class="text-xs text-gray-400 mt-1" style="color: var(--color-surface-400); font-size: 0.75rem; margin-top: 4px;">Se preenchido, o site mostrará o botão de WhatsApp.</p>
           </div>
 
           <div class="form-group">

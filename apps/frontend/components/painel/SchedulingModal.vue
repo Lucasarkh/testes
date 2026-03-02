@@ -150,7 +150,7 @@
 }
 
 .modal-container {
-  background: white;
+  background: var(--glass-bg);
   width: 100%;
   max-width: 580px;
   border-radius: 20px;
@@ -164,7 +164,7 @@
 /* Header */
 .modal-header {
   padding: 24px 32px;
-  border-bottom: 1px solid #F1F5F9;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -173,13 +173,13 @@
 .modal-title {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #0F172A;
+  color: var(--color-surface-50);
   margin: 0;
 }
 
 .modal-subtitle {
   font-size: 0.875rem;
-  color: #64748B;
+  color: rgba(255, 255, 255, 0.55);
   margin: 4px 0 0 0;
 }
 
@@ -188,8 +188,8 @@
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: #F8FAFC;
-  color: #64748B;
+  background: var(--glass-bg-heavy);
+  color: rgba(255, 255, 255, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,7 +220,7 @@
   flex-direction: column;
   gap: 16px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #F1F5F9;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .form-section.no-border {
@@ -232,7 +232,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #94A3B8;
+  color: rgba(255, 255, 255, 0.45);
   margin-bottom: 4px;
 }
 
@@ -247,7 +247,7 @@
   display: block;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--color-surface-100);
   margin-bottom: 6px;
 }
 
@@ -260,12 +260,12 @@
 .form-control {
   width: 100%;
   height: 46px;
-  background: white;
-  border: 1px solid #CBD5E1;
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
   padding: 0 16px 0 42px;
   font-size: 0.9375rem;
-  color: #1E293B;
+  color: var(--color-surface-50);
   transition: all 0.2s;
   appearance: none;
 }
@@ -279,8 +279,8 @@
 .form-control-alt {
   width: 100%;
   height: 42px;
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
+  background: var(--glass-bg-heavy);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 0 12px;
   font-size: 0.875rem;
@@ -292,21 +292,21 @@
 .icon-left {
   position: absolute;
   left: 14px;
-  color: #94A3B8;
+  color: rgba(255, 255, 255, 0.45);
   font-size: 1.1rem;
 }
 
 .icon-right {
   position: absolute;
   right: 14px;
-  color: #94A3B8;
+  color: rgba(255, 255, 255, 0.45);
   pointer-events: none;
 }
 
 /* Select Option Styling Fix */
 .opt-fix {
-  color: #1E293B !important;
-  background-color: white !important;
+  color: var(--color-surface-50) !important;
+  background: var(--glass-bg) !important;
   padding: 12px;
 }
 
@@ -320,15 +320,15 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--glass-bg);
   border-radius: 12px;
-  border: 1px solid #E2E8F0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   max-height: 240px;
   overflow-y: auto;
   z-index: 100;
   margin-top: 8px;
   padding: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4);
 }
 
 .search-item {
@@ -342,14 +342,14 @@
 }
 
 .search-item:hover {
-  background: #F8FAFC;
+  background: var(--glass-bg-heavy);
 }
 
 .item-avatar {
   width: 32px;
   height: 32px;
-  background: #E2E8F0;
-  color: #64748B;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -360,18 +360,18 @@
 
 .item-name {
   font-weight: 600;
-  color: #1E293B;
+  color: var(--color-surface-50);
   font-size: 0.875rem;
 }
 
 .item-meta {
   font-size: 0.75rem;
-  color: #64748B;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .search-empty {
   font-size: 0.8rem;
-  color: #94A3B8;
+  color: rgba(255, 255, 255, 0.45);
   margin-top: 8px;
   padding: 0 4px;
 }
@@ -380,8 +380,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #F0F9FF;
-  border: 1px solid #BAE6FD;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
   border-radius: 12px;
   padding: 12px 16px;
 }
@@ -412,7 +412,7 @@
 .lead-label {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #0369A1;
+  color: #60a5fa;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -421,7 +421,7 @@
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #0C4A6E;
+  color: #93c5fd;
 }
 
 .btn-clear-lead {
@@ -429,7 +429,7 @@
   height: 32px;
   border: none;
   background: transparent;
-  color: #94A3B8;
+  color: rgba(255, 255, 255, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -445,11 +445,11 @@
 
 .project-not-selected {
   font-size: 0.875rem;
-  color: #94A3B8;
+  color: rgba(255, 255, 255, 0.45);
   font-style: italic;
   padding: 12px;
-  background: #F8FAFC;
-  border: 1px dashed #CBD5E1;
+  background: var(--glass-bg-heavy);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: 10px;
 }
 
@@ -460,8 +460,8 @@
 
 /* New Lead Subform */
 .new-lead-subform {
-  background: #F8FAFC;
-  border: 1px solid #E2E8F0;
+  background: var(--glass-bg-heavy);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 16px;
   margin-top: 8px;
@@ -470,14 +470,14 @@
 .subform-header {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #64748B;
+  color: rgba(255, 255, 255, 0.55);
   margin-bottom: 12px;
 }
 
 /* Footer */
 .modal-footer {
   padding: 24px 32px;
-  border-top: 1px solid #F1F5F9;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: flex-end;
   gap: 16px;
@@ -485,7 +485,7 @@
 
 .btn-ghost {
   background: transparent;
-  color: #64748B;
+  color: rgba(255, 255, 255, 0.55);
   border: none;
   font-weight: 600;
   padding: 10px 20px;
@@ -529,7 +529,7 @@
 /* Scrollbar */
 .custom-scroll::-webkit-scrollbar { width: 6px; }
 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-.custom-scroll::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 10px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
 </style>
 
 <script setup lang="ts">

@@ -4,21 +4,21 @@
 
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="btn btn-primary" style="margin-top: var(--space-4);" @click="loadProject">Tentar novamente</button>
+      <button class="btn btn-primary" style="margin-top: 16px;" @click="loadProject">Tentar novamente</button>
     </div>
 
     <template v-else-if="project">
-      <div class="page-header" style="border-bottom: 1px solid var(--gray-100); padding-bottom: var(--space-6); margin-bottom: var(--space-8);">
+      <div class="page-header" style="border-bottom: 1px solid var(--glass-border-subtle); padding-bottom: 24px; margin-bottom: 32px;">
         <div style="flex: 1;">
-          <div class="flex items-center gap-2" style="margin-bottom: var(--space-1);">
-            <NuxtLink to="/painel/projetos" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--gray-500);">← Projetos</NuxtLink>
-            <div style="width: 1px; height: 10px; background: var(--gray-200);"></div>
+          <div class="flex items-center gap-2" style="margin-bottom: 4px;">
+            <NuxtLink to="/painel/projetos" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--color-surface-400);">← Projetos</NuxtLink>
+            <div style="width: 1px; height: 10px; background: rgba(255, 255, 255, 0.06);"></div>
             <span class="badge" :class="project.status === 'PUBLISHED' ? 'badge-success' : 'badge-neutral'" style="font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;">
               {{ project.status === 'PUBLISHED' ? 'Publicado' : 'Rascunho' }}
             </span>
           </div>
           <h1 style="margin: 0; font-size: 1.75rem; letter-spacing: -0.02em;">{{ project.name }}</h1>
-          <p style="margin: 0; color: var(--gray-500); font-weight: 500;">{{ project.description || 'Sem descrição' }}</p>
+          <p style="margin: 0; color: var(--color-surface-400); font-weight: 500;">{{ project.description || 'Sem descrição' }}</p>
         </div>
 
         <div class="flex items-center gap-4">
@@ -27,7 +27,7 @@
             :href="`/${project.slug}`"
             target="_blank"
             class="btn btn-sm btn-primary"
-            style="border-radius: var(--radius-full); padding-left: var(--space-5); padding-right: var(--space-5); height: 38px;"
+            style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
           >
             <span style="font-size: 1rem;">🌐</span>
             <span>Ver Página Pública</span>
@@ -38,20 +38,20 @@
             :to="`/preview/${project.id}`"
             target="_blank"
             class="btn btn-sm btn-secondary"
-            style="border-radius: var(--radius-full); padding-left: var(--space-5); padding-right: var(--space-5); height: 38px;"
+            style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
           >
             <span style="font-size: 1rem;">👀</span>
             <span>Link de Preview</span>
           </NuxtLink>
 
-          <div style="width: 1px; height: 24px; background: var(--gray-200);"></div>
+          <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.06);"></div>
 
           <div class="flex items-center gap-2">
             <button 
               v-if="authStore.canEdit" 
               class="btn btn-sm" 
               :class="project.status === 'PUBLISHED' ? 'btn-secondary' : 'btn-success'" 
-              style="border-radius: var(--radius-full); padding-left: var(--space-5); padding-right: var(--space-5); height: 38px;"
+              style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
               @click="togglePublish"
             >
               <span>{{ project.status === 'PUBLISHED' ? '⏸️ Parar Publicação' : '📡 Publicar Agora' }}</span>
@@ -60,7 +60,7 @@
             <button 
               v-if="authStore.canEdit" 
               class="btn btn-sm btn-danger" 
-              style="border-radius: var(--radius-full); padding-left: var(--space-4); padding-right: var(--space-4); height: 38px;"
+              style="border-radius: 9999px; padding-left: 16px; padding-right: 16px; height: 38px;"
               @click="confirmDelete"
             >
               <span>🗑️ Excluir</span>
@@ -70,7 +70,7 @@
       </div>
 
       <!-- Tabs / Navigation -->
-      <div class="flex items-center justify-between gap-4" style="margin-bottom: var(--space-8);">
+      <div class="flex items-center justify-between gap-4" style="margin-bottom: 32px;">
         <div class="filter-bar">
           <button 
             v-for="t in tabs" 
@@ -83,9 +83,9 @@
           </button>
         </div>
 
-        <div style="width: 1px; height: 24px; background: var(--gray-200); align-self: center;"></div>
+        <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.06); align-self: center;"></div>
 
-        <div class="filter-bar" style="background: var(--gray-200);">
+        <div class="filter-bar" style="background: rgba(255, 255, 255, 0.06);">
           <!-- Planta Interativa — main visual tool -->
           <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="filter-btn filter-btn-primary active" style="text-decoration: none;">
             🗺️ Planta Interativa
@@ -118,7 +118,7 @@
               <input v-model="editForm.customDomain" class="form-input" placeholder="ex: vendas.meu-loteamento.com" />
               <small class="text-muted">Informe o domínio completo ou subdomínio que aponta para cá.</small>
             </div>
-            <div class="form-group" style="display:flex; align-items:center; gap: var(--space-2); margin-top: var(--space-4); margin-bottom: var(--space-5);">
+            <div class="form-group" style="display:flex; align-items:center; gap: 8px; margin-top: 16px; margin-bottom: 20px;">
               <input type="checkbox" v-model="editForm.showPaymentConditions" id="chkShowPayment" style="width:18px; height:18px; cursor:pointer;" />
               <label for="chkShowPayment" class="form-label" style="margin-bottom:0; cursor:pointer; font-weight:600;">Exibir tabela de financiamento nas páginas dos lotes</label>
             </div>
@@ -140,23 +140,24 @@
           </div>
 
           <div v-else-if="allConfigs.length === 0" class="empty-state" style="padding: 24px;">
+            <div class="icon-blob mx-auto mb-4">💳</div>
             <p>Nenhum perfil de pagamento configurado globalmente.</p>
-            <NuxtLink to="/painel/pagamentos" class="btn btn-primary btn-sm">Criar Primeiro Perfil</NuxtLink>
+            <NuxtLink to="/painel/pagamentos" class="btn btn-primary btn-sm rounded-pill px-4">Criar Primeiro Perfil</NuxtLink>
           </div>
 
           <div v-else class="grid gap-4" style="margin-top: 24px;">
             <div v-for="config in allConfigs" :key="config.id" 
                  class="flex items-center justify-between p-4 border rounded-lg"
-                 :style="{ borderColor: isConfigActive(config.id) ? 'var(--primary)' : 'var(--gray-200)', background: isConfigActive(config.id) ? 'var(--primary-light)' : 'white' }">
+                 :style="{ borderColor: isConfigActive(config.id) ? 'var(--color-primary-500)' : 'var(--glass-border-subtle)', background: isConfigActive(config.id) ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)' }">
               <div class="flex items-center gap-3">
                 <div class="provider-badge-sm" :class="config.provider.toLowerCase()">{{ config.provider }}</div>
                 <div>
                   <div style="font-weight: 600;">{{ config.name }}</div>
-                  <div style="font-size: 0.75rem; color: var(--gray-500);">ID: {{ config.id.split('-')[0] }}...</div>
+                  <div style="font-size: 0.75rem; color: var(--color-surface-400);">ID: {{ config.id.split('-')[0] }}...</div>
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <span style="font-size: 0.8rem; font-weight: 600;" :style="{ color: isConfigActive(config.id) ? 'var(--primary)' : 'var(--gray-400)' }">
+                <span style="font-size: 0.8rem; font-weight: 600;" :style="{ color: isConfigActive(config.id) ? 'var(--color-primary-500)' : 'var(--color-surface-500)' }">
                   {{ isConfigActive(config.id) ? 'Habilitado' : 'Desabilitado' }}
                 </span>
                 <div class="toggle-switch">
@@ -167,9 +168,9 @@
             </div>
           </div>
 
-          <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-top: 32px; border: 1px solid var(--gray-200);">
-            <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--gray-700);">Como funciona?</h4>
-            <p style="font-size: 0.8rem; margin: 0; color: var(--gray-600); line-height: 1.5;">
+          <div style="background: var(--glass-bg-heavy); padding: 16px; border-radius: 8px; margin-top: 32px; border: 1px solid var(--glass-border-subtle);">
+            <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--color-surface-200);">Como funciona?</h4>
+            <p style="font-size: 0.8rem; margin: 0; color: var(--color-surface-200); line-height: 1.5;">
               As chaves e credenciais são gerenciadas na página global de <b>Pagamentos</b>. 
               Aqui você apenas decide qual conta receberá os pagamentos deste projeto específico. 
               Se múltiplos gateways forem habilitados, o sistema usará o primeiro ativo.
@@ -177,7 +178,7 @@
           </div>
 
           <!-- NEW: Reservation Fee Config -->
-          <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--gray-200);">
+          <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--glass-border-subtle);">
             <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
               <span>🎟️</span> Taxa de Reserva Online
             </h3>
@@ -197,7 +198,7 @@
                 </label>
                 <input v-model="editForm.reservationFeeValue" type="number" step="0.01" class="form-input" 
                        :placeholder="editForm.reservationFeeType === 'FIXED' ? 'Ex: 500.00' : 'Ex: 0.5'" />
-                <small v-if="editForm.reservationFeeType === 'PERCENTAGE'" style="color: var(--gray-500); font-size: 0.75rem;">
+                <small v-if="editForm.reservationFeeType === 'PERCENTAGE'" style="color: var(--color-surface-400); font-size: 0.75rem;">
                   Ex: 0.5 = 0,5% do valor total do lote.
                 </small>
               </div>
@@ -223,14 +224,14 @@
       <!-- Tab: AI -->
       <div v-if="activeTab === 'ai'">
         <div class="card" style="max-width: 600px;">
-          <h3 style="margin-bottom: var(--space-4); display: flex; align-items: center; gap: 8px;">
+          <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
             <span>🤖</span> Assistente de IA
           </h3>
-          <p class="text-muted" style="font-size: 0.85rem; margin-bottom: var(--space-6);">
+          <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 24px;">
             Habilite um assistente virtual para ajudar clientes interessados. A IA responderá perguntas sobre lotes, disponibilidade e preços de acordo com os dados deste projeto.
           </p>
 
-          <div class="form-group" style="display:flex; align-items:center; gap: var(--space-2); margin-bottom: var(--space-6);">
+          <div class="form-group" style="display:flex; align-items:center; gap: 8px; margin-bottom: 24px;">
             <input type="checkbox" v-model="editForm.aiEnabled" id="chkAiEnabled" style="width:20px; height:20px; cursor:pointer;" />
             <label for="chkAiEnabled" style="font-weight: 600; cursor:pointer;">Ativar assistente de IA para este projeto</label>
           </div>
@@ -245,16 +246,16 @@
               <small class="text-muted">As configurações de modelos e chaves de API são feitas na página <NuxtLink to="/painel/ai">Assistente IA</NuxtLink>.</small>
             </div>
             
-            <div v-if="aiConfigs.length === 0" style="background: #fff5f5; color: #c53030; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 12px; border: 1px solid #feb2b2;">
-              ⚠️ Você ainda não tem nenhuma configuração de IA cadastrada. <NuxtLink to="/painel/ai" style="color: #c53030; font-weight: 700;">Clique aqui para criar</NuxtLink>.
+            <div v-if="aiConfigs.length === 0" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 12px; border: 1px solid rgba(239, 68, 68, 0.3);">
+              ⚠️ Você ainda não tem nenhuma configuração de IA cadastrada. <NuxtLink to="/painel/ai" style="color: #ef4444; font-weight: 700;">Clique aqui para criar</NuxtLink>.
             </div>
 
-            <div v-else-if="!editForm.aiConfigId" style="background: #ebf8ff; color: #2b6cb0; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 12px; border: 1px solid #bee3f8;">
+            <div v-else-if="!editForm.aiConfigId" style="background: rgba(59, 130, 246, 0.08); color: #60a5fa; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 12px; border: 1px solid rgba(59, 130, 246, 0.3);">
               ℹ️ Selecione um modelo acima para habilitar o chat na página pública deste projeto.
             </div>
           </div>
 
-          <div class="flex justify-end" style="margin-top: var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--gray-100);">
+          <div class="flex justify-end" style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--glass-border-subtle);">
             <button class="btn btn-primary" @click="saveSettings" :disabled="savingSettings">
               {{ savingSettings ? 'Salvando...' : '💾 Salvar Configurações de IA' }}
             </button>
@@ -265,7 +266,7 @@
       <!-- Tab: Agendamento -->
       <div v-if="activeTab === 'scheduling'">
         <div class="card" style="max-width: 900px;">
-          <div class="flex justify-between items-center" style="margin-bottom: var(--space-6);">
+          <div class="flex justify-between items-center" style="margin-bottom: 24px;">
             <div>
               <h3 style="margin:0; display: flex; align-items: center; gap: 8px;">
                 <span>📅</span> Configurações de Agendamento de Visitas
@@ -285,8 +286,8 @@
           <template v-else>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
               <!-- Horários Base -->
-              <div style="background: #f8fafc; padding: 24px; border-radius: 12px; border: 1px solid var(--gray-200);">
-                <h4 style="margin-bottom: 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Atendimento Base</h4>
+              <div style="background: var(--glass-bg-heavy); padding: 24px; border-radius: 12px; border: 1px solid var(--glass-border-subtle);">
+                <h4 style="margin-bottom: 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--color-surface-400); letter-spacing: 0.5px;">Atendimento Base</h4>
                 
                 <div class="grid grid-cols-2 gap-4">
                   <div class="form-group">
@@ -319,8 +320,8 @@
               </div>
 
               <!-- Dias Disponíveis -->
-              <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid var(--gray-200);">
-                <h4 style="margin-bottom: 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Dias da Semana</h4>
+              <div style="background: var(--glass-bg); padding: 24px; border-radius: 12px; border: 1px solid var(--glass-border-subtle);">
+                <h4 style="margin-bottom: 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--color-surface-400); letter-spacing: 0.5px;">Dias da Semana</h4>
                 <div class="grid grid-cols-1 gap-2">
                   <label v-for="day in [
                     {k: 'MON', label: 'Segunda-feira'}, 
@@ -339,12 +340,12 @@
             </div>
 
             <!-- Intervals & Breaks -->
-            <div style="margin-top: var(--space-6);">
-              <h4 style="margin-bottom: 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--gray-500); letter-spacing: 0.5px;">Intervalos e Pausas</h4>
+            <div style="margin-top: 24px;">
+              <h4 style="margin-bottom: 20px; font-size: 0.9rem; text-transform: uppercase; color: var(--color-surface-400); letter-spacing: 0.5px;">Intervalos e Pausas</h4>
               
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Almoço -->
-                <div style="padding: 20px; border: 1px dashed var(--gray-300); border-radius: 12px;">
+                <div style="padding: 20px; border: 1px dashed var(--color-surface-600); border-radius: 12px;">
                   <h5 style="margin-bottom: 12px; font-weight: 600;">🍽️ Intervalo de Almoço</h5>
                   <div class="grid grid-cols-2 gap-4">
                     <div class="form-group">
@@ -360,7 +361,7 @@
                 </div>
 
                 <!-- Custom Breaks -->
-                <div style="padding: 20px; border: 1px dashed var(--gray-300); border-radius: 12px;">
+                <div style="padding: 20px; border: 1px dashed var(--color-surface-600); border-radius: 12px;">
                   <div class="flex justify-between items-center" style="margin-bottom: 12px;">
                     <h5 style="margin:0; font-weight: 600;">☕ Outras Pausas Curtas</h5>
                     <button @click="addBreak" class="btn btn-xs btn-ghost">+ Adicionar</button>
@@ -371,10 +372,10 @@
                   </div>
 
                   <div v-for="(b, idx) in schedulingForm.breaks" :key="idx" 
-                       style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; background: #f1f5f9; padding: 8px; border-radius: 8px;">
+                       style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; background: var(--glass-bg-heavy); padding: 8px; border-radius: 8px;">
                     <input v-model="b.name" placeholder="Motivo" class="form-input btn-xs" style="flex: 2" />
                     <input v-model="b.start" type="time" class="form-input btn-xs" style="flex: 1" />
-                    <span style="font-size: 10px; color: var(--gray-400);">até</span>
+                    <span style="font-size: 10px; color: var(--color-surface-500);">até</span>
                     <input v-model="b.end" type="time" class="form-input btn-xs" style="flex: 1" />
                     <button @click="removeBreak(idx)" class="btn btn-xs btn-ghost btn-danger" style="padding: 0 4px;">✕</button>
                   </div>
@@ -382,7 +383,7 @@
               </div>
             </div>
 
-            <div class="flex justify-end pt-8" style="border-top: 1px solid var(--gray-100); margin-top: 32px;">
+            <div class="flex justify-end pt-8" style="border-top: 1px solid var(--glass-border-subtle); margin-top: 32px;">
               <button class="btn btn-primary" @click="saveSchedulingSettings" :disabled="savingScheduling" style="min-width: 200px; height: 48px; border-radius: 12px;">
                 {{ savingScheduling ? 'Salvando...' : '💾 Salvar Configuração de Agenda' }}
               </button>
@@ -394,14 +395,14 @@
       <!-- Tab: Financiamento -->
       <div v-if="activeTab === 'financing'" class="financing-layout-v4">
         <div class="card" style="flex: 1; max-width: 800px;">
-          <h3 style="margin-bottom: var(--space-2); display: flex; align-items: center; gap: 8px;">
+          <h3 style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
             <span>🧮</span> Regras de Simulação Financeira
           </h3>
           <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 24px;">Configure as regras padrão para o simulador que aparece na página dos lotes.</p>
 
-          <div class="form-group" style="display:flex; align-items:center; gap: var(--space-2); margin-bottom: 32px; background: #fffbeb; padding: 16px; border-radius: 12px; border: 1px solid #fde68a;">
+          <div class="form-group" style="display:flex; align-items:center; gap: 8px; margin-bottom: 32px; background: rgba(245, 158, 11, 0.1); padding: 16px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3);">
             <input type="checkbox" v-model="editForm.showPaymentConditions" id="chkShowSimOnFinancing" style="width:20px; height:20px; cursor:pointer;" />
-            <label for="chkShowSimOnFinancing" style="font-weight: 700; cursor:pointer; color: #92400e;">✅ Habilitar Simulador nas Páginas Públicas</label>
+            <label for="chkShowSimOnFinancing" style="font-weight: 700; cursor:pointer; color: #fbbf24;">✅ Habilitar Simulador nas Páginas Públicas</label>
           </div>
 
           <div class="grid grid-cols-2 gap-6">
@@ -428,7 +429,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Parcelas Intermediárias (Balões)</label>
-              <div style="display:flex; align-items:center; gap: var(--space-2); height: 42px;">
+              <div style="display:flex; align-items:center; gap: 8px; height: 42px;">
                 <input type="checkbox" v-model="editForm.allowIntermediary" id="chkInter" style="width:18px; height:18px; cursor:pointer;" />
                 <label for="chkInter" style="margin:0; cursor:pointer; font-weight:600;">Permitir cálculo de balões anuais</label>
               </div>
@@ -441,7 +442,7 @@
             <small class="text-muted">Aparecerá abaixo do resultado da simulação.</small>
           </div>
 
-          <div class="flex justify-end" style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--gray-200);">
+          <div class="flex justify-end" style="margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--glass-border-subtle);">
             <button class="btn btn-primary" @click="saveSettings" :disabled="savingSettings" style="min-width: 200px;">
               {{ savingSettings ? 'Salvando...' : '💾 Salvar Regras Financeiras' }}
             </button>
@@ -456,14 +457,14 @@
           </div>
 
           <div class="simulator-card-v4">
-            <div class="sim-header" style="background: #eff6ff;">
+            <div class="sim-header" style="background: rgba(96, 165, 250, 0.08);">
               <div class="h-item">
-                <span class="l" style="font-weight: 700; color: #3b82f6;">Valor do Lote (Simulado)</span>
+                <span class="l" style="font-weight: 700; color: var(--v4-primary);">Valor do Lote (Simulado)</span>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 1.5rem; font-weight: 800; color: var(--v4-primary);">R$</span>
                   <input v-model.number="previewLotPrice" type="number" step="1000" style="font-size: 1.5rem; font-weight: 800; color: var(--v4-primary); border: none; background: transparent; padding: 0; outline: none; width: 100%;" />
                 </div>
-                <small style="color: #60a5fa; font-weight: 500;">Digite aqui o valor para testar a simulação</small>
+                <small style="color: var(--v4-primary); font-weight: 500; opacity: 0.8;">Digite aqui o valor para testar a simulação</small>
               </div>
             </div>
 
@@ -515,7 +516,7 @@
                   <span v-else>Sem juros + {{ editForm.indexer || 'IGP-M' }}</span>
                 </div>
 
-                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(0, 112, 227, 0.1); font-size: 0.85rem; color: #1e40af;">
+                <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(96, 165, 250, 0.15); font-size: 0.85rem; color: rgba(255, 255, 255, 0.7);">
                   <div style="display:flex; justify-content: space-between; margin-bottom: 4px;">
                     <span>Total do Investimento:</span>
                     <strong>{{ formatCurrencyToBrasilia(previewTotalInvested) }}</strong>
@@ -537,13 +538,16 @@
 
       <!-- Tab: Lotes (Elementos do Projeto) -->
       <div v-if="activeTab === 'lots'">
-        <div v-if="lots.length === 0" class="empty-state">
-          <h3>Nenhum elemento criado na planta</h3>
-          <p>Adicione pontos (hotspots) na Planta Interativa para que apareçam aqui para edição detalhada.</p>
-          <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary" style="margin-top: 10px;">Ir para a Planta</NuxtLink>
+        <div v-if="lots.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+          <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+            <div class="icon-blob mx-auto mb-4">🗺️</div>
+            <h3 class="fw-bold mb-3">Nenhum elemento criado na planta</h3>
+            <p class="mb-4 px-4">Adicione pontos (hotspots) na Planta Interativa para que apareçam aqui para edição detalhada.</p>
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary btn-lg rounded-pill px-5">Ir para a Planta</NuxtLink>
+          </div>
         </div>
         <div v-else class="table-wrapper">
-          <div style="padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; color: #92400e; display: flex; align-items: center; gap: 8px;">
+          <div style="padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
             <span>ℹ️</span>
             Todos os pontos criados na Planta Interativa aparecem nesta lista para que você adicione fotos, preços e dados do contrato.
           </div>
@@ -554,8 +558,8 @@
             <tbody>
               <tr v-for="l in lots" :key="l.id">
                 <td>
-                   <div style="font-weight: 700; color: var(--gray-800);">{{ l.block || '' }} {{ l.lotNumber || (l.mapElement?.code || '—') }}</div>
-                   <div style="font-size: 0.7rem; color: var(--gray-400); display: flex; align-items: center; gap: 4px;">
+                   <div style="font-weight: 700; color: var(--color-surface-100);">{{ l.block || '' }} {{ l.lotNumber || (l.mapElement?.code || '—') }}</div>
+                   <div style="font-size: 0.7rem; color: var(--color-surface-500); display: flex; align-items: center; gap: 4px;">
                      <span class="badge badge-neutral" style="font-size: 8px; padding: 1px 4px; border-radius: 4px;">{{ l.mapElement?.type === 'LOT' ? 'Lote' : 'Ponto' }}</span>
                      <span>{{ l.mapElement?.code }}</span>
                    </div>
@@ -565,13 +569,13 @@
                 </td>
                 <td style="font-weight: 500;">{{ l.pricePerM2 ? formatCurrencyToBrasilia(l.pricePerM2) : '—' }}</td>
                 <td style="font-weight: 700;">{{ l.price ? formatCurrencyToBrasilia(l.price) : '—' }}</td>
-                <td style="font-weight: 600; color: var(--success);">
+                <td style="font-weight: 600; color: var(--color-success);">
                   {{ l.price ? formatCurrencyToBrasilia(Number(l.price) * (project?.minDownPaymentPercent / 100 || 0.1)) : '—' }}
                 </td>
                 <td style="font-weight: 500;">{{ l.areaM2 ? `${l.areaM2.toFixed(2)} m²` : '—' }}</td>
                 <td v-if="authStore.canEdit">
                   <div class="flex gap-2">
-                     <button class="btn btn-sm btn-dark" style="background: #222; color: #fff; border: none;" @click="openEditLot(l)">Editar Dados</button>
+                     <button class="btn btn-sm btn-dark" style="background: var(--glass-bg-heavy); color: #fff; border: none;" @click="openEditLot(l)">Editar Dados</button>
                      <a v-if="publicUrl && l.mapElement" :href="`/${project.slug}/${l.mapElement.code}`" target="_blank" class="btn btn-sm btn-outline">Ver Página</a>
                   </div>
                 </td>
@@ -585,12 +589,12 @@
       <!-- Lot Edit Modal -->
       <div v-if="editingLot" class="modal-overlay" @click.self="editingLot = null">
         <div class="modal" style="max-width: 800px;">
-          <div class="modal-header" style="margin-bottom: var(--space-4);">
+          <div class="modal-header" style="margin-bottom: 16px;">
             <h3>Editar Lote: {{ editingLot.mapElement?.code || editingLot.id }}</h3>
             <button class="modal-close" @click="editingLot = null">✕</button>
           </div>
           
-          <div class="grid grid-cols-2" style="gap: var(--space-4); margin-top: var(--space-4);">
+          <div class="grid grid-cols-2" style="gap: 16px; margin-top: 16px;">
             <div class="form-group">
               <label class="form-label">Quadra</label>
               <input v-model="lotForm.block" class="form-input" placeholder="Ex: Quadra B" />
@@ -601,7 +605,7 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-3" style="gap: var(--space-4); margin-top: var(--space-4);">
+          <div class="grid grid-cols-3" style="gap: 16px; margin-top: 16px;">
             <div class="form-group">
               <label class="form-label">Status</label>
               <select v-model="lotForm.status" class="form-input">
@@ -620,25 +624,25 @@
             </div>
           </div>
 
-          <div style="margin-top: var(--space-4);">
-            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: var(--space-3);">Medidas para Contrato</h4>
-            <div v-if="lotContractArea !== null" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 14px; margin-bottom: var(--space-3); display:flex; justify-content:space-between; align-items:center;">
+          <div style="margin-top: 16px;">
+            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 12px;">Medidas para Contrato</h4>
+            <div v-if="lotContractArea !== null" style="background: rgba(59, 130, 246, 0.1); border:1px solid rgba(59, 130, 246, 0.3); border-radius:6px; padding:8px 14px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size:0.75rem; font-weight:700; color:#3b82f6; text-transform:uppercase; letter-spacing:0.3px;">Área Calculada</span>
-              <span style="font-size:0.95rem; font-weight:700; color:#1d4ed8;">{{ lotContractArea.toFixed(2) }} m²</span>
+              <span style="font-size:0.95rem; font-weight:700; color: #60a5fa;">{{ lotContractArea.toFixed(2) }} m²</span>
             </div>
             <!-- Per-side metrics from map editor -->
-            <div v-if="editingLotSideMetrics.length > 0" style="margin-bottom: var(--space-3);">
-              <div style="font-size:0.7rem; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Lados do Lote (do editor)</div>
+            <div v-if="editingLotSideMetrics.length > 0" style="margin-bottom: 12px;">
+              <div style="font-size:0.7rem; font-weight:700; color:var(--color-surface-400); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Lados do Lote (do editor)</div>
               <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                <div v-for="(s, i) in editingLotSideMetrics" :key="i" style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:6px; padding:4px 10px; display:flex; align-items:center; gap:8px;">
-                  <span style="font-size:0.75rem; color:var(--gray-500);">{{ s.label }}</span>
-                  <span v-if="s.meters != null" style="font-size:0.875rem; font-weight:600; color:var(--gray-800);">{{ Number(s.meters).toFixed(2) }} m</span>
-                  <span v-else style="font-size:0.75rem; color:var(--gray-400); font-style:italic;">—</span>
+                <div v-for="(s, i) in editingLotSideMetrics" :key="i" style="background: var(--glass-bg-heavy); border:1px solid var(--glass-border-subtle); border-radius:6px; padding:4px 10px; display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:0.75rem; color:var(--color-surface-400);">{{ s.label }}</span>
+                  <span v-if="s.meters != null" style="font-size:0.875rem; font-weight:600; color:var(--color-surface-100);">{{ Number(s.meters).toFixed(2) }} m</span>
+                  <span v-else style="font-size:0.75rem; color:var(--color-surface-500); font-style:italic;">—</span>
                 </div>
               </div>
-              <p style="font-size:0.7rem; color:var(--gray-400); margin-top:4px;">Edite no editor de mapas para alterar os lados.</p>
+              <p style="font-size:0.7rem; color:var(--color-surface-500); margin-top:4px;">Edite no editor de mapas para alterar os lados.</p>
             </div>
-            <div class="grid grid-cols-2" style="gap: var(--space-3);">
+            <div class="grid grid-cols-2" style="gap: 12px;">
               <div class="form-group" style="margin:0">
                 <label class="form-label">Frente (m)</label>
                 <input v-model.number="lotForm.frontage" type="number" step="0.01" class="form-input" placeholder="Ex: 10.00" />
@@ -648,11 +652,11 @@
                 <input v-model.number="lotForm.sideLeft" type="number" step="0.01" class="form-input" placeholder="Ex: 25.00" />
               </div>
               <div class="form-group" style="margin:0">
-                <label class="form-label">Fundo (m) <small style="color:var(--gray-400)">se diferente da frente</small></label>
+                <label class="form-label">Fundo (m) <small style="color:var(--color-surface-500)">se diferente da frente</small></label>
                 <input v-model.number="lotForm.depth" type="number" step="0.01" class="form-input" placeholder="= Frente" />
               </div>
               <div class="form-group" style="margin:0">
-                <label class="form-label">Lado Direito (m) <small style="color:var(--gray-400)">se diferente</small></label>
+                <label class="form-label">Lado Direito (m) <small style="color:var(--color-surface-500)">se diferente</small></label>
                 <input v-model.number="lotForm.sideRight" type="number" step="0.01" class="form-input" placeholder="= Lado Esq." />
               </div>
               <div class="form-group" style="margin:0">
@@ -666,15 +670,15 @@
             </div>
           </div>
 
-          <div style="margin-top: var(--space-6); margin-bottom: var(--space-6);">
-            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: var(--space-3);">Selos Customizados</h4>
+          <div style="margin-top: 24px; margin-bottom: 24px;">
+            <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 12px;">Selos Customizados</h4>
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
               <div v-for="(tag, idx) in (lotForm.tags || [])" :key="idx" 
-                   style="background: #eff6ff; color: #1d4ed8; padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                   style="background: rgba(59, 130, 246, 0.1); color: #60a5fa; padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 600; display: flex; align-items: center; gap: 4px;">
                 {{ tag }}
                 <span @click="lotForm.tags.splice(idx, 1)" style="cursor: pointer; opacity: 0.6; font-size: 0.8rem;">✕</span>
               </div>
-              <div v-if="!(lotForm.tags?.length)" style="color: var(--gray-400); font-size: 0.75rem;">Nenhum selo cadastrado.</div>
+              <div v-if="!(lotForm.tags?.length)" style="color: var(--color-surface-500); font-size: 0.75rem;">Nenhum selo cadastrado.</div>
             </div>
             
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
@@ -686,26 +690,26 @@
                       :key="suggestion"
                       @click="addSuggestedTag(suggestion)"
                       class="btn btn-xs btn-outline"
-                      style="font-size: 9px; padding: 2px 6px; color: var(--gray-500); border-color: var(--gray-300);">
+                      style="font-size: 9px; padding: 2px 6px; color: var(--color-surface-400); border-color: var(--glass-border);">
                 + {{ suggestion }}
               </button>
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: var(--space-6);">
+          <div class="form-group" style="margin-top: 24px;">
             <label class="form-label">Notas / Descrição</label>
             <textarea v-model="lotForm.notes" class="form-textarea" rows="3" placeholder="Informações adicionais do lote..."></textarea>
           </div>
 
-          <div class="form-group" style="border-top: 1px dashed var(--gray-200); padding-top: var(--space-4); margin-top: var(--space-4);">
-            <div class="flex justify-between items-center" style="margin-bottom: var(--space-2);">
+          <div class="form-group" style="border-top: 1px dashed var(--glass-border-subtle); padding-top: 16px; margin-top: 16px;">
+            <div class="flex justify-between items-center" style="margin-bottom: 8px;">
               <label class="form-label" style="margin:0">Tabela de Financiamento</label>
               <button v-if="!lotForm.paymentConditions" class="btn btn-sm btn-ghost" @click="initPaymentConditionsInForm">+ Habilitar Tabela</button>
               <button v-else class="btn btn-sm btn-ghost btn-danger" @click="lotForm.paymentConditions = null">Remover Tabela</button>
             </div>
 
             <template v-if="lotForm.paymentConditions">
-              <div class="grid grid-cols-2" style="gap: var(--space-3); background: #f8fafc; padding: var(--space-4); border-radius: var(--radius-md); border: 1px solid var(--gray-100);">
+              <div class="grid grid-cols-2" style="gap: 12px; background: var(--glass-bg-heavy); padding: 16px; border-radius: 8px; border: 1px solid var(--glass-border-subtle);">
                 <div class="form-group" style="margin:0">
                   <label class="form-label">Setor / Localização</label>
                   <input v-model="lotForm.paymentConditions.setor" class="form-input" placeholder="Ex: Setor 6" />
@@ -728,18 +732,18 @@
                 </div>
               </div>
 
-              <div style="margin-top: var(--space-4);">
+              <div style="margin-top: 16px;">
                 <label class="form-label">Parcelas Mensais</label>
-                <div v-for="(p, i) in lotForm.paymentConditions.parcelas" :key="i" class="flex gap-2 items-center" style="margin-bottom: var(--space-1);">
+                <div v-for="(p, i) in lotForm.paymentConditions.parcelas" :key="i" class="flex gap-2 items-center" style="margin-bottom: 4px;">
                   <input v-model.number="p.months" type="number" class="form-input" style="width: 80px;" placeholder="Meses" />
-                  <span style="font-size: 0.8rem; color: var(--gray-400);">vezes de</span>
+                  <span style="font-size: 0.8rem; color: var(--color-surface-500);">vezes de</span>
                   <input v-model.number="p.amount" type="number" step="0.01" class="form-input flex-1" placeholder="R$ 0.00" />
                   <button class="btn btn-sm" style="padding: 4px;" @click="removeParcelaInForm(Number(i))">✕</button>
                 </div>
-                <button class="btn btn-sm btn-outline" style="width:100%; margin-top: var(--space-2);" @click="addParcelaInForm">+ Adicionar Parcela</button>
+                <button class="btn btn-sm btn-outline" style="width:100%; margin-top: 8px;" @click="addParcelaInForm">+ Adicionar Parcela</button>
               </div>
 
-              <div class="form-group" style="margin-top: var(--space-4);">
+              <div class="form-group" style="margin-top: 16px;">
                 <label class="form-label">Observações da Tabela (uma por linha)</label>
                 <textarea 
                   :value="lotForm.paymentConditions.observacoes?.join('\n')" 
@@ -752,13 +756,13 @@
             </template>
           </div>
 
-          <hr style="margin: var(--space-5) 0; border: 0; border-top: 1px solid var(--gray-200);" />
+          <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
 
-          <h4 style="margin-bottom: var(--space-3);">Fotos do Lote</h4>
-          <div v-if="lotMedias.length === 0" class="empty-state" style="padding: var(--space-4); background: var(--gray-50); border-radius: 12px;">
+          <h4 style="margin-bottom: 12px;">Fotos do Lote</h4>
+          <div v-if="lotMedias.length === 0" class="empty-state" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px;">
             <p>Nenhuma foto específica deste lote.</p>
           </div>
-          <div v-else class="grid grid-cols-4" style="gap: var(--space-3); margin-bottom: var(--space-4);">
+          <div v-else class="grid grid-cols-4" style="gap: 12px; margin-bottom: 16px;">
             <div v-for="m in lotMedias" :key="m.id" class="media-card-v4">
               <img :src="m.url" class="media-thumb-v4" />
               <button class="media-delete-btn-v4" @click="removeLotMedia(m.id)">✕</button>
@@ -770,10 +774,10 @@
             <input type="file" accept="image/*" style="display:none" @change="uploadLotMediaFile" :disabled="uploadingLotMedia" />
           </label>
 
-          <hr style="margin: var(--space-5) 0; border: 0; border-top: 1px solid var(--gray-200);" />
+          <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
 
-          <h4 style="margin-bottom: var(--space-3);">🌄 Panorama 360° do Lote</h4>
-          <div v-if="lotForm.panoramaUrl" class="media-card-v4" style="max-width: 240px; margin-bottom: var(--space-4);">
+          <h4 style="margin-bottom: 12px;">🌄 Panorama 360° do Lote</h4>
+          <div v-if="lotForm.panoramaUrl" class="media-card-v4" style="max-width: 240px; margin-bottom: 16px;">
             <div class="relative group">
               <img :src="lotForm.panoramaUrl" class="media-thumb-v4" style="aspect-ratio: 2/1;" />
               <button class="media-delete-btn-v4" @click="lotForm.panoramaUrl = null">✕</button>
@@ -782,7 +786,7 @@
               </div>
             </div>
           </div>
-          <div v-else class="empty-state" style="padding: var(--space-4); background: var(--gray-50); border-radius: 12px; margin-bottom: var(--space-4);">
+          <div v-else class="empty-state" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px; margin-bottom: 16px;">
             <p>Nenhuma imagem 360° enviada para este lote.</p>
           </div>
           
@@ -791,9 +795,9 @@
             <input type="file" accept="image/*" style="display:none" @change="uploadLotPanoramaFile" :disabled="uploadingPanorama" />
           </label>
 
-          <div class="modal-actions" style="margin-top: var(--space-6); display: flex; justify-content: flex-end; gap: var(--space-3);">
-            <button class="btn btn-secondary" style="background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;" @click="editingLot = null">Cancelar</button>
-            <button class="btn btn-primary" style="background: #3b82f6; color: #fff; border: none; font-weight: 600;" :disabled="savingLot" @click="saveLotDetails">
+          <div class="modal-actions" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn btn-secondary" style="background: var(--glass-bg-heavy); color: var(--color-surface-200); border: 1px solid var(--glass-border-subtle);" @click="editingLot = null">Cancelar</button>
+            <button class="btn btn-primary" style="background: var(--color-primary-600); color: #fff; border: none; font-weight: 600;" :disabled="savingLot" @click="saveLotDetails">
               {{ savingLot ? 'Salvando...' : 'Salvar Detalhes' }}
             </button>
           </div>
@@ -806,11 +810,11 @@
         <div class="flex justify-between items-center" style="margin-bottom: 40px;">
           <div>
             <h2 style="margin:0; font-size: 1.25rem;">Conteúdo da Página Pública</h2>
-            <p style="margin:0; font-size: 0.875rem; color: var(--gray-500);">Gerencie o que seus clientes verão ao acessar o link do loteamento.</p>
+            <p style="margin:0; font-size: 0.875rem; color: var(--color-surface-400);">Gerencie o que seus clientes verão ao acessar o link do loteamento.</p>
           </div>
           <div v-if="authStore.canEdit" class="flex items-center gap-4">
             <transition name="fade">
-              <span v-if="pubInfoSaved" style="color: var(--success); font-weight: 600; font-size: 0.875rem;">✅ Salvo!</span>
+              <span v-if="pubInfoSaved" style="color: var(--color-success); font-weight: 600; font-size: 0.875rem;">✅ Salvo!</span>
             </transition>
             <button class="btn btn-primary" style="min-width: 160px;" :disabled="savingPubInfo" @click="savePubInfo">
               {{ savingPubInfo ? 'Salvando...' : '💾 Salvar Alterações' }}
@@ -823,23 +827,23 @@
           <!-- Column 1 -->
           <div class="flex flex-col" style="gap: 40px;">
             <!-- Section: Hero Banner -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-4);">
-                <div style="width: 32px; height: 32px; background: var(--primary-light); color: var(--primary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">🖼️</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 16px;">
+                <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.1); color: var(--color-primary-500); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">🖼️</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Banner do Loteamento</h3>
                 </div>
               </div>
 
-              <div v-if="project.bannerImageUrl" class="banner-preview" style="position: relative; margin-bottom: var(--space-4); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--gray-200); box-shadow: var(--shadow-sm); aspect-ratio: 16/5;">
+              <div v-if="project.bannerImageUrl" class="banner-preview" style="position: relative; margin-bottom: 16px; border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border-subtle); box-shadow: 0 2px 4px rgba(0,0,0,0.3); aspect-ratio: 16/5;">
                 <img :src="project.bannerImageUrl" alt="Banner" style="width: 100%; height: 100%; object-fit: cover;" />
                 <div v-if="authStore.canEdit" style="position: absolute; bottom: 12px; right: 12px;">
-                  <button class="btn btn-danger btn-xs" style="background: white; color: var(--danger); border: 1px solid var(--danger);" @click="removeBannerImage">🗑️ Remover</button>
+                  <button class="btn btn-danger btn-xs" style="background: var(--glass-bg); color: var(--color-danger); border: 1px solid var(--color-danger);" @click="removeBannerImage">🗑️ Remover</button>
                 </div>
               </div>
               
-              <div v-else class="banner-placeholder" style="margin-bottom: var(--space-4); border: 2px dashed var(--gray-200); background: var(--gray-50); border-radius: var(--radius-lg); padding: var(--space-6); text-align: center;">
-                <p style="color: var(--gray-500); font-size: 0.75rem;">Nenhum banner configurado.</p>
+              <div v-else class="banner-placeholder" style="margin-bottom: 16px; border: 2px dashed var(--glass-border-subtle); background: var(--glass-bg-heavy); border-radius: 12px; padding: 24px; text-align: center;">
+                <p style="color: var(--color-surface-400); font-size: 0.75rem;">Nenhum banner configurado.</p>
               </div>
 
               <div v-if="authStore.canEdit" class="flex justify-start">
@@ -851,9 +855,9 @@
             </section>
 
             <!-- Section: Price & Conditions -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-6);">
-                <div style="width: 32px; height: 32px; background: var(--primary-light); color: var(--primary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">💰</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 24px;">
+                <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.1); color: var(--color-primary-500); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">💰</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Preços e Condições</h3>
                 </div>
@@ -877,33 +881,33 @@
             </section>
 
             <!-- Section: Construction Status -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-4);">
-                <div style="width: 32px; height: 32px; background: #fef3c7; color: #92400e; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">🏗️</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 16px;">
+                <div style="width: 32px; height: 32px; background: rgba(245, 158, 11, 0.12); color: #fbbf24; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">🏗️</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Acompanhamento de Obras</h3>
                 </div>
               </div>
 
-              <div v-if="pubInfoForm.constructionStatus.length === 0" class="empty-state" style="padding: var(--space-4); background: var(--gray-50); border-radius: var(--radius-lg); margin-bottom: 16px;">
+              <div v-if="pubInfoForm.constructionStatus.length === 0" class="empty-state" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px; margin-bottom: 16px;">
                 <p style="font-size: 0.8rem;">Nenhum status configurado.</p>
               </div>
 
               <div v-else style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px;">
-                <div v-for="(item, i) in pubInfoForm.constructionStatus" :key="i" style="background: white; border: 1px solid var(--gray-200); padding: 16px; border-radius: 8px; position: relative;">
+                <div v-for="(item, i) in pubInfoForm.constructionStatus" :key="i" style="background: var(--glass-bg); border: 1px solid var(--glass-border-subtle); padding: 16px; border-radius: 8px; position: relative;">
                   <div class="flex justify-between items-center" style="margin-bottom: 10px;">
                     <span style="font-weight: 600; font-size: 0.875rem;">{{ item.label }}</span>
-                    <span style="font-weight: 700; color: var(--success); font-size: 0.875rem;">{{ item.percentage }}%</span>
+                    <span style="font-weight: 700; color: var(--color-success); font-size: 0.875rem;">{{ item.percentage }}%</span>
                   </div>
-                  <div style="width: 100%; height: 8px; background: var(--gray-100); border-radius: 4px; overflow: hidden;">
-                    <div :style="{ width: item.percentage + '%', background: 'var(--success)' }" style="height: 100%; transition: width 0.3s ease;"></div>
+                  <div style="width: 100%; height: 8px; background: var(--glass-bg); border-radius: 4px; overflow: hidden;">
+                    <div :style="{ width: item.percentage + '%', background: 'var(--color-success)' }" style="height: 100%; transition: width 0.3s ease;"></div>
                   </div>
                   <button v-if="authStore.canEdit" class="btn-remove-v4" title="Remover Etapa" @click="removeWorkStage(i)">✕</button>
                 </div>
               </div>
 
               <!-- New Work Stage Form -->
-              <div v-if="authStore.canEdit" style="background: var(--gray-50); padding: 20px; border-radius: 8px; border: 1px solid var(--gray-200);">
+              <div v-if="authStore.canEdit" style="background: var(--glass-bg-heavy); padding: 20px; border-radius: 8px; border: 1px solid var(--glass-border-subtle);">
                 <div style="display: grid; grid-template-columns: 1fr 80px; gap: 16px; align-items: end;">
                   <div class="form-group" style="margin:0;">
                     <label class="form-label" style="font-size: 0.75rem;">Nova Etapa (ex: Terraplanagem)</label>
@@ -919,9 +923,9 @@
             </section>
 
             <!-- Section: Location -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-4);">
-                <div style="width: 32px; height: 32px; background: #e0f2fe; color: #0369a1; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">📍</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 16px;">
+                <div style="width: 32px; height: 32px; background: rgba(59, 130, 246, 0.12); color: #38bdf8; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">📍</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Localização</h3>
                 </div>
@@ -942,9 +946,9 @@
           <!-- Column 2 -->
           <div class="flex flex-col" style="gap: 40px;">
             <!-- Section: Video & Multimedia -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-4);">
-                <div style="width: 32px; height: 32px; background: #fee2e2; color: #b91c1c; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">🎬</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 16px;">
+                <div style="width: 32px; height: 32px; background: rgba(239, 68, 68, 0.12); color: #f87171; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">🎬</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Vídeo de Apresentação</h3>
                 </div>
@@ -955,33 +959,33 @@
                 <div class="flex gap-2">
                   <input v-model="pubInfoForm.youtubeVideoUrl" class="form-input" placeholder="https://www.youtube.com/watch?v=..." :disabled="!authStore.canEdit" />
                 </div>
-                <small style="color:var(--gray-400); font-size:0.75rem;">O vídeo será incorporado na página do empreendimento.</small>
+                <small style="color:var(--color-surface-500); font-size:0.75rem;">O vídeo será incorporado na página do empreendimento.</small>
               </div>
 
-              <div v-if="pubInfoForm.youtubeVideoUrl" style="margin-top: 12px; border-radius: 8px; overflow: hidden; border: 1px solid var(--gray-200); aspect-ratio: 16/9;">
+              <div v-if="pubInfoForm.youtubeVideoUrl" style="margin-top: 12px; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border-subtle); aspect-ratio: 16/9;">
                  <iframe 
                     v-if="pubInfoForm.youtubeVideoUrl.includes('embed/')"
                     :src="pubInfoForm.youtubeVideoUrl" 
                     width="100%" height="100%" frameborder="0" allowfullscreen
                  ></iframe>
-                 <div v-else style="padding: 20px; text-align: center; background: var(--gray-50); color: var(--gray-500); height: 100%; display: flex; align-items: center; justify-content: center;">
+                 <div v-else style="padding: 20px; text-align: center; background: var(--glass-bg-heavy); color: var(--color-surface-400); height: 100%; display: flex; align-items: center; justify-content: center;">
                     <p style="font-size: 0.8rem;">Preview disponível após salvar o link.</p>
                  </div>
               </div>
             </section>
 
             <!-- Section: Infraestrutura -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-6);">
-                <div style="width: 32px; height: 32px; background: #fdf2f8; color: #db2777; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">🏗️</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 24px;">
+                <div style="width: 32px; height: 32px; background: rgba(236, 72, 153, 0.12); color: #f472b6; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">🏗️</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Infraestrutura</h3>
                 </div>
               </div>
 
               <!-- Infrastructure Titles -->
-              <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--gray-200); margin-bottom: 32px;">
-                <h4 style="font-size: 0.75rem; color: var(--gray-400); text-transform: uppercase; margin-bottom: 16px;">Títulos da Seção</h4>
+              <div style="background: var(--glass-bg-heavy); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border-subtle); margin-bottom: 32px;">
+                <h4 style="font-size: 0.75rem; color: var(--color-surface-500); text-transform: uppercase; margin-bottom: 16px;">Títulos da Seção</h4>
                 <div class="form-group">
                   <label class="form-label" style="font-size: 0.7rem;">Título Principal (Ex: Sua família merece o melhor)</label>
                   <input v-model="pubInfoForm.highlightsTitle" class="form-input" placeholder="Sua família merece o melhor." />
@@ -994,10 +998,10 @@
 
               <!-- Infrastructure Categories -->
               <div v-if="pubInfoForm.highlightsJson.filter(h => h.type === 'category').length" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px;">
-                <h4 style="font-size: 0.75rem; color: var(--gray-400); text-transform: uppercase;">Categorias de Infraestrutura</h4>
-                <div v-for="(cat, idx) in pubInfoForm.highlightsJson" :key="idx" v-show="cat.type === 'category'" style="background: white; border: 1px solid var(--gray-200); padding: 20px; border-radius: 12px; position: relative;">
+                <h4 style="font-size: 0.75rem; color: var(--color-surface-500); text-transform: uppercase;">Categorias de Infraestrutura</h4>
+                <div v-for="(cat, idx) in pubInfoForm.highlightsJson" :key="idx" v-show="cat.type === 'category'" style="background: var(--glass-bg); border: 1px solid var(--glass-border-subtle); padding: 20px; border-radius: 12px; position: relative;">
                   <div class="flex justify-between items-center" style="margin-bottom: 16px;">
-                    <strong style="font-size: 0.95rem; color: var(--gray-800); font-weight: 700;">{{ cat.title }}</strong>
+                    <strong style="font-size: 0.95rem; color: var(--color-surface-100); font-weight: 700;">{{ cat.title }}</strong>
                     <button v-if="authStore.canEdit" class="btn-remove-v4" title="Remover Categoria" @click="removeHighlight(idx)">✕</button>
                   </div>
                   
@@ -1018,30 +1022,30 @@
                       placeholder="Adicionar item..." 
                       style="flex: 1; font-size: 0.8125rem; height: 42px; border-radius: 8px;" 
                     />
-                    <button class="btn btn-dark" style="width: 42px; height: 42px; padding: 0; border-radius: 8px; background: #222; color: white;" @click="addInfraItem(idx)">+</button>
+                    <button class="btn btn-dark" style="width: 42px; height: 42px; padding: 0; border-radius: 8px; background: var(--glass-bg-heavy); color: white;" @click="addInfraItem(idx)">+</button>
                   </div>
                 </div>
               </div>
 
-              <div v-if="authStore.canEdit" style="background: var(--gray-50); padding: 24px; border-radius: 12px; border: 1px solid var(--gray-200);">
-                <p style="font-size: 0.7rem; color: var(--gray-500); margin-bottom: 12px; font-weight: 700; text-transform: uppercase;">Nova Categoria de Infraestrutura</p>
+              <div v-if="authStore.canEdit" style="background: var(--glass-bg-heavy); padding: 24px; border-radius: 12px; border: 1px solid var(--glass-border-subtle);">
+                <p style="font-size: 0.7rem; color: var(--color-surface-400); margin-bottom: 12px; font-weight: 700; text-transform: uppercase;">Nova Categoria de Infraestrutura</p>
                 <input v-model="newInfraCategory" class="form-input" placeholder="Título da Categoria (ex: Equipamentos)" style="height: 48px; border-radius: 8px;" />
                 <button class="btn btn-primary" style="width: 100%; margin-top: 16px; height: 48px; border-radius: 12px; font-weight: 600; background: #3b82f6;" @click="addInfraCategory">Criar Categoria</button>
               </div>
             </section>
 
             <!-- Section: Destaques -->
-            <section class="card" style="padding: var(--space-6); margin: 0;">
-              <div class="flex items-center gap-3" style="margin-bottom: var(--space-6);">
-                <div style="width: 32px; height: 32px; background: #fff7ed; color: #f97316; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">✨</div>
+            <section class="card" style="padding: 24px; margin: 0;">
+              <div class="flex items-center gap-3" style="margin-bottom: 24px;">
+                <div style="width: 32px; height: 32px; background: rgba(249, 115, 22, 0.12); color: #f97316; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">✨</div>
                 <div>
                   <h3 style="margin:0; font-size: 1rem;">Destaques</h3>
                 </div>
               </div>
 
               <!-- Highlights Titles -->
-              <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid var(--gray-200); margin-bottom: 32px;">
-                <h4 style="font-size: 0.75rem; color: var(--gray-400); text-transform: uppercase; margin-bottom: 16px;">Títulos da Seção</h4>
+              <div style="background: var(--glass-bg-heavy); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border-subtle); margin-bottom: 32px;">
+                <h4 style="font-size: 0.75rem; color: var(--color-surface-500); text-transform: uppercase; margin-bottom: 16px;">Títulos da Seção</h4>
                 <div class="form-group">
                   <label class="form-label" style="font-size: 0.7rem;">Título da Seção (Ex: Destaques)</label>
                   <input v-model="pubInfoForm.traditionalHighlightsTitle" class="form-input" placeholder="Destaques" />
@@ -1054,32 +1058,32 @@
 
               <!-- General Highlights -->
               <div v-if="pubInfoForm.highlightsJson.filter(h => h.type === 'highlight' || !h.type).length" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
-                <h4 style="font-size: 0.75rem; color: var(--gray-400); text-transform: uppercase;">Diferenciais Individuais</h4>
-                <div v-for="(h, idx) in pubInfoForm.highlightsJson" :key="idx" v-show="h.type === 'highlight' || !h.type" style="padding: 12px 16px; border: 1px solid var(--gray-200); border-radius: 8px; position: relative; background: white; display: flex; align-items: center; gap: 10px;">
+                <h4 style="font-size: 0.75rem; color: var(--color-surface-500); text-transform: uppercase;">Diferenciais Individuais</h4>
+                <div v-for="(h, idx) in pubInfoForm.highlightsJson" :key="idx" v-show="h.type === 'highlight' || !h.type" style="padding: 12px 16px; border: 1px solid var(--glass-border-subtle); border-radius: 8px; position: relative; background: var(--glass-bg); display: flex; align-items: center; gap: 10px;">
                   <div style="font-size: 1rem; color: #059669;">{{ h.icon || '✅' }}</div>
                   <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     <strong style="font-size: 0.8125rem;">{{ h.label }}</strong>
-                    <span style="font-size: 0.75rem; color: var(--gray-500); margin-left: 4px;">{{ h.value }}</span>
+                    <span style="font-size: 0.75rem; color: var(--color-surface-400); margin-left: 4px;">{{ h.value }}</span>
                   </div>
                   <button v-if="authStore.canEdit" class="btn-remove-v4" title="Remover" @click="removeHighlight(idx)">✕</button>
                 </div>
               </div>
 
-              <div v-if="authStore.canEdit" style="background: var(--gray-50); padding: 24px; border-radius: 12px; border: 1px solid var(--gray-200);">
-                <p style="font-size: 0.7rem; color: var(--gray-500); margin-bottom: 12px; font-weight: 700; text-transform: uppercase;">Novo Diferencial Simples</p>
+              <div v-if="authStore.canEdit" style="background: var(--glass-bg-heavy); padding: 24px; border-radius: 12px; border: 1px solid var(--glass-border-subtle);">
+                <p style="font-size: 0.7rem; color: var(--color-surface-400); margin-bottom: 12px; font-weight: 700; text-transform: uppercase;">Novo Diferencial Simples</p>
                 <div class="grid grid-cols-2 gap-4">
                   <input v-model="newHighlight.label" class="form-input" placeholder="Rótulo (ex: Segurança)" style="height: 48px; border-radius: 8px;" />
                   <input v-model="newHighlight.value" class="form-input" placeholder="Detalhe (ex: 24h)" style="height: 48px; border-radius: 8px;" />
                 </div>
-                <button class="btn btn-dark" style="width: 100%; margin-top: 16px; height: 48px; background: #222; color: white; border-radius: 12px; font-weight: 600;" @click="addHighlight">Adicionar Diferencial</button>
+                <button class="btn btn-dark" style="width: 100%; margin-top: 16px; height: 48px; background: var(--glass-bg-heavy); color: white; border-radius: 12px; font-weight: 600;" @click="addHighlight">Adicionar Diferencial</button>
               </div>
             </section>
           </div>
 
           <!-- Section: Details Text (Full Width) -->
-          <section class="card" style="padding: var(--space-6); grid-column: span 2; margin-top: 12px;">
-            <div class="flex items-center gap-3" style="margin-bottom: var(--space-4);">
-              <div style="width: 32px; height: 32px; background: var(--primary-light); color: var(--primary); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">📝</div>
+          <section class="card" style="padding: 24px; grid-column: span 2; margin-top: 12px;">
+            <div class="flex items-center gap-3" style="margin-bottom: 16px;">
+              <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.1); color: var(--color-primary-500); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">📝</div>
               <div>
                 <h3 style="margin:0; font-size: 1rem;">Texto Descritivo</h3>
               </div>
@@ -1099,15 +1103,15 @@
                 @input="updateFromEditor"
                 @blur="updateFromEditor"
                 v-html="initialEditorContent"
-                style="min-height: 250px; padding: 20px; line-height: 1.6; border-radius: 8px; font-size: 0.875rem; background: white; border: 1px solid var(--gray-300); overflow-y: auto;"
+                style="min-height: 250px; padding: 20px; line-height: 1.6; border-radius: 8px; font-size: 0.875rem; background: var(--glass-bg); border: 1px solid var(--glass-border); overflow-y: auto;"
               ></div>
             </div>
           </section>
 
           <!-- Section: Media Gallery (Full Width) -->
-          <section class="card" style="padding: var(--space-6); grid-column: span 2; margin-top: 12px;">
-            <div class="flex items-center gap-3" style="margin-bottom: var(--space-4);">
-              <div style="width: 32px; height: 32px; background: #dcfce7; color: #166534; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 1rem;">📸</div>
+          <section class="card" style="padding: 24px; grid-column: span 2; margin-top: 12px;">
+            <div class="flex items-center gap-3" style="margin-bottom: 16px;">
+              <div style="width: 32px; height: 32px; background: rgba(16, 185, 129, 0.12); color: #34d399; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem;">📸</div>
               <div style="flex: 1;">
                 <h3 style="margin:0; font-size: 1rem;">Galeria de Mídia</h3>
               </div>
@@ -1119,11 +1123,11 @@
               </div>
             </div>
 
-            <div v-if="media.length === 0" class="empty-state" style="padding: 40px; background: var(--gray-50); border-radius: 12px;">
-              <p style="font-size: 0.875rem; color: var(--gray-400);">Nenhuma foto ou vídeo na galeria.</p>
+            <div v-if="media.length === 0" class="empty-state" style="padding: 40px; background: var(--glass-bg-heavy); border-radius: 12px;">
+              <p style="font-size: 0.875rem; color: var(--color-surface-500);">Nenhuma foto ou vídeo na galeria.</p>
             </div>
             <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 16px;">
-              <div v-for="m in media" :key="m.id" class="media-card-v4" style="aspect-ratio: 1/1; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--gray-100);">
+              <div v-for="m in media" :key="m.id" class="media-card-v4" style="aspect-ratio: 1/1; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border-subtle);">
                 <img v-if="m.type === 'PHOTO'" :src="m.url" class="media-thumb-v4" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
                 <video v-else :src="m.url" class="media-thumb-v4" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
                 <div class="media-overlay-v4">
@@ -1136,7 +1140,7 @@
 
         <!-- Footer-ish Action Bar -->
         <div v-if="authStore.canEdit" class="flex justify-end items-center gap-4" style="margin-top: 48px;">
-          <div v-if="pubInfoSaved" style="color: var(--success); font-weight: 600; font-size: 0.875rem;">✅ Alterações salvas!</div>
+          <div v-if="pubInfoSaved" style="color: var(--color-success); font-weight: 600; font-size: 0.875rem;">✅ Alterações salvas!</div>
           <button class="btn btn-primary" style="min-width: 180px; padding: 12px 24px;" :disabled="savingPubInfo" @click="savePubInfo">
             {{ savingPubInfo ? 'Salvando...' : '💾 Salvar Alterações' }}
           </button>
@@ -1145,19 +1149,19 @@
 
       <!-- Tab: Corretores -->
       <div v-if="activeTab === 'corretores'">
-        <div class="card" style="margin-bottom: var(--space-5);">
-          <h3 style="margin-bottom: var(--space-2);">Links de Corretor</h3>
-          <p style="color: var(--gray-500); font-size:0.875rem;">Cada corretor tem um link personalizado. Quando acessado, a página exibe os dados do corretor para contato. Leads capturados por esse link são vinculados ao corretor.</p>
+        <div class="card" style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 8px;">Links de Corretor</h3>
+          <p style="color: var(--color-surface-400); font-size:0.875rem;">Cada corretor tem um link personalizado. Quando acessado, a página exibe os dados do corretor para contato. Leads capturados por esse link são vinculados ao corretor.</p>
         </div>
 
-        <div v-if="authStore.canEdit" style="margin-bottom: var(--space-5);">
+        <div v-if="authStore.canEdit" style="margin-bottom: 20px;">
           <button class="btn btn-primary" @click="showNewCorretor = !showNewCorretor">
             {{ showNewCorretor ? '✕ Cancelar' : '+ Novo Corretor' }}
           </button>
 
-          <div v-if="showNewCorretor" class="card" style="margin-top: var(--space-4); max-width: 800px;">
-            <h4 style="margin-bottom: var(--space-4);">Novo Link de Corretor</h4>
-            <div class="grid grid-cols-2" style="gap: var(--space-4);">
+          <div v-if="showNewCorretor" class="card" style="margin-top: 16px; max-width: 800px;">
+            <h4 style="margin-bottom: 16px;">Novo Link de Corretor</h4>
+            <div class="grid grid-cols-2" style="gap: 16px;">
               <div class="form-group col-span-2">
                 <label class="form-label">Nome do Corretor <span class="required" style="color:#ef4444;">*</span></label>
                 <input v-model="corretorForm.name" class="form-input" placeholder="Nome completo" required @input="onNameInput" />
@@ -1169,8 +1173,8 @@
                   <span v-if="codeAvailable" style="position: absolute; right: 10px; color: #10b981; font-weight: bold;">✓</span>
                 </div>
                 <span v-if="codeError" class="error-text" style="color:#ef4444; font-size:0.75rem;">{{ codeError }}</span>
-                <span v-else-if="codeLoading" class="help-text" style="color:var(--gray-500); font-size:0.75rem;">Verificando...</span>
-                <small v-else style="color:var(--gray-500); font-size:0.75rem;">Usado como ?c={{ corretorForm.code || '...' }}</small>
+                <span v-else-if="codeLoading" class="help-text" style="color:var(--color-surface-400); font-size:0.75rem;">Verificando...</span>
+                <small v-else style="color:var(--color-surface-400); font-size:0.75rem;">Usado como ?c={{ corretorForm.code || '...' }}</small>
               </div>
               <div class="form-group">
                 <label class="form-label">CRECI</label>
@@ -1191,11 +1195,11 @@
                   <span v-if="emailAvailable" style="position: absolute; right: 10px; color: #10b981; font-weight: bold;">✓</span>
                 </div>
                 <span v-if="emailError" class="error-text" style="color:#ef4444; font-size:0.75rem;">{{ emailError }}</span>
-                <span v-else-if="emailLoading" class="help-text" style="color:var(--gray-500); font-size:0.75rem;">Verificando...</span>
+                <span v-else-if="emailLoading" class="help-text" style="color:var(--color-surface-400); font-size:0.75rem;">Verificando...</span>
               </div>
             </div>
-            <div v-if="corretorError" class="alert alert-error" style="margin-top: var(--space-3);">{{ corretorError }}</div>
-            <div class="modal-actions" style="margin-top: var(--space-4);">
+            <div v-if="corretorError" class="alert alert-error" style="margin-top: 12px;">{{ corretorError }}</div>
+            <div class="modal-actions" style="margin-top: 16px;">
               <button class="btn btn-secondary" @click="showNewCorretor = false">Cancelar</button>
               <button class="btn btn-primary" :disabled="creatingCorretor || !corretorForm.name || !corretorForm.code" @click="createCorretor">
                 {{ creatingCorretor ? 'Criando...' : 'Criar Corretor' }}
@@ -1206,10 +1210,12 @@
 
         <div v-if="loadingCorretores" class="loading-state"><div class="loading-spinner"></div></div>
 
-        <div v-else-if="corretores.length === 0" class="empty-state">
-          <div class="empty-state-icon">🤝</div>
-          <h3>Nenhum corretor cadastrado</h3>
-          <p>Crie links personalizados para corretores divulgarem o loteamento.</p>
+        <div v-else-if="corretores.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+          <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+            <div class="icon-blob mx-auto mb-4">🤝</div>
+            <h3 class="fw-bold mb-3">Nenhum corretor cadastrado</h3>
+            <p class="mb-4 px-4">Crie links personalizados para corretores divulgarem o loteamento.</p>
+          </div>
         </div>
 
         <div v-else class="table-wrapper">
@@ -1236,10 +1242,10 @@
                 </td>
                 <td>
                   <div v-if="publicUrl" class="flex gap-2 items-center">
-                    <code style="font-size:0.75rem; color: var(--gray-600);">?c={{ c.code }}</code>
+                    <code style="font-size:0.75rem; color: var(--color-surface-200);">?c={{ c.code }}</code>
                     <button class="btn btn-sm btn-outline" @click="copyLink(`${locationOrigin}${publicUrl}?c=${c.code}`)">📋 Copiar</button>
                   </div>
-                  <span v-else style="color:var(--gray-400); font-size:0.8rem;">Publique o projeto</span>
+                  <span v-else style="color:var(--color-surface-500); font-size:0.8rem;">Publique o projeto</span>
                 </td>
                 <td v-if="authStore.canEdit">
                   <div class="flex gap-2">
@@ -2247,9 +2253,9 @@ onMounted(async () => {
 
 <style scoped>
 .media-card-v4 {
-  position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--gray-200); background: #f9f9fb; transition: all 0.2s; aspect-ratio: 16/10;
+  position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border-subtle); background: var(--glass-bg-heavy); transition: all 0.2s; aspect-ratio: 16/10;
 }
-.media-card-v4:hover { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.media-card-v4:hover { border-color: var(--color-primary-500); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
 .media-thumb-v4 { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .media-delete-btn-v4 { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(255, 30, 0, 0.1); color: #ff3b30; font-size: 14px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
@@ -2258,36 +2264,36 @@ onMounted(async () => {
 /* Overlays para a Galeria */
 .media-overlay-v4 { position: absolute; inset: 0; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; opacity: 0; transition: opacity 0.2s; background: linear-gradient(to top, rgba(0,0,0,0.4), transparent); }
 .media-card-v4:hover .media-overlay-v4 { opacity: 1; }
-.media-type-pill { background: rgba(255,255,255,0.9); color: #1d1d1f; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; width: fit-content; }
-.delete-btn-circ { width: 32px; height: 32px; border-radius: 50%; border: none; background: white; color: #ff3b30; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; margin-left: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.media-type-pill { background: var(--glass-bg-heavy); color: var(--color-surface-50); padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; width: fit-content; }
+.delete-btn-circ { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--glass-bg); color: #ff3b30; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; margin-left: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
 .delete-btn-circ:hover { background: #ff3b30; color: white; transform: rotate(90deg); }
 
 .media-card {
-  border: 1px solid var(--gray-200); border-radius: var(--radius-md); overflow: hidden; background: white;
+  border: 1px solid var(--glass-border-subtle); border-radius: 8px; overflow: hidden; background: var(--glass-bg);
 }
 .media-thumb { width: 100%; height: 160px; object-fit: cover; display: block; }
-.media-info { padding: var(--space-3); display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; color: var(--gray-600); }
+.media-info { padding: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; color: var(--color-surface-200); }
 
 .rich-editor-v4 {
-  background: white !important;
-  color: var(--gray-800);
-  border: 1px solid var(--gray-300) !important;
+  background: var(--glass-bg) !important;
+  color: var(--color-surface-100);
+  border: 1px solid var(--glass-border) !important;
   transition: all 0.2s;
   outline: none;
 }
 .rich-editor-v4:focus {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 4px var(--primary-light) !important;
+  border-color: var(--color-primary-500) !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1) !important;
 }
 .rich-editor-v4.disabled {
-  background: var(--gray-50) !important;
+  background: var(--glass-bg-heavy) !important;
   pointer-events: none;
   opacity: 0.7;
 }
 .rich-editor-v4 :deep(p), .rich-editor-v4 p, .rich-editor-v4 :deep(div), .rich-editor-v4 div { margin-bottom: 0.75rem; }
 .rich-editor-v4 :deep(ul), .rich-editor-v4 ul { padding-left: 1.5rem; margin-bottom: 1rem; list-style-type: disc; }
 .rich-editor-v4 :deep(li), .rich-editor-v4 li { margin-bottom: 0.25rem; }
-.rich-editor-v4 :deep(b), .rich-editor-v4 b, .rich-editor-v4 :deep(strong), .rich-editor-v4 strong { font-weight: 700; color: #000; }
+.rich-editor-v4 :deep(b), .rich-editor-v4 b, .rich-editor-v4 :deep(strong), .rich-editor-v4 strong { font-weight: 700; color: var(--color-surface-50); }
 
 .provider-badge-sm {
   padding: 2px 8px;
@@ -2318,7 +2324,7 @@ onMounted(async () => {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--gray-300);
+  background-color: var(--color-surface-600);
   transition: .4s;
   border-radius: 24px;
 }
@@ -2329,12 +2335,12 @@ onMounted(async () => {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background: var(--glass-bg);
   transition: .4s;
   border-radius: 50%;
 }
 .toggle-switch input:checked + label {
-  background-color: var(--primary);
+  background-color: var(--color-primary-500);
 }
 .toggle-switch input:checked + label:before {
   transform: translateX(20px);
@@ -2374,33 +2380,33 @@ onMounted(async () => {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--gray-800);
+  color: var(--color-surface-100);
 }
 .preview-header p {
   margin: 4px 0 0;
   font-size: 0.85rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
 }
 
-/* Simulator V4 Styles (Copied from LotDetailsView) */
+/* Simulator V4 Styles (Panel dark theme) */
 :root {
-  --v4-primary: #0071e3;
-  --v4-primary-light: rgba(0, 113, 227, 0.05);
-  --v4-border: #d2d2d7;
-  --v4-text: #1d1d1f;
-  --v4-text-muted: #86868b;
+  --v4-primary: #60a5fa;
+  --v4-primary-light: rgba(96, 165, 250, 0.08);
+  --v4-border: rgba(255, 255, 255, 0.12);
+  --v4-text: #f5f5f7;
+  --v4-text-muted: rgba(255, 255, 255, 0.55);
 }
 
 .simulator-card-v4 {
-  background: white;
+  background: var(--glass-bg);
   border-radius: 24px;
   border: 1px solid var(--v4-border);
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
 .sim-header {
   padding: 24px;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
   border-bottom: 1px solid var(--v4-border);
 }
 .sim-header .h-item { display: flex; flex-direction: column; gap: 4px; padding: 0; }
@@ -2415,13 +2421,13 @@ onMounted(async () => {
 .ig-field { 
   display: flex; 
   align-items: center; 
-  background: #f1f5f9; 
-  border: 1px solid #e2e8f0; 
+  background: var(--glass-bg-heavy); 
+  border: 1px solid rgba(255, 255, 255, 0.1); 
   border-radius: 10px; 
   padding: 0 12px;
   flex: 1;
 }
-.ig-curr { font-size: 12px; font-weight: 700; color: #64748b; }
+.ig-curr { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.55); }
 .ig-input { 
   border: none !important; 
   background: transparent !important; 
@@ -2434,14 +2440,14 @@ onMounted(async () => {
   box-shadow: none !important;
   height: auto !important;
 }
-.ig-hint { font-size: 12px; color: #64748b; margin-top: 2px; }
+.ig-hint { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin-top: 2px; }
 
 .range-slider-v4 {
   -webkit-appearance: none;
   width: 100%;
   height: 6px;
   border-radius: 3px;
-  background: #e2e8f0;
+  background: rgba(255, 255, 255, 0.12);
   outline: none;
   margin: 15px 0;
 }
@@ -2453,10 +2459,10 @@ onMounted(async () => {
   background: var(--v4-primary);
   cursor: pointer;
   border: 3px solid white;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
-.slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; font-weight: 600; }
+.slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: rgba(255, 255, 255, 0.55); font-weight: 600; }
 
 .sim-result-v4 {
   margin-top: 30px;
@@ -2464,7 +2470,7 @@ onMounted(async () => {
   padding: 24px;
   border-radius: 16px;
   text-align: center;
-  border: 1px solid rgba(0, 112, 227, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.15);
 }
 .r-label { font-size: 13px; font-weight: 600; color: var(--v4-primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
 .r-value { font-weight: 800; color: var(--v4-primary); letter-spacing: -1px; }
@@ -2473,7 +2479,7 @@ onMounted(async () => {
 .sim-disclaimer-v4 {
   margin-top: 20px;
   font-size: 12px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.55);
   line-height: 1.5;
   text-align: center;
 }
@@ -2506,8 +2512,8 @@ onMounted(async () => {
 
 /* Infrastructure Badges */
 .infra-badge-v4 {
-  background: #f5f5f7;
-  color: #1d1d1f;
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-50);
   padding: 8px 14px;
   border-radius: 10px;
   font-size: 0.8125rem;
@@ -2515,15 +2521,15 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #d2d2d7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .infra-badge-remove {
   cursor: pointer;
   width: 18px;
   height: 18px;
-  background: #d2d2d7;
-  color: #1d1d1f;
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-surface-50);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -2538,15 +2544,15 @@ onMounted(async () => {
 
 /* Fix for button contrast issues */
 .btn-sm.btn-secondary {
-  background: #222 !important;
+  background: var(--glass-bg-heavy) !important;
   color: #fff !important;
   border: none !important;
 }
 
 .modal-actions .btn-secondary {
-  background: #f3f4f6 !important;
-  color: #374151 !important;
-  border: 1px solid #d1d5db !important;
+  background: var(--glass-bg-heavy) !important;
+  color: var(--color-surface-100) !important;
+  border: 1px solid var(--glass-border) !important;
 }
 
 .modal-actions .btn-primary {

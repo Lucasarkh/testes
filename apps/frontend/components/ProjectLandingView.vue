@@ -177,8 +177,8 @@
           </div>
           <div class="v4-video-wrapper">
             <iframe 
-              v-if="project.youtubeVideoUrl.includes('embed/')"
-              :src="project.youtubeVideoUrl" 
+              v-if="youtubeEmbedUrl"
+              :src="youtubeEmbedUrl" 
               width="100%" height="100%" frameborder="0" 
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
               allowfullscreen
@@ -192,7 +192,7 @@
 
       
       <!-- New Traditional Highlights "Destaques" -->
-      <section v-if="hasInfo" class="v4-section" id="info">
+      <section v-if="hasTraditionalInfo" class="v4-section" id="info">
         <div v-if="traditionalHighlights.length" class="v4-container">
           <div class="v4-destaques-grid-v2">
             <div class="v4-section-header center" style="margin-bottom: 56px;">
@@ -331,9 +331,9 @@
             <p v-if="project.address" class="v4-section-subtitle" style="max-width: 600px; margin: 0 auto;">{{ project.address }}</p>
           </div>
 
-          <div v-if="project.googleMapsUrl" class="v4-map-wrapper" style="margin-top: 40px; border-radius: 16px; overflow: hidden; box-shadow: var(--v4-shadow-elevated);">
+          <div v-if="googleMapsEmbedUrl" class="v4-map-wrapper" style="margin-top: 40px; border-radius: 16px; overflow: hidden; box-shadow: var(--v4-shadow-elevated);">
             <iframe 
-              :src="project.googleMapsUrl" 
+              :src="googleMapsEmbedUrl" 
               width="100%" 
               height="450" 
               style="border:0; display: block;" 
@@ -503,7 +503,7 @@
         <a href="#contato" class="v4-nav-item v4-nav-cta">TENHO INTERESSE</a>
       </nav>
       <!-- Floating Search CTA -->
-      <div v-if="availableLotElements.length > 0 || mapDataLots.length > 0" class="v4-floating-cta">
+      <div v-if="allAvailableTags.length > 0" class="v4-floating-cta">
         <button class="v4-cta-btn-animated" @click="() => { tracking.trackClick('CTA: Busca de Lotes Animado'); toggleFilterModal(); }">
           <div class="v4-cta-inner">
             <span class="v4-cta-icon-spark">✨</span>
@@ -610,6 +610,81 @@ const unitsUrl = computed(() => {
 const galleryUrl = computed(() => {
   const base = `${pathPrefix.value}/galeria`
   return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
+})
+
+/** Convert any YouTube URL to embeddable format */
+const youtubeEmbedUrl = computed(() => {
+  const raw = project.value?.youtubeVideoUrl
+  if (!raw) return ''
+  // Already an embed URL
+  if (raw.includes('/embed/')) return raw
+  // Extract video ID from various YouTube URL formats
+  let videoId = ''
+  try {
+    const url = new URL(raw)
+    if (url.hostname === 'youtu.be') {
+      videoId = url.pathname.slice(1)
+    } else if (url.searchParams.has('v')) {
+      videoId = url.searchParams.get('v') || ''
+    } else if (url.pathname.startsWith('/embed/')) {
+      videoId = url.pathname.replace('/embed/', '')
+    }
+  } catch {
+    // Try regex as last resort
+    const m = raw.match(/(?:v=|youtu\.be\/|\/embed\/)([a-zA-Z0-9_-]{11})/)
+    if (m) videoId = m[1]
+  }
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : raw
+})
+
+/** Normalise any Google Maps URL / pasted iframe to an embeddable src */
+const googleMapsEmbedUrl = computed(() => {
+  const raw = project.value?.googleMapsUrl
+  if (!raw) return ''
+
+  // If user pasted an <iframe> tag, extract the src
+  const iframeSrcMatch = raw.match(/src=["']([^"']+)["']/)
+  const url = iframeSrcMatch ? iframeSrcMatch[1] : raw.trim()
+
+  // Already a proper embed URL
+  if (url.includes('/maps/embed')) return url
+
+  // Ensure absolute URL
+  const abs = url.startsWith('http') ? url : `https://${url}`
+
+  // Convert Google Maps links to embed format
+  try {
+    const parsed = new URL(abs)
+    const host = parsed.hostname.replace('www.', '')
+    if (host.includes('google') && host.includes('map')) {
+      // /maps/place/NAME/@lat,lng → use place query embed
+      const placeMatch = parsed.pathname.match(/\/maps\/place\/([^/@]+)/)
+      if (placeMatch) {
+        return `https://www.google.com/maps/embed/v1/place?key=&q=${encodeURIComponent(placeMatch[1])}`
+          .replace('key=&', '') // works without key for simple embeds when using /maps/embed?pb method
+      }
+      // If it has a 'pb' or 'data' param, convert to embed URL
+      if (parsed.searchParams.has('pb') || parsed.pathname.includes('data=')) {
+        return abs.replace('/maps/', '/maps/embed/')
+          .replace('/maps/embed/place/', '/maps/embed/v1/place/')
+      }
+      // Generic: use the q param or the full URL as embed query
+      const q = parsed.searchParams.get('q') || parsed.searchParams.get('query') || ''
+      if (q) {
+        return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  // Fallback: try adding output=embed for general maps URLs
+  if (abs.includes('google') && abs.includes('map')) {
+    const sep = abs.includes('?') ? '&' : '?'
+    return `${abs}${sep}output=embed`
+  }
+
+  return abs
 })
 const { success: toastSuccess } = useToast()
 const tracking = useTracking()
@@ -767,8 +842,11 @@ const hasMeaningfulLocationText = computed(() => {
 })
 
 const hasInfo = computed(() => {
-  const hasHighlights = highlights.value && highlights.value.length > 0
-  return !!(hasHighlights || hasMeaningfulLocationText.value)
+  return !!(infrastructureCategories.value.length > 0 || hasMeaningfulLocationText.value)
+})
+
+const hasTraditionalInfo = computed(() => {
+  return traditionalHighlights.value.length > 0
 })
 
 const lotElements = computed(() => (project.value?.mapElements || []).filter((e: any) => e.type === 'LOT'))

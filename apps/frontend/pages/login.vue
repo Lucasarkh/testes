@@ -47,6 +47,10 @@ const authStore = useAuthStore()
 const config = useRuntimeConfig()
 const { success: toastSuccess, fromError: toastFromError } = useToast()
 
+definePageMeta({
+  layout: 'public'
+})
+
 onMounted(() => {
   if (route.query.registered) successMessage.value = 'Conta criada com sucesso! Faça seu login.'
 })

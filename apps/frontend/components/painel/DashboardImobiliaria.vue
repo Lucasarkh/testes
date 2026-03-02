@@ -20,7 +20,7 @@
     <!-- Error -->
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="btn btn-primary" style="margin-top: var(--space-4);" @click="loadData">Tentar novamente</button>
+      <button class="btn btn-primary" style="margin-top: 16px;" @click="loadData">Tentar novamente</button>
     </div>
 
     <template v-else>
@@ -54,7 +54,7 @@
         <div class="dashboard-main">
           <!-- Recent Leads -->
           <div class="card" style="padding: 0;">
-            <div class="card-header" style="padding: var(--space-5) var(--space-6);">
+            <div class="card-header" style="padding: 20px 24px;">
               <div>
                 <h3 class="card-title">Leads Recentes</h3>
                 <p class="card-subtitle">Últimos leads gerados pela equipe</p>
@@ -92,7 +92,7 @@
                   </tr>
                   <tr v-if="!recentLeads.length">
                     <td colspan="5">
-                      <div class="empty-state" style="padding: var(--space-8);">
+                      <div class="empty-state" style="padding: 32px;">
                         <div class="empty-state-icon">📭</div>
                         <h3>Nenhum lead registrado</h3>
                         <p>Os leads aparecerão aqui quando seus corretores começarem a indicar.</p>
@@ -105,8 +105,8 @@
           </div>
 
           <!-- Top Performance -->
-          <div style="margin-top: var(--space-8);">
-            <h2 style="margin-bottom: var(--space-5);">Top Performance</h2>
+          <div style="margin-top: 32px;">
+            <h2 style="margin-bottom: 20px;">Top Performance</h2>
             <div v-if="topRealtors.length" class="grid grid-cols-2">
               <div v-for="(r, i) in topRealtors" :key="r.id" class="realtor-perf-card">
                 <div class="realtor-perf-left">
@@ -122,7 +122,7 @@
                 </div>
               </div>
             </div>
-            <div v-else class="empty-state" style="padding: var(--space-8); background: white; border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
+            <div v-else class="empty-state" style="padding: 32px; background: var(--glass-bg); border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
               <div class="empty-state-icon">📊</div>
               <h3>Aguardando dados</h3>
               <p>A performance aparecerá quando seus corretores tiverem atividade.</p>
@@ -153,13 +153,13 @@
           </div>
 
           <!-- Upcoming Schedulings -->
-          <h4 class="sidebar-section-title" style="margin-top: var(--space-8);">Próximos Agendamentos</h4>
-          <div class="card" style="padding: var(--space-5);">
-            <div v-if="upcomingSchedulings.length === 0" class="empty-state" style="padding: var(--space-6);">
+          <h4 class="sidebar-section-title" style="margin-top: 32px;">Próximos Agendamentos</h4>
+          <div class="card" style="padding: 20px;">
+            <div v-if="upcomingSchedulings.length === 0" class="empty-state" style="padding: 24px;">
               <div class="empty-state-icon">📅</div>
               <p>Nenhum agendamento próximo.</p>
             </div>
-            <div v-for="(s, idx) in upcomingSchedulings" :key="s.id" class="schedule-preview-item" :style="idx > 0 ? 'margin-top: var(--space-3)' : ''">
+            <div v-for="(s, idx) in upcomingSchedulings" :key="s.id" class="schedule-preview-item" :style="idx > 0 ? 'margin-top: 12px' : ''">
               <div class="schedule-date-pill">
                 <div class="schedule-month">{{ getMonthShort(s.scheduledAt) }}</div>
                 <div class="schedule-day">{{ getDay(s.scheduledAt) }}</div>
@@ -170,7 +170,7 @@
                 <span class="schedule-status" :class="s.status?.toLowerCase()">{{ translateStatus(s.status) }}</span>
               </div>
             </div>
-            <NuxtLink v-if="upcomingSchedulings.length > 0" to="/painel/agendamentos" class="btn btn-ghost btn-sm" style="margin-top: var(--space-4); width: 100%; justify-content: center;">
+            <NuxtLink v-if="upcomingSchedulings.length > 0" to="/painel/agendamentos" class="btn btn-ghost btn-sm" style="margin-top: 16px; width: 100%; justify-content: center;">
               Ver agenda completa <i class="pi pi-arrow-right" style="margin-left: 4px; font-size: 0.75rem;"></i>
             </NuxtLink>
           </div>
@@ -300,8 +300,8 @@ onMounted(loadData)
 
 /* Stat card accent variant */
 .stat-card--accent {
-  border-color: var(--primary) !important;
-  background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
+  border-color: var(--color-primary-500) !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, var(--glass-bg) 100%);
 }
 
 .stat-icon-wrap {
@@ -312,22 +312,22 @@ onMounted(loadData)
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  margin-bottom: var(--space-3);
+  margin-bottom: 12px;
 }
 
-.stat-icon--blue { background: #e0f2fe; color: var(--primary); }
-.stat-icon--green { background: #dcfce7; color: #16a34a; }
-.stat-icon--amber { background: #fef3c7; color: #d97706; }
-.stat-icon--purple { background: #f3e8ff; color: #9333ea; }
+.stat-icon--blue { background: rgba(59, 130, 246, 0.12); color: var(--color-primary-500); }
+.stat-icon--green { background: rgba(16, 185, 129, 0.12); color: #16a34a; }
+.stat-icon--amber { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.stat-icon--purple { background: rgba(147, 51, 234, 0.12); color: #9333ea; }
 
-.stat-value--success { color: var(--success); }
+.stat-value--success { color: var(--color-success); }
 
 /* Dashboard two-column layout */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 340px;
-  gap: var(--space-8);
-  margin-top: var(--space-8);
+  gap: 32px;
+  margin-top: 32px;
 }
 
 @media (max-width: 1200px) {
@@ -343,15 +343,15 @@ onMounted(loadData)
 .lead-cell {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .lead-avatar {
   width: 32px;
   height: 32px;
   border-radius: var(--radius-sm);
-  background: var(--primary-50);
-  color: var(--primary);
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--color-primary-500);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -361,7 +361,7 @@ onMounted(loadData)
 }
 
 .text-secondary-cell {
-  color: var(--gray-500);
+  color: var(--color-surface-200);
   font-size: 0.8125rem;
 }
 
@@ -370,21 +370,21 @@ onMounted(loadData)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4);
-  background: white;
-  border: 1px solid var(--gray-200);
+  padding: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  transition: all var(--transition);
+  transition: all 150ms ease;
 }
 .realtor-perf-card:hover {
-  border-color: var(--primary);
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-500);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .realtor-perf-left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
   min-width: 0;
 }
 
@@ -398,17 +398,17 @@ onMounted(loadData)
   font-size: 0.6875rem;
   font-weight: 800;
   flex-shrink: 0;
-  background: var(--gray-100);
-  color: var(--gray-600);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-surface-200);
 }
-.rank-1 { background: #fee2e2; color: #ef4444; }
-.rank-2 { background: #fef3c7; color: #d97706; }
-.rank-3 { background: #dcfce7; color: #059669; }
+.rank-1 { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+.rank-2 { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.rank-3 { background: rgba(16, 185, 129, 0.12); color: #059669; }
 
 .realtor-perf-name {
   font-weight: 700;
   font-size: 0.875rem;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -417,7 +417,7 @@ onMounted(loadData)
 
 .realtor-perf-meta {
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--color-surface-200);
   font-weight: 500;
 }
 
@@ -429,12 +429,12 @@ onMounted(loadData)
 .conv-value {
   font-weight: 800;
   font-size: 1rem;
-  color: var(--primary);
+  color: var(--color-primary-500);
 }
 .conv-label {
   display: block;
   font-size: 0.6875rem;
-  color: var(--gray-400);
+  color: var(--color-surface-400);
   font-weight: 600;
 }
 
@@ -444,15 +444,15 @@ onMounted(loadData)
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--gray-500);
-  margin-bottom: var(--space-4);
+  color: var(--color-surface-200);
+  margin-bottom: 16px;
 }
 
 /* Shortcuts */
 .shortcut-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .shortcut-item {
@@ -460,22 +460,22 @@ onMounted(loadData)
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-5) var(--space-3);
-  background: white;
-  border: 1px solid var(--gray-200);
+  padding: 20px 12px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   text-decoration: none;
-  transition: all var(--transition);
+  transition: all 150ms ease;
 }
 .shortcut-item:hover {
   transform: translateY(-2px);
-  border-color: var(--primary);
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary-500);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 .shortcut-item span {
   font-size: 0.75rem;
   font-weight: 700;
-  color: var(--gray-700);
+  color: var(--color-surface-100);
 }
 
 .shortcut-icon {
@@ -486,25 +486,25 @@ onMounted(loadData)
   align-items: center;
   justify-content: center;
   font-size: 1.125rem;
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
 }
-.shortcut-icon--blue { background: #e0f2fe; color: var(--primary); }
-.shortcut-icon--green { background: #dcfce7; color: #16a34a; }
-.shortcut-icon--purple { background: #f3e8ff; color: #9333ea; }
-.shortcut-icon--amber { background: #fef3c7; color: #d97706; }
+.shortcut-icon--blue { background: rgba(59, 130, 246, 0.12); color: var(--color-primary-500); }
+.shortcut-icon--green { background: rgba(16, 185, 129, 0.12); color: #16a34a; }
+.shortcut-icon--purple { background: rgba(147, 51, 234, 0.12); color: #9333ea; }
+.shortcut-icon--amber { background: rgba(245, 158, 11, 0.12); color: #d97706; }
 
 /* Schedule preview items */
 .schedule-preview-item {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .schedule-date-pill {
   min-width: 40px;
-  padding: var(--space-1) var(--space-2);
-  background: var(--gray-50);
-  border: 1px solid var(--gray-200);
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-sm);
   text-align: center;
   flex-shrink: 0;
@@ -513,27 +513,27 @@ onMounted(loadData)
   font-size: 0.5625rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: var(--gray-500);
+  color: var(--color-surface-200);
   letter-spacing: 0.04em;
 }
 .schedule-day {
   font-size: 1.0625rem;
   font-weight: 900;
   line-height: 1;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
 }
 
 .schedule-title {
   font-weight: 700;
   font-size: 0.8125rem;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .schedule-meta {
   font-size: 0.6875rem;
-  color: var(--gray-500);
+  color: var(--color-surface-200);
   font-weight: 500;
 }
 
@@ -544,13 +544,13 @@ onMounted(loadData)
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 1px 8px;
-  border-radius: var(--radius-full);
+  border-radius: 9999px;
   margin-top: 2px;
 }
-.schedule-status.pending { background: #fef3c7; color: #b45309; }
-.schedule-status.confirmed { background: #dcfce7; color: #15803d; }
-.schedule-status.cancelled { background: #fee2e2; color: #b91c1c; }
-.schedule-status.completed { background: #e0f2fe; color: #0369a1; }
+.schedule-status.pending { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
+.schedule-status.confirmed { background: rgba(16, 185, 129, 0.12); color: #34d399; }
+.schedule-status.cancelled { background: rgba(239, 68, 68, 0.12); color: #f87171; }
+.schedule-status.completed { background: rgba(59, 130, 246, 0.12); color: #38bdf8; }
 
 /* Utilities used locally */
 .me-2 { margin-right: 0.5rem; }

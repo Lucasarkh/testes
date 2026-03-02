@@ -1,14 +1,14 @@
 <template>
   <div>
-    <div class="page-header" style="border-bottom: 1px solid var(--gray-100); padding-bottom: var(--space-6); margin-bottom: var(--space-6);">
+    <div class="page-header" style="border-bottom: 1px solid var(--glass-border-subtle); padding-bottom: 24px; margin-bottom: 24px;">
       <div style="flex: 1;">
-        <div class="flex items-center gap-2" style="margin-bottom: var(--space-1);">
-          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--gray-500);">
+        <div class="flex items-center gap-2" style="margin-bottom: 4px;">
+          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--color-surface-400);">
             ← {{ projectName || 'Projeto' }}
           </NuxtLink>
         </div>
         <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">🌄 Panorama 360°</h1>
-        <p style="margin: 0; color: var(--gray-500); font-weight: 500;">Gerencie vistas panorâmicas com beacons de texto e linha do tempo.</p>
+        <p style="margin: 0; color: var(--color-surface-400); font-weight: 500;">Gerencie vistas panorâmicas com beacons de texto e linha do tempo.</p>
       </div>
 
       <div class="flex items-center gap-2">
@@ -17,7 +17,7 @@
           :href="`/${projectSlug}#panorama`"
           target="_blank"
           class="btn btn-sm btn-primary"
-          style="border-radius: var(--radius-full); padding-left: var(--space-5); padding-right: var(--space-5); height: 38px;"
+          style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
         >
           <span style="font-size: 1rem;">🌐</span>
           <span>Ver página pública</span>
@@ -29,7 +29,7 @@
       <div class="loading-spinner"></div>
     </div>
 
-    <div v-else-if="loadError" class="card" style="max-width: 500px; color: var(--danger);">
+    <div v-else-if="loadError" class="card" style="max-width: 500px; color: var(--color-danger);">
       {{ loadError }}
     </div>
 

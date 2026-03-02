@@ -8,13 +8,13 @@
     </div>
 
     <template v-else>
-      <div class="page-header" style="margin-bottom: var(--space-8);">
+      <div class="page-header" style="margin-bottom: 32px;">
         <div style="flex: 1;">
-          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; margin-bottom: var(--space-2);">
+          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; margin-bottom: 8px;">
             &larr; Voltar ao Projeto
           </NuxtLink>
           <h1 style="margin: 0; font-size: 1.5rem;">Métricas e Analíticos</h1>
-          <p style="margin: 0; color: var(--gray-500);">Desempenho e engajamento do empreendimento</p>
+          <p style="margin: 0; color: var(--color-surface-400);">Desempenho e engajamento do empreendimento</p>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ onMounted(() => {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-  gap: var(--space-6);
+  gap: 24px;
 }
 
 @media (max-width: 768px) {
@@ -180,63 +180,63 @@ onMounted(() => {
 }
 
 .card-header {
-  margin-bottom: var(--space-6);
+  margin-bottom: 24px;
 }
 
 .card-title {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
 }
 
 .card-subtitle {
   font-size: 0.875rem;
-  color: var(--gray-500);
-  margin: var(--space-1) 0 0;
+  color: var(--color-surface-400);
+  margin: 4px 0 0;
 }
 
 .metrics-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .metrics-item {
   display: flex;
   align-items: flex-end;
-  gap: var(--space-4);
+  gap: 16px;
 }
 
 .metrics-item-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .metrics-item-label {
   font-size: 0.875rem;
-  color: var(--gray-700);
+  color: var(--color-surface-200);
 }
 
 .metrics-item-label.path {
   font-family: monospace;
   font-size: 0.75rem;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
   word-break: break-all;
 }
 
 .metrics-bar-bg {
   height: 8px;
-  background: var(--gray-100);
+  background: var(--glass-bg);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .metrics-bar-fill {
   height: 100%;
-  background: var(--primary);
+  background: var(--color-primary-500);
   border-radius: 4px;
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -248,7 +248,7 @@ onMounted(() => {
 .metrics-item-value {
   font-size: 1.125rem;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--color-surface-50);
   text-align: right;
   min-width: 60px;
 }
@@ -257,14 +257,14 @@ onMounted(() => {
   display: block;
   font-size: 0.65rem;
   font-weight: 500;
-  color: var(--gray-500);
+  color: var(--color-surface-400);
   text-transform: uppercase;
 }
 
 .empty-state {
-  padding: var(--space-8) 0;
+  padding: 32px 0;
   text-align: center;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
   font-style: italic;
 }
 </style>

@@ -154,10 +154,10 @@ onMounted(fetchAgencies)
       <!-- Header de Alta Performance -->
       <header class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-4">
         <div class="header-content">
-          <h1 class="display-5 fw-bold text-dark tracking-tight mb-2">Imobiliárias</h1>
+          <h1 class="display-5 fw-bold tracking-tight mb-2" style="color: var(--color-surface-50);">Imobiliárias</h1>
           <p class="lead text-secondary opacity-75 mb-0">Gestão centralizada de parceiros e canais de venda.</p>
         </div>
-        <div class="header-actions d-flex gap-3">
+        <div class="header-actions d-flex gap-3 mb-2">
           <div class="search-box-minimal">
             <i class="pi pi-search"></i>
             <input 
@@ -185,11 +185,11 @@ onMounted(fetchAgencies)
       </div>
 
       <div v-else-if="agencies.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
-        <div class="text-center p-5 rounded-5 bg-white shadow-soft max-w-500">
+        <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
           <div class="icon-blob mx-auto mb-4">🏢</div>
-          <h3 class="fw-bold text-dark mb-3">Expanda sua rede de vendas</h3>
-          <p class="text-muted mb-4 px-4">Conecte-se com imobiliárias parceiras para multiplicar o alcance dos seus empreendimentos.</p>
-          <button class="btn btn-dark btn-lg rounded-pill px-5" @click="showModal = true">Começar Agora</button>
+          <h3 class="fw-bold mb-3" style="color: var(--color-surface-50);">Expanda sua rede de vendas</h3>
+          <p class="mb-4 px-4" style="color: var(--color-surface-200);">Conecte-se com imobiliárias parceiras para multiplicar o alcance dos seus empreendimentos.</p>
+          <button class="btn btn-primary btn-lg rounded-pill px-5" @click="showModal = true">Começar Agora</button>
         </div>
       </div>
 
@@ -301,10 +301,10 @@ onMounted(fetchAgencies)
             <!-- Modal Header -->
             <header class="modal-header-custom">
               <div class="d-flex align-items-center gap-3">
-                <div class="modal-icon-context bg-primary-soft p-2 rounded-3 text-primary">
+                <div class="modal-icon-context p-2 rounded-3" style="background: rgba(16, 185, 129, 0.12); color: var(--color-primary-400);">
                   {{ showModal ? '🏢' : '✉️' }}
                 </div>
-                <h3 class="h5 fw-black text-dark mb-0">
+                <h3 class="h5 fw-black mb-0" style="color: var(--color-surface-50);">
                   {{ showInviteModal ? 'Enviar Convite' : (editingAgency ? 'Editar Imobiliária' : 'Nova Imobiliária') }}
                 </h3>
               </div>
@@ -388,7 +388,6 @@ onMounted(fetchAgencies)
 
 .painel-layout {
   min-height: 100vh;
-  background-color: #f8fafc;
 }
 
 .max-w-500 { max-width: 500px; }
@@ -422,23 +421,23 @@ onMounted(fetchAgencies)
 
 /* THE SENIOR CARD ARCHITECTURE */
 .agency-glass-card {
-  background: #ffffff !important;
+  background: var(--glass-bg) !important;
   border-radius: 32px !important;
-  border: 1px solid #f1f5f9 !important;
+  border: 1px solid var(--glass-border-subtle) !important;
   padding: 32px !important;
   height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   position: relative !important;
   overflow: hidden !important;
-  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.03), 0 8px 10px -6px rgba(0,0,0,0.03) !important;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2) !important;
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .agency-glass-card:hover {
   transform: translateY(-12px) scale(1.01) !important;
   box-shadow: 0 30px 60px -12px rgba(15, 23, 42, 0.12) !important;
-  border-color: #e2e8f0 !important;
+  border-color: var(--glass-border-subtle) !important;
 }
 
 /* Card Section: Header */
@@ -455,10 +454,10 @@ onMounted(fetchAgencies)
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  background: #f8fafc !important;
+  background: var(--glass-bg-heavy) !important;
   border-radius: 20px !important;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
-  border: 4px solid white !important;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2) !important;
+  border: 4px solid var(--glass-border-subtle) !important;
 }
 
 .status-badge-premium {
@@ -474,7 +473,7 @@ onMounted(fetchAgencies)
 }
 
 .status-badge-premium.is-active {
-  background: #ecfdf5 !important;
+  background: rgba(16, 185, 129, 0.12) !important;
   color: #059669 !important;
 }
 
@@ -488,7 +487,7 @@ onMounted(fetchAgencies)
   font-weight: 900 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.1em !important;
-  background: #fffbeb !important;
+  background: rgba(245, 158, 11, 0.1) !important;
   color: #d97706 !important;
 }
 
@@ -507,7 +506,7 @@ onMounted(fetchAgencies)
 .agency-name-title {
   font-size: 1.5rem !important;
   font-weight: 900 !important;
-  color: #0f172a !important;
+  color: var(--color-surface-50) !important;
   letter-spacing: -0.04em !important;
   margin-bottom: 8px !important;
   line-height: 1.1 !important;
@@ -517,15 +516,15 @@ onMounted(fetchAgencies)
   display: flex !important;
   align-items: center !important;
   gap: 10px !important;
-  color: #64748b !important;
+  color: var(--color-surface-400) !important;
   font-size: 0.95rem !important;
   font-weight: 500 !important;
 }
 
 /* Card Section: Stats Bar (The Fix) */
 .card-stats-premium {
-  background: #f8fafc !important;
-  border: 1px solid #f1f5f9 !important;
+  background: var(--glass-bg-heavy) !important;
+  border: 1px solid var(--glass-border-subtle) !important;
   border-radius: 24px !important;
   display: flex !important;
   padding: 20px 0 !important;
@@ -546,14 +545,14 @@ onMounted(fetchAgencies)
   font-size: 0.65rem !important;
   font-weight: 900 !important;
   text-transform: uppercase !important;
-  color: #94a3b8 !important;
+  color: var(--color-surface-400) !important;
   letter-spacing: 0.15em !important;
 }
 
 .stat-value {
   font-size: 1.25rem !important;
   font-weight: 900 !important;
-  color: #1e293b !important;
+  color: var(--color-surface-100) !important;
   line-height: 1 !important;
 }
 
@@ -586,13 +585,13 @@ onMounted(fetchAgencies)
 }
 
 .btn-lotio-secondary {
-  background: #f1f5f9 !important;
-  color: #475569 !important;
-  border: 1px solid #e2e8f0 !important;
+  background: var(--glass-bg-heavy) !important;
+  color: var(--color-surface-200) !important;
+  border: 1px solid var(--glass-border-subtle) !important;
 }
 
 .btn-lotio-secondary:hover {
-  background: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
 
@@ -606,8 +605,8 @@ onMounted(fetchAgencies)
 
 /* NOVO ESTILO MINIMALISTA (APPLE/SAMSUNG) */
 .minimal-agency-card {
-  background: white;
-  border: 1px solid #f1f5f9;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-subtle);
   border-radius: 20px;
   padding: 1.5rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -618,7 +617,7 @@ onMounted(fetchAgencies)
 
 .minimal-agency-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.1) !important;
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.4) !important;
   border-color: #3b82f6;
 }
 
@@ -635,11 +634,11 @@ onMounted(fetchAgencies)
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--glass-border-subtle);
 }
 
 .bg-primary-soft-v2 {
-  background: #eff6ff;
+  background: rgba(59, 130, 246, 0.1);
 }
 
 .minimal-badge {
@@ -651,11 +650,11 @@ onMounted(fetchAgencies)
   letter-spacing: 0.05em;
 }
 
-.minimal-badge.active { background: #ecfdf5; color: #10b981; }
-.minimal-badge.inactive { background: #fef2f2; color: #ef4444; }
+.minimal-badge.active { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.minimal-badge.inactive { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
 
 .minimal-agency-name {
-  color: #0f172a;
+  color: var(--color-surface-50);
   font-size: 1.15rem;
   font-weight: 800;
   margin-top: 1.25rem;
@@ -668,7 +667,7 @@ onMounted(fetchAgencies)
 
 .minimal-agency-email {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--color-surface-400);
   margin-bottom: 1.5rem;
   white-space: nowrap;
   overflow: hidden;
@@ -679,10 +678,10 @@ onMounted(fetchAgencies)
   display: flex;
   align-items: center;
   gap: 24px;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
   padding: 14px 20px;
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--glass-border-subtle);
 }
 
 .stat-minimal-item {
@@ -695,14 +694,14 @@ onMounted(fetchAgencies)
 .stat-minimal-item .label {
   font-size: 0.6rem;
   font-weight: 800;
-  color: #94a3b8;
+  color: var(--color-surface-400);
   letter-spacing: 0.12em;
 }
 
 .stat-minimal-item .value {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--color-surface-100);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -712,18 +711,18 @@ onMounted(fetchAgencies)
 .stat-minimal-divider {
   width: 1px;
   height: 28px;
-  background: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .w-100px { width: 100px; }
 
 .btn-action-minimal {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--glass-bg-heavy);
+  border: 1px solid var(--glass-border-subtle);
   border-radius: 12px;
   font-size: 0.8rem;
   font-weight: 800;
-  color: #475569;
+  color: var(--color-surface-200);
   padding: 10px 16px;
   margin-right: 8px;
   transition: all 0.2s;
@@ -733,18 +732,18 @@ onMounted(fetchAgencies)
 }
 
 .btn-action-minimal:hover {
-  background: white;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  color: var(--color-surface-50);
 }
 
 .btn-icon-minimal {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #475569;
+  border: 1px solid var(--glass-border-subtle);
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-200);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -753,9 +752,9 @@ onMounted(fetchAgencies)
 }
 
 .btn-icon-minimal:hover {
-  background: white;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  color: var(--color-surface-50);
 }
 
 .btn-primary-minimal {
@@ -791,35 +790,35 @@ onMounted(fetchAgencies)
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--color-surface-400);
   font-size: 0.9rem;
 }
 
 .search-box-minimal input {
   width: 100%;
   padding: 14px 14px 14px 40px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--glass-bg-heavy);
+  border: 1px solid var(--glass-border-subtle);
   border-radius: 14px;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--color-surface-100);
   transition: all 0.3s;
 }
 
 .search-box-minimal input:focus {
   outline: none;
   border-color: #3b82f6;
-  background: white;
+  background: var(--glass-bg);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.08);
 }
 
 /* PAGINAÇÃO APPLE STYLE */
 .apple-pagination {
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
   padding: 8px;
   border-radius: 16px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--glass-border-subtle);
 }
 
 .btn-page-nav, .btn-page-num {
@@ -828,7 +827,7 @@ onMounted(fetchAgencies)
   border-radius: 12px;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--color-surface-400);
   font-weight: 700;
   font-size: 0.85rem;
   transition: all 0.2s;
@@ -838,14 +837,14 @@ onMounted(fetchAgencies)
 }
 
 .btn-page-num.is-active {
-  background: white;
+  background: var(--glass-bg);
   color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
 .btn-page-num:hover:not(.is-active) {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: var(--glass-bg);
+  color: var(--color-surface-50);
 }
 
 .btn-page-nav:disabled {
@@ -881,7 +880,7 @@ onMounted(fetchAgencies)
 .modal-window-custom {
   width: 100% !important;
   max-width: 640px !important;
-  background: white !important;
+  background: var(--glass-bg) !important;
   border-radius: 32px !important;
   box-shadow: 0 40px 100px -20px rgba(0,0,0,0.5) !important;
   display: flex !important;
@@ -893,23 +892,23 @@ onMounted(fetchAgencies)
 
 .modal-header-custom {
   padding: 1.5rem 2.5rem !important;
-  border-bottom: 1px solid #f1f5f9 !important;
+  border-bottom: 1px solid var(--glass-border-subtle) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  background: white !important;
+  background: var(--glass-bg) !important;
 }
 
 .modal-body-custom {
   padding: 2.5rem !important;
-  background: white !important;
+  background: var(--glass-bg) !important;
   flex-grow: 1 !important;
 }
 
 .modal-footer-custom {
   padding: 2rem 2.5rem !important;
-  background: #f8fafc !important;
-  border-top: 1px solid #f1f5f9 !important;
+  background: var(--glass-bg-heavy) !important;
+  border-top: 1px solid var(--glass-border-subtle) !important;
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
@@ -920,7 +919,7 @@ onMounted(fetchAgencies)
 .btn-dismiss-custom {
   background: transparent !important;
   border: none !important;
-  color: #64748b !important;
+  color: var(--color-surface-400) !important;
   font-size: 0.75rem !important;
   padding: 0.5rem 1rem !important;
   border-radius: 10px !important;
@@ -928,8 +927,8 @@ onMounted(fetchAgencies)
   cursor: pointer !important;
 }
 .btn-dismiss-custom:hover {
-  color: #0f172a !important;
-  background: #e2e8f0 !important;
+  color: var(--color-surface-50) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
 /* FORM OVERRIDES */
@@ -946,9 +945,9 @@ onMounted(fetchAgencies)
   padding: 1rem 1.25rem !important;
   font-size: 1rem !important;
   font-weight: 500 !important;
-  color: #1e293b !important;
-  background-color: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
+  color: var(--color-surface-100) !important;
+  background: var(--glass-bg-heavy) !important;
+  border: 1px solid var(--glass-border-subtle) !important;
   border-radius: 16px !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: none !important;
@@ -956,19 +955,19 @@ onMounted(fetchAgencies)
 
 .form-control-custom:focus {
   outline: none !important;
-  background-color: white !important;
+  background: var(--glass-bg) !important;
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.12) !important;
 }
 
 .bg-light-soft {
-  background-color: #f8fafc !important;
+  background: var(--glass-bg-heavy) !important;
 }
 
 
 /* BUTTONS */
 .btn-primary-soft {
-  background-color: #eff6ff !important;
+  background: rgba(59, 130, 246, 0.1) !important;
   color: #2563eb !important;
 }
 
@@ -978,12 +977,12 @@ onMounted(fetchAgencies)
 .btn-close-custom {
   background: transparent !important;
   border: none !important;
-  color: #94a3b8 !important;
+  color: var(--color-surface-400) !important;
   padding: 8px !important;
   border-radius: 12px !important;
   transition: all 0.2s !important;
 }
-.btn-close-custom:hover { background: #f1f5f9 !important; color: #1e293b !important; }
+.btn-close-custom:hover { background: var(--glass-bg-heavy) !important; color: var(--color-surface-100) !important; }
 
 /* Animations */
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.3s ease; }
@@ -1000,7 +999,7 @@ onMounted(fetchAgencies)
 
 .skeleton-card {
   height: 280px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #f8fafc 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
   background-size: 200% 100%;
   border-radius: 28px;
   animation: shimmer 1.5s infinite;
@@ -1014,7 +1013,7 @@ onMounted(fetchAgencies)
 .icon-blob {
   width: 100px;
   height: 100px;
-  background: #f0f7ff;
+  background: rgba(59, 130, 246, 0.1);
   border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
   display: flex;
   align-items: center;
@@ -1032,24 +1031,24 @@ onMounted(fetchAgencies)
   justify-content: center !important;
   width: 48px !important;
   height: 48px !important;
-  background: #f1f5f9 !important;
-  color: #475569 !important;
-  border: 1px solid #e2e8f0 !important;
+  background: var(--glass-bg-heavy) !important;
+  color: var(--color-surface-200) !important;
+  border: 1px solid var(--glass-border-subtle) !important;
   border-radius: 16px !important;
   transition: all 0.3s ease !important;
   flex-shrink: 0 !important;
 }
 
 .btn-lotio-link:hover {
-  background: #e2e8f0 !important;
-  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--color-surface-50) !important;
   transform: translateY(-2px) !important;
 }
 
 .btn-lotio-primary:disabled {
-  background: #f1f5f9 !important;
-  color: #94a3b8 !important;
-  border-color: #e2e8f0 !important;
+  background: var(--glass-bg-heavy) !important;
+  color: var(--color-surface-400) !important;
+  border-color: var(--glass-border-subtle) !important;
   opacity: 0.7 !important;
   cursor: not-allowed !important;
 }
@@ -1064,12 +1063,12 @@ onMounted(fetchAgencies)
 
 .agency-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--glass-border-subtle);
 }
 
 .agency-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.5);
 }
 
 .modal-overlay {
@@ -1086,7 +1085,7 @@ onMounted(fetchAgencies)
 }
 
 .modal-container {
-  background: white !important;
+  background: var(--glass-bg) !important;
   position: relative;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1110,7 +1109,7 @@ onMounted(fetchAgencies)
   letter-spacing: 0.5px;
 }
 
-.badge-success { background: var(--success-light); color: var(--success); }
-.badge-danger { background: var(--danger-light); color: var(--danger); }
+.badge-success { background: var(--success-light); color: var(--color-success); }
+.badge-danger { background: var(--danger-light); color: var(--color-danger); }
 </style>
 

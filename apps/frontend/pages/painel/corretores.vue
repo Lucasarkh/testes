@@ -271,8 +271,12 @@ definePageMeta({
     <div v-if="loading" class="loading">Carregando...</div>
     
     <div v-else class="card">
-      <div v-if="realtors.length === 0" class="empty-state">
-        Nenhum corretor cadastrado ainda.
+      <div v-if="realtors.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
+        <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
+          <div class="icon-blob mx-auto mb-4">🤝</div>
+          <h3 class="fw-bold mb-3">Nenhum corretor cadastrado</h3>
+          <p class="mb-4 px-4">Cadastre corretores para gerenciar links de divulgação dos seus loteamentos.</p>
+        </div>
       </div>
       
       <table v-else class="table">
@@ -464,16 +468,18 @@ h1 {
   font-size: 24px;
   margin: 0 0 8px 0;
 }
-
+.header-actions button {
+  color: #fff;
+}
 .subtitle {
-  color: #64748b;
+  color: var(--color-surface-400);
   margin: 0;
 }
 
 .card {
-  background: white;
+  background: var(--glass-bg);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
   overflow: hidden;
 }
 
@@ -485,15 +491,15 @@ h1 {
 .table th {
   text-align: left;
   padding: 12px 16px;
-  background: #f8fafc;
-  color: #64748b;
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-400);
   font-weight: 600;
   font-size: 14px;
 }
 
 .table td {
   padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--glass-border-subtle);
 }
 
 .realtor-name {
@@ -507,7 +513,7 @@ h1 {
   height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  background: #f1f5f9;
+  background: var(--glass-bg-heavy);
 }
 
 .realtor-photo img {
@@ -541,24 +547,24 @@ h1 {
   justify-content: space-between;
   gap: 12px;
   padding: 4px 8px;
-  background: #f8fafc;
+  background: var(--glass-bg-heavy);
   border-radius: 4px;
   font-size: 13px;
 }
 
 .p-name {
   font-weight: 500;
-  color: #1e293b;
+  color: var(--color-surface-100);
 }
 
 .btn-copy-small {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-subtle);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 11px;
   cursor: pointer;
-  color: #64748b;
+  color: var(--color-surface-400);
   transition: all 0.2s;
 }
 
@@ -578,7 +584,7 @@ h1 {
   border: none;
   cursor: pointer;
   padding: 4px;
-  color: #64748b;
+  color: var(--color-surface-400);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -587,12 +593,12 @@ h1 {
 }
 
 .btn-icon:hover {
-  background: #f1f5f9;
+  background: var(--glass-bg-heavy);
   color: #2563eb;
 }
 
 .btn-icon.text-danger:hover {
-  background: #fef2f2;
+  background: rgba(239, 68, 68, 0.12);
   color: #ef4444;
 }
 
@@ -624,19 +630,19 @@ h1 {
 .form-section {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--glass-border-subtle);
 }
 
 .form-section-title {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: #1e293b;
+  color: var(--color-surface-100);
 }
 
 .help-text {
   font-size: 12px;
-  color: #64748b;
+  color: var(--color-surface-400);
   margin-top: 4px;
 }
 
@@ -687,13 +693,13 @@ h1 {
   gap: 12px;
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--glass-border-subtle);
 }
 
 .empty-state {
   padding: 48px;
   text-align: center;
-  color: #64748b;
+  color: var(--color-surface-400);
 }
 
 .badge {
@@ -705,13 +711,13 @@ h1 {
 }
 
 .badge-success {
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
 }
 
 .badge-neutral {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-400);
 }
 
 .text-right {

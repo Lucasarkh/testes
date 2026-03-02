@@ -9,7 +9,7 @@
 
     <div class="grid grid-cols-2 gap-8">
       <div class="card">
-        <h2 style="margin-bottom: var(--space-4);">Dados Pessoais</h2>
+        <h2 style="margin-bottom: 16px;">Dados Pessoais</h2>
         
         <form v-if="authStore.user?.role === 'CORRETOR'" @submit.prevent="handleUpdateRealtor">
           <div class="form-group">
@@ -23,7 +23,7 @@
           <div class="form-group">
             <label class="form-label">Código de Compartilhamento (?c=...)</label>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <span style="color: var(--text-muted); font-size: 0.9em;">.../?c=</span>
+              <span style="color: var(--color-surface-400); font-size: 0.9em;">.../?c=</span>
               <input v-model="realtorForm.code" class="form-input" required pattern="^[a-zA-Z0-9-_]+$" title="Apenas letras, números, hífen e underline" />
             </div>
             <p class="form-help">Este código identifica você nos links de compartilhamento.</p>
@@ -61,7 +61,7 @@
       </div>
 
       <div class="card">
-        <h2 style="margin-bottom: var(--space-4);">Alterar Senha</h2>
+        <h2 style="margin-bottom: 16px;">Alterar Senha</h2>
         <form @submit.prevent="handleChangePassword">
           <div class="form-group">
             <label class="form-label">Senha Atual</label>

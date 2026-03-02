@@ -335,7 +335,7 @@ const deleteScheduling = async (id: string) => {
 
 <style scoped>
 .gradient-text {
-  background: linear-gradient(135deg, #1C1C1E 0%, #48484A 100%);
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -344,14 +344,16 @@ const deleteScheduling = async (id: string) => {
 
 /* Filter Bar Optimization */
 .lotio-filter-bar {
-   background: white;
-   border: 1px solid rgba(0, 0, 0, 0.08);
+   background: var(--glass-bg);
+   backdrop-filter: blur(16px);
+   -webkit-backdrop-filter: blur(16px);
+   border: 1px solid var(--glass-border);
    border-radius: 20px;
    padding: 10px 24px;
    display: flex;
    align-items: center;
    gap: 20px;
-   box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
    margin-bottom: 8px;
 }
 
@@ -368,7 +370,7 @@ const deleteScheduling = async (id: string) => {
    background: transparent;
    font-weight: 700;
    font-size: 1rem;
-   color: #1D1D1F;
+   color: var(--color-surface-50);
    outline: none;
    padding: 4px 28px 4px 6px;
    cursor: pointer;
@@ -377,8 +379,8 @@ const deleteScheduling = async (id: string) => {
 
 /* Fix for Select Options contrast */
 .lotio-select-modern option {
-  background-color: white !important;
-  color: black !important;
+  background: #141f1a !important;
+  color: #f0fdf4 !important;
 }
 
 .lotio-select-wrapper i {
@@ -388,24 +390,24 @@ const deleteScheduling = async (id: string) => {
   transform: translateY(-50%);
   pointer-events: none;
   font-size: 0.7rem;
-  color: var(--gray-400);
+  color: var(--color-surface-500);
 }
 
 .filter-item label {
    font-size: 0.65rem;
    text-transform: uppercase;
    font-weight: 800;
-   color: #8E8E93;
+   color: var(--color-surface-400);
    margin-bottom: 2px;
    letter-spacing: 0.03em;
 }
 
-.filter-separator { width: 1px; height: 35px; background: rgba(0, 0, 0, 0.1); }
+.filter-separator { width: 1px; height: 35px; background: var(--glass-border); }
 
 .calendar-nav-group {
    display: flex;
    align-items: center;
-   background: #F2F2F7;
+   background: var(--glass-bg-heavy);
    padding: 4px;
    border-radius: 12px;
    gap: 8px;
@@ -416,48 +418,55 @@ const deleteScheduling = async (id: string) => {
    height: 32px;
    border-radius: 9px;
    border: none;
-   background: white;
+   background: var(--glass-bg);
+   color: var(--color-surface-200);
    display: flex;
    align-items: center;
    justify-content: center;
    cursor: pointer;
-   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-   transition: transform 0.1s;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+   transition: transform 0.1s, background 0.15s;
 }
+.nav-btn-round:hover { background: var(--glass-bg-hover); }
 .nav-btn-round:active { transform: scale(0.95); }
 
 .current-month-display {
    font-weight: 700;
    font-size: 0.95rem;
-   color: #1D1D1F;
+   color: var(--color-surface-50);
    min-width: 150px;
    text-align: center;
    text-transform: capitalize;
 }
 
 .btn-pill-today {
-   background: #1D1D1F;
+   background: var(--color-primary-600);
    color: white;
    border: none;
    border-radius: 20px;
    padding: 8px 18px;
    font-weight: 700;
    font-size: 0.85rem;
+   cursor: pointer;
+   transition: background 0.15s;
 }
+.btn-pill-today:hover { background: var(--color-primary-500); }
 
 /* Calendar Container */
 .lotio-calendar-container {
-   background: white;
+   background: var(--glass-bg);
+   backdrop-filter: blur(16px);
+   -webkit-backdrop-filter: blur(16px);
    border-radius: 32px;
    overflow: hidden;
-   border: 1px solid rgba(0, 0, 0, 0.05);
+   border: 1px solid var(--glass-border);
 }
 
 .calendar-header-grid {
    display: grid;
    grid-template-columns: repeat(7, 1fr);
-   background: #FBFBFD;
-   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+   background: var(--glass-bg-heavy);
+   border-bottom: 1px solid var(--glass-border);
 }
 
 .weekday-label {
@@ -465,7 +474,7 @@ const deleteScheduling = async (id: string) => {
    text-align: center;
    font-size: 0.7rem;
    font-weight: 800;
-   color: #86868B;
+   color: var(--color-surface-400);
    text-transform: uppercase;
    letter-spacing: 0.05em;
 }
@@ -478,27 +487,27 @@ const deleteScheduling = async (id: string) => {
 .calendar-cell {
    min-height: 140px;
    padding: 16px;
-   border-right: 1px solid #E8E8ED;
-   border-bottom: 1px solid #E8E8ED;
+   border-right: 1px solid var(--glass-border-subtle);
+   border-bottom: 1px solid var(--glass-border-subtle);
    cursor: pointer;
    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-   background: white;
+   background: var(--glass-bg);
 }
 
 .calendar-cell:hover:not(.is-other-month) { 
-   background: #FBFBFD;
+   background: var(--glass-bg-heavy);
    z-index: 2;
-   box-shadow: inset 0 0 0 2px var(--primary);
+   box-shadow: inset 0 0 0 2px var(--color-primary-500);
 }
 
-.calendar-cell.is-selected { background: #F2F9FF; box-shadow: inset 0 0 0 2px var(--primary); }
+.calendar-cell.is-selected { background: var(--glass-bg-heavy); box-shadow: inset 0 0 0 2px var(--color-primary-500); }
 
-.cell-number { font-weight: 700; font-size: 1rem; color: #1D1D1F; }
+.cell-number { font-weight: 700; font-size: 1rem; color: var(--color-surface-50); }
 
 .is-other-month { opacity: 0.15; cursor: default; }
 
 .is-today .cell-number {
-   background: var(--primary);
+   background: var(--color-primary-500);
    color: white;
    width: 28px;
    height: 28px;
@@ -523,30 +532,32 @@ const deleteScheduling = async (id: string) => {
 
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-.event-mini-tag.pending { background: #FFF4E5; color: #FF9500; }
-.event-mini-tag.confirmed { background: #EAF9EE; color: #34C759; }
-.event-mini-tag.cancelled { background: #FDECEC; color: #FF3B30; text-decoration: line-through; opacity: 0.7; }
+.event-mini-tag.pending { background: rgba(255, 149, 0, 0.15); color: #FFB340; }
+.event-mini-tag.confirmed { background: rgba(52, 199, 89, 0.15); color: #34d399; }
+.event-mini-tag.cancelled { background: rgba(255, 59, 48, 0.15); color: #f87171; text-decoration: line-through; opacity: 0.7; }
 
 .event-more-count {
    font-size: 0.65rem;
    font-weight: 800;
-   color: var(--primary);
+   color: var(--color-primary-400);
    margin-top: 4px;
    padding-left: 10px;
 }
 
-/* Sidebar Standard Professional */
+/* Sidebar Panel */
 .glass-sidebar {
    position: fixed;
    top: 0;
    right: 0;
    bottom: 0;
    width: 400px;
-   background: #FFFFFF;
+   background: var(--glass-bg-heavy);
+   backdrop-filter: blur(24px);
+   -webkit-backdrop-filter: blur(24px);
    z-index: 1000;
-   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.05);
+   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.4);
    padding: 40px 30px;
-   border-left: 1px solid #E5E5EA;
+   border-left: 1px solid var(--glass-border);
    display: flex;
    flex-direction: column;
 }
@@ -557,23 +568,22 @@ const deleteScheduling = async (id: string) => {
   align-items: flex-start;
 }
 
-.month-name { font-weight: 700; color: #FF3B30; font-size: 0.9rem; text-transform: uppercase; }
-.date-badge-large .day-number { font-size: 2.5rem; font-weight: 800; color: #1C1C1E; line-height: 1; }
+.month-name { font-weight: 700; color: var(--color-primary-400); font-size: 0.9rem; text-transform: uppercase; }
+.date-badge-large .day-number { font-size: 2.5rem; font-weight: 800; color: var(--color-surface-50); line-height: 1; }
 
-.sidebar-day-name { font-weight: 800; font-size: 1.6rem; text-transform: capitalize; color: #1C1C1E; margin-top: 4px; }
-.sidebar-subtitle { font-size: 0.9rem; color: #8E8E93; font-weight: 500; }
+.sidebar-day-name { font-weight: 800; font-size: 1.6rem; text-transform: capitalize; color: var(--color-surface-50); margin-top: 4px; }
+.sidebar-subtitle { font-size: 0.9rem; color: var(--color-surface-400); font-weight: 500; }
 
 .sidebar-body {
   flex: 1;
   overflow-y: auto;
   margin-top: 30px;
-  padding-right: 15px; /* Mais espaço para o scrollbar não colar nos cards */
+  padding-right: 15px;
   padding-bottom: 20px;
 }
 
-/* Scrollbar estilizada sutil */
 .sidebar-body::-webkit-scrollbar {
-  width: 4px; /* Barra fina */
+  width: 4px;
 }
 
 .sidebar-body::-webkit-scrollbar-track {
@@ -581,12 +591,12 @@ const deleteScheduling = async (id: string) => {
 }
 
 .sidebar-body::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
 }
 
 .sidebar-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .agenda-timeline {
@@ -603,18 +613,18 @@ const deleteScheduling = async (id: string) => {
 .agenda-time { 
   font-weight: 700; 
   font-size: 0.85rem; 
-  color: #007AFF; 
+  color: var(--color-primary-400); 
   margin-bottom: 10px;
 }
 
 .agenda-content {
-  background: #F9F9FB;
+  background: var(--glass-bg);
   border-radius: 16px;
   padding: 20px;
-  border: 1px solid #F2F2F7;
+  border: 1px solid var(--glass-border-subtle);
 }
 
-.agenda-title { font-size: 1.1rem; font-weight: 700; color: #1C1C1E; margin-bottom: 2px; }
+.agenda-title { font-size: 1.1rem; font-weight: 700; color: var(--color-surface-50); margin-bottom: 2px; }
 
 .agenda-status-label { 
   font-size: 0.7rem; 
@@ -623,12 +633,13 @@ const deleteScheduling = async (id: string) => {
   border-radius: 6px; 
   text-transform: uppercase;
 }
-.agenda-status-label.confirmed { color: #34C759; background: #EAF9EE; }
-.agenda-status-label.pending { color: #FF9500; background: #FFF4E5; }
+.agenda-status-label.confirmed { color: #34d399; background: rgba(52, 211, 153, 0.15); }
+.agenda-status-label.pending { color: #FFB340; background: rgba(255, 149, 0, 0.15); }
+.agenda-status-label.cancelled { color: #f87171; background: rgba(255, 59, 48, 0.15); }
 
 .agenda-meta { 
   font-weight: 500; 
-  color: #8E8E93; 
+  color: var(--color-surface-400); 
   font-size: 0.85rem; 
   margin-bottom: 15px;
 }
@@ -637,28 +648,28 @@ const deleteScheduling = async (id: string) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-top: 1px solid #E5E5EA;
+  border-top: 1px solid var(--glass-border-subtle);
   padding-top: 15px;
 }
 
 .contact-link { 
-  color: #1C1C1E; 
+  color: var(--color-surface-50); 
   font-size: 0.85rem; 
   font-weight: 600; 
   display: flex;
   align-items: center;
   text-decoration: none;
 }
-.contact-link i { color: #8E8E93; width: 24px; font-size: 0.9rem; }
+.contact-link i { color: var(--color-surface-400); width: 24px; font-size: 0.9rem; }
 
 .agenda-broker {
   font-weight: 500;
-  color: #8E8E93;
+  color: var(--color-surface-400);
   font-size: 0.8rem;
   margin-top: 10px;
 }
 
-/* Actions Clean */
+/* Actions */
 .agenda-actions {
   display: flex;
   gap: 8px;
@@ -667,7 +678,7 @@ const deleteScheduling = async (id: string) => {
 
 .btn-action-confirmed {
   flex: 1;
-  background: #007AFF;
+  background: var(--color-primary-500);
   color: white;
   border: none;
   padding: 10px;
@@ -675,67 +686,88 @@ const deleteScheduling = async (id: string) => {
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
+  transition: background 0.15s;
 }
+.btn-action-confirmed:hover { background: var(--color-primary-600); }
 
 .btn-action-danger { 
-  background: #F2F2F7; 
-  color: #FF3B30; 
+  background: rgba(255, 59, 48, 0.12); 
+  color: #f87171; 
   border: none;
   padding: 10px 15px; 
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
+  transition: background 0.15s;
 }
+.btn-action-danger:hover { background: rgba(255, 59, 48, 0.2); }
 
 .btn-action-icon { 
   width: 38px; 
   height: 38px; 
   border-radius: 8px; 
   background: transparent; 
-  border: 1px solid #E5E5EA;
-  color: #8E8E93;
-  cursor: pointer; 
+  border: 1px solid var(--glass-border-subtle);
+  color: var(--color-surface-400);
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.btn-action-icon:hover { background: var(--glass-bg-hover); }
 
 /* Custom Utilities */
-.shadow-lotio { box-shadow: 0 10px 20px rgba(0, 122, 255, 0.25); }
-.shadow-lotio-lg { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08); }
-.shadow-lotio-xl { box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12); }
+.shadow-lotio { box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2); }
+.shadow-lotio-lg { box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3); }
+.shadow-lotio-xl { box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4); }
 
 .btn-glass {
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass-bg);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(0,0,0,0.08);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 10px 20px;
   font-weight: 700;
-  color: #1D1D1F;
+  color: var(--color-surface-100);
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.btn-glass:hover { background: var(--glass-bg-hover); }
 
 .btn-close-circle {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #F2F2F7;
+  background: var(--glass-bg-heavy);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #86868B;
+  color: var(--color-surface-400);
   cursor: pointer;
+  transition: background 0.15s;
 }
+.btn-close-circle:hover { background: var(--glass-bg-hover); color: var(--color-surface-200); }
+
+.empty-schedule { text-align: center; padding: 40px 20px; }
+.empty-artwork { font-size: 3rem; margin-bottom: 16px; }
+.empty-schedule h4 { color: var(--color-surface-100); font-weight: 700; margin-bottom: 8px; }
+.empty-schedule p { color: var(--color-surface-400); font-size: 0.9rem; }
+
+.sidebar-top { padding-bottom: 24px; border-bottom: 1px solid var(--glass-border-subtle); }
 
 /* Animations */
 .panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
 .panel-slide-enter-from, .panel-slide-leave-to { transform: translateX(100px); opacity: 0; }
+
+.lotio-loading-wrapper { display: flex; justify-content: center; padding: 60px 0; }
 
 .lotio-spinner-bounce {
   width: 70px;
   text-align: center;
 }
 .lotio-spinner-bounce > div {
-  width: 12px; height: 12px; background-color: var(--primary);
+  width: 12px; height: 12px; background-color: var(--color-primary-500);
   border-radius: 100%; display: inline-block;
   animation: sk-bouncedelay 1.4s infinite ease-in-out both; margin: 0 3px;
 }

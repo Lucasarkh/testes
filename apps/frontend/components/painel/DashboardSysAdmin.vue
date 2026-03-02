@@ -30,8 +30,8 @@
       </div>
     </div>
 
-    <div v-if="!loading" style="margin-top: var(--space-8);">
-      <h2 style="margin-bottom: var(--space-5);">Top Loteadoras (Leads)</h2>
+    <div v-if="!loading" style="margin-top: 32px;">
+      <h2 style="margin-bottom: 20px;">Top Loteadoras (Leads)</h2>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -56,7 +56,7 @@
           </tbody>
         </table>
       </div>
-      <div style="margin-top: var(--space-4); text-align: right;">
+      <div style="margin-top: 16px; text-align: right;">
         <NuxtLink to="/painel/tenants" class="btn btn-outline">Ver Todas as Loteadoras</NuxtLink>
       </div>
     </div>

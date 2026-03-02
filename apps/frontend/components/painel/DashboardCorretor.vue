@@ -33,9 +33,9 @@
         </div>
       </div>
 
-      <div class="card" style="margin-top: var(--space-8);">
-        <h2 style="margin-bottom: var(--space-4);">Seu Link de Divulgação</h2>
-        <p style="color: var(--text-muted); margin-bottom: var(--space-4);">Use este link para divulgar os projetos. Qualquer lead gerado através dele será atribuído a você.</p>
+      <div class="card" style="margin-top: 32px;">
+        <h2 style="margin-bottom: 16px;">Seu Link de Divulgação</h2>
+        <p style="color: var(--color-surface-200); margin-bottom: 16px;">Use este link para divulgar os projetos. Qualquer lead gerado através dele será atribuído a você.</p>
         
         <div v-for="p in realtorLink.projects" :key="p.id" class="link-item">
           <div class="link-info">
@@ -48,8 +48,8 @@
         </div>
       </div>
 
-      <div style="margin-top: var(--space-8);">
-        <div class="flex justify-between items-center" style="margin-bottom: var(--space-5);">
+      <div style="margin-top: 32px;">
+        <div class="flex justify-between items-center" style="margin-bottom: 20px;">
           <h2>Suas Campanhas</h2>
           <NuxtLink to="/painel/campanhas" class="btn btn-sm btn-primary">Gerenciar Campanhas</NuxtLink>
         </div>
@@ -135,11 +135,11 @@ onMounted(loadData)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-4);
-  background: var(--bg-alt);
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  border: 1px solid var(--border-color);
+  margin-bottom: 16px;
+  border: 1px solid var(--glass-border);
 }
 .link-info {
   display: flex;
@@ -148,7 +148,7 @@ onMounted(loadData)
 .link-url {
   font-family: monospace;
   font-size: 0.85rem;
-  color: var(--primary-color);
+  color: var(--color-primary-400);
   margin-top: 4px;
 }
 </style>
