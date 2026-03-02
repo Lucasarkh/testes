@@ -79,6 +79,60 @@ export class GoogleMapsService {
 
   // ─── Step 2: Nearby Search — Places API (New) ──────────────────────
 
+  /**
+   * Types that indicate a retail / commercial establishment — used to detect
+   * false-positives when Google miscategorises a store as a hospital, school, etc.
+   */
+  private static readonly RETAIL_TYPES = new Set([
+    'store',
+    'clothing_store',
+    'home_goods_store',
+    'furniture_store',
+    'beauty_salon',
+    'hair_care',
+    'jewelry_store',
+    'shoe_store',
+    'electronics_store',
+    'book_store',
+    'pet_store',
+    'florist',
+    'gift_shop',
+    'convenience_store',
+    'shopping_mall',
+    'department_store',
+    'discount_store',
+    'wholesaler',
+    'auto_parts_store',
+    'bicycle_store',
+    'cell_phone_store',
+    'hardware_store',
+    'liquor_store',
+    'sporting_goods_store',
+    'toy_store',
+  ]);
+
+  /**
+   * Categories where having retail types in the secondary types should
+   * disqualify the result (medical, educational, recreational).
+   */
+  private static readonly NON_RETAIL_CATEGORIES = new Set([
+    'hospital',
+    'school',
+    'park',
+    'gym',
+  ]);
+
+  /**
+   * Suspicious name patterns per category. If the place's name matches any of
+   * these regexes it is almost certainly a misclassification.
+   */
+  private static readonly SUSPICIOUS_NAME_PATTERNS: Record<string, RegExp> = {
+    hospital: /ateli[eê]|bordado|artesanato|sal[aã]o|barbearia|costura|enxoval|cabeleireiro|tattoo|tatuagem|pet\s?shop|veteri/i,
+    school:   /ateli[eê]|bordado|sal[aã]o|barbearia|tattoo|tatuagem|pet\s?shop/i,
+    park:     /ateli[eê]|bordado|sal[aã]o|loja|store/i,
+    gym:      /ateli[eê]|bordado|sal[aã]o|barbearia|tattoo|pet\s?shop/i,
+  };
+
   async nearbySearch(
     lat: number,
     lng: number,
@@ -91,7 +145,7 @@ export class GoogleMapsService {
         const resp = await this.http.post(
           'https://places.googleapis.com/v1/places:searchNearby',
           {
-            includedTypes: [category],
+            includedPrimaryTypes: [category],
             locationRestriction: {
               circle: {
                 center: { latitude: lat, longitude: lng },
@@ -107,13 +161,55 @@ export class GoogleMapsService {
               'Content-Type': 'application/json',
               'X-Goog-Api-Key': this.apiKey,
               'X-Goog-FieldMask':
-                'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location',
+                'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.primaryType,places.types',
             },
           },
         );
 
         const places = resp.data.places || [];
-        return places.map((p: any) => ({
+
+        const filtered = places.filter((p: any) => {
+          const name: string = p.displayName?.text || '';
+          const types: string[] = Array.isArray(p.types) ? p.types : [];
+
+          // 1. Check name-based suspicious patterns
+          const suspiciousRe = GoogleMapsService.SUSPICIOUS_NAME_PATTERNS[category];
+          if (suspiciousRe && suspiciousRe.test(name)) {
+            this.logger.warn(
+              `Filtering out "${name}" — name matches suspicious pattern for ${category}`,
+            );
+            return false;
+          }
+
+          // 2. Check contaminating types (e.g. a "store" showing as hospital)
+          if (GoogleMapsService.NON_RETAIL_CATEGORIES.has(category)) {
+            const hasRetailType = types.some((t) =>
+              GoogleMapsService.RETAIL_TYPES.has(t),
+            );
+            if (hasRetailType) {
+              this.logger.warn(
+                `Filtering out "${name}" (types=${types.join(',')}) — has retail type, incompatible with ${category}`,
+              );
+              return false;
+            }
+          }
+
+          // 3. Basic type match (safety net)
+          if (p.primaryType !== category && !types.includes(category)) {
+            this.logger.warn(
+              `Filtering out "${name}" (primaryType=${p.primaryType}) — doesn't match ${category}`,
+            );
+            return false;
+          }
+
+          return true;
+        });
+
+        this.logger.log(
+          `nearbySearch(${category}): ${places.length} raw → ${filtered.length} after filter`,
+        );
+
+        return filtered.map((p: any) => ({
           placeId: p.id || '',
           name: p.displayName?.text || '',
           vicinity: p.shortFormattedAddress || p.formattedAddress || '',
