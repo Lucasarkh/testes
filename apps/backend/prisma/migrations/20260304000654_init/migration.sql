@@ -47,9 +47,6 @@ CREATE TYPE "PlantHotspotLinkType" AS ENUM ('LOTE_PAGE', 'PROJECT_PAGE', 'CUSTOM
 CREATE TYPE "BillingStatus" AS ENUM ('OK', 'GRACE_PERIOD', 'INADIMPLENTE', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "FeatureCode" AS ENUM ('AI_CHAT', 'MAP_360', 'GOOGLE_API', 'LEADS', 'PANORAMA', 'PLANT_MAP', 'SCHEDULING', 'CAMPAIGNS', 'NEARBY');
-
--- CreateEnum
 CREATE TYPE "PanoramaProjection" AS ENUM ('FLAT', 'EQUIRECTANGULAR');
 
 -- CreateTable
@@ -65,6 +62,10 @@ CREATE TABLE "Tenant" (
     "billingStatus" "BillingStatus" NOT NULL DEFAULT 'OK',
     "billingEmail" TEXT,
     "gracePeriodEnd" TIMESTAMP(3),
+    "pricingTableId" TEXT,
+    "discountPercent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "freeProjects" INTEGER NOT NULL DEFAULT 1,
+    "trialStartedAt" TIMESTAMP(3),
 
     CONSTRAINT "Tenant_pkey" PRIMARY KEY ("id")
 );
@@ -669,11 +670,37 @@ CREATE TABLE "NearbyItem" (
 );
 
 -- CreateTable
+CREATE TABLE "ProjectPricingTable" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "stripeProductId" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectPricingTable_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ProjectPricingTier" (
+    "id" TEXT NOT NULL,
+    "pricingTableId" TEXT NOT NULL,
+    "projectNumber" INTEGER NOT NULL,
+    "priceCents" INTEGER NOT NULL,
+    "stripePriceId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ProjectPricingTier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "TenantSubscription" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "stripeSubscriptionId" TEXT,
-    "stripePriceId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'active',
     "currentPeriodStart" TIMESTAMP(3),
     "currentPeriodEnd" TIMESTAMP(3),
@@ -681,7 +708,6 @@ CREATE TABLE "TenantSubscription" (
     "billingDay" INTEGER,
     "cancelAtPeriodEnd" BOOLEAN NOT NULL DEFAULT false,
     "trialEnd" TIMESTAMP(3),
-    "comboId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -692,29 +718,16 @@ CREATE TABLE "TenantSubscription" (
 CREATE TABLE "TenantSubscriptionItem" (
     "id" TEXT NOT NULL,
     "subscriptionId" TEXT NOT NULL,
-    "featureCode" "FeatureCode" NOT NULL,
+    "projectId" TEXT,
+    "tierNumber" INTEGER,
     "stripeSubscriptionItemId" TEXT,
     "stripePriceId" TEXT,
-    "customPriceCents" INTEGER,
+    "priceCents" INTEGER,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TenantSubscriptionItem_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "TenantFeature" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
-    "featureCode" "FeatureCode" NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "activatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "deactivatedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "TenantFeature_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -738,46 +751,6 @@ CREATE TABLE "BillingInvoice" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "BillingInvoice_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "FeatureCatalog" (
-    "id" TEXT NOT NULL,
-    "code" "FeatureCode" NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "defaultPriceCents" INTEGER NOT NULL DEFAULT 0,
-    "stripePriceId" TEXT,
-    "stripeProductId" TEXT,
-    "isAvailable" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "FeatureCatalog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "FeatureCombo" (
-    "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "discountPercent" INTEGER NOT NULL DEFAULT 0,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "FeatureCombo_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "FeatureComboItem" (
-    "id" TEXT NOT NULL,
-    "comboId" TEXT NOT NULL,
-    "featureCode" "FeatureCode" NOT NULL,
-    "overridePriceCents" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "FeatureComboItem_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1011,6 +984,15 @@ CREATE INDEX "NearbyItem_projectId_idx" ON "NearbyItem"("projectId");
 CREATE UNIQUE INDEX "NearbyItem_projectId_placeId_key" ON "NearbyItem"("projectId", "placeId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "ProjectPricingTable_name_key" ON "ProjectPricingTable"("name");
+
+-- CreateIndex
+CREATE INDEX "ProjectPricingTier_pricingTableId_idx" ON "ProjectPricingTier"("pricingTableId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProjectPricingTier_pricingTableId_projectNumber_key" ON "ProjectPricingTier"("pricingTableId", "projectNumber");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "TenantSubscription_tenantId_key" ON "TenantSubscription"("tenantId");
 
 -- CreateIndex
@@ -1020,22 +1002,16 @@ CREATE UNIQUE INDEX "TenantSubscription_stripeSubscriptionId_key" ON "TenantSubs
 CREATE INDEX "TenantSubscription_stripeSubscriptionId_idx" ON "TenantSubscription"("stripeSubscriptionId");
 
 -- CreateIndex
-CREATE INDEX "TenantSubscription_comboId_idx" ON "TenantSubscription"("comboId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "TenantSubscriptionItem_stripeSubscriptionItemId_key" ON "TenantSubscriptionItem"("stripeSubscriptionItemId");
 
 -- CreateIndex
 CREATE INDEX "TenantSubscriptionItem_subscriptionId_idx" ON "TenantSubscriptionItem"("subscriptionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TenantSubscriptionItem_subscriptionId_featureCode_key" ON "TenantSubscriptionItem"("subscriptionId", "featureCode");
+CREATE INDEX "TenantSubscriptionItem_projectId_idx" ON "TenantSubscriptionItem"("projectId");
 
 -- CreateIndex
-CREATE INDEX "TenantFeature_tenantId_idx" ON "TenantFeature"("tenantId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "TenantFeature_tenantId_featureCode_key" ON "TenantFeature"("tenantId", "featureCode");
+CREATE UNIQUE INDEX "TenantSubscriptionItem_subscriptionId_projectId_key" ON "TenantSubscriptionItem"("subscriptionId", "projectId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "BillingInvoice_stripeInvoiceId_key" ON "BillingInvoice"("stripeInvoiceId");
@@ -1047,19 +1023,13 @@ CREATE INDEX "BillingInvoice_tenantId_idx" ON "BillingInvoice"("tenantId");
 CREATE INDEX "BillingInvoice_status_idx" ON "BillingInvoice"("status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "FeatureCatalog_code_key" ON "FeatureCatalog"("code");
-
--- CreateIndex
-CREATE INDEX "FeatureComboItem_comboId_idx" ON "FeatureComboItem"("comboId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FeatureComboItem_comboId_featureCode_key" ON "FeatureComboItem"("comboId", "featureCode");
-
--- CreateIndex
 CREATE INDEX "_ProjectToRealtorLink_B_index" ON "_ProjectToRealtorLink"("B");
 
 -- CreateIndex
 CREATE INDEX "_ProjectGateways_B_index" ON "_ProjectGateways"("B");
+
+-- AddForeignKey
+ALTER TABLE "Tenant" ADD CONSTRAINT "Tenant_pricingTableId_fkey" FOREIGN KEY ("pricingTableId") REFERENCES "ProjectPricingTable"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Agency" ADD CONSTRAINT "Agency_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1221,22 +1191,19 @@ ALTER TABLE "Scheduling" ADD CONSTRAINT "Scheduling_userId_fkey" FOREIGN KEY ("u
 ALTER TABLE "NearbyItem" ADD CONSTRAINT "NearbyItem_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TenantSubscription" ADD CONSTRAINT "TenantSubscription_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProjectPricingTier" ADD CONSTRAINT "ProjectPricingTier_pricingTableId_fkey" FOREIGN KEY ("pricingTableId") REFERENCES "ProjectPricingTable"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TenantSubscription" ADD CONSTRAINT "TenantSubscription_comboId_fkey" FOREIGN KEY ("comboId") REFERENCES "FeatureCombo"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "TenantSubscription" ADD CONSTRAINT "TenantSubscription_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "TenantSubscriptionItem" ADD CONSTRAINT "TenantSubscriptionItem_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "TenantSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TenantFeature" ADD CONSTRAINT "TenantFeature_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "TenantSubscriptionItem" ADD CONSTRAINT "TenantSubscriptionItem_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BillingInvoice" ADD CONSTRAINT "BillingInvoice_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FeatureComboItem" ADD CONSTRAINT "FeatureComboItem_comboId_fkey" FOREIGN KEY ("comboId") REFERENCES "FeatureCombo"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ProjectToRealtorLink" ADD CONSTRAINT "_ProjectToRealtorLink_A_fkey" FOREIGN KEY ("A") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

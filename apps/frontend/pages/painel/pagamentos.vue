@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
 
@@ -19,9 +19,32 @@ const editingConfig = ref(null)
 const form = ref({
   name: '',
   provider: 'STRIPE',
-  keysJson: {},
+  keysJson: {
+    secretKey: '',
+    apiKey: '',
+    accessToken: '',
+    token: '',
+    isSandbox: false
+  },
   isActive: true,
   webhookSecret: ''
+})
+
+// Auto-reset when modal closes or opens to ensure clean state
+watch(showModal, (val) => {
+  if (!val) return
+  if (!editingConfig.value) {
+    if (window.crypto && window.crypto.getRandomValues) {
+      // Force a re-render of inputs by clearing and resetting
+      form.value.keysJson = {
+        secretKey: '',
+        apiKey: '',
+        accessToken: '',
+        token: '',
+        isSandbox: false
+      }
+    }
+  }
 })
 
 async function fetchData() {
@@ -41,7 +64,48 @@ async function fetchData() {
   }
 }
 
+const formErrors = ref<string[]>([])
+
+function validateForm(): boolean {
+  formErrors.value = []
+  
+  if (!form.value.name?.trim()) {
+    formErrors.value.push('Nome do perfil é obrigatório.')
+  }
+
+  const keys = form.value.keysJson || {}
+  const provider = form.value.provider
+
+  if (provider === 'STRIPE') {
+    if (!keys.secretKey || typeof keys.secretKey !== 'string' || !keys.secretKey.trim()) {
+      formErrors.value.push('Secret Key do Stripe é obrigatória.')
+    }
+  } else if (provider === 'ASAAS') {
+    if (!keys.apiKey || typeof keys.apiKey !== 'string' || !keys.apiKey.trim()) {
+      formErrors.value.push('API Key do Asaas é obrigatória.')
+    }
+  } else if (provider === 'MERCADO_PAGO') {
+    if (!keys.accessToken || typeof keys.accessToken !== 'string' || !keys.accessToken.trim()) {
+      formErrors.value.push('Access Token do Mercado Pago é obrigatório.')
+    }
+  } else if (provider === 'PAGAR_ME') {
+    if (!keys.secretKey || typeof keys.secretKey !== 'string' || !keys.secretKey.trim()) {
+      formErrors.value.push('Secret Key do Pagar.me é obrigatória.')
+    }
+  } else if (provider === 'PAGSEGURO') {
+    if (!keys.token || typeof keys.token !== 'string' || !keys.token.trim()) {
+      formErrors.value.push('Token de Acesso do PagSeguro é obrigatório.')
+    }
+  }
+
+  return formErrors.value.length === 0
+}
+
 async function saveConfig() {
+  if (!validateForm()) {
+    toast.error(formErrors.value[0])
+    return
+  }
   try {
     const payload = { ...form.value }
 
@@ -72,10 +136,17 @@ async function removeConfig(id: string) {
 
 function openCreate() {
   editingConfig.value = null
+  formErrors.value = []
   form.value = {
     name: '',
     provider: 'STRIPE',
-    keysJson: {},
+    keysJson: {
+      secretKey: '',
+      apiKey: '',
+      accessToken: '',
+      token: '',
+      isSandbox: false
+    },
     isActive: true,
     webhookSecret: ''
   }
@@ -84,10 +155,21 @@ function openCreate() {
 
 function openEdit(config) {
   editingConfig.value = config
+  formErrors.value = []
+  
+  // Ensure keysJson is initialized even if empty in DB
+  const baseKeys = {
+    secretKey: '',
+    apiKey: '',
+    accessToken: '',
+    token: '',
+    isSandbox: false
+  }
+
   form.value = {
     name: config.name,
     provider: config.provider,
-    keysJson: config.keysJson || {},
+    keysJson: { ...baseKeys, ...(config.keysJson || {}) },
     isActive: config.isActive,
     webhookSecret: config.webhookSecret || ''
   }
@@ -105,6 +187,21 @@ function copyWebhookUrl(provider: string) {
   navigator.clipboard.writeText(url)
   toast.success('URL copiada!')
 }
+
+// Reset keysJson when provider changes (only for new gateways)
+watch(() => form.value.provider, () => {
+  if (!editingConfig.value) {
+    form.value.keysJson = {
+      secretKey: '',
+      apiKey: '',
+      accessToken: '',
+      token: '',
+      isSandbox: false
+    }
+    form.value.webhookSecret = ''
+  }
+  formErrors.value = []
+})
 
 onMounted(fetchData)
 </script>
@@ -179,6 +276,11 @@ onMounted(fetchData)
         </div>
 
         <form @submit.prevent="saveConfig" class="modal-body">
+          <!-- Validation errors -->
+          <div v-if="formErrors.length > 0" class="form-errors mb-4">
+            <p v-for="err in formErrors" :key="err" class="form-error-msg">⚠ {{ err }}</p>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Nome do Perfil (Ex: Stripe Principal)</label>
             <input v-model="form.name" type="text" class="form-input" placeholder="Identificador para uso interno" required />
@@ -209,18 +311,18 @@ onMounted(fetchData)
           <div v-if="form.provider === 'STRIPE'">
             <div class="form-group">
               <label class="form-label">Secret Key (sk_...)</label>
-              <input v-model="form.keysJson.secretKey" type="password" class="form-input" placeholder="Insira sua Secret Key do Stripe" required />
+              <input v-model="form.keysJson.secretKey" type="password" class="form-input" placeholder="Insira sua Secret Key do Stripe" required autocomplete="new-password" />
             </div>
             <div class="form-group">
               <label class="form-label">Webhook Signing Secret (whsec_...)</label>
-              <input v-model="form.webhookSecret" type="password" class="form-input" placeholder="Opcional" />
+              <input v-model="form.webhookSecret" type="password" class="form-input" placeholder="Opcional" autocomplete="new-password" />
             </div>
           </div>
 
           <div v-if="form.provider === 'ASAAS'">
             <div class="form-group">
               <label class="form-label">API Key ($...)</label>
-              <input v-model="form.keysJson.apiKey" type="password" class="form-input" placeholder="Access Token do Asaas" required />
+              <input v-model="form.keysJson.apiKey" type="password" class="form-input" placeholder="Access Token do Asaas" required autocomplete="new-password" />
             </div>
             <div class="flex items-center gap-2 mt-2">
               <input type="checkbox" v-model="form.keysJson.isSandbox" id="chkAsaasSandbox" />
@@ -231,21 +333,21 @@ onMounted(fetchData)
           <div v-if="form.provider === 'MERCADO_PAGO'">
             <div class="form-group">
               <label class="form-label">Access Token (APP_USR-...)</label>
-              <input v-model="form.keysJson.accessToken" type="password" class="form-input" required />
+              <input v-model="form.keysJson.accessToken" type="password" class="form-input" required autocomplete="new-password" />
             </div>
           </div>
 
           <div v-if="form.provider === 'PAGAR_ME'">
             <div class="form-group">
               <label class="form-label">Secret Key (ak_...)</label>
-              <input v-model="form.keysJson.secretKey" type="password" class="form-input" required />
+              <input v-model="form.keysJson.secretKey" type="password" class="form-input" required autocomplete="new-password" />
             </div>
           </div>
 
           <div v-if="form.provider === 'PAGSEGURO'">
             <div class="form-group">
               <label class="form-label">Token de Acesso</label>
-              <input v-model="form.keysJson.token" type="password" class="form-input" required />
+              <input v-model="form.keysJson.token" type="password" class="form-input" required autocomplete="new-password" />
             </div>
             <div class="flex items-center gap-2 mt-2">
               <input type="checkbox" v-model="form.keysJson.isSandbox" id="chkPagSeguroSandbox" />
@@ -338,5 +440,16 @@ onMounted(fetchData)
   font-size: 0.85rem;
   font-weight: 600;
   margin-left: 8px;
+}
+.form-errors {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.form-error-msg {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin: 2px 0;
 }
 </style>

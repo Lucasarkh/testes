@@ -3,25 +3,26 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PrismaService } from '@/infra/db/prisma.service';
-import { FeatureCode, BillingStatus } from '@prisma/client';
+import { BillingStatus } from '@prisma/client';
 import {
-  UpdateTenantFeaturesDto,
+  UpsertPricingTableDto,
+  AssignPricingTableDto,
   CreateCustomerDto,
   SavePaymentMethodDto,
-  UpsertFeatureCatalogDto,
   SubscriptionStatusDto,
-  UpsertFeatureComboDto,
+  ProjectLimitsDto,
 } from './dto';
 
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
   private readonly stripe: Stripe;
-  private readonly GRACE_PERIOD_DAYS = 15; // 15 dias conforme boas práticas CDC
+  private readonly GRACE_PERIOD_DAYS = 15;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -38,16 +39,12 @@ export class BillingService {
 
   // ─── CUSTOMER MANAGEMENT ────────────────────────────────
 
-  /**
-   * Create or retrieve a Stripe Customer for a Tenant.
-   */
   async ensureStripeCustomer(tenantId: string, dto?: CreateCustomerDto): Promise<string> {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
     });
 
     if (tenant.stripeCustomerId) {
-      // Verify customer still exists on Stripe
       try {
         await this.stripe.customers.retrieve(tenant.stripeCustomerId);
         return tenant.stripeCustomerId;
@@ -76,18 +73,13 @@ export class BillingService {
 
   // ─── PAYMENT METHODS ───────────────────────────────────
 
-  /**
-   * Attach a PaymentMethod (card, boleto, pix) to the customer and set as default.
-   */
   async savePaymentMethod(tenantId: string, dto: SavePaymentMethodDto) {
     const customerId = await this.ensureStripeCustomer(tenantId);
 
-    // Attach the PM to the customer
     await this.stripe.paymentMethods.attach(dto.paymentMethodId, {
       customer: customerId,
     });
 
-    // Set as default for invoices
     await this.stripe.customers.update(customerId, {
       invoice_settings: {
         default_payment_method: dto.paymentMethodId,
@@ -98,9 +90,6 @@ export class BillingService {
     return { success: true, paymentMethodId: dto.paymentMethodId };
   }
 
-  /**
-   * List payment methods for a customer.
-   */
   async listPaymentMethods(tenantId: string) {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
@@ -108,15 +97,12 @@ export class BillingService {
 
     if (!tenant.stripeCustomerId) return [];
 
-    // Fetch saved payment method types (card + boleto)
-    // Note: PIX is not a saveable payment method — it's used per-invoice
     const [cards, boletos] = await Promise.all([
       this.stripe.paymentMethods.list({ customer: tenant.stripeCustomerId, type: 'card' }),
       this.stripe.paymentMethods.list({ customer: tenant.stripeCustomerId, type: 'boleto' }),
     ]);
 
     const result: any[] = [];
-
     for (const pm of cards.data) {
       result.push({
         id: pm.id,
@@ -127,7 +113,6 @@ export class BillingService {
         expYear: pm.card?.exp_year,
       });
     }
-
     for (const pm of boletos.data) {
       result.push({
         id: pm.id,
@@ -140,233 +125,318 @@ export class BillingService {
     return result;
   }
 
-  // ─── FEATURE CATALOG (SYSADMIN) ────────────────────────
+  // ─── PRICING TABLES (SYSADMIN) ─────────────────────────
 
-  async upsertFeatureCatalog(dto: UpsertFeatureCatalogDto) {
-    // Ensure Stripe Product + Price exist
+  async upsertPricingTable(dto: UpsertPricingTableDto) {
+    const sortedTiers = [...dto.tiers].sort((a, b) => a.projectNumber - b.projectNumber);
+
+    const nums = sortedTiers.map((t) => t.projectNumber);
+    if (new Set(nums).size !== nums.length) {
+      throw new BadRequestException('Números de projeto duplicados na tabela.');
+    }
+
     let stripeProductId: string | undefined;
-    let stripePriceId: string | undefined;
+    if (dto.id) {
+      const existing = await this.prisma.projectPricingTable.findUnique({
+        where: { id: dto.id },
+      });
+      stripeProductId = existing?.stripeProductId || undefined;
+    }
 
-    const existing = await this.prisma.featureCatalog.findUnique({
-      where: { code: dto.code },
-    });
-
-    if (existing?.stripeProductId) {
-      stripeProductId = existing.stripeProductId;
-      // Update product name if changed
-      await this.stripe.products.update(stripeProductId, { name: dto.name });
-    } else {
+    if (!stripeProductId) {
       const product = await this.stripe.products.create({
-        name: dto.name,
-        metadata: { featureCode: dto.code },
+        name: `Projeto Lotio — ${dto.name}`,
+        metadata: { pricingTable: dto.name },
       });
       stripeProductId = product.id;
-    }
-
-    // Always create a new price (Stripe prices are immutable)
-    if (dto.defaultPriceCents > 0) {
-      const price = await this.stripe.prices.create({
-        product: stripeProductId,
-        unit_amount: dto.defaultPriceCents,
-        currency: 'brl',
-        recurring: { interval: 'month' },
-      });
-      stripePriceId = price.id;
-    }
-
-    return this.prisma.featureCatalog.upsert({
-      where: { code: dto.code },
-      create: {
-        code: dto.code,
-        name: dto.name,
-        description: dto.description,
-        defaultPriceCents: dto.defaultPriceCents,
-        stripeProductId,
-        stripePriceId,
-      },
-      update: {
-        name: dto.name,
-        description: dto.description,
-        defaultPriceCents: dto.defaultPriceCents,
-        stripeProductId,
-        stripePriceId,
-      },
-    });
-  }
-
-  async listFeatureCatalog() {
-    return this.prisma.featureCatalog.findMany({
-      orderBy: { code: 'asc' },
-    });
-  }
-
-  // ─── FEATURE COMBOS (SYSADMIN) ─────────────────────────
-
-  async upsertFeatureCombo(dto: UpsertFeatureComboDto) {
-    const data = {
-      name: dto.name,
-      description: dto.description,
-      discountPercent: dto.discountPercent ?? 0,
-    };
-
-    let combo: any;
-    if (dto.id) {
-      combo = await this.prisma.featureCombo.update({
-        where: { id: dto.id },
-        data,
-      });
-      // Replace items
-      await this.prisma.featureComboItem.deleteMany({ where: { comboId: combo.id } });
     } else {
-      combo = await this.prisma.featureCombo.create({ data });
+      await this.stripe.products.update(stripeProductId, {
+        name: `Projeto Lotio — ${dto.name}`,
+      });
     }
 
-    // Create items
-    for (const item of dto.items) {
-      await this.prisma.featureComboItem.create({
+    if (dto.isDefault) {
+      await this.prisma.projectPricingTable.updateMany({
+        where: { isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    let table: any;
+    if (dto.id) {
+      table = await this.prisma.projectPricingTable.update({
+        where: { id: dto.id },
         data: {
-          comboId: combo.id,
-          featureCode: item.featureCode,
-          overridePriceCents: item.overridePriceCents,
+          name: dto.name,
+          description: dto.description,
+          isDefault: dto.isDefault ?? false,
+          stripeProductId,
+        },
+      });
+      await this.prisma.projectPricingTier.deleteMany({
+        where: { pricingTableId: table.id },
+      });
+    } else {
+      table = await this.prisma.projectPricingTable.create({
+        data: {
+          name: dto.name,
+          description: dto.description,
+          isDefault: dto.isDefault ?? false,
+          stripeProductId,
         },
       });
     }
 
-    return this.prisma.featureCombo.findUniqueOrThrow({
-      where: { id: combo.id },
-      include: { items: true },
+    for (const tier of sortedTiers) {
+      let stripePriceId: string | undefined;
+      if (tier.priceCents > 0) {
+        const price = await this.stripe.prices.create({
+          product: stripeProductId,
+          unit_amount: tier.priceCents,
+          currency: 'brl',
+          recurring: { interval: 'month' },
+          metadata: {
+            pricingTableId: table.id,
+            projectNumber: String(tier.projectNumber),
+          },
+        });
+        stripePriceId = price.id;
+      }
+
+      await this.prisma.projectPricingTier.create({
+        data: {
+          pricingTableId: table.id,
+          projectNumber: tier.projectNumber,
+          priceCents: tier.priceCents,
+          stripePriceId,
+        },
+      });
+    }
+
+    return this.prisma.projectPricingTable.findUniqueOrThrow({
+      where: { id: table.id },
+      include: { tiers: { orderBy: { projectNumber: 'asc' } } },
     });
   }
 
-  async listFeatureCombos() {
-    return this.prisma.featureCombo.findMany({
+  async listPricingTables() {
+    return this.prisma.projectPricingTable.findMany({
       where: { isActive: true },
-      include: { items: true },
+      include: { tiers: { orderBy: { projectNumber: 'asc' } } },
       orderBy: { name: 'asc' },
     });
   }
 
-  async deleteFeatureCombo(comboId: string) {
-    await this.prisma.featureCombo.update({
-      where: { id: comboId },
+  async deletePricingTable(tableId: string) {
+    const tenantsUsing = await this.prisma.tenant.count({
+      where: { pricingTableId: tableId },
+    });
+    if (tenantsUsing > 0) {
+      throw new BadRequestException(
+        `Não é possível excluir: ${tenantsUsing} loteadora(s) usam esta tabela.`,
+      );
+    }
+
+    await this.prisma.projectPricingTable.update({
+      where: { id: tableId },
       data: { isActive: false },
     });
-    return { message: 'Combo deactivated' };
+    return { message: 'Tabela de preços desativada.' };
+  }
+
+  // ─── ASSIGN PRICING TABLE TO TENANT ────────────────────
+
+  async assignPricingTable(tenantId: string, dto: AssignPricingTableDto) {
+    const table = await this.prisma.projectPricingTable.findUniqueOrThrow({
+      where: { id: dto.pricingTableId },
+      include: { tiers: { orderBy: { projectNumber: 'asc' } } },
+    });
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        pricingTableId: dto.pricingTableId,
+        discountPercent: dto.discountPercent ?? 0,
+        freeProjects: dto.freeProjects ?? 1,
+      },
+    });
+
+    await this.syncTenantSubscription(tenantId);
+
+    return {
+      message: `Tabela "${table.name}" atribuída com sucesso.`,
+      pricingTableId: dto.pricingTableId,
+      discountPercent: dto.discountPercent ?? 0,
+      freeProjects: dto.freeProjects ?? 1,
+    };
+  }
+
+  // ─── PROJECT BILLING ───────────────────────────────────
+
+  async onProjectCreated(tenantId: string, projectId: string) {
+    // Do NOT auto-sync Stripe subscription — the subscription is managed
+    // exclusively via checkout (user must pay to upgrade plan).
+    this.logger.log(`Project ${projectId} created for tenant ${tenantId}`);
+  }
+
+  async onProjectDeleted(tenantId: string, projectId: string) {
+    // Do NOT auto-downgrade Stripe — user keeps the plan they paid for.
+    this.logger.log(`Project ${projectId} removed from tenant ${tenantId}`);
   }
 
   /**
-   * Apply a combo to a tenant — resolves the combo items to features
-   * and calls updateTenantFeatures with the combo's pre-set configuration.
+   * Core sync: reconcile all active projects against the Stripe subscription.
+   * VOLUME PRICING: all projects get the same per-unit price based on total count.
+   * Tier N defines the per-project price when you have N projects.
+   * Beyond defined tiers, the last tier's price repeats.
    */
-  async applyComboToTenant(tenantId: string, comboId: string) {
-    const combo = await this.prisma.featureCombo.findUniqueOrThrow({
-      where: { id: comboId },
-      include: { items: true },
+  async syncTenantSubscription(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      include: {
+        pricingTable: { include: { tiers: { orderBy: { projectNumber: 'asc' } } } },
+        projects: { orderBy: { createdAt: 'asc' }, select: { id: true, name: true, slug: true } },
+      },
     });
 
-    const catalog = await this.prisma.featureCatalog.findMany();
-    const catalogMap = new Map(catalog.map((c) => [c.code, c]));
+    if (!tenant.pricingTable) {
+      this.logger.debug(`Tenant ${tenantId} has no pricing table assigned, skipping sync`);
+      return;
+    }
 
-    // Build features from combo items
-    const features = combo.items.map((item) => {
-      const cat = catalogMap.get(item.featureCode);
-      const basePriceCents = item.overridePriceCents ?? cat?.defaultPriceCents ?? 0;
-      // Apply combo discount
-      const discountedPrice = combo.discountPercent > 0
-        ? Math.round(basePriceCents * (1 - combo.discountPercent / 100))
-        : basePriceCents;
+    const projects = tenant.projects;
+    const N = projects.length;
+    const tiers = tenant.pricingTable.tiers;
+    const freeProjects = tenant.freeProjects || 0;
+    const additionalDiscount = tenant.discountPercent || 0;
 
-      return {
-        featureCode: item.featureCode,
-        isActive: true,
-        customPriceCents: discountedPrice !== (cat?.defaultPriceCents ?? 0) ? discountedPrice : undefined,
-      };
-    });
+    // Trial: 30 days from first login. During trial, at least 1 project is free.
+    // After trial, no projects are free — all require a paid subscription.
+    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
+    const trialActive = !!tenant.trialStartedAt
+      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
 
-    // Use existing updateTenantFeatures with comboId
-    const dto: UpdateTenantFeaturesDto = { features, comboId };
-    return this.updateTenantFeatures(tenantId, dto);
-  }
+    if (N === 0) {
+      // No projects — cancel stripe sub if exists
+      const localSub = await this.prisma.tenantSubscription.findUnique({ where: { tenantId } });
+      if (localSub?.stripeSubscriptionId) {
+        try { await this.stripe.subscriptions.cancel(localSub.stripeSubscriptionId); } catch (e) {
+          this.logger.warn(`Failed to cancel subscription: ${e.message}`);
+        }
+        await this.prisma.tenantSubscription.update({
+          where: { tenantId },
+          data: { status: 'canceled', stripeSubscriptionId: null },
+        });
+      }
 
-  // ─── SUBSCRIPTION MANAGEMENT ───────────────────────────
+      // During trial, ensure a local subscription record exists with status 'trialing'
+      // so the subscription page shows correct trial state.
+      if (trialActive) {
+        if (!localSub) {
+          await this.prisma.tenantSubscription.create({
+            data: { tenantId, status: 'trialing' },
+          });
+        } else if (localSub.status !== 'trialing') {
+          await this.prisma.tenantSubscription.update({
+            where: { tenantId },
+            data: { status: 'trialing' },
+          });
+        }
+      }
 
-  /**
-   * SysAdmin: set which features a tenant has, with optional custom pricing.
-   * This creates/updates the Stripe Subscription with one SubscriptionItem per feature.
-   */
-  async updateTenantFeatures(tenantId: string, dto: UpdateTenantFeaturesDto) {
+      await this.syncLocalSubscriptionItems(tenantId, []);
+      return;
+    }
+
+    // Volume pricing: tier matching total project count  (or last tier for N > max)
+    const volumeTier = tiers.find((t) => t.projectNumber === N) || tiers[tiers.length - 1];
+    if (!volumeTier) {
+      this.logger.warn(`No tiers found in pricing table for tenant ${tenantId}`);
+      return;
+    }
+
+    let unitPriceCents = volumeTier.priceCents;
+    if (additionalDiscount > 0) {
+      unitPriceCents = Math.round(unitPriceCents * (1 - additionalDiscount / 100));
+    }
+
+    const itemsToBill: { projectId: string; tierNumber: number; priceCents: number; stripePriceId?: string }[] = [];
+
+    for (let i = 0; i < N; i++) {
+      const slot = i + 1;
+      const isFree = slot <= effectiveFreeProjects;
+      const effectivePrice = isFree ? 0 : unitPriceCents;
+
+      itemsToBill.push({
+        projectId: projects[i].id,
+        tierNumber: slot,
+        priceCents: effectivePrice,
+        // Use the tier's Stripe Price only when no additional discount
+        stripePriceId: !isFree && additionalDiscount === 0 ? (volumeTier.stripePriceId || undefined) : undefined,
+      });
+    }
+
+    const paidItems = itemsToBill.filter((i) => i.priceCents > 0);
+
+    if (paidItems.length === 0) {
+      const localSub = await this.prisma.tenantSubscription.findUnique({ where: { tenantId } });
+      if (localSub?.stripeSubscriptionId) {
+        try { await this.stripe.subscriptions.cancel(localSub.stripeSubscriptionId); } catch (e) {
+          this.logger.warn(`Failed to cancel subscription: ${e.message}`);
+        }
+        await this.prisma.tenantSubscription.update({ where: { tenantId }, data: { status: 'canceled' } });
+      }
+      await this.syncLocalSubscriptionItems(tenantId, itemsToBill);
+      return;
+    }
+
     const customerId = await this.ensureStripeCustomer(tenantId);
 
-    // Get or create local subscription record
+    // All paid items share the same unit price — find or create a single Stripe Price
+    let commonStripePriceId = paidItems[0].stripePriceId;
+    if (!commonStripePriceId) {
+      const price = await this.stripe.prices.create({
+        product: tenant.pricingTable.stripeProductId!,
+        unit_amount: unitPriceCents,
+        currency: 'brl',
+        recurring: { interval: 'month' },
+        metadata: {
+          tenantId,
+          volumeLevel: String(N),
+          pricingTableId: tenant.pricingTable.id,
+        },
+      });
+      commonStripePriceId = price.id;
+    }
+
+    const stripeItems: Stripe.SubscriptionCreateParams.Item[] = paidItems.map(() => ({
+      price: commonStripePriceId!,
+      quantity: 1,
+    }));
+
+    // Update stripe price id on all paid items
+    for (const item of paidItems) {
+      item.stripePriceId = commonStripePriceId;
+    }
+
     let localSub = await this.prisma.tenantSubscription.findUnique({
       where: { tenantId },
       include: { items: true },
     });
 
-    // Resolve catalog prices for each feature
-    const catalog = await this.prisma.featureCatalog.findMany();
-    const catalogMap = new Map(catalog.map((c) => [c.code, c]));
-
-    // Build Stripe subscription items
-    const stripeItems: Stripe.SubscriptionCreateParams.Item[] = [];
-    for (const feat of dto.features) {
-      if (feat.isActive === false) continue;
-
-      const cat = catalogMap.get(feat.featureCode);
-      if (!cat) {
-        throw new BadRequestException(`Feature ${feat.featureCode} not found in catalog`);
-      }
-
-      // If custom price, create an inline price; otherwise use catalog default
-      if (feat.customPriceCents !== undefined && feat.customPriceCents !== null) {
-        const price = await this.stripe.prices.create({
-          product: cat.stripeProductId!,
-          unit_amount: feat.customPriceCents,
-          currency: 'brl',
-          recurring: { interval: 'month' },
-        });
-        stripeItems.push({ price: price.id, quantity: 1 });
-      } else if (cat.stripePriceId) {
-        stripeItems.push({ price: cat.stripePriceId, quantity: 1 });
-      }
-    }
-
-    if (stripeItems.length === 0) {
-      // No active features — cancel subscription if exists
-      if (localSub?.stripeSubscriptionId) {
-        await this.stripe.subscriptions.cancel(localSub.stripeSubscriptionId);
-        await this.prisma.tenantSubscription.update({
-          where: { tenantId },
-          data: { status: 'canceled' },
-        });
-      }
-
-      // Deactivate all local features
-      await this.prisma.tenantFeature.updateMany({
-        where: { tenantId },
-        data: { isActive: false, deactivatedAt: new Date() },
-      });
-
-      return { message: 'All features deactivated, subscription canceled' };
-    }
-
     let stripeSub: Stripe.Subscription;
 
     if (localSub?.stripeSubscriptionId) {
-      // Update existing subscription — replace all items
       const existingSub = await this.stripe.subscriptions.retrieve(
         localSub.stripeSubscriptionId,
         { expand: ['items'] },
       );
 
-      // Remove all existing items and add new ones
       const updateItems: Stripe.SubscriptionUpdateParams.Item[] = [];
-
-      // Mark existing items for deletion
       for (const item of existingSub.items.data) {
         updateItems.push({ id: item.id, deleted: true });
       }
-      // Add new items
       for (const newItem of stripeItems) {
         updateItems.push(newItem);
       }
@@ -382,7 +452,6 @@ export class BillingService {
         },
       );
     } else {
-      // Create new subscription
       const createParams: Stripe.SubscriptionCreateParams = {
         customer: customerId,
         items: stripeItems,
@@ -393,32 +462,20 @@ export class BillingService {
         expand: ['latest_invoice.payment_intent'],
       };
 
-      // Custom billing anchor — use billingDay to compute next month's date
       if (localSub?.billingDay) {
         const anchorDate = this.computeNextBillingDate(localSub.billingDay);
         createParams.billing_cycle_anchor = Math.floor(anchorDate.getTime() / 1000);
-      } else if (localSub?.billingCycleAnchor) {
-        // Legacy: use stored DateTime
-        createParams.billing_cycle_anchor = Math.floor(
-          localSub.billingCycleAnchor.getTime() / 1000,
-        );
       }
 
       stripeSub = await this.stripe.subscriptions.create(createParams);
     }
 
-    // Sync local subscription record
     const subData: any = {
       stripeSubscriptionId: stripeSub.id,
       status: stripeSub.status,
       currentPeriodStart: new Date((stripeSub as any).current_period_start * 1000),
       currentPeriodEnd: new Date((stripeSub as any).current_period_end * 1000),
     };
-
-    // Persist combo reference if provided
-    if (dto.comboId !== undefined) {
-      subData.comboId = dto.comboId;
-    }
 
     if (localSub) {
       await this.prisma.tenantSubscription.update({
@@ -432,95 +489,312 @@ export class BillingService {
       });
     }
 
-    // Sync subscription items + tenant features
+    const stripeSubItems = stripeSub.items.data;
+
     await this.prisma.tenantSubscriptionItem.deleteMany({
       where: { subscriptionId: localSub.id },
     });
 
-    for (const feat of dto.features) {
-      const stripeItem = stripeSub.items.data.find((si) => {
-        const cat = catalogMap.get(feat.featureCode);
-        return cat && si.price.product === cat.stripeProductId;
-      });
+    let stripeIdx = 0;
+    for (const item of itemsToBill) {
+      const stripeItem = item.priceCents > 0 && stripeIdx < stripeSubItems.length
+        ? stripeSubItems[stripeIdx++]
+        : null;
 
-      if (feat.isActive !== false) {
-        await this.prisma.tenantSubscriptionItem.create({
-          data: {
-            subscriptionId: localSub.id,
-            featureCode: feat.featureCode,
-            stripeSubscriptionItemId: stripeItem?.id,
-            stripePriceId: stripeItem?.price.id,
-            customPriceCents: feat.customPriceCents,
-            isActive: true,
-          },
-        });
-      }
-
-      // Update TenantFeature
-      await this.prisma.tenantFeature.upsert({
-        where: {
-          tenantId_featureCode: { tenantId, featureCode: feat.featureCode },
-        },
-        create: {
-          tenantId,
-          featureCode: feat.featureCode,
-          isActive: feat.isActive !== false,
-          activatedAt: feat.isActive !== false ? new Date() : undefined,
-        },
-        update: {
-          isActive: feat.isActive !== false,
-          deactivatedAt: feat.isActive === false ? new Date() : null,
-          activatedAt: feat.isActive !== false ? new Date() : undefined,
+      await this.prisma.tenantSubscriptionItem.create({
+        data: {
+          subscriptionId: localSub.id,
+          projectId: item.projectId,
+          tierNumber: item.tierNumber,
+          stripeSubscriptionItemId: stripeItem?.id,
+          stripePriceId: stripeItem?.price.id || item.stripePriceId,
+          priceCents: item.priceCents,
+          isActive: true,
         },
       });
     }
 
-    this.logger.log(`Updated features for tenant ${tenantId}: ${stripeSub.id}`);
+    this.logger.log(
+      `Synced subscription for tenant ${tenantId}: ${paidItems.length} paid projects, ${stripeSub.id}`,
+    );
+  }
+
+  private async syncLocalSubscriptionItems(
+    tenantId: string,
+    items: { projectId: string; tierNumber: number; priceCents: number }[],
+  ) {
+    let localSub = await this.prisma.tenantSubscription.findUnique({
+      where: { tenantId },
+    });
+
+    if (!localSub) {
+      localSub = await this.prisma.tenantSubscription.create({
+        data: { tenantId, status: 'active' },
+      });
+    }
+
+    await this.prisma.tenantSubscriptionItem.deleteMany({
+      where: { subscriptionId: localSub.id },
+    });
+
+    for (const item of items) {
+      await this.prisma.tenantSubscriptionItem.create({
+        data: {
+          subscriptionId: localSub.id,
+          projectId: item.projectId,
+          tierNumber: item.tierNumber,
+          priceCents: item.priceCents,
+          isActive: true,
+        },
+      });
+    }
+  }
+
+  // ─── PROJECT LIMITS ────────────────────────────────────
+
+  async getProjectLimits(tenantId: string): Promise<ProjectLimitsDto> {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      include: {
+        pricingTable: { include: { tiers: { orderBy: { projectNumber: 'asc' } } } },
+        subscription: true,
+        _count: { select: { projects: true } },
+      },
+    });
+
+    const N = tenant._count.projects;
+    const tiers = tenant.pricingTable?.tiers || [];
+    const freeProjects = tenant.freeProjects || 0;
+    const additionalDiscount = tenant.discountPercent || 0;
+
+    // Trial: 30 days from first login. After trial, free tier no longer applies.
+    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
+    const trialActive = !!tenant.trialStartedAt
+      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
+
+    // maxProjects = max(effectiveFreeProjects, subscription.maxProjects)
+    // This is the hard cap the user paid for.
+    const subMaxProjects = tenant.subscription?.maxProjects || 0;
+    const maxProjects = Math.max(effectiveFreeProjects, subMaxProjects);
+
+    const hasActiveSubscription = !!tenant.subscription?.stripeSubscriptionId
+      && tenant.subscription.status !== 'canceled'
+      && tenant.subscription.status !== 'incomplete_expired';
+
+    // User can create if: not blocked AND under the paid limit
+    const canCreateProject = tenant.billingStatus !== BillingStatus.INADIMPLENTE
+      && tenant.billingStatus !== BillingStatus.CANCELLED
+      && N < maxProjects;
+
+    // requiresSubscription = they're at the free limit and don't have a paid plan covering more
+    const requiresSubscription = N >= maxProjects;
+
+    let nextProjectPriceCents: number | null = null;
+    if (tiers.length > 0) {
+      const nextN = N + 1;
+      const nextTier = tiers.find((t) => t.projectNumber === nextN) || tiers[tiers.length - 1];
+      let unitPrice = nextTier.priceCents;
+      if (additionalDiscount > 0) {
+        unitPrice = Math.round(unitPrice * (1 - additionalDiscount / 100));
+      }
+      const currentTier = N > 0 ? (tiers.find((t) => t.projectNumber === N) || tiers[tiers.length - 1]) : null;
+      let currentUnitPrice = currentTier?.priceCents || 0;
+      if (additionalDiscount > 0) {
+        currentUnitPrice = Math.round(currentUnitPrice * (1 - additionalDiscount / 100));
+      }
+      const currentTotal = N * currentUnitPrice;
+      const newTotal = nextN * unitPrice;
+      nextProjectPriceCents = Math.max(0, newTotal - currentTotal);
+    }
+
     return {
-      subscriptionId: stripeSub.id,
-      status: stripeSub.status,
-      items: stripeSub.items.data.map((i) => ({
-        id: i.id,
-        priceId: i.price.id,
-        amount: i.price.unit_amount,
-      })),
+      activeProjectCount: N,
+      maxProjects,
+      freeProjects: effectiveFreeProjects,
+      canCreateProject,
+      nextProjectPriceCents,
+      discountPercent: additionalDiscount,
+      requiresSubscription,
     };
+  }
+
+  async validateProjectCreation(tenantId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      include: {
+        subscription: true,
+        _count: { select: { projects: true } },
+      },
+    });
+
+    if (tenant.billingStatus === BillingStatus.INADIMPLENTE) {
+      throw new ForbiddenException(
+        'Não é possível criar projetos com pagamento inadimplente. Regularize sua assinatura.',
+      );
+    }
+
+    if (tenant.billingStatus === BillingStatus.CANCELLED) {
+      throw new ForbiddenException(
+        'Assinatura cancelada. Reative sua assinatura para criar projetos.',
+      );
+    }
+
+    // Ensure pricing table is assigned
+    if (!tenant.pricingTableId) {
+      await this.autoAssignDefaultPricingTable(tenantId);
+    }
+
+    const freeProjects = tenant.freeProjects || 0;
+    const activeProjects = tenant._count.projects;
+
+    // Trial: 30 days from first login. After trial, free tier no longer applies.
+    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
+    const trialActive = !!tenant.trialStartedAt
+      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
+
+    // Hard limit: max(effectiveFreeProjects, subscription.maxProjects)
+    // User can only create projects up to the plan they PAID for.
+    const subMaxProjects = tenant.subscription?.maxProjects || 0;
+    const maxAllowed = Math.max(effectiveFreeProjects, subMaxProjects);
+
+    if (activeProjects >= maxAllowed) {
+      throw new ForbiddenException(
+        JSON.stringify({
+          code: 'SUBSCRIPTION_REQUIRED',
+          message: maxAllowed === 0
+            ? (trialActive
+                ? 'Para criar mais projetos, é necessário assinar um plano.'
+                : 'Seu período de teste expirou. Assine um plano para continuar.')
+            : `Seu plano atual permite até ${maxAllowed} projeto(s). Faça upgrade para criar mais.`,
+          redirectTo: '/painel/assinatura',
+        }),
+      );
+    }
   }
 
   // ─── BILLING CYCLE ANCHOR ──────────────────────────────
 
   /**
-   * Define o dia do mês para cobrança (1-28).
-   * O anchor é aplicado:
-   * - Na próxima criação de assinatura (billing_cycle_anchor)
-   * - Em assinaturas existentes via subscription_schedule (se necessário)
-   *
-   * Regras legais (CDC):
-   * - Primeiro vencimento sempre no mês seguinte ao cadastro
-   * - Dia 29/30/31 não aceito (usar 28 como máximo)
-   * - Grace period de 15 dias antes de bloqueio
+   * Auto-assign the default pricing table to a tenant (if one exists).
+   * Used on tenant registration and when creating projects without a table.
    */
+  async autoAssignDefaultPricingTable(tenantId: string): Promise<void> {
+    const defaultTable = await this.prisma.projectPricingTable.findFirst({
+      where: { isDefault: true, isActive: true },
+    });
+    if (!defaultTable) {
+      this.logger.debug(`No default pricing table found, skipping auto-assign for tenant ${tenantId}`);
+      return;
+    }
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        pricingTableId: defaultTable.id,
+        discountPercent: 0,
+      },
+    });
+    this.logger.log(`Auto-assigned default pricing table "${defaultTable.name}" to tenant ${tenantId}`);
+
+    // Sync subscription so local items and Stripe are consistent
+    await this.syncTenantSubscription(tenantId);
+  }
+
+  /**
+   * Returns available plan levels for the tenant's pricing table.
+   * VOLUME PRICING: each level N means all N projects share the tier-N unit price.
+   * discountPercent is derived from (basePriceCents - tierN.priceCents) / basePriceCents.
+   */
+  async getAvailablePlans(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      include: {
+        pricingTable: { include: { tiers: { orderBy: { projectNumber: 'asc' } } } },
+        _count: { select: { projects: true } },
+      },
+    });
+
+    if (!tenant.pricingTable) {
+      await this.autoAssignDefaultPricingTable(tenantId);
+      return this.getAvailablePlans(tenantId);
+    }
+
+    const tiers = tenant.pricingTable.tiers;
+    const realProjectCount = tenant._count.projects;
+    const freeProjects = tenant.freeProjects || 0;
+    const baseTier = tiers[0]; // tier 1 = base price, 0% discount
+    const basePriceCents = baseTier?.priceCents || 0;
+
+    // During active trial, the tenant is effectively on the free plan (at least 1 project)
+    // even if they haven't created a project yet.
+    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
+    const trialActive = !!tenant.trialStartedAt
+      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
+
+    // Use the subscription's maxProjects (what the user PAID for) to determine the current plan.
+    // During trial with no subscription, use the effective free tier.
+    const sub = await this.prisma.tenantSubscription.findUnique({ where: { tenantId } });
+    const subMaxProjects = sub?.maxProjects || 0;
+    const paidPlanLevel = Math.max(effectiveFreeProjects, subMaxProjects);
+
+    const plans = tiers.map((tier) => {
+      const unitPriceCents = tier.priceCents;
+      const totalMonthlyCents = tier.projectNumber * unitPriceCents;
+      const discountPercent = basePriceCents > 0
+        ? Math.round(((basePriceCents - unitPriceCents) / basePriceCents) * 100)
+        : 0;
+      const isLastTier = tier.projectNumber === tiers[tiers.length - 1].projectNumber;
+
+      // Current plan: based on what the user PAID for, not how many projects they actually have.
+      const isCurrent = isLastTier
+        ? paidPlanLevel >= tier.projectNumber
+        : paidPlanLevel === tier.projectNumber;
+
+      return {
+        projectCount: tier.projectNumber,
+        unitPriceCents,
+        totalMonthlyCents,
+        discountPercent,
+        isCurrent,
+        isLastTier,
+      };
+    });
+
+    return {
+      pricingTable: {
+        id: tenant.pricingTable.id,
+        name: tenant.pricingTable.name,
+        description: tenant.pricingTable.description,
+      },
+      basePriceCents,
+      activeProjectCount: realProjectCount,
+      paidPlanLevel,
+      billingStatus: tenant.billingStatus,
+      plans,
+    };
+  }
+
+
+
   async setBillingAnchor(tenantId: string, billingDay: number) {
     if (billingDay < 1 || billingDay > 28) {
       throw new BadRequestException('O dia de vencimento deve estar entre 1 e 28.');
     }
 
-    // Save the billing day locally
     await this.prisma.tenantSubscription.upsert({
       where: { tenantId },
       create: { tenantId, billingDay },
       update: { billingDay },
     });
 
-    // If there's an active Stripe subscription, schedule the anchor change
     const localSub = await this.prisma.tenantSubscription.findUnique({
       where: { tenantId },
     });
 
     if (localSub?.stripeSubscriptionId) {
       try {
-        // Use proration_behavior: none + trial_end to shift the next billing date
-        // Calculate next occurrence of the billing day
         const nextBillingDate = this.computeNextBillingDate(billingDay);
         const nextBillingTimestamp = Math.floor(nextBillingDate.getTime() / 1000);
 
@@ -534,8 +808,7 @@ export class BillingService {
         );
       } catch (err) {
         this.logger.warn(
-          `Could not reschedule Stripe subscription for tenant ${tenantId}: ${err.message}. ` +
-          `Billing day saved locally and will be applied on next subscription update.`,
+          `Could not reschedule Stripe subscription for tenant ${tenantId}: ${err.message}`,
         );
       }
     }
@@ -547,18 +820,11 @@ export class BillingService {
     };
   }
 
-  /**
-   * Compute the next occurrence of a billing day.
-   * If today is before or equal to the billing day this month, use next month.
-   * First billing is always pushed to the next month (regra CDC).
-   */
   private computeNextBillingDate(billingDay: number): Date {
     const now = new Date();
-    const currentDay = now.getDate();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Always push to next month minimum (first charge = next month)
     let targetMonth = currentMonth + 1;
     let targetYear = currentYear;
 
@@ -567,19 +833,14 @@ export class BillingService {
       targetYear++;
     }
 
-    // Ensure the day is valid for the target month
     const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
     const safeDay = Math.min(billingDay, daysInMonth);
 
-    return new Date(targetYear, targetMonth, safeDay, 12, 0, 0); // noon to avoid timezone issues
+    return new Date(targetYear, targetMonth, safeDay, 12, 0, 0);
   }
 
   // ─── CHECKOUT SESSION ──────────────────────────────────
 
-  /**
-   * Create a Stripe Checkout Session (for the tenant to manage payment methods
-   * or complete the first subscription payment).
-   */
   async createCheckoutSession(
     tenantId: string,
     successUrl?: string,
@@ -588,18 +849,6 @@ export class BillingService {
     const customerId = await this.ensureStripeCustomer(tenantId);
     const baseDomain = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
 
-    const localSub = await this.prisma.tenantSubscription.findUnique({
-      where: { tenantId },
-    });
-
-    if (!localSub?.stripeSubscriptionId) {
-      throw new BadRequestException(
-        'No subscription found. Ask admin to configure features first.',
-      );
-    }
-
-    // Create a setup-mode session to collect payment method
-    // Note: setup mode only supports card (boleto/pix are one-time payment methods)
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'setup',
@@ -613,23 +862,103 @@ export class BillingService {
   }
 
   /**
-   * Create a portal session where the customer can manage billing.
+   * Create a Stripe Checkout Session in 'subscription' mode.
+   * This actually charges the user and creates the Stripe subscription.
+   * `projectCount` = the number of projects the user wants (tier level).
    */
+  async createSubscriptionCheckout(
+    tenantId: string,
+    projectCount: number,
+    successUrl?: string,
+    cancelUrl?: string,
+  ) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      include: {
+        pricingTable: { include: { tiers: { orderBy: { projectNumber: 'asc' } } } },
+        _count: { select: { projects: true } },
+      },
+    });
+
+    if (!tenant.pricingTable) {
+      await this.autoAssignDefaultPricingTable(tenantId);
+      return this.createSubscriptionCheckout(tenantId, projectCount, successUrl, cancelUrl);
+    }
+
+    const tiers = tenant.pricingTable.tiers;
+    if (tiers.length === 0) {
+      throw new BadRequestException('Nenhuma faixa de preço configurada.');
+    }
+
+    // Find the tier for the requested project count (or last tier for higher counts)
+    const tier = tiers.find((t) => t.projectNumber === projectCount) || tiers[tiers.length - 1];
+    const additionalDiscount = tenant.discountPercent || 0;
+    let unitPriceCents = tier.priceCents;
+    if (additionalDiscount > 0) {
+      unitPriceCents = Math.round(unitPriceCents * (1 - additionalDiscount / 100));
+    }
+
+    // Charge the FULL plan amount (projectCount × unitPrice).
+    // Subscribing replaces the trial — user pays the total shown on the plan card.
+    const paidCount = projectCount;
+
+    const customerId = await this.ensureStripeCustomer(tenantId);
+    const baseDomain = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+
+    // Find or create a Stripe Price for this unit amount
+    let stripePriceId = tier.stripePriceId;
+    if (!stripePriceId || additionalDiscount > 0) {
+      const price = await this.stripe.prices.create({
+        product: tenant.pricingTable.stripeProductId!,
+        unit_amount: unitPriceCents,
+        currency: 'brl',
+        recurring: { interval: 'month' },
+        metadata: {
+          tenantId,
+          volumeLevel: String(projectCount),
+          pricingTableId: tenant.pricingTable.id,
+        },
+      });
+      stripePriceId = price.id;
+    }
+
+    const session = await this.stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      payment_method_types: ['card', 'boleto'],
+      line_items: [
+        {
+          price: stripePriceId,
+          quantity: paidCount,
+        },
+      ],
+      success_url: successUrl || `${baseDomain}/painel/assinatura?status=subscribed`,
+      cancel_url: cancelUrl || `${baseDomain}/painel/assinatura?status=cancel`,
+      metadata: { tenantId, projectCount: String(projectCount) },
+      subscription_data: {
+        metadata: { tenantId, projectCount: String(projectCount) },
+      },
+    });
+
+    return { sessionId: session.id, url: session.url };
+  }
+
   async createPortalSession(tenantId: string) {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
     });
 
-    if (!tenant.stripeCustomerId) {
-      throw new BadRequestException('Stripe customer not configured');
+    // Auto-create Stripe customer if not yet configured
+    let customerId = tenant.stripeCustomerId;
+    if (!customerId) {
+      customerId = await this.ensureStripeCustomer(tenantId);
     }
 
-    // Ensure a portal configuration exists that allows boleto
     const portalConfig = await this.getOrCreatePortalConfiguration();
 
     const baseDomain = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const session = await this.stripe.billingPortal.sessions.create({
-      customer: tenant.stripeCustomerId,
+      customer: customerId,
       return_url: `${baseDomain}/painel/assinatura`,
       configuration: portalConfig,
     });
@@ -637,24 +966,17 @@ export class BillingService {
     return { url: session.url };
   }
 
-  /**
-   * Get or create a Stripe billing portal configuration with boleto enabled.
-   */
   private portalConfigId: string | null = null;
   private async getOrCreatePortalConfiguration(): Promise<string> {
     if (this.portalConfigId) return this.portalConfigId;
 
     try {
-      // Try to find an existing active configuration
       const configs = await this.stripe.billingPortal.configurations.list({ limit: 1 });
       if (configs.data.length > 0) {
         this.portalConfigId = configs.data[0].id;
-        // Update it to ensure boleto + card are enabled
         await this.stripe.billingPortal.configurations.update(this.portalConfigId, {
           features: {
-            payment_method_update: {
-              enabled: true,
-            },
+            payment_method_update: { enabled: true },
             invoice_history: { enabled: true },
           },
           business_profile: {
@@ -664,12 +986,9 @@ export class BillingService {
         return this.portalConfigId;
       }
 
-      // Create a new portal configuration
       const config = await this.stripe.billingPortal.configurations.create({
         features: {
-          payment_method_update: {
-            enabled: true,
-          },
+          payment_method_update: { enabled: true },
           invoice_history: { enabled: true },
         },
         business_profile: {
@@ -680,7 +999,6 @@ export class BillingService {
       return this.portalConfigId;
     } catch (err) {
       this.logger.warn(`Failed to create portal config: ${err.message}`);
-      // Fall back to default config
       return undefined as any;
     }
   }
@@ -701,6 +1019,9 @@ export class BillingService {
     this.logger.log(`Received Stripe webhook: ${event.type}`);
 
     switch (event.type) {
+      case 'checkout.session.completed':
+        await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
       case 'invoice.paid':
         await this.handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
@@ -720,6 +1041,66 @@ export class BillingService {
     return { received: true };
   }
 
+  /**
+   * Handle checkout.session.completed — link the new Stripe subscription to our local records.
+   * Only grant access (billingStatus=OK) when payment was actually collected.
+   */
+  private async handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    const tenantId = session.metadata?.tenantId;
+    if (!tenantId) {
+      this.logger.warn('checkout.session.completed missing tenantId in metadata');
+      return;
+    }
+
+    // Only process subscription-mode sessions
+    if (session.mode !== 'subscription' || !session.subscription) return;
+
+    const stripeSubId = typeof session.subscription === 'string'
+      ? session.subscription
+      : (session.subscription as any)?.id;
+
+    if (!stripeSubId) return;
+
+    const stripeSub = await this.stripe.subscriptions.retrieve(stripeSubId);
+
+    // Extract maxProjects from subscription metadata (set during createSubscriptionCheckout)
+    const maxProjects = parseInt(stripeSub.metadata?.projectCount || '0', 10);
+
+    const subData = {
+      stripeSubscriptionId: stripeSubId,
+      status: stripeSub.status,
+      maxProjects,
+      currentPeriodStart: new Date((stripeSub as any).current_period_start * 1000),
+      currentPeriodEnd: new Date((stripeSub as any).current_period_end * 1000),
+    };
+
+    await this.prisma.tenantSubscription.upsert({
+      where: { tenantId },
+      create: { tenantId, ...subData },
+      update: subData,
+    });
+
+    // Only set billingStatus to OK if the payment was actually collected.
+    // session.payment_status = 'paid' means Stripe collected the money.
+    // subscription.status = 'active' means the subscription is fully operational.
+    // 'incomplete' means payment still pending (3D Secure, boleto, etc.)
+    if (
+      session.payment_status === 'paid' &&
+      (stripeSub.status === 'active' || stripeSub.status === 'trialing')
+    ) {
+      await this.prisma.tenant.update({
+        where: { id: tenantId },
+        data: { billingStatus: BillingStatus.OK, gracePeriodEnd: null },
+      });
+      this.logger.log(`Checkout completed & paid for tenant ${tenantId}, subscription ${stripeSubId} active`);
+    } else {
+      this.logger.warn(
+        `Checkout completed for tenant ${tenantId} but payment_status=${session.payment_status}, ` +
+        `subscription.status=${stripeSub.status}. Awaiting payment confirmation via invoice.paid webhook.`,
+      );
+    }
+  }
+
   private async handleInvoicePaid(invoice: Stripe.Invoice) {
     const subscriptionId = (invoice as any).subscription
       ? typeof (invoice as any).subscription === 'string'
@@ -734,7 +1115,6 @@ export class BillingService {
     });
     if (!localSub) return;
 
-    // Clear grace period, set billing status to OK
     await this.prisma.tenant.update({
       where: { id: localSub.tenantId },
       data: {
@@ -743,7 +1123,6 @@ export class BillingService {
       },
     });
 
-    // Record invoice
     await this.prisma.billingInvoice.upsert({
       where: { stripeInvoiceId: invoice.id },
       create: {
@@ -796,7 +1175,6 @@ export class BillingService {
     const now = new Date();
 
     if (tenant.billingStatus === BillingStatus.OK) {
-      // First failure — enter grace period (5 days tolerance)
       const graceEnd = new Date(now);
       graceEnd.setDate(graceEnd.getDate() + this.GRACE_PERIOD_DAYS);
 
@@ -816,7 +1194,6 @@ export class BillingService {
       tenant.gracePeriodEnd &&
       now > tenant.gracePeriodEnd
     ) {
-      // Grace period expired → block tenant
       await this.prisma.tenant.update({
         where: { id: localSub.tenantId },
         data: { billingStatus: BillingStatus.INADIMPLENTE },
@@ -825,7 +1202,6 @@ export class BillingService {
       this.logger.error(`Tenant ${localSub.tenantId} marked as INADIMPLENTE`);
     }
 
-    // Record invoice
     await this.prisma.billingInvoice.upsert({
       where: { stripeInvoiceId: invoice.id },
       create: {
@@ -860,10 +1236,16 @@ export class BillingService {
     });
     if (!localSub) return;
 
+    // Update maxProjects from subscription metadata or item quantity
+    const metaProjectCount = parseInt(subscription.metadata?.projectCount || '0', 10);
+    const itemQuantity = subscription.items?.data?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    const newMaxProjects = metaProjectCount || itemQuantity;
+
     await this.prisma.tenantSubscription.update({
       where: { id: localSub.id },
       data: {
         status: subscription.status,
+        maxProjects: newMaxProjects > 0 ? newMaxProjects : undefined,
         currentPeriodStart: new Date(
           (subscription as any).current_period_start * 1000,
         ),
@@ -873,6 +1255,32 @@ export class BillingService {
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
       },
     });
+
+    // Sync tenant billingStatus based on the real subscription state
+    if (subscription.status === 'active' || subscription.status === 'trialing') {
+      await this.prisma.tenant.update({
+        where: { id: localSub.tenantId },
+        data: { billingStatus: BillingStatus.OK, gracePeriodEnd: null },
+      });
+      this.logger.log(`Subscription ${subscription.id} is ${subscription.status} → tenant ${localSub.tenantId} billingStatus=OK`);
+    } else if (subscription.status === 'past_due') {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: localSub.tenantId } });
+      if (tenant && tenant.billingStatus === BillingStatus.OK) {
+        const graceEnd = new Date();
+        graceEnd.setDate(graceEnd.getDate() + this.GRACE_PERIOD_DAYS);
+        await this.prisma.tenant.update({
+          where: { id: localSub.tenantId },
+          data: { billingStatus: BillingStatus.GRACE_PERIOD, gracePeriodEnd: graceEnd },
+        });
+        this.logger.warn(`Subscription ${subscription.id} past_due → tenant ${localSub.tenantId} GRACE_PERIOD until ${graceEnd.toISOString()}`);
+      }
+    } else if (subscription.status === 'incomplete_expired' || subscription.status === 'canceled' || subscription.status === 'unpaid') {
+      await this.prisma.tenant.update({
+        where: { id: localSub.tenantId },
+        data: { billingStatus: BillingStatus.INADIMPLENTE },
+      });
+      this.logger.error(`Subscription ${subscription.id} ${subscription.status} → tenant ${localSub.tenantId} INADIMPLENTE`);
+    }
   }
 
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -886,18 +1294,17 @@ export class BillingService {
       data: { status: 'canceled' },
     });
 
-    // Deactivate all features
-    await this.prisma.tenantFeature.updateMany({
-      where: { tenantId: localSub.tenantId },
-      data: { isActive: false, deactivatedAt: new Date() },
+    // Mark tenant as CANCELLED so project creation is blocked
+    await this.prisma.tenant.update({
+      where: { id: localSub.tenantId },
+      data: { billingStatus: BillingStatus.CANCELLED },
     });
+
+    this.logger.warn(`Subscription ${subscription.id} deleted → tenant ${localSub.tenantId} CANCELLED`);
   }
 
   // ─── GRACE PERIOD CRON ─────────────────────────────────
 
-  /**
-   * Called by a scheduled job to check grace periods and mark tenants as INADIMPLENTE.
-   */
   async checkGracePeriods() {
     const now = new Date();
 
@@ -927,29 +1334,83 @@ export class BillingService {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
       include: {
-        subscription: { include: { items: true, combo: true } },
-        tenantFeatures: true,
+        subscription: { include: { items: { include: { project: true } } } },
+        pricingTable: { include: { tiers: { orderBy: { projectNumber: 'asc' } } } },
+        _count: { select: { projects: true } },
       },
     });
 
-    const catalog = await this.prisma.featureCatalog.findMany();
-    const catalogMap = new Map(catalog.map((c) => [c.code, c]));
+    const tiers = tenant.pricingTable?.tiers || [];
+    const additionalDiscount = tenant.discountPercent || 0;
+    const freeProjects = tenant.freeProjects || 0;
+    const activeProjectCount = tenant._count.projects;
 
-    const features = (tenant.subscription?.items || []).map((item) => {
-      const cat = catalogMap.get(item.featureCode);
-      const priceCents = item.customPriceCents ?? cat?.defaultPriceCents ?? 0;
+    // Trial detection (computed early so it's available for project-level isFree)
+    const hasActivePaidSub = !!tenant.subscription?.stripeSubscriptionId
+      && tenant.subscription.status !== 'canceled'
+      && tenant.subscription.status !== 'incomplete_expired';
+    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
+    const trialActive = !!tenant.trialStartedAt
+      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const trialEndDate = tenant.trialStartedAt
+      ? new Date(new Date(tenant.trialStartedAt).getTime() + trialDurationMs)
+      : null;
+    const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
+    const isOnFreeTier = trialActive && activeProjectCount <= effectiveFreeProjects && !hasActivePaidSub;
+    const trialExpired = !!tenant.trialStartedAt && !trialActive;
+    const requiresSubscription = activeProjectCount >= effectiveFreeProjects && !hasActivePaidSub;
+
+    // Volume pricing: find the tier for current project count
+    const basePriceCents = tiers[0]?.priceCents || 0;
+    const volumeTier = activeProjectCount > 0
+      ? (tiers.find((t) => t.projectNumber === activeProjectCount) || tiers[tiers.length - 1])
+      : tiers[0];
+    let currentUnitPrice = volumeTier?.priceCents || 0;
+    if (additionalDiscount > 0) {
+      currentUnitPrice = Math.round(currentUnitPrice * (1 - additionalDiscount / 100));
+    }
+
+    const volumeDiscountPercent = basePriceCents > 0
+      ? Math.round(((basePriceCents - (volumeTier?.priceCents || 0)) / basePriceCents) * 100)
+      : 0;
+
+    const projects = (tenant.subscription?.items || []).map((item) => {
+      const tierNumber = item.tierNumber || 0;
+      const isFree = tierNumber <= effectiveFreeProjects;
+      const effectivePriceCents = item.priceCents || 0;
+
       return {
-        featureCode: item.featureCode,
-        isActive: item.isActive,
-        customPriceCents: item.customPriceCents,
-        catalogName: cat?.name || item.featureCode,
-        priceCents,
+        projectId: item.projectId || '',
+        projectName: (item.project as any)?.name || 'Projeto removido',
+        projectSlug: (item.project as any)?.slug || '',
+        tierNumber,
+        basePriceCents: currentUnitPrice,
+        discountPercent: volumeDiscountPercent,
+        effectivePriceCents,
+        isFree,
       };
     });
 
-    const totalMonthlyCents = features
-      .filter((f) => f.isActive)
-      .reduce((sum, f) => sum + f.priceCents, 0);
+    const totalMonthlyCents = projects.reduce((sum, p) => sum + p.effectivePriceCents, 0);
+
+    const subMaxProjects = tenant.subscription?.maxProjects || 0;
+    const maxAllowed = Math.max(effectiveFreeProjects, subMaxProjects);
+
+    const canCreateProject = tenant.billingStatus !== BillingStatus.INADIMPLENTE
+      && tenant.billingStatus !== BillingStatus.CANCELLED
+      && activeProjectCount < maxAllowed;
+
+    let nextProjectPriceCents: number | null = null;
+    if (tiers.length > 0) {
+      const nextN = activeProjectCount + 1;
+      const nextTier = tiers.find((t) => t.projectNumber === nextN) || tiers[tiers.length - 1];
+      let nextUnit = nextTier?.priceCents || 0;
+      if (additionalDiscount > 0) {
+        nextUnit = Math.round(nextUnit * (1 - additionalDiscount / 100));
+      }
+      // Incremental cost of adding one more project (volume repricing)
+      nextProjectPriceCents = Math.max(0, nextN * nextUnit - (activeProjectCount * currentUnitPrice));
+    }
 
     return {
       tenantId: tenant.id,
@@ -965,29 +1426,37 @@ export class BillingService {
             cancelAtPeriodEnd: tenant.subscription.cancelAtPeriodEnd,
           }
         : null,
-      features,
+      projects,
       totalMonthlyCents,
       gracePeriodEnd: tenant.gracePeriodEnd,
-      combo: tenant.subscription?.combo
+      pricingTable: tenant.pricingTable
         ? {
-            id: tenant.subscription.combo.id,
-            name: tenant.subscription.combo.name,
-            description: tenant.subscription.combo.description ?? undefined,
-            discountPercent: tenant.subscription.combo.discountPercent,
+            id: tenant.pricingTable.id,
+            name: tenant.pricingTable.name,
+            description: tenant.pricingTable.description ?? undefined,
+            tiers: tiers.map((t) => ({ projectNumber: t.projectNumber, priceCents: t.priceCents })),
           }
-        : undefined,
+        : null,
+      volumeDiscountPercent,
+      currentUnitPriceCents: currentUnitPrice,
+      freeProjects: effectiveFreeProjects,
+      activeProjectCount,
+      maxProjects: maxAllowed,
+      canCreateProject,
+      nextProjectPriceCents,
+      trialStartedAt: tenant.trialStartedAt,
+      trialEndDate,
+      trialActive,
+      trialExpired,
+      isOnFreeTier,
+      requiresSubscription,
     };
   }
 
-  // ─── FEATURE CHECK HELPER ──────────────────────────────
+  // ─── BILLING STATUS CHECK ──────────────────────────────
 
-  /**
-   * Check if a feature is accessible for a tenant.
-   * Returns: { allowed: boolean, warning: boolean, reason?: string }
-   */
-  async checkFeatureAccess(
+  async checkBillingAccess(
     tenantId: string,
-    featureCode: FeatureCode,
   ): Promise<{ allowed: boolean; warning: boolean; reason?: string }> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },
@@ -997,17 +1466,6 @@ export class BillingService {
       return { allowed: false, warning: false, reason: 'Tenant not found' };
     }
 
-    // SYSADMIN-owned tenants always have full access (optional — they might not be billed)
-    // Check if feature is active
-    const feature = await this.prisma.tenantFeature.findUnique({
-      where: { tenantId_featureCode: { tenantId, featureCode } },
-    });
-
-    if (!feature || !feature.isActive) {
-      return { allowed: false, warning: false, reason: `Feature ${featureCode} not active` };
-    }
-
-    // Check billing status
     switch (tenant.billingStatus) {
       case BillingStatus.OK:
         return { allowed: true, warning: false };
@@ -1050,10 +1508,6 @@ export class BillingService {
 
   // ─── FIX EXISTING SUBSCRIPTIONS ────────────────────────
 
-  /**
-   * Patch an existing Stripe subscription to enable boleto payment method.
-   * This is needed for subscriptions created before boleto was properly configured.
-   */
   async fixSubscriptionPaymentMethods(tenantId: string) {
     const localSub = await this.prisma.tenantSubscription.findUnique({
       where: { tenantId },

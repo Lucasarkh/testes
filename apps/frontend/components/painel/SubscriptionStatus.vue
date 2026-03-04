@@ -24,8 +24,7 @@
           <strong>Pagamento pendente</strong>
           <p class="mb-0 small">
             Regularize o pagamento até
-            <strong>{{ gracePeriodFormatted }}</strong> para evitar o bloqueio
-            dos módulos.
+            <strong>{{ gracePeriodFormatted }}</strong> para evitar o bloqueio.
           </p>
         </div>
       </div>
@@ -48,60 +47,62 @@
       <div class="card mb-4">
         <div class="card-body">
           <div class="row align-items-center">
-            <div class="col-md-4 text-center border-end">
+            <div class="col-md-3 text-center border-end">
               <div class="text-muted small">Valor Mensal</div>
               <div class="fs-3 fw-bold text-primary">{{ totalFormatted }}</div>
             </div>
-            <div class="col-md-4 text-center border-end">
+            <div class="col-md-3 text-center border-end">
               <div class="text-muted small">Próximo Vencimento</div>
               <div class="fs-5 fw-semibold">{{ nextDueDateFormatted }}</div>
             </div>
-            <div class="col-md-4 text-center">
+            <div class="col-md-3 text-center border-end">
               <div class="text-muted small">Status</div>
               <span :class="statusBadgeClass">{{ statusLabel }}</span>
+            </div>
+            <div class="col-md-3 text-center">
+              <div class="text-muted small">Projetos</div>
+              <div class="fs-5 fw-semibold">{{ status.activeProjectCount }} / {{ status.maxProjects }}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Active Features -->
+      <!-- Active Projects -->
       <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h6 class="mb-0">
-            <i class="fas fa-puzzle-piece me-2"></i>Módulos Contratados
+            <i class="fas fa-folder-open me-2"></i>Projetos Cobrados
           </h6>
-          <span class="badge bg-primary">{{ activeFeatures.length }} ativo(s)</span>
+          <span class="badge bg-primary">{{ (status.projects || []).length }} projeto(s)</span>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-hover mb-0">
               <thead class="table-light">
                 <tr>
-                  <th>Módulo</th>
-                  <th class="text-center">Status</th>
+                  <th>Projeto</th>
+                  <th class="text-center">Tier</th>
                   <th class="text-end">Valor/mês</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="feat in status.features" :key="feat.featureCode">
+                <tr v-for="proj in (status.projects || [])" :key="proj.projectId">
                   <td>
-                    <i :class="featureIcon(feat.featureCode)" class="me-2"></i>
-                    {{ feat.catalogName }}
+                    <i class="fas fa-folder me-2"></i>
+                    {{ proj.projectName }}
                   </td>
                   <td class="text-center">
-                    <span
-                      :class="feat.isActive ? 'badge bg-success' : 'badge bg-secondary'"
-                    >
-                      {{ feat.isActive ? 'Ativo' : 'Inativo' }}
-                    </span>
+                    <span v-if="proj.isFree" class="badge bg-success">Grátis</span>
+                    <span v-else class="badge bg-primary">#{{ proj.tierNumber }}</span>
                   </td>
                   <td class="text-end">
-                    {{ formatCents(feat.priceCents) }}
+                    <template v-if="proj.isFree">R$ 0,00</template>
+                    <template v-else>{{ formatCents(proj.effectivePriceCents) }}</template>
                   </td>
                 </tr>
-                <tr v-if="status.features.length === 0">
+                <tr v-if="!(status.projects || []).length">
                   <td colspan="3" class="text-center text-muted py-4">
-                    Nenhum módulo contratado
+                    Nenhum projeto cobrável
                   </td>
                 </tr>
               </tbody>
@@ -136,7 +137,6 @@ const {
   nextDueDateFormatted,
   isGracePeriod,
   isBlocked,
-  activeFeatures,
 } = useBilling();
 
 onMounted(() => {
@@ -169,22 +169,6 @@ const statusBadgeClass = computed(() => {
   };
   return map[status.value.billingStatus] || 'badge bg-secondary fs-6';
 });
-
-const featureIcons: Record<string, string> = {
-  AI_CHAT: 'fas fa-robot',
-  MAP_360: 'fas fa-globe',
-  GOOGLE_API: 'fas fa-map-marker-alt',
-  LEADS: 'fas fa-users',
-  PANORAMA: 'fas fa-images',
-  PLANT_MAP: 'fas fa-map',
-  SCHEDULING: 'fas fa-calendar-check',
-  CAMPAIGNS: 'fas fa-bullhorn',
-  NEARBY: 'fas fa-location-arrow',
-};
-
-function featureIcon(code: string): string {
-  return featureIcons[code] || 'fas fa-cube';
-}
 
 function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', {

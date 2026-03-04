@@ -5,7 +5,7 @@
         <h1>Projetos</h1>
         <p>Gerencie seus loteamentos</p>
       </div>
-      <button v-if="authStore.canEdit" class="btn btn-primary" @click="showCreate = true">+ Novo Projeto</button>
+      <button v-if="authStore.canEdit" class="btn btn-primary" @click="handleNewProject">+ Novo Projeto</button>
     </div>
 
     <div v-if="loading" class="loading-state"><div class="loading-spinner"></div></div>
@@ -85,6 +85,21 @@ const checkingSlug = ref(false)
 
 const form = ref({ name: '', slug: '', description: '' })
 
+/** Pre-check billing limits before opening the create modal */
+const handleNewProject = async () => {
+  try {
+    const limits = await fetchApi('/billing/project-limits')
+    if (!limits?.canCreateProject || limits?.requiresSubscription) {
+      // Redirect with query param to ensure toast is shown on the next page
+      navigateTo('/painel/assinatura?limit_reached=true')
+      return
+    }
+  } catch {
+    // If billing check fails, let server-side validation handle it
+  }
+  showCreate.value = true
+}
+
 let slugTimeout = null
 watch(() => form.value.slug, (v) => {
   if (!v) {
@@ -141,6 +156,14 @@ const handleCreate = async () => {
     slugManuallyEdited.value = false
     toastSuccess('Projeto criado com sucesso!')
   } catch (e) {
+    // Check if the error is a subscription-required block
+    let parsed = null
+    try { parsed = JSON.parse(e.message || '') } catch {}
+    if (parsed?.code === 'SUBSCRIPTION_REQUIRED') {
+      showCreate.value = false
+      navigateTo('/painel/assinatura?limit_reached=true')
+      return
+    }
     createError.value = e.message
     toastFromError(e, 'Erro ao criar projeto')
   } finally {

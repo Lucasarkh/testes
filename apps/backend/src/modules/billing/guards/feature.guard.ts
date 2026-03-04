@@ -6,16 +6,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { FeatureCode, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { IS_PUBLIC_KEY } from '@/common/decorators/public.decorator';
-import { REQUIRED_FEATURE_KEY } from '../decorators/require-feature.decorator';
 import { BillingService } from '../billing.service';
 
 /**
- * Guard that checks:
- * 1. If the route requires a specific feature (@RequireFeature decorator)
- * 2. If the tenant has that feature active
- * 3. If the tenant billing status allows access
+ * Guard that checks tenant billing status on protected routes.
  *
  * - BillingStatus.OK → allow
  * - BillingStatus.GRACE_PERIOD → allow + attach warning to response header
@@ -23,10 +19,13 @@ import { BillingService } from '../billing.service';
  * - BillingStatus.CANCELLED → block with 403
  *
  * SYSADMIN users always bypass this guard.
+ *
+ * Usage: Apply globally or per-controller with @UseGuards(BillingGuard).
+ * No per-feature gating — all features are included with each project.
  */
 @Injectable()
-export class FeatureGuard implements CanActivate {
-  private readonly logger = new Logger(FeatureGuard.name);
+export class BillingGuard implements CanActivate {
+  private readonly logger = new Logger(BillingGuard.name);
 
   constructor(
     private readonly reflector: Reflector,
@@ -34,25 +33,17 @@ export class FeatureGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // Check if route is public
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
     if (isPublic) return true;
 
-    // Check if route requires a feature
-    const requiredFeature = this.reflector.getAllAndOverride<FeatureCode>(
-      REQUIRED_FEATURE_KEY,
-      [context.getHandler(), context.getClass()],
-    );
-    if (!requiredFeature) return true; // No feature requirement → allow
-
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
     const user = request.user;
 
-    // SYSADMIN bypasses all feature checks
+    // SYSADMIN bypasses all billing checks
     if (user?.role === UserRole.SYSADMIN) return true;
 
     const tenantId = request.tenantId || user?.tenantId;
@@ -60,14 +51,11 @@ export class FeatureGuard implements CanActivate {
       throw new ForbiddenException('Tenant não identificado.');
     }
 
-    const access = await this.billingService.checkFeatureAccess(
-      tenantId,
-      requiredFeature,
-    );
+    const access = await this.billingService.checkBillingAccess(tenantId);
 
     if (!access.allowed) {
       throw new ForbiddenException(
-        access.reason || `Módulo ${requiredFeature} não disponível.`,
+        access.reason || 'Acesso bloqueado por questões de cobrança.',
       );
     }
 
@@ -80,3 +68,6 @@ export class FeatureGuard implements CanActivate {
     return true;
   }
 }
+
+// Keep old name as alias for backward compatibility
+export const FeatureGuard = BillingGuard;

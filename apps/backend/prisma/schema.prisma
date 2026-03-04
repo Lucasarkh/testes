@@ -129,21 +129,9 @@ enum PlantHotspotLinkType {
 
 enum BillingStatus {
   OK
-  GRACE_PERIOD   // Within 5-day tolerance
+  GRACE_PERIOD   // Within 15-day tolerance
   INADIMPLENTE   // Past tolerance, features blocked
   CANCELLED
-}
-
-enum FeatureCode {
-  AI_CHAT
-  MAP_360
-  GOOGLE_API
-  LEADS
-  PANORAMA
-  PLANT_MAP
-  SCHEDULING
-  CAMPAIGNS
-  NEARBY
 }
 
 // ─── CORE MODELS ────────────────────────────────────────
@@ -162,6 +150,13 @@ model Tenant {
   billingStatus     BillingStatus  @default(OK)
   billingEmail      String?
   gracePeriodEnd    DateTime?      // Set when payment fails, cleared when paid
+
+  // Per-project pricing
+  pricingTableId    String?
+  pricingTable      ProjectPricingTable? @relation("TenantPricingTable", fields: [pricingTableId], references: [id], onDelete: SetNull)
+  discountPercent   Float          @default(0)   // 0-100 tenant-specific discount
+  freeProjects      Int            @default(1)   // Number of free projects included
+  trialStartedAt    DateTime?                     // When free-tier trial started (set on first login)
 
   users         User[]
   projects      Project[]
@@ -184,7 +179,6 @@ model Tenant {
 
   // Billing relations
   subscription      TenantSubscription?
-  tenantFeatures    TenantFeature[]
   billingInvoices   BillingInvoice[]
 }
 
@@ -331,6 +325,7 @@ model Project {
   schedulingConfig SchedulingConfig?
   schedulings      Scheduling[]
   nearbyItems      NearbyItem[]
+  subscriptionItems TenantSubscriptionItem[]
 
   @@index([tenantId])
   @@index([slug])
@@ -921,6 +916,36 @@ model NearbyItem {
   @@unique([projectId, placeId])
 }
 
+// ─── PROJECT PRICING TABLES ──────────────────────────────
+
+model ProjectPricingTable {
+  id              String   @id @default(cuid())
+  name            String   @unique  // "Padrão", "Parceiro", "Enterprise"
+  description     String?  @db.Text
+  isDefault       Boolean  @default(false)
+  stripeProductId String?  // Stripe Product for this pricing table
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tiers   ProjectPricingTier[]
+  tenants Tenant[]             @relation("TenantPricingTable")
+}
+
+model ProjectPricingTier {
+  id              String              @id @default(cuid())
+  pricingTableId  String
+  pricingTable    ProjectPricingTable @relation(fields: [pricingTableId], references: [id], onDelete: Cascade)
+  projectNumber   Int                 // 1, 2, 3, ... (which Nth project this price applies to)
+  priceCents      Int                 // Monthly price in cents for this project slot
+  stripePriceId   String?             // Stripe recurring Price ID for this tier
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([pricingTableId, projectNumber])
+  @@index([pricingTableId])
+}
+
 // ─── BILLING & SUBSCRIPTIONS ─────────────────────────────
 
 model TenantSubscription {
@@ -928,54 +953,39 @@ model TenantSubscription {
   tenantId              String   @unique
   tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   stripeSubscriptionId  String?  @unique
-  stripePriceId         String?  // Default base price (if any)
   status                String   @default("active") // active, past_due, canceled, trialing
+  maxProjects           Int      @default(0) // Max projects the user paid for in this subscription
   currentPeriodStart    DateTime?
   currentPeriodEnd      DateTime?
   billingCycleAnchor    DateTime? // Custom billing date (legacy)
   billingDay            Int?      // Day of month for billing (1-28)
   cancelAtPeriodEnd     Boolean  @default(false)
   trialEnd              DateTime?
-  comboId               String?  // Reference to applied combo
-  combo                 FeatureCombo? @relation(fields: [comboId], references: [id], onDelete: SetNull)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   items TenantSubscriptionItem[]
 
   @@index([stripeSubscriptionId])
-  @@index([comboId])
 }
 
 model TenantSubscriptionItem {
   id                       String      @id @default(cuid())
   subscriptionId           String
   subscription             TenantSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  featureCode              FeatureCode
+  projectId                String?     // Reference to the project being billed
+  project                  Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tierNumber               Int?        // Which tier/slot this project occupies (1, 2, 3...)
   stripeSubscriptionItemId String?     @unique
   stripePriceId            String?
-  customPriceCents         Int?        // SysAdmin-defined price in cents for this tenant
+  priceCents               Int?        // Effective price in cents (after discounts)
   isActive                 Boolean     @default(true)
   createdAt                DateTime    @default(now())
   updatedAt                DateTime    @updatedAt
 
-  @@unique([subscriptionId, featureCode])
+  @@unique([subscriptionId, projectId])
   @@index([subscriptionId])
-}
-
-model TenantFeature {
-  id          String      @id @default(cuid())
-  tenantId    String
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  featureCode FeatureCode
-  isActive    Boolean     @default(true)
-  activatedAt DateTime    @default(now())
-  deactivatedAt DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@unique([tenantId, featureCode])
-  @@index([tenantId])
+  @@index([projectId])
 }
 
 model BillingInvoice {
@@ -1000,48 +1010,6 @@ model BillingInvoice {
 
   @@index([tenantId])
   @@index([status])
-}
-
-// ─── FEATURE CATALOG (SysAdmin-managed) ──────────────────
-
-model FeatureCatalog {
-  id              String      @id @default(cuid())
-  code            FeatureCode @unique
-  name            String      // Display name: "Chat IA", "Mapa 360", etc.
-  description     String?     @db.Text
-  defaultPriceCents Int       @default(0) // Default monthly price in cents
-  stripePriceId   String?     // Default Stripe Price ID
-  stripeProductId String?     // Stripe Product ID
-  isAvailable     Boolean     @default(true) // Globally available for purchase
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-}
-
-// ─── FEATURE COMBOS (SysAdmin-managed bundles) ───────────
-
-model FeatureCombo {
-  id              String            @id @default(cuid())
-  name            String            // e.g. "Plano Básico", "Plano Premium"
-  description     String?           @db.Text
-  discountPercent Int               @default(0) // 0-100 percentage discount on sum
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-
-  items           FeatureComboItem[]
-  subscriptions   TenantSubscription[]
-}
-
-model FeatureComboItem {
-  id              String      @id @default(cuid())
-  comboId         String
-  combo           FeatureCombo @relation(fields: [comboId], references: [id], onDelete: Cascade)
-  featureCode     FeatureCode
-  overridePriceCents Int?     // If set, overrides catalog default price within this combo
-  createdAt       DateTime    @default(now())
-
-  @@unique([comboId, featureCode])
-  @@index([comboId])
 }
 
 // ─── SYSTEM METADATA ─────────────────────────────────────

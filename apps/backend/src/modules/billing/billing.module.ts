@@ -6,7 +6,7 @@ import {
   BillingController,
   BillingWebhookController,
 } from './billing.controller';
-import { FeatureGuard } from './guards/feature.guard';
+import { BillingGuard, FeatureGuard } from './guards/feature.guard';
 import { DbModule } from '@infra/db/db.module';
 
 @Global()
@@ -17,7 +17,7 @@ import { DbModule } from '@infra/db/db.module';
     BillingController,
     BillingWebhookController,
   ],
-  providers: [BillingService, BillingScheduler, FeatureGuard],
-  exports: [BillingService, FeatureGuard],
+  providers: [BillingService, BillingScheduler, BillingGuard],
+  exports: [BillingService, BillingGuard, FeatureGuard],
 })
 export class BillingModule {}

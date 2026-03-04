@@ -5,14 +5,34 @@ import {
   Body,
   Patch,
   Param,
+  Delete,
   UseGuards,
   Req,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '@infra/db/prisma.service';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentProvider } from '@prisma/client';
+
+const REQUIRED_KEYS: Record<string, string[]> = {
+  STRIPE: ['secretKey'],
+  ASAAS: ['apiKey'],
+  MERCADO_PAGO: ['accessToken'],
+  PAGAR_ME: ['secretKey'],
+  PAGSEGURO: ['token'],
+};
+
+function validateKeysJson(provider: string, keysJson: any): void {
+  const required = REQUIRED_KEYS[provider] || [];
+  const missing = required.filter(k => !keysJson?.[k]?.toString().trim());
+  if (missing.length > 0) {
+    throw new BadRequestException(
+      `Campos obrigatórios faltando para ${provider}: ${missing.join(', ')}`,
+    );
+  }
+}
 
 @ApiTags('Admin - Payment')
 @ApiBearerAuth()
@@ -41,6 +61,23 @@ export class PaymentConfigController {
     },
     @Req() req: any
   ) {
+    if (!body.name?.trim()) {
+      throw new BadRequestException('Nome do perfil é obrigatório.');
+    }
+    validateKeysJson(body.provider, body.keysJson);
+
+    // Prevent duplicate provider for same tenant
+    const duplicate = await this.prisma.paymentConfig.findFirst({
+      where: {
+        tenantId: req.user.tenantId,
+        provider: body.provider,
+      },
+    });
+
+    if (duplicate) {
+      throw new BadRequestException(`Já existe um gateway configurado para o provedor ${body.provider}. Remova o antigo primeiro.`);
+    }
+
     return this.prisma.paymentConfig.create({
       data: {
         tenantId: req.user.tenantId,
@@ -70,6 +107,16 @@ export class PaymentConfigController {
     const existing = await this.prisma.paymentConfig.findUnique({ where: { id } });
     if (!existing || existing.tenantId !== req.user.tenantId) {
       throw new NotFoundException('Gateway not found');
+    }
+
+    // Validate keys if provider or keysJson is being updated
+    const effectiveProvider = body.provider || existing.provider;
+    const effectiveKeys = body.keysJson ?? existing.keysJson;
+    if (body.keysJson || body.provider) {
+      validateKeysJson(effectiveProvider, effectiveKeys);
+    }
+    if (body.name !== undefined && !body.name?.trim()) {
+      throw new BadRequestException('Nome do perfil é obrigatório.');
     }
 
     return this.prisma.paymentConfig.update({
@@ -143,5 +190,18 @@ export class PaymentConfigController {
         }
       });
     }
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Remove a payment gateway' })
+  async deleteConfig(@Param('id') id: string, @Req() req: any) {
+    const existing = await this.prisma.paymentConfig.findUnique({ where: { id } });
+    if (!existing || existing.tenantId !== req.user.tenantId) {
+      throw new NotFoundException('Gateway not found');
+    }
+
+    return this.prisma.paymentConfig.delete({
+      where: { id },
+    });
   }
 }

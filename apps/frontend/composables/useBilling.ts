@@ -1,11 +1,21 @@
 import { useApi } from './useApi';
 
-export interface SubscriptionFeature {
-  featureCode: string;
-  isActive: boolean;
-  customPriceCents: number | null;
-  catalogName: string;
-  priceCents: number;
+export interface ProjectBillingItem {
+  projectId: string;
+  projectName: string;
+  projectSlug: string;
+  tierNumber: number;
+  basePriceCents: number;
+  discountPercent: number;
+  effectivePriceCents: number;
+  isFree: boolean;
+}
+
+export interface PricingTableInfo {
+  id: string;
+  name: string;
+  description?: string;
+  tiers: { projectNumber: number; priceCents: number }[];
 }
 
 export interface SubscriptionStatus {
@@ -20,9 +30,33 @@ export interface SubscriptionStatus {
     currentPeriodEnd: string | null;
     cancelAtPeriodEnd: boolean;
   } | null;
-  features: SubscriptionFeature[];
+  projects: ProjectBillingItem[];
   totalMonthlyCents: number;
   gracePeriodEnd: string | null;
+  pricingTable: PricingTableInfo | null;
+  volumeDiscountPercent: number;
+  currentUnitPriceCents: number;
+  freeProjects: number;
+  activeProjectCount: number;
+  maxProjects: number;
+  canCreateProject: boolean;
+  nextProjectPriceCents: number | null;
+  trialStartedAt: string | null;
+  trialEndDate: string | null;
+  trialActive: boolean;
+  trialExpired: boolean;
+  isOnFreeTier: boolean;
+  requiresSubscription: boolean;
+}
+
+export interface ProjectLimits {
+  activeProjectCount: number;
+  maxProjects: number;
+  freeProjects: number;
+  canCreateProject: boolean;
+  nextProjectPriceCents: number | null;
+  discountPercent: number;
+  requiresSubscription: boolean;
 }
 
 export interface PaymentMethod {
@@ -34,12 +68,31 @@ export interface PaymentMethod {
   expYear?: number;
 }
 
+export interface VolumePlan {
+  projectCount: number;
+  unitPriceCents: number;
+  totalMonthlyCents: number;
+  discountPercent: number;
+  isCurrent: boolean;
+  isLastTier: boolean;
+}
+
+export interface AvailablePlans {
+  pricingTable: { id: string; name: string; description?: string };
+  basePriceCents: number;
+  activeProjectCount: number;
+  billingStatus: string;
+  plans: VolumePlan[];
+}
+
 export const useBilling = () => {
   const { fetchApi } = useApi();
 
   const status = ref<SubscriptionStatus | null>(null);
+  const projectLimits = ref<ProjectLimits | null>(null);
   const paymentMethods = ref<PaymentMethod[]>([]);
   const invoices = ref<any[]>([]);
+  const availablePlans = ref<AvailablePlans | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -55,6 +108,14 @@ export const useBilling = () => {
     }
   };
 
+  const fetchProjectLimits = async () => {
+    try {
+      projectLimits.value = await fetchApi('/billing/project-limits');
+    } catch (e: any) {
+      error.value = e.message;
+    }
+  };
+
   const fetchPaymentMethods = async () => {
     try {
       paymentMethods.value = await fetchApi('/billing/payment-methods');
@@ -66,6 +127,14 @@ export const useBilling = () => {
   const fetchInvoices = async () => {
     try {
       invoices.value = await fetchApi('/billing/invoices');
+    } catch (e: any) {
+      error.value = e.message;
+    }
+  };
+
+  const fetchPlans = async () => {
+    try {
+      availablePlans.value = await fetchApi('/billing/plans');
     } catch (e: any) {
       error.value = e.message;
     }
@@ -136,23 +205,83 @@ export const useBilling = () => {
       status.value?.billingStatus === 'CANCELLED',
   );
 
-  const activeFeatures = computed(
-    () => status.value?.features.filter((f) => f.isActive) || [],
+  const billedProjects = computed(
+    () => status.value?.projects || [],
   );
+
+  const canCreateProject = computed(
+    () => status.value?.canCreateProject ?? true,
+  );
+
+  const activeProjectCount = computed(
+    () => status.value?.activeProjectCount ?? 0,
+  );
+
+  const maxProjects = computed(
+    () => status.value?.maxProjects ?? 999,
+  );
+
+  const nextProjectPrice = computed(() => {
+    if (status.value?.nextProjectPriceCents == null) return null;
+    return formatCents(status.value.nextProjectPriceCents);
+  });
+
+  const pricingTable = computed(
+    () => status.value?.pricingTable ?? null,
+  );
+
+  const volumeDiscountPercent = computed(
+    () => status.value?.volumeDiscountPercent ?? 0,
+  );
+
+  const currentUnitPriceCents = computed(
+    () => status.value?.currentUnitPriceCents ?? 0,
+  );
+
+  const freeProjects = computed(
+    () => status.value?.freeProjects ?? 0,
+  );
+
+  const isOnFreeTier = computed(
+    () => status.value?.isOnFreeTier ?? false,
+  );
+
+  const requiresSubscription = computed(
+    () => status.value?.requiresSubscription ?? false,
+  );
+
+  const trialExpired = computed(
+    () => status.value?.trialExpired ?? false,
+  );
+
+  const trialActive = computed(
+    () => status.value?.trialActive ?? false,
+  );
+
+  const trialDaysLeft = computed(() => {
+    const endDate = status.value?.trialEndDate;
+    if (!endDate) return 0;
+    const diff = new Date(endDate).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
+  });
 
   return {
     // State
     status,
+    projectLimits,
     paymentMethods,
     invoices,
+    availablePlans,
     loading,
     error,
     billingWarning,
 
     // Actions
     fetchStatus,
+    fetchProjectLimits,
     fetchPaymentMethods,
     fetchInvoices,
+    fetchPlans,
     openCheckout,
     openPortal,
     checkBillingHeaders,
@@ -163,11 +292,24 @@ export const useBilling = () => {
     nextDueDateFormatted,
     isGracePeriod,
     isBlocked,
-    activeFeatures,
+    billedProjects,
+    canCreateProject,
+    activeProjectCount,
+    maxProjects,
+    nextProjectPrice,
+    pricingTable,
+    volumeDiscountPercent,
+    currentUnitPriceCents,
+    freeProjects,
+    isOnFreeTier,
+    requiresSubscription,
+    trialExpired,
+    trialActive,
+    trialDaysLeft,
   };
 };
 
-function formatCents(cents: number): string {
+export function formatCents(cents: number): string {
   return (cents / 100).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',

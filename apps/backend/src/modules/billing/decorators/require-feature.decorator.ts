@@ -1,15 +1,17 @@
+/**
+ * @deprecated Feature-based gating has been removed.
+ * All features are now included with each project.
+ * Use BillingGuard to check billing status only.
+ *
+ * This file is kept for backward compatibility but has no effect.
+ */
 import { SetMetadata } from '@nestjs/common';
-import { FeatureCode } from '@prisma/client';
 
 export const REQUIRED_FEATURE_KEY = 'requiredFeature';
 
 /**
- * Decorator to mark a route as requiring a specific feature module.
- *
- * Usage:
- *   @RequireFeature(FeatureCode.AI_CHAT)
- *   @Get('chat')
- *   async chat() { ... }
+ * @deprecated No-op decorator. Feature-based billing has been replaced
+ * with per-project billing. Use BillingGuard for billing status checks.
  */
-export const RequireFeature = (feature: FeatureCode) =>
-  SetMetadata(REQUIRED_FEATURE_KEY, feature);
+export const RequireFeature = (_feature: string) =>
+  SetMetadata(REQUIRED_FEATURE_KEY, _feature);

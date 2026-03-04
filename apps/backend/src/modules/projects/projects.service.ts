@@ -12,6 +12,7 @@ import { ProjectStatus, Project, User, UserRole } from '@prisma/client';
 import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import { NearbyService } from '@modules/nearby/nearby.service';
+import { BillingService } from '@modules/billing/billing.service';
 
 @Injectable()
 export class ProjectsService {
@@ -20,10 +21,14 @@ export class ProjectsService {
   constructor(
     private prisma: PrismaService,
     @Inject('REDIS_SERVICE') private redis: any,
-    private nearbyService: NearbyService
+    private nearbyService: NearbyService,
+    private billingService: BillingService,
   ) {}
 
   async create(tenantId: string, dto: CreateProjectDto, user?: User) {
+    // Validate project creation against billing limits
+    await this.billingService.validateProjectCreation(tenantId);
+
     const existing = await this.prisma.project.findUnique({
       where: { slug: dto.slug.toLowerCase().replace(/\s+/g, '-') }
     });
@@ -42,7 +47,7 @@ export class ProjectsService {
       if (existingDomain) throw new ConflictException('Domínio já em uso.');
     }
 
-    return this.prisma.project.create({
+    const project = await this.prisma.project.create({
       data: {
         tenantId,
         name: dto.name,
@@ -52,6 +57,15 @@ export class ProjectsService {
         reservationExpiryHours: dto.reservationExpiryHours ?? 24
       }
     });
+
+    // Sync billing subscription after project creation
+    try {
+      await this.billingService.onProjectCreated(tenantId, project.id);
+    } catch (err) {
+      this.logger.warn(`Failed to sync billing after project creation: ${err.message}`);
+    }
+
+    return project;
   }
 
   async findAll(
@@ -408,6 +422,14 @@ export class ProjectsService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     await this.prisma.project.delete({ where: { id } });
+
+    // Sync billing subscription after project deletion
+    try {
+      await this.billingService.onProjectDeleted(tenantId, id);
+    } catch (err) {
+      this.logger.warn(`Failed to sync billing after project deletion: ${err.message}`);
+    }
+
     return { message: 'Projeto removido com sucesso.' };
   }
 }

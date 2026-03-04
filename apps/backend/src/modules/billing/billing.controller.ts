@@ -16,14 +16,12 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { BillingService } from './billing.service';
 import {
-  UpdateTenantFeaturesDto,
+  UpsertPricingTableDto,
+  AssignPricingTableDto,
   SetBillingAnchorDto,
   CreateCustomerDto,
   SavePaymentMethodDto,
   CreateCheckoutDto,
-  UpsertFeatureCatalogDto,
-  UpsertFeatureComboDto,
-  ApplyComboDto,
 } from './dto';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Public } from '@/common/decorators/public.decorator';
@@ -41,29 +39,35 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 export class BillingAdminController {
   constructor(private readonly billingService: BillingService) {}
 
-  // ─── Feature Catalog ────────────────────────────────────
+  // ─── Pricing Tables ─────────────────────────────────────
 
-  @Post('catalog')
-  @ApiOperation({ summary: 'Create/update a feature in the catalog' })
-  upsertCatalog(@Body() dto: UpsertFeatureCatalogDto) {
-    return this.billingService.upsertFeatureCatalog(dto);
+  @Post('pricing-tables')
+  @ApiOperation({ summary: 'Create/update a pricing table with tiers' })
+  upsertPricingTable(@Body() dto: UpsertPricingTableDto) {
+    return this.billingService.upsertPricingTable(dto);
   }
 
-  @Get('catalog')
-  @ApiOperation({ summary: 'List all features in the catalog' })
-  listCatalog() {
-    return this.billingService.listFeatureCatalog();
+  @Get('pricing-tables')
+  @ApiOperation({ summary: 'List all active pricing tables' })
+  listPricingTables() {
+    return this.billingService.listPricingTables();
   }
 
-  // ─── Tenant Feature Management ──────────────────────────
+  @Delete('pricing-tables/:tableId')
+  @ApiOperation({ summary: 'Deactivate a pricing table' })
+  deletePricingTable(@Param('tableId') tableId: string) {
+    return this.billingService.deletePricingTable(tableId);
+  }
 
-  @Put('tenants/:tenantId/features')
-  @ApiOperation({ summary: 'Set features + custom prices for a tenant' })
-  updateFeatures(
+  // ─── Tenant Pricing Assignment ──────────────────────────
+
+  @Put('tenants/:tenantId/pricing-table')
+  @ApiOperation({ summary: 'Assign a pricing table to a tenant' })
+  assignPricingTable(
     @Param('tenantId') tenantId: string,
-    @Body() dto: UpdateTenantFeaturesDto,
+    @Body() dto: AssignPricingTableDto,
   ) {
-    return this.billingService.updateTenantFeatures(tenantId, dto);
+    return this.billingService.assignPricingTable(tenantId, dto);
   }
 
   @Get('tenants/:tenantId/subscription')
@@ -96,39 +100,22 @@ export class BillingAdminController {
     return this.billingService.listInvoices(tenantId);
   }
 
+  @Get('tenants/:tenantId/project-limits')
+  @ApiOperation({ summary: 'Get project limits for a tenant' })
+  getProjectLimits(@Param('tenantId') tenantId: string) {
+    return this.billingService.getProjectLimits(tenantId);
+  }
+
   @Post('tenants/:tenantId/fix-payment-methods')
   @ApiOperation({ summary: 'Fix subscription payment methods (enable boleto)' })
   fixPaymentMethods(@Param('tenantId') tenantId: string) {
     return this.billingService.fixSubscriptionPaymentMethods(tenantId);
   }
 
-  // ─── Feature Combos ─────────────────────────────────────
-
-  @Post('combos')
-  @ApiOperation({ summary: 'Create or update a feature combo' })
-  upsertCombo(@Body() dto: UpsertFeatureComboDto) {
-    return this.billingService.upsertFeatureCombo(dto);
-  }
-
-  @Get('combos')
-  @ApiOperation({ summary: 'List all active feature combos' })
-  listCombos() {
-    return this.billingService.listFeatureCombos();
-  }
-
-  @Delete('combos/:comboId')
-  @ApiOperation({ summary: 'Deactivate a feature combo' })
-  deleteCombo(@Param('comboId') comboId: string) {
-    return this.billingService.deleteFeatureCombo(comboId);
-  }
-
-  @Post('tenants/:tenantId/apply-combo')
-  @ApiOperation({ summary: 'Apply a feature combo to a tenant' })
-  applyCombo(
-    @Param('tenantId') tenantId: string,
-    @Body() dto: ApplyComboDto,
-  ) {
-    return this.billingService.applyComboToTenant(tenantId, dto.comboId);
+  @Post('tenants/:tenantId/sync-subscription')
+  @ApiOperation({ summary: 'Force re-sync subscription for a tenant' })
+  syncSubscription(@Param('tenantId') tenantId: string) {
+    return this.billingService.syncTenantSubscription(tenantId);
   }
 }
 
@@ -141,10 +128,22 @@ export class BillingAdminController {
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
 
+  @Get('plans')
+  @ApiOperation({ summary: 'Get available plan levels for my tenant' })
+  getMyPlans(@TenantId() tenantId: string) {
+    return this.billingService.getAvailablePlans(tenantId);
+  }
+
   @Get('status')
   @ApiOperation({ summary: 'Get my subscription status' })
   getMyStatus(@TenantId() tenantId: string) {
     return this.billingService.getSubscriptionStatus(tenantId);
+  }
+
+  @Get('project-limits')
+  @ApiOperation({ summary: 'Get project limits for my tenant' })
+  getMyProjectLimits(@TenantId() tenantId: string) {
+    return this.billingService.getProjectLimits(tenantId);
   }
 
   @Get('invoices')
@@ -181,10 +180,30 @@ export class BillingController {
     );
   }
 
+  @Post('subscribe')
+  @ApiOperation({ summary: 'Create subscription checkout (charges the user)' })
+  createSubscriptionCheckout(
+    @TenantId() tenantId: string,
+    @Body() body: { projectCount: number; successUrl?: string; cancelUrl?: string },
+  ) {
+    return this.billingService.createSubscriptionCheckout(
+      tenantId,
+      body.projectCount,
+      body.successUrl,
+      body.cancelUrl,
+    );
+  }
+
   @Post('portal')
   @ApiOperation({ summary: 'Create billing portal session' })
   createPortal(@TenantId() tenantId: string) {
     return this.billingService.createPortalSession(tenantId);
+  }
+
+  @Post('sync')
+  @ApiOperation({ summary: 'Sync tenant subscription (after checkout, etc.)' })
+  syncSubscription(@TenantId() tenantId: string) {
+    return this.billingService.syncTenantSubscription(tenantId);
   }
 }
 

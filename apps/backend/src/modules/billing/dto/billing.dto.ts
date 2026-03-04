@@ -1,50 +1,80 @@
 import {
   IsString,
   IsOptional,
-  IsEnum,
   IsInt,
   IsBoolean,
   IsArray,
+  IsNumber,
   ValidateNested,
-  IsDateString,
   Min,
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { FeatureCode } from '@prisma/client';
 
-// ─── SysAdmin: Manage Tenant Features ────────────────────
+// ─── Pricing Table DTOs ──────────────────────────────────
 
-export class FeatureItemDto {
-  @ApiProperty({ enum: FeatureCode })
-  @IsEnum(FeatureCode)
-  featureCode: FeatureCode;
+export class PricingTierDto {
+  @ApiProperty({ description: 'Nº do projeto (1 = primeiro, 2 = segundo...)' })
+  @IsInt()
+  @Min(1)
+  projectNumber: number;
 
-  @ApiPropertyOptional({ description: 'Custom price in cents for this tenant' })
+  @ApiProperty({ description: 'Preço mensal em centavos para este slot' })
+  @IsInt()
+  @Min(0)
+  priceCents: number;
+}
+
+export class UpsertPricingTableDto {
+  @ApiPropertyOptional({ description: 'ID (para update). Omitir para criar nova.' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiProperty({ description: 'Nome da tabela de preços' })
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Marcar como tabela padrão' })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
+
+  @ApiProperty({ type: [PricingTierDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PricingTierDto)
+  tiers: PricingTierDto[];
+}
+
+// ─── Tenant Pricing Assignment ───────────────────────────
+
+export class AssignPricingTableDto {
+  @ApiProperty({ description: 'ID da tabela de preços' })
+  @IsString()
+  pricingTableId: string;
+
+  @ApiPropertyOptional({ description: 'Desconto em % para este tenant (0-100)', default: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  discountPercent?: number;
+
+  @ApiPropertyOptional({ description: 'Número de projetos gratuitos', default: 1 })
   @IsOptional()
   @IsInt()
   @Min(0)
-  customPriceCents?: number;
-
-  @ApiPropertyOptional({ default: true })
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
+  freeProjects?: number;
 }
 
-export class UpdateTenantFeaturesDto {
-  @ApiProperty({ type: [FeatureItemDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => FeatureItemDto)
-  features: FeatureItemDto[];
-
-  @ApiPropertyOptional({ description: 'Combo ID to associate with this subscription' })
-  @IsOptional()
-  @IsString()
-  comboId?: string | null;
-}
+// ─── Billing Anchor ──────────────────────────────────────
 
 export class SetBillingAnchorDto {
   @ApiProperty({ description: 'Dia do mês para vencimento (1-28)', example: 10 })
@@ -88,29 +118,18 @@ export class CreateCheckoutDto {
   cancelUrl?: string;
 }
 
-// ─── Feature Catalog (SysAdmin) ──────────────────────────
-
-export class UpsertFeatureCatalogDto {
-  @ApiProperty({ enum: FeatureCode })
-  @IsEnum(FeatureCode)
-  code: FeatureCode;
-
-  @ApiProperty()
-  @IsString()
-  name: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiProperty({ description: 'Default monthly price in cents' })
-  @IsInt()
-  @Min(0)
-  defaultPriceCents: number;
-}
-
 // ─── Response DTOs ───────────────────────────────────────
+
+export class ProjectBillingItemDto {
+  projectId: string;
+  projectName: string;
+  projectSlug: string;
+  tierNumber: number;
+  basePriceCents: number;
+  discountPercent: number;
+  effectivePriceCents: number;
+  isFree: boolean;
+}
 
 export class SubscriptionStatusDto {
   tenantId: string;
@@ -124,62 +143,36 @@ export class SubscriptionStatusDto {
     currentPeriodEnd: Date | null;
     cancelAtPeriodEnd: boolean;
   } | null;
-  features: {
-    featureCode: string;
-    isActive: boolean;
-    customPriceCents: number | null;
-    catalogName: string;
-  }[];
+  projects: ProjectBillingItemDto[];
   totalMonthlyCents: number;
   gracePeriodEnd: Date | null;
-  combo?: { id: string; name: string; description?: string; discountPercent: number } | null;
+  pricingTable: {
+    id: string;
+    name: string;
+    description?: string;
+    tiers: { projectNumber: number; priceCents: number }[];
+  } | null;
+  volumeDiscountPercent: number;
+  currentUnitPriceCents: number;
+  freeProjects: number;
+  activeProjectCount: number;
+  maxProjects: number;
+  canCreateProject: boolean;
+  nextProjectPriceCents: number | null;
+  trialStartedAt: Date | null;
+  trialEndDate: Date | null;
+  trialActive: boolean;
+  trialExpired: boolean;
+  isOnFreeTier: boolean;
+  requiresSubscription: boolean;
 }
 
-// ─── Feature Combo DTOs ─────────────────────────────────
-
-export class ComboItemDto {
-  @ApiProperty({ enum: FeatureCode })
-  @IsEnum(FeatureCode)
-  featureCode: FeatureCode;
-
-  @ApiPropertyOptional({ description: 'Override price in cents within this combo' })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  overridePriceCents?: number;
-}
-
-export class UpsertFeatureComboDto {
-  @ApiPropertyOptional({ description: 'Combo ID (for update). Omit to create new.' })
-  @IsOptional()
-  @IsString()
-  id?: string;
-
-  @ApiProperty({ description: 'Combo display name' })
-  @IsString()
-  name: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiPropertyOptional({ description: 'Discount percentage 0-100', default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(100)
-  discountPercent?: number;
-
-  @ApiProperty({ type: [ComboItemDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ComboItemDto)
-  items: ComboItemDto[];
-}
-
-export class ApplyComboDto {
-  @ApiProperty({ description: 'Combo ID to apply' })
-  @IsString()
-  comboId: string;
+export class ProjectLimitsDto {
+  activeProjectCount: number;
+  maxProjects: number;
+  freeProjects: number;
+  canCreateProject: boolean;
+  nextProjectPriceCents: number | null;
+  discountPercent: number;
+  requiresSubscription: boolean;
 }

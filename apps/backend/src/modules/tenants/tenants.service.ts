@@ -8,10 +8,14 @@ import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { RegisterTenantDto } from '../auth/dto/register-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class TenantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private billingService: BillingService,
+  ) {}
 
   async create(dto: RegisterTenantDto) {
     const existingUser = await this.prisma.user.findUnique({
@@ -53,6 +57,14 @@ export class TenantsService {
         }
       });
 
+      return tenant;
+    }).then(async (tenant) => {
+      // Auto-assign default pricing table (outside transaction, non-blocking)
+      try {
+        await this.billingService.autoAssignDefaultPricingTable(tenant.id);
+      } catch (err) {
+        // Non-blocking — admin can assign manually later
+      }
       return tenant;
     });
   }

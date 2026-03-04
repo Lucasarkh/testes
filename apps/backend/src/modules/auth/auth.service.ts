@@ -210,6 +210,18 @@ export class AuthService {
       data: { refreshToken: await bcrypt.hash(refreshToken, 10) }
     });
 
+    // Set trialStartedAt on first login for LOTEADORA users (starts billing clock)
+    if (user.tenantId && user.role === 'LOTEADORA') {
+      try {
+        await this.prisma.tenant.updateMany({
+          where: { id: user.tenantId, trialStartedAt: null },
+          data: { trialStartedAt: new Date() },
+        });
+      } catch (err) {
+        this.logger.warn(`Failed to set trialStartedAt for tenant ${user.tenantId}: ${err.message}`);
+      }
+    }
+
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
