@@ -146,7 +146,7 @@ const ctaLink = computed(() => {
 
   let base = null
   if (linkType === 'LOTE_PAGE' && linkId) {
-    const code = (props.hotspot as any).code || (props.hotspot as any).name || linkId || props.hotspot.id
+    const code = (props.hotspot as any).code || props.hotspot.label || (props.hotspot as any).name || linkId || props.hotspot.id
     base = isMainDomain ? `${pathPrefix}/${encodeURIComponent(code)}` : `/${encodeURIComponent(code)}`
   }
   else if (linkType === 'PROJECT_PAGE' && linkId) {

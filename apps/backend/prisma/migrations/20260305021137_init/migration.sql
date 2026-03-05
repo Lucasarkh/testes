@@ -47,6 +47,18 @@ CREATE TYPE "PlantHotspotLinkType" AS ENUM ('LOTE_PAGE', 'PROJECT_PAGE', 'CUSTOM
 CREATE TYPE "BillingStatus" AS ENUM ('OK', 'GRACE_PERIOD', 'INADIMPLENTE', 'CANCELLED');
 
 -- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('SYSTEM', 'NEW_LEAD', 'NEW_SCHEDULING', 'LEAD_MILESTONE', 'ACCESS_MILESTONE');
+
+-- CreateEnum
+CREATE TYPE "TicketStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'WAITING_USER', 'RESOLVED', 'CLOSED');
+
+-- CreateEnum
+CREATE TYPE "TicketPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+
+-- CreateEnum
+CREATE TYPE "TicketCategory" AS ENUM ('GENERAL', 'TECHNICAL', 'BILLING', 'FEATURE_REQUEST', 'BUG');
+
+-- CreateEnum
 CREATE TYPE "PanoramaProjection" AS ENUM ('FLAT', 'EQUIRECTANGULAR');
 
 -- CreateTable
@@ -58,6 +70,10 @@ CREATE TABLE "Tenant" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "creci" TEXT,
+    "phone" TEXT,
+    "publicEmail" TEXT,
+    "website" TEXT,
     "stripeCustomerId" TEXT,
     "billingStatus" "BillingStatus" NOT NULL DEFAULT 'OK',
     "billingEmail" TEXT,
@@ -68,6 +84,18 @@ CREATE TABLE "Tenant" (
     "trialStartedAt" TIMESTAMP(3),
 
     CONSTRAINT "Tenant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TenantLogo" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "label" TEXT,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TenantLogo_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -131,6 +159,7 @@ CREATE TABLE "User" (
     "twoFactorCodeExpiry" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "termsAcceptedAt" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -702,6 +731,7 @@ CREATE TABLE "TenantSubscription" (
     "tenantId" TEXT NOT NULL,
     "stripeSubscriptionId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'active',
+    "maxProjects" INTEGER NOT NULL DEFAULT 0,
     "currentPeriodStart" TIMESTAMP(3),
     "currentPeriodEnd" TIMESTAMP(3),
     "billingCycleAnchor" TIMESTAMP(3),
@@ -754,6 +784,66 @@ CREATE TABLE "BillingInvoice" (
 );
 
 -- CreateTable
+CREATE TABLE "TermsAcceptance" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "documentVersion" TEXT NOT NULL,
+    "ipAddress" TEXT NOT NULL,
+    "userAgent" TEXT NOT NULL,
+    "acceptedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TermsAcceptance_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SupportTicket" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "status" "TicketStatus" NOT NULL DEFAULT 'OPEN',
+    "priority" "TicketPriority" NOT NULL DEFAULT 'MEDIUM',
+    "category" "TicketCategory" NOT NULL DEFAULT 'GENERAL',
+    "resolvedAt" TIMESTAMP(3),
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SupportTicket_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SupportMessage" (
+    "id" TEXT NOT NULL,
+    "ticketId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "isInternal" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupportMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TenantInviteCode" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "description" TEXT,
+    "role" "UserRole" NOT NULL DEFAULT 'CORRETOR',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "usageCount" INTEGER NOT NULL DEFAULT 0,
+    "maxUses" INTEGER,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TenantInviteCode_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "SystemMeta" (
     "key" TEXT NOT NULL,
     "value" TEXT NOT NULL DEFAULT '',
@@ -761,6 +851,21 @@ CREATE TABLE "SystemMeta" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "SystemMeta_pkey" PRIMARY KEY ("key")
+);
+
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "actionUrl" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -787,6 +892,9 @@ CREATE UNIQUE INDEX "Tenant_customDomain_key" ON "Tenant"("customDomain");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tenant_stripeCustomerId_key" ON "Tenant"("stripeCustomerId");
+
+-- CreateIndex
+CREATE INDEX "TenantLogo_tenantId_idx" ON "TenantLogo"("tenantId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Agency_email_key" ON "Agency"("email");
@@ -1023,6 +1131,45 @@ CREATE INDEX "BillingInvoice_tenantId_idx" ON "BillingInvoice"("tenantId");
 CREATE INDEX "BillingInvoice_status_idx" ON "BillingInvoice"("status");
 
 -- CreateIndex
+CREATE INDEX "TermsAcceptance_userId_idx" ON "TermsAcceptance"("userId");
+
+-- CreateIndex
+CREATE INDEX "TermsAcceptance_documentType_idx" ON "TermsAcceptance"("documentType");
+
+-- CreateIndex
+CREATE INDEX "TermsAcceptance_acceptedAt_idx" ON "TermsAcceptance"("acceptedAt");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_userId_idx" ON "SupportTicket"("userId");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_tenantId_idx" ON "SupportTicket"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_status_idx" ON "SupportTicket"("status");
+
+-- CreateIndex
+CREATE INDEX "SupportTicket_createdAt_idx" ON "SupportTicket"("createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "SupportMessage_ticketId_idx" ON "SupportMessage"("ticketId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TenantInviteCode_code_key" ON "TenantInviteCode"("code");
+
+-- CreateIndex
+CREATE INDEX "TenantInviteCode_tenantId_idx" ON "TenantInviteCode"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "TenantInviteCode_code_idx" ON "TenantInviteCode"("code");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_isRead_idx" ON "Notification"("userId", "isRead");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification"("userId", "createdAt" DESC);
+
+-- CreateIndex
 CREATE INDEX "_ProjectToRealtorLink_B_index" ON "_ProjectToRealtorLink"("B");
 
 -- CreateIndex
@@ -1030,6 +1177,9 @@ CREATE INDEX "_ProjectGateways_B_index" ON "_ProjectGateways"("B");
 
 -- AddForeignKey
 ALTER TABLE "Tenant" ADD CONSTRAINT "Tenant_pricingTableId_fkey" FOREIGN KEY ("pricingTableId") REFERENCES "ProjectPricingTable"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TenantLogo" ADD CONSTRAINT "TenantLogo_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Agency" ADD CONSTRAINT "Agency_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1204,6 +1354,27 @@ ALTER TABLE "TenantSubscriptionItem" ADD CONSTRAINT "TenantSubscriptionItem_proj
 
 -- AddForeignKey
 ALTER TABLE "BillingInvoice" ADD CONSTRAINT "BillingInvoice_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TermsAcceptance" ADD CONSTRAINT "TermsAcceptance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupportTicket" ADD CONSTRAINT "SupportTicket_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupportTicket" ADD CONSTRAINT "SupportTicket_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "SupportTicket"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TenantInviteCode" ADD CONSTRAINT "TenantInviteCode_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ProjectToRealtorLink" ADD CONSTRAINT "_ProjectToRealtorLink_A_fkey" FOREIGN KEY ("A") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

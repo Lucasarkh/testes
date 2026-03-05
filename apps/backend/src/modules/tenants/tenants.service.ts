@@ -1,20 +1,26 @@
 import {
   Injectable,
   ConflictException,
-  NotFoundException
+  NotFoundException,
+  ForbiddenException
 } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { RegisterTenantDto } from '../auth/dto/register-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { UpdateTenantProfileDto } from './dto/update-tenant-profile.dto';
 import { BillingService } from '../billing/billing.service';
+import { S3Service } from '@infra/s3/s3.service';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class TenantsService {
   constructor(
     private prisma: PrismaService,
     private billingService: BillingService,
+    private s3: S3Service,
   ) {}
 
   async create(dto: RegisterTenantDto) {
@@ -165,5 +171,63 @@ export class TenantsService {
   async delete(id: string) {
     // Usually we don't delete, just deactivate, but here's the option
     return this.prisma.tenant.delete({ where: { id } });
+  }
+
+  async findSelf(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        customDomain: true,
+        creci: true,
+        phone: true,
+        publicEmail: true,
+        website: true,
+        logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
+      }
+    });
+    if (!tenant) throw new NotFoundException('Tenant não encontrado');
+    return tenant;
+  }
+
+  async updateProfile(tenantId: string, dto: UpdateTenantProfileDto) {
+    await this.findSelf(tenantId);
+    return this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { ...dto },
+      select: {
+        id: true,
+        name: true,
+        creci: true,
+        phone: true,
+        publicEmail: true,
+        website: true,
+      }
+    });
+  }
+
+  async uploadLogo(tenantId: string, file: Express.Multer.File) {
+    await this.findSelf(tenantId);
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const key = `tenants/${tenantId}/logos/${uuidv4()}${ext}`;
+    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    return this.prisma.tenantLogo.create({
+      data: { tenantId, url },
+      select: { id: true, url: true, label: true, sortOrder: true }
+    });
+  }
+
+  async deleteLogo(tenantId: string, logoId: string) {
+    const logo = await this.prisma.tenantLogo.findFirst({ where: { id: logoId, tenantId } });
+    if (!logo) throw new NotFoundException('Logo não encontrado');
+    // Delete from S3
+    try {
+      const key = logo.url.split('.amazonaws.com/').pop();
+      if (key) await this.s3.delete(key);
+    } catch { /* ignore S3 cleanup errors */ }
+    await this.prisma.tenantLogo.delete({ where: { id: logoId } });
+    return { ok: true };
   }
 }

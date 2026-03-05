@@ -11,19 +11,6 @@
         <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">🗺️ Planta Interativa</h1>
         <p style="margin: 0; color: var(--color-surface-400); font-weight: 500;">Gerencie a planta do loteamento com hotspots interativos.</p>
       </div>
-
-      <div class="flex items-center gap-2">
-        <a
-          v-if="projectSlug"
-          :href="`/${projectSlug}#planta`"
-          target="_blank"
-          class="btn btn-sm btn-primary"
-          style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
-        >
-          <span style="font-size: 1rem;">🌐</span>
-          <span>Ver página pública</span>
-        </a>
-      </div>
     </div>
 
     <!-- Loading -->

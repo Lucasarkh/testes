@@ -19,7 +19,9 @@ import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { BroadcastNotificationDto } from './dto/broadcast-notification.dto';
+import { SkipTermsCheck } from '@common/decorators/skip-terms-check.decorator';
 
+@SkipTermsCheck()
 @UseGuards(AuthGuard('jwt'))
 @Controller('notifications')
 export class NotificationsController {

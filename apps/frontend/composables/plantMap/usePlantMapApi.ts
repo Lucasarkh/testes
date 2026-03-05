@@ -2,6 +2,7 @@ import { useApi } from '../useApi'
 import { usePublicApi } from '../usePublicApi'
 import type {
   PlantMap,
+  PlantHotspot,
   CreatePlantMapPayload,
   UpdatePlantMapPayload,
   CreateHotspotPayload,
@@ -61,6 +62,16 @@ export const usePlantMapApi = () => {
       body: JSON.stringify(payload),
     })
 
+  /** POST create multiple hotspots in a single transaction (no throttle) */
+  const createHotspotsBulk = (
+    plantMapId: string,
+    payloads: CreateHotspotPayload[],
+  ): Promise<PlantHotspot[]> =>
+    fetchApi(`/plant-maps/${plantMapId}/hotspots/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({ hotspots: payloads }),
+    })
+
   /** PUT update hotspot */
   const updateHotspot = (hotspotId: string, payload: UpdateHotspotPayload) =>
     fetchApi(`/plant-hotspots/${hotspotId}`, {
@@ -79,6 +90,7 @@ export const usePlantMapApi = () => {
     deletePlantMap,
     uploadPlantImage,
     createHotspot,
+    createHotspotsBulk,
     updateHotspot,
     deleteHotspot,
   }
@@ -89,9 +101,13 @@ export const usePlantMapApi = () => {
 export const usePublicPlantMap = () => {
   const { fetchPublic } = usePublicApi()
 
-  /** GET public plant map for a project */
+  /** GET public plant map for a project (hotspots without description/metaJson — see getPublicHotspot) */
   const getPublicPlantMap = (projectId: string, preview = false): Promise<PlantMap | null> =>
     fetchPublic(`/p/projects/${projectId}/plant-map${preview ? '?preview=true' : ''}`)
 
-  return { getPublicPlantMap }
+  /** Lazy-load description + metaJson for a single hotspot (called only when user opens the popover) */
+  const getPublicHotspot = (projectId: string, hotspotId: string): Promise<{ id: string; description: string | null; metaJson: any } | null> =>
+    fetchPublic(`/p/projects/${projectId}/plant-map/hotspots/${hotspotId}`)
+
+  return { getPublicPlantMap, getPublicHotspot }
 }

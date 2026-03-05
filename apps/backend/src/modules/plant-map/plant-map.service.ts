@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { S3Service } from '@infra/s3/s3.service';
 import { CreatePlantMapDto } from './dto/create-plant-map.dto';
 import { UpdatePlantMapDto } from './dto/update-plant-map.dto';
 import { CreateHotspotDto } from './dto/create-hotspot.dto';
+import { CreateHotspotsBulkDto } from './dto/create-hotspots-bulk.dto';
 import { UpdateHotspotDto } from './dto/update-hotspot.dto';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -17,7 +19,8 @@ const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20 MB
 export class PlantMapService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly s3: S3Service
+    private readonly s3: S3Service,
+    @Inject('REDIS_SERVICE') private readonly redis: any
   ) {}
 
   // ── PlantMap CRUD ──────────────────────────────────────
@@ -66,7 +69,7 @@ export class PlantMapService {
     const plantMap = (await this.prisma.plantMap.findUnique({
       where: { projectId },
       include: {
-        hotspots: { 
+        hotspots: {
           orderBy: { createdAt: 'asc' },
           select: {
             id: true,
@@ -82,8 +85,9 @@ export class PlantMapService {
             linkId: true,
             linkUrl: true,
             loteStatus: true,
-            description: true,
-            metaJson: true,
+            // description and metaJson intentionally omitted here:
+            // they are large text fields only needed when a user opens a hotspot popover.
+            // Use GET /plant-map/hotspots/:hotspotId to lazy-load them on demand.
           }
         }
       }
@@ -91,11 +95,23 @@ export class PlantMapService {
 
     if (!plantMap) return null;
 
-    // Attach tags from linked MapElements (Lots)
+    // Attach live lot status + tags from LotDetails in a single batched query
     const hotspotsWithTags = await this._attachTagsToHotspots(
       plantMap.hotspots
     );
     return { ...plantMap, hotspots: hotspotsWithTags };
+  }
+
+  /**
+   * Public: returns description + metaJson for a single hotspot.
+   * Called lazily when the user opens a hotspot popover so the heavy text
+   * fields are not included in the initial 1200-hotspot map payload.
+   */
+  async findHotspotPublic(projectId: string, hotspotId: string) {
+    return this.prisma.plantHotspot.findFirst({
+      where: { id: hotspotId, plantMap: { projectId } },
+      select: { id: true, description: true, metaJson: true }
+    });
   }
 
   private async _attachTagsToHotspots(hotspots: any[]) {
@@ -263,6 +279,64 @@ export class PlantMapService {
     });
   }
 
+  async createHotspotsBulk(
+    tenantId: string,
+    plantMapId: string,
+    dto: CreateHotspotsBulkDto
+  ) {
+    const plantMap = await this._findMap(tenantId, plantMapId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const results: any[] = [];
+
+      for (const item of dto.hotspots) {
+        let linkId = item.linkId;
+        let linkType = item.linkType || 'NONE';
+
+        if (item.type === 'LOTE' && (!linkId || linkId === '')) {
+          const mapElement = await tx.mapElement.create({
+            data: {
+              tenantId,
+              projectId: plantMap.projectId,
+              type: 'LOT',
+              name: item.title,
+              code: item.label || item.title,
+              geometryType: 'POLYGON',
+              geometryJson: { points: [] },
+              styleJson: {}
+            }
+          });
+
+          await tx.lotDetails.create({
+            data: {
+              tenantId,
+              projectId: plantMap.projectId,
+              mapElementId: mapElement.id,
+              status: item.loteStatus || 'AVAILABLE'
+            }
+          });
+
+          linkId = mapElement.id;
+          linkType = 'LOTE_PAGE';
+        }
+
+        const hotspot = await tx.plantHotspot.create({
+          data: {
+            tenantId,
+            plantMapId: plantMap.id,
+            ...item,
+            linkId,
+            linkType
+          }
+        });
+
+        results.push(hotspot);
+      }
+
+      return results;
+    });
+  }
+
   async updateHotspot(
     tenantId: string,
     hotspotId: string,
@@ -303,6 +377,10 @@ export class PlantMapService {
           });
         }
       }
+
+      // Invalidar cache público da planta para que status de lotes seja atualizado imediatamente
+      const pm = await tx.plantMap.findUnique({ where: { id: hotspot.plantMapId }, select: { projectId: true } }).catch(() => null);
+      if (pm) await this.redis?.del(`plantmap_public:${pm.projectId}`).catch(() => {});
 
       return updatedHotspot;
     });

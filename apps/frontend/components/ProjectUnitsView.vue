@@ -236,9 +236,34 @@ const matchMode = ref<'any' | 'exact'>('any')
 const lotsPage = ref(1)
 const lotsPerPage = 12
 
-/** 
- * Lógica de processamento de lotes unificada 
- */
+/** â”€â”€ Server-side lots (public path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const lots = ref<any[]>([])
+const lotsTotal = ref(0)
+const availableTags = ref<string[]>([])
+const lotsLoading = ref(false)
+
+async function fetchLots() {
+  if (isPreview.value || !projectSlug.value) return
+  lotsLoading.value = true
+  try {
+    const params = new URLSearchParams({ page: String(lotsPage.value), limit: String(lotsPerPage) })
+    if (searchQuery.value) params.set('search', searchQuery.value)
+    if (selectedFilters.value.length > 0) params.set('tags', selectedFilters.value.join(','))
+    if (matchMode.value === 'exact') params.set('matchMode', 'exact')
+    if (codesFilter.value.length > 0) params.set('codes', codesFilter.value.join(','))
+    const res = await fetchPublic(`/p/${projectSlug.value}/lots?${params}`)
+    if (res) {
+      lots.value = res.data || []
+      lotsTotal.value = res.total || 0
+      if (res.availableTags?.length && lotsPage.value === 1 && !searchQuery.value && !selectedFilters.value.length && !codesFilter.value.length) {
+        availableTags.value = res.availableTags
+      }
+    }
+  } catch (_) { /* non-critical */ }
+  lotsLoading.value = false
+}
+
+// â”€â”€ Preview fallback â€” legacy lot processing from project.mapElements / mapData â”€â”€
 function calcContractArea(lot: any): number | null {
   const poly: Array<{x:number,y:number}> = lot.polygon ?? []
   if (poly.length < 2) return null
@@ -276,104 +301,85 @@ const mapDataLots = computed(() => {
 const lotElements = computed(() => (project.value?.mapElements || []).filter((e: any) => e.type === 'LOT'))
 const availableLotElements = computed(() => lotElements.value.filter((e: any) => (e.lotDetails?.status || 'AVAILABLE') === 'AVAILABLE'))
 
-const unifiedAvailableLots = computed(() => {
-  if (!project.value) return []
-  let list = []
-  
-  if (project.value.mapData) {
-    const rawMapData = typeof project.value.mapData === 'string' ? JSON.parse(project.value.mapData) : project.value.mapData
-    const PPM = Number(rawMapData.pixelsPerMeter) || 10
-    
-    list = mapDataLots.value
+const previewLots = computed<any[]>(() => {
+  if (!isPreview.value) return []
+  if (project.value?.mapData) {
+    const raw = project.value.mapData
+    const data = typeof raw === 'string' ? JSON.parse(raw) : raw
+    const PPM = Number(data.pixelsPerMeter) || 10
+    return mapDataLots.value
       .filter((l: any) => l.status === 'available')
       .map((l: any) => {
         const contractArea = calcContractArea(l)
-        let finalAreaM2 = (Number(l.area) > 0 ? (Number(l.area) / (PPM * PPM)) : 0)
+        let finalAreaM2 = Number(l.area) > 0 ? Number(l.area) / (PPM * PPM) : 0
         if (l.manualAreaM2 != null) finalAreaM2 = Number(l.manualAreaM2)
         else if (contractArea !== null) finalAreaM2 = contractArea
-        const finalFrontage = l.manualFrontage != null ? Number(l.manualFrontage) : (Number(l.frontage) > 0 ? (Number(l.frontage) / PPM) : 0)
-        return { 
-          id: l.id, 
-          name: l.label, 
-          code: l.code, 
-          lotDetails: { 
-            areaM2: parseFloat(finalAreaM2.toFixed(2)), 
-            frontage: parseFloat(finalFrontage.toFixed(2)), 
-            price: l.price,
-            tags: l.tags || [],
-            block: l.block,
-            lotNumber: l.lotNumber,
-            pricePerM2: l.pricePerM2
-          } 
+        const finalFrontage = l.manualFrontage != null ? Number(l.manualFrontage) : (Number(l.frontage) > 0 ? Number(l.frontage) / PPM : 0)
+        return {
+          id: l.id, name: l.label, code: l.code,
+          lotDetails: {
+            areaM2: parseFloat(finalAreaM2.toFixed(2)),
+            frontage: parseFloat(finalFrontage.toFixed(2)),
+            price: l.price, pricePerM2: l.pricePerM2,
+            tags: l.tags || [], block: l.block, lotNumber: l.lotNumber, status: 'AVAILABLE'
+          }
         }
       })
-  } else {
-    list = availableLotElements.value.map((e: any) => ({
-      ...e,
-      lotDetails: {
-        ...e.lotDetails,
-        tags: e.lotDetails?.tags || []
-      }
-    }))
   }
-  return list
+  return availableLotElements.value.map((e: any) => ({ ...e, lotDetails: { ...e.lotDetails, tags: e.lotDetails?.tags || [] } }))
 })
 
 const allAvailableTags = computed(() => {
+  if (!isPreview.value) return availableTags.value
   const tags = new Set<string>()
-  unifiedAvailableLots.value.forEach((l: any) => {
-    if (l.lotDetails?.tags) {
-      l.lotDetails.tags.forEach((t: string) => tags.add(t))
-    }
-  })
+  previewLots.value.forEach((l: any) => (l.lotDetails?.tags || []).forEach((t: string) => tags.add(t)))
   return Array.from(tags).sort()
 })
 
 const filteredLots = computed(() => {
-  let list = unifiedAvailableLots.value
-  
-  // Codes filter (from AI usually)
-  if (codesFilter.value.length > 0) {
-    list = list.filter((l: any) => codesFilter.value.includes(l.code))
-  }
-
-  // Search query
+  if (!isPreview.value) return lots.value
+  let list = previewLots.value
+  if (codesFilter.value.length > 0) list = list.filter((l: any) => codesFilter.value.includes(l.code))
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter((l: any) => 
-      (l.code || '').toLowerCase().includes(q) || 
-      (l.name || '').toLowerCase().includes(q)
-    )
+    list = list.filter((l: any) => (l.code || '').toLowerCase().includes(q) || (l.name || '').toLowerCase().includes(q))
   }
-  
-  // Tags filter
   if (selectedFilters.value.length > 0) {
     list = list.filter((l: any) => {
       const tags = l.lotDetails?.tags || []
-      if (matchMode.value === 'exact') {
-        return selectedFilters.value.every(f => tags.includes(f))
-      }
-      return selectedFilters.value.some(f => tags.includes(f))
+      return matchMode.value === 'exact' ? selectedFilters.value.every(f => tags.includes(f)) : selectedFilters.value.some(f => tags.includes(f))
     })
   }
-  
   return list
 })
 
-const totalPages = computed(() => Math.ceil(filteredLots.value.length / lotsPerPage))
 const paginatedLots = computed(() => {
+  if (!isPreview.value) return filteredLots.value
   const start = (lotsPage.value - 1) * lotsPerPage
-  const end = start + lotsPerPage
-  return filteredLots.value.slice(start, end)
+  return filteredLots.value.slice(start, start + lotsPerPage)
 })
 
+const totalPages = computed(() =>
+  Math.ceil((isPreview.value ? filteredLots.value.length : lotsTotal.value) / lotsPerPage)
+)
 const paginationMeta = computed(() => ({
-  totalItems: filteredLots.value.length,
+  totalItems: isPreview.value ? filteredLots.value.length : lotsTotal.value,
   itemCount: paginatedLots.value.length,
   itemsPerPage: lotsPerPage,
   totalPages: totalPages.value,
   currentPage: lotsPage.value
 }))
+
+let _lotsDebounce: ReturnType<typeof setTimeout> | null = null
+function scheduleLotsRefetch() {
+  if (_lotsDebounce) clearTimeout(_lotsDebounce)
+  _lotsDebounce = setTimeout(() => {
+    lotsPage.value = 1
+    fetchLots()
+  }, 300)
+}
+watch([searchQuery, selectedFilters, matchMode], scheduleLotsRefetch, { deep: true })
+watch(lotsPage, () => { if (!isPreview.value) fetchLots() })
 
 function toggleFilter(tag: string) {
   lotsPage.value = 1
@@ -391,40 +397,56 @@ function clearFilters() {
 
 const lotPageUrl = (lot: any) => {
   const code = lot.code || lot.name || lot.id
-  const base = pathPrefix.value === '' 
-    ? `/${encodeURIComponent(code)}` 
+  const base = pathPrefix.value === ''
+    ? `/${encodeURIComponent(code)}`
     : `${pathPrefix.value}/${encodeURIComponent(code)}`
-
   return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
 }
 
 onMounted(async () => {
   try {
     const baseUrl = isPreview.value ? `/p/preview/${previewId.value}` : `/p/${projectSlug.value}`
-    const p = await fetchPublic(baseUrl)
-    if (p) {
-      project.value = p
-      chatStore.setProject(p)
-      useHead({ title: `Busca de Unidades — ${p.name}` })
 
-      // Handle Query Params
-      if (route.query.tags) {
-        selectedFilters.value = (route.query.tags as string).split(',')
-      }
-      if (route.query.codes) {
-        codesFilter.value = (route.query.codes as string).split(',')
-      }
-      if (route.query.match === 'exact') {
-        matchMode.value = 'exact'
-      }
+    const initTags  = route.query.tags  ? (route.query.tags  as string).split(',') : []
+    const initCodes = route.query.codes ? (route.query.codes as string).split(',') : []
+    const initMatch = route.query.match === 'exact' ? 'exact' : 'any'
+
+    if (initTags.length)  selectedFilters.value = initTags
+    if (initCodes.length) codesFilter.value = initCodes
+    if (initMatch === 'exact') matchMode.value = 'exact'
+
+    const lotsParams = new URLSearchParams({ page: '1', limit: String(lotsPerPage) })
+    if (initTags.length)  lotsParams.set('tags',      initTags.join(','))
+    if (initCodes.length) lotsParams.set('codes',     initCodes.join(','))
+    if (initMatch === 'exact') lotsParams.set('matchMode', 'exact')
+
+    const [p, lotsRes] = await Promise.allSettled([
+      fetchPublic(baseUrl),
+      !isPreview.value && projectSlug.value
+        ? fetchPublic(`/p/${projectSlug.value}/lots?${lotsParams}`)
+        : Promise.resolve(null)
+    ])
+
+    if (p.status === 'fulfilled' && p.value) {
+      project.value = p.value
+      chatStore.setProject(p.value)
+      useHead({ title: `Busca de Unidades â€” ${p.value.name}` })
     } else {
-      error.value = 'Projeto não encontrado'
+      error.value = 'Projeto nÃ£o encontrado'
+    }
+
+    if (lotsRes.status === 'fulfilled' && lotsRes.value) {
+      lots.value = lotsRes.value.data || []
+      lotsTotal.value = lotsRes.value.total || 0
+      if (lotsRes.value.availableTags) availableTags.value = lotsRes.value.availableTags
     }
   } catch (e: any) {
     error.value = e.message || 'Erro ao carregar projeto'
   }
+
   loading.value = false
 })
+
 </script>
 
 <style scoped>

@@ -133,51 +133,24 @@ export class ProjectsService {
   }
 
   async findBySlug(projectSlug: string) {
-    // 1. Check Redis cache first
-    const cacheKey = `project_public:${projectSlug}`;
-    const cached = await this.redis?.get(cacheKey);
-    if (cached) return cached;
-
+    // Fetch project without the heavy mapElements join
     const project = await this.prisma.project.findFirst({
-      where: {
-        slug: projectSlug,
-        status: ProjectStatus.PUBLISHED
-      },
+      where: { slug: projectSlug, status: ProjectStatus.PUBLISHED },
       include: {
-        tenant: { select: { id: true, name: true, slug: true } },
-        mapElements: {
-          include: {
-            lotDetails: {
-              select: {
-                id: true,
-                status: true,
-                price: true,
-                areaM2: true,
-                frontage: true,
-                slope: true,
-                updatedAt: true
-              }
-            }
-          }
-        },
+        tenant: { select: { id: true, name: true, slug: true, creci: true, phone: true, publicEmail: true, website: true, logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true } } } },
+        // mapElements deliberately excluded — replaced by lotSummary + teaserLots
         projectMedias: {
           where: { lotDetailsId: null },
           orderBy: { createdAt: 'desc' }
         },
         paymentGateways: {
           where: { isActive: true },
-          select: {
-            isActive: true,
-            provider: true
-          }
+          select: { isActive: true, provider: true }
         },
         plantMap: true,
         panoramas: {
           where: { published: true },
-          select: {
-            id: true,
-            title: true
-          }
+          select: { id: true, title: true }
         }
       }
     });
@@ -185,21 +158,216 @@ export class ProjectsService {
     if (!project)
       throw new NotFoundException('Projeto não encontrado ou não publicado.');
 
-    // Ordenação manual dos mapElements considerando números na string do código
-    if (project.mapElements) {
-      project.mapElements.sort((a: any, b: any) => {
-        const codeA = a.code || '';
-        const codeB = b.code || '';
-        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
-      });
+    let lotSummary: any;
+    let teaserLots: any[] = [];
+
+    if ((project as any).mapData) {
+      // ── Legacy mapData path ───────────────────────────────────────────────────
+      const raw = (project as any).mapData;
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const allLots: any[] = data.lots
+        ? (Array.isArray(data.lots)
+            ? data.lots.map(([, l]: [any, any]) => l)
+            : Object.values(data.lots))
+        : [];
+      const PPM = Number(data.pixelsPerMeter) || 10;
+
+      const available = allLots.filter((l: any) => l.status === 'available');
+      const prices = available.map((l: any) => Number(l.price)).filter((p: number) => p > 0);
+      const areas  = available
+        .map((l: any) => Number(l.area) > 0 ? Number(l.area) / (PPM * PPM) : 0)
+        .filter((a: number) => a > 0);
+
+      lotSummary = {
+        total:     allLots.length,
+        available: available.length,
+        reserved:  allLots.filter((l: any) => l.status === 'reserved').length,
+        sold:      allLots.filter((l: any) => l.status === 'sold').length,
+        minPrice:  prices.length ? prices.reduce((a, b) => Math.min(a, b), Infinity) : null,
+        minArea:   areas.length  ? areas.reduce((a, b)  => Math.min(a, b), Infinity) : null,
+      };
+
+      teaserLots = available.slice(0, 6).map((l: any) => ({
+        id:   l.id,
+        name: l.label,
+        code: l.code,
+        lotDetails: {
+          areaM2:    Number(l.area) > 0 ? parseFloat((Number(l.area) / (PPM * PPM)).toFixed(2)) : 0,
+          frontage:  Number(l.frontage) > 0 ? parseFloat((Number(l.frontage) / PPM).toFixed(2)) : 0,
+          price:     l.price,
+          tags:      l.tags || [],
+          block:     l.block,
+          lotNumber: l.lotNumber,
+          status:    'AVAILABLE',
+        },
+      }));
+    } else {
+      // ── New mapElements path — 3 lightweight parallel queries instead of 1 huge join ──
+      const [countsByStatus, minAgg, teaser] = await Promise.all([
+        this.prisma.lotDetails.groupBy({
+          by: ['status'] as any,
+          where: { projectId: project.id },
+          _count: { id: true },
+        }),
+        this.prisma.lotDetails.aggregate({
+          where: { projectId: project.id, status: 'AVAILABLE' },
+          _min: { price: true, areaM2: true },
+        }),
+        this.prisma.mapElement.findMany({
+          where: { projectId: project.id, type: 'LOT', lotDetails: { status: 'AVAILABLE' } },
+          select: {
+            id: true, name: true, code: true,
+            lotDetails: {
+              select: { id: true, status: true, price: true, areaM2: true,
+                        frontage: true, tags: true, block: true, lotNumber: true }
+            }
+          },
+          take: 6,
+          orderBy: { code: 'asc' },
+        }),
+      ]);
+
+      const byStatus: Record<string, number> = {};
+      for (const row of countsByStatus as any[]) {
+        byStatus[row.status] = (row._count as any).id ?? 0;
+      }
+
+      lotSummary = {
+        total:     (Object.values(byStatus) as number[]).reduce((s, n) => s + n, 0),
+        available: byStatus['AVAILABLE'] ?? 0,
+        reserved:  byStatus['RESERVED']  ?? 0,
+        sold:      byStatus['SOLD']       ?? 0,
+        minPrice:  (minAgg as any)._min?.price  ?? null,
+        minArea:   (minAgg as any)._min?.areaM2 ?? null,
+      };
+      teaserLots = teaser;
     }
 
-    // 2. Save to Redis (short TTL: 2 minutes for public info)
-    if (this.redis) {
-      await this.redis.set(cacheKey, project, 120);
+    return { ...project, lotSummary, teaserLots };
+  }
+
+  /**
+   * Server-side paginated lots for the public /unidades page.
+   * Handles both legacy mapData projects and new mapElements-based projects.
+   */
+  async findPublicLots(
+    projectSlug: string,
+    page: number,
+    limit: number,
+    search?: string,
+    tags?: string[],
+    matchMode: 'any' | 'exact' = 'any',
+    codes?: string[],
+  ) {
+    const project = await this.prisma.project.findFirst({
+      where: { slug: projectSlug, status: ProjectStatus.PUBLISHED },
+      select: { id: true, mapData: true }
+    });
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
+
+    const skip = (page - 1) * limit;
+
+    if ((project as any).mapData) {
+      // ── Legacy mapData path ───────────────────────────────────────────────────
+      const raw = (project as any).mapData;
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const PPM = Number(data.pixelsPerMeter) || 10;
+
+      let lots: any[] = data.lots
+        ? (Array.isArray(data.lots)
+            ? data.lots.map(([, l]: [any, any]) => l)
+            : Object.values(data.lots))
+        : [];
+
+      lots = lots.filter((l: any) => l.status === 'available');
+
+      if (codes?.length) lots = lots.filter((l: any) => codes.includes(l.code));
+
+      if (search) {
+        const q = search.toLowerCase();
+        lots = lots.filter((l: any) =>
+          (l.code || '').toLowerCase().includes(q) ||
+          (l.label || '').toLowerCase().includes(q));
+      }
+
+      if (tags?.length) {
+        lots = lots.filter((l: any) => {
+          const lt: string[] = l.tags || [];
+          return matchMode === 'exact'
+            ? tags.every(t => lt.includes(t))
+            : tags.some(t => lt.includes(t));
+        });
+      }
+
+      const total = lots.length;
+      const availableTags = Array.from(new Set(lots.flatMap((l: any) => l.tags || []))).sort();
+      const paged = lots.slice(skip, skip + limit).map((l: any) => ({
+        id: l.id, name: l.label, code: l.code,
+        lotDetails: {
+          areaM2:     Number(l.area) > 0 ? parseFloat((Number(l.area) / (PPM * PPM)).toFixed(2)) : 0,
+          frontage:   Number(l.frontage) > 0 ? parseFloat((Number(l.frontage) / PPM).toFixed(2)) : 0,
+          price:      l.price,
+          pricePerM2: l.pricePerM2,
+          tags:       l.tags || [],
+          block:      l.block,
+          lotNumber:  l.lotNumber,
+          status:     'AVAILABLE',
+        },
+      }));
+
+      return { data: paged, total, page, limit, totalPages: Math.ceil(total / limit), availableTags };
     }
 
-    return project;
+    // ── New mapElements path ──────────────────────────────────────────────────
+    const lotDetailsFilter: any = { status: 'AVAILABLE' };
+    if (tags?.length) {
+      Object.assign(lotDetailsFilter, matchMode === 'exact'
+        ? { AND: tags.map(t => ({ tags: { has: t } })) }
+        : { tags: { hasSome: tags } }
+      );
+    }
+
+    const elementFilter: any = {
+      projectId: project.id,
+      type: 'LOT',
+      lotDetails: lotDetailsFilter,
+    };
+
+    if (codes?.length) {
+      elementFilter.code = { in: codes };
+    } else if (search) {
+      elementFilter.OR = [
+        { code: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, data, tagRows] = await Promise.all([
+      this.prisma.mapElement.count({ where: elementFilter }),
+      this.prisma.mapElement.findMany({
+        where: elementFilter,
+        select: {
+          id: true, name: true, code: true,
+          lotDetails: {
+            select: { id: true, status: true, price: true, areaM2: true, frontage: true,
+                      tags: true, block: true, lotNumber: true, pricePerM2: true }
+          }
+        },
+        skip,
+        take: limit,
+        orderBy: { code: 'asc' },
+      }),
+      this.prisma.lotDetails.findMany({
+        where: { projectId: project.id, status: 'AVAILABLE' },
+        select: { tags: true }
+      }),
+    ]);
+
+    const availableTags = Array.from(
+      new Set((tagRows as any[]).flatMap((r: any) => r.tags || []))
+    ).sort() as string[];
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit), availableTags };
   }
 
   async findPreview(projectId: string) {
@@ -208,9 +376,13 @@ export class ProjectsService {
         id: projectId
       },
       include: {
-        tenant: { select: { id: true, name: true, slug: true } },
+        tenant: { select: { id: true, name: true, slug: true, creci: true, phone: true, publicEmail: true, website: true, logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true } } } },
         mapElements: {
-          include: {
+          select: {
+            id: true,
+            type: true,
+            name: true,
+            code: true,
             lotDetails: {
               select: {
                 id: true,

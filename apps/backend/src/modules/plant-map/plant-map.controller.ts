@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -27,6 +28,7 @@ import { PlantMapService } from './plant-map.service';
 import { CreatePlantMapDto } from './dto/create-plant-map.dto';
 import { UpdatePlantMapDto } from './dto/update-plant-map.dto';
 import { CreateHotspotDto } from './dto/create-hotspot.dto';
+import { CreateHotspotsBulkDto } from './dto/create-hotspots-bulk.dto';
 import { UpdateHotspotDto } from './dto/update-hotspot.dto';
 
 // ── Admin routes (authenticated) ──────────────────────────
@@ -110,6 +112,19 @@ export class PlantMapItemController {
     @Param('plantMapId') plantMapId: string
   ) {
     return this.plantMapService.remove(tenantId, plantMapId);
+  }
+
+  // POST plant-maps/:plantMapId/hotspots/bulk
+  @Post('hotspots/bulk')
+  @SkipThrottle()
+  @Roles('LOTEADORA', 'SYSADMIN')
+  @ApiOperation({ summary: 'Criar múltiplos hotspots em lote (transação única)' })
+  createHotspotsBulk(
+    @TenantId() tenantId: string,
+    @Param('plantMapId') plantMapId: string,
+    @Body() dto: CreateHotspotsBulkDto
+  ) {
+    return this.plantMapService.createHotspotsBulk(tenantId, plantMapId, dto);
   }
 
   // POST plant-maps/:plantMapId/hotspots

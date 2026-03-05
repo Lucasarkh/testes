@@ -282,4 +282,50 @@ export class RealtorLinksService {
 
     return { message: 'Link de corretor removido com sucesso.' };
   }
+
+  async getStats(tenantId: string, id: string) {
+    const link = await this.prisma.realtorLink.findFirst({
+      where: { id, tenantId },
+      select: { id: true, name: true, code: true, email: true, phone: true, creci: true, photoUrl: true, enabled: true, createdAt: true }
+    });
+    if (!link) throw new NotFoundException('Corretor não encontrado.');
+
+    const [totalLeads, leadsByStatus, schedulingCount, sessionCount, recentLeads] = await Promise.all([
+      this.prisma.lead.count({ where: { realtorLinkId: id } }),
+      this.prisma.lead.groupBy({
+        by: ['status'],
+        where: { realtorLinkId: id },
+        _count: { id: true },
+      }),
+      this.prisma.scheduling.count({ where: { lead: { realtorLinkId: id } } }),
+      this.prisma.trackingSession.count({ where: { realtorLinkId: id } }),
+      this.prisma.lead.findMany({
+        where: { realtorLinkId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          createdAt: true,
+          project: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    const statusMap = leadsByStatus.reduce<Record<string, number>>((acc, g) => {
+      acc[g.status] = g._count.id;
+      return acc;
+    }, {});
+
+    return {
+      ...link,
+      totalLeads,
+      leadsByStatus: statusMap,
+      schedulingCount,
+      sessionCount,
+      recentLeads,
+    };
+  }
 }

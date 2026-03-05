@@ -119,6 +119,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useFullscreen } from '@vueuse/core'
 import type { PlantMap, PlantHotspot } from '~/composables/plantMap/types'
 import { useZoomPan } from '~/composables/plantMap/useZoomPan'
+import { usePublicPlantMap } from '~/composables/plantMap/usePlantMapApi'
 import HotspotPin from './HotspotPin.vue'
 import HotspotPopover from './HotspotPopover.vue'
 import SunPathLine from './SunPathLine.vue'
@@ -169,51 +170,56 @@ watch(isFullscreen, () => {
   }, 100)
 })
 
-// ── Performance optimization (Viewport Culling) ──────────
+// ── Performance optimization (Viewport Culling — RAF throttled) ──────────
 /**
- * Only render hotspots currently visible in the container viewport.
- * This prevents DOM overhead when there are hundreds or thousands of pins.
+ * Only renders hotspots currently visible in the viewport.
+ * Updates are batched via requestAnimationFrame so the filter runs at most
+ * once per rendered frame instead of synchronously on every transform change.
  */
-const visibleHotspots = computed(() => {
-  if (!containerEl.value || !props.plantMap?.hotspots?.length) return props.plantMap?.hotspots || []
-  
-  const { x, y, scale } = transform.value
-  const cw = containerEl.value.clientWidth
-  const ch = containerEl.value.clientHeight
-  const iw = imgNaturalW.value
-  const ih = imgNaturalH.value
-  
-  // Use a margin in pixels to prevent pins from popping in/out at the very edge
-  const margin = 100 
+const visibleHotspots = ref<PlantHotspot[]>(props.plantMap?.hotspots || [])
+let _rafId: number | null = null
 
-  return props.plantMap.hotspots.filter(hs => {
-    // Convert normalized (0-1) coordinates to screen pixels
-    const vx = hs.x * iw * scale + x
-    const vy = hs.y * ih * scale + y
-    
-    return (
-      vx >= -margin &&
-      vy >= -margin &&
-      vx <= cw + margin &&
-      vy <= ch + margin
-    )
+function scheduleVisibleUpdate() {
+  if (_rafId !== null) return // already scheduled — coalesce into one frame
+  _rafId = requestAnimationFrame(() => {
+    _rafId = null
+    if (!containerEl.value || !props.plantMap?.hotspots?.length) {
+      visibleHotspots.value = props.plantMap?.hotspots || []
+      return
+    }
+    const { x, y, scale } = transform.value
+    const cw = containerEl.value.clientWidth
+    const ch = containerEl.value.clientHeight
+    const iw = imgNaturalW.value
+    const ih = imgNaturalH.value
+    const margin = 100
+
+    visibleHotspots.value = props.plantMap.hotspots.filter(hs => {
+      const vx = hs.x * iw * scale + x
+      const vy = hs.y * ih * scale + y
+      return vx >= -margin && vy >= -margin && vx <= cw + margin && vy <= ch + margin
+    })
   })
-})
+}
 
 // Initialize on client only (SSR safe)
 onMounted(() => {
   if (props.interactive) {
     nextTick(() => attach())
   }
-  
+
   // Close popover on scroll since it uses position: fixed
   window.addEventListener('scroll', handleContainerClick, { passive: true })
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleContainerClick)
+  if (_rafId !== null) cancelAnimationFrame(_rafId)
   detach()
 })
+
+// Trigger viewport culling whenever the transform changes (RAF-throttled)
+watch(transform, scheduleVisibleUpdate, { deep: true })
 
 // Watch for interactive changes
 watch(() => props.interactive, (val) => {
@@ -313,11 +319,14 @@ const onImageLoad = (e: Event) => {
     let focused = false
     if (props.focusLotCode) {
       focused = zoomToHotspot(props.focusLotCode)
-    } 
-    
+    }
+
     if (!focused) {
       fitToContainer()
     }
+
+    // Compute initial visible hotspots now that we know the image dimensions
+    scheduleVisibleUpdate()
 
     // Allow interaction after initial zoom transition
     setTimeout(() => {
@@ -341,6 +350,8 @@ const pinRadiusForScale = computed(() =>
 // ── Popover ───────────────────────────────────────────────
 const selectedHotspot = ref<PlantHotspot | null>(null)
 const showBeacons = ref(true)
+
+const { getPublicHotspot } = usePublicPlantMap()
 
 watch(showBeacons, (val) => {
   if (!val) selectedHotspot.value = null
@@ -380,6 +391,19 @@ const openPopover = (event: MouseEvent | KeyboardEvent | PlantHotspot, hotspot?:
   } else {
     // Fallback for direct calls
     selectedHotspot.value = event
+  }
+
+  // Lazy-load description + metaJson for the popover if not already fetched.
+  // description === undefined means the field was omitted from the list response.
+  if (targetHotspot && targetHotspot.description === undefined && props.plantMap.projectId) {
+    getPublicHotspot(props.plantMap.projectId, targetHotspot.id)
+      .then(detail => {
+        // Merge only if the same hotspot is still open
+        if (detail && selectedHotspot.value?.id === targetHotspot.id) {
+          selectedHotspot.value = { ...selectedHotspot.value, ...detail }
+        }
+      })
+      .catch(() => {})
   }
 }
 

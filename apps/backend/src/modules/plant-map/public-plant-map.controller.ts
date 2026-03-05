@@ -20,4 +20,13 @@ export class PublicPlantMapController {
     // tenantId not needed for public lookup — uses projectId unique constraint
     return this.plantMapService.findByProjectPublic(projectId, preview === 'true');
   }
+
+  @Get('hotspots/:hotspotId')
+  @ApiOperation({ summary: 'Detalhe de um hotspot (lazy — carrega description e metaJson)' })
+  findHotspot(
+    @Param('projectId') projectId: string,
+    @Param('hotspotId') hotspotId: string,
+  ) {
+    return this.plantMapService.findHotspotPublic(projectId, hotspotId);
+  }
 }

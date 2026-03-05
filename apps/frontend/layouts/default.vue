@@ -17,6 +17,10 @@
           <div class="user-name">{{ authStore.user?.name }}</div>
           <div class="user-role">{{ roleLabel }}</div>
         </div>
+        <NuxtLink to="/painel/notificacoes" class="user-bell" title="Notificações">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span v-if="unreadCount > 0" class="bell-badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+        </NuxtLink>
       </div>
 
       <nav class="sidebar-nav">
@@ -24,6 +28,15 @@
         <NuxtLink to="/painel" class="nav-item" :title="sidebarCollapsed ? 'Dashboard' : undefined">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           <span v-if="!sidebarCollapsed">Dashboard</span>
+        </NuxtLink>
+
+        <NuxtLink to="/painel/notificacoes" class="nav-item" :title="sidebarCollapsed ? 'Notificações' : undefined">
+          <div class="nav-icon-wrapper">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span v-if="unreadCount > 0" class="nav-badge-dot"></span>
+          </div>
+          <span v-if="!sidebarCollapsed">Notificações</span>
+          <span v-if="!sidebarCollapsed && unreadCount > 0" class="nav-unread-chip">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
         </NuxtLink>
 
         <!-- SYSADMIN Menu -->
@@ -172,10 +185,6 @@
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span v-if="!sidebarCollapsed">Suporte</span>
         </NuxtLink>
-        <NuxtLink to="/painel/notificacoes" class="nav-item" :title="sidebarCollapsed ? 'Notificações' : undefined">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span v-if="!sidebarCollapsed">Notificações</span>
-        </NuxtLink>
         <NuxtLink to="/painel/perfil" class="nav-item" :title="sidebarCollapsed ? 'Perfil' : undefined">
            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
            <span v-if="!sidebarCollapsed">Meu Perfil</span>
@@ -198,10 +207,6 @@
       <button v-if="authStore.isLoggedIn" class="mobile-hamburger" @click="mobileMenuOpen = !mobileMenuOpen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <!-- Notification Bell (top right) -->
-      <div v-if="authStore.isLoggedIn" class="topbar-actions">
-        <PainelNotificationBell />
-      </div>
       <PainelBillingWarningBanner v-if="authStore.isLoteadora" />
       <slot />
     </main>
@@ -216,7 +221,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 
 const authStore = useAuthStore()
@@ -224,6 +229,13 @@ const router = useRouter()
 const { success: toastSuccess } = useToast()
 const sidebarCollapsed = ref(false)
 const mobileMenuOpen = ref(false)
+
+const { unreadCount, startPolling, stopPolling } = useNotifications()
+
+onMounted(() => {
+  if (authStore.isLoggedIn) startPolling(60000)
+})
+onUnmounted(() => stopPolling())
 
 // Terms acceptance modal
 const showTermsModal = computed(() => {
@@ -316,6 +328,36 @@ const handleLogout = async () => {
   border-radius: var(--radius-md);
   border: 1px solid rgba(52, 211, 153, 0.1);
 }
+
+.user-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-surface-400);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 150ms, color 150ms;
+  margin-left: auto;
+}
+.user-bell:hover { background: rgba(255,255,255,0.08); color: var(--color-surface-100); }
+.bell-badge {
+  position: absolute;
+  top: 0px; right: 0px;
+  min-width: 15px; height: 15px;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid rgba(10, 15, 13, 0.9);
+  line-height: 1;
+}
 .user-avatar {
   width: 36px; height: 36px;
   border-radius: 50%;
@@ -326,7 +368,7 @@ const handleLogout = async () => {
   flex-shrink: 0;
   border: 1.5px solid var(--color-primary-600);
 }
-.user-details { overflow: hidden; }
+.user-details { flex: 1; min-width: 0; overflow: hidden; }
 .user-name { font-size: 0.8125rem; font-weight: 600; color: var(--color-surface-50); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-role { font-size: 0.6875rem; color: var(--color-surface-200); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
 
@@ -420,18 +462,26 @@ const handleLogout = async () => {
 }
 .mobile-hamburger:hover { background: rgba(10, 15, 13, 0.95); color: var(--color-surface-50); }
 
-.topbar-actions {
-  position: fixed;
-  top: 12px;
-  right: 16px;
-  z-index: 98;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.nav-icon-wrapper { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+.nav-badge-dot {
+  position: absolute; top: -3px; right: -3px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid rgba(10, 15, 13, 0.9);
+}
+.nav-unread-chip {
+  margin-left: auto;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 20px;
+  font-size: 0.6875rem; font-weight: 700;
+  padding: 1px 7px;
+  min-width: 20px; text-align: center;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
-  .topbar-actions { top: 10px; right: 12px; }
   .mobile-overlay {
     display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99;
     backdrop-filter: blur(4px);

@@ -158,12 +158,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 
 const { leads, loading, meta, projects, loadLeads, loadProjects, getLead } = useLeads()
 const authStore = useAuthStore()
 const { fromError, success: toastSuccess } = useToast()
+const route = useRoute()
 
 const viewMode = ref('kanban')
 
@@ -179,7 +180,7 @@ watch(viewMode, (newVal) => {
   localStorage.setItem('lotio_leads_view_mode', newVal)
 })
 
-const filters = ref({ projectId: '', status: '', search: '' })
+const filters = ref({ projectId: '', status: '', search: '', realtorLinkId: '' })
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const editingLead = ref(null)
@@ -193,7 +194,7 @@ watch(() => filters.value.search, (val) => {
 })
 
 const resetFilters = () => {
-  filters.value = { projectId: '', status: '', search: '' }
+  filters.value = { projectId: '', status: '', search: '', realtorLinkId: '' }
   loadLeads()
 }
 
@@ -232,8 +233,12 @@ const onDeleteLead = async (lead) => {
 }
 
 onMounted(async () => {
+  // Support pre-filtering by realtorLinkId from URL (e.g. from corretor detail page)
+  if (route.query.realtorLinkId) {
+    filters.value.realtorLinkId = route.query.realtorLinkId as string
+  }
   await loadProjects()
-  await loadLeads()
+  await loadLeads(filters.value)
 })
 </script>
 

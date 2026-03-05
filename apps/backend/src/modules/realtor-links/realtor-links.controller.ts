@@ -93,6 +93,13 @@ export class RealtorLinksController {
     return this.service.updateMe(req.user.id, dto);
   }
 
+  @Get(':id/stats')
+  @Roles('LOTEADORA', 'IMOBILIARIA', 'SYSADMIN')
+  @ApiOperation({ summary: 'Estatísticas detalhadas de um corretor' })
+  getStats(@TenantId() tenantId: string, @Param('id') id: string) {
+    return this.service.getStats(tenantId, id);
+  }
+
   @Get(':id')
   @Roles('LOTEADORA', 'IMOBILIARIA', 'SYSADMIN')
   @ApiOperation({ summary: 'Buscar link de corretor por ID' })

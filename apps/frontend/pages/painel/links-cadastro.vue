@@ -48,9 +48,10 @@ async function fetchCodes() {
   loading.value = true
   try {
     const data = await fetchApi('/agencies/invite-codes')
-    codes.value = data as InviteCode[]
+    codes.value = Array.isArray(data) ? data : []
   } catch (err: any) {
-    toastError('Erro ao carregar links de cadastro.')
+    console.error('Failed to load invite codes:', err?.message)
+    codes.value = []
   } finally {
     loading.value = false
   }

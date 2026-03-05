@@ -804,12 +804,12 @@ const generateBatch = async () => {
       nextNum = Math.max(nextNum, maxExisting + 1)
     }
 
-    // Create hotspots one by one
-    const newHotspots: PlantHotspot[] = []
+    // Build all payloads locally (no async needed here)
+    const payloads: CreateHotspotPayload[] = []
     for (const marker of batchMarkers.value) {
       const currentLabel = `${prefix}${nextNum.toString().padStart(padding, '0')}`
-      
-      const payload: CreateHotspotPayload = {
+
+      payloads.push({
         type: batchConfig.type,
         title: currentLabel,
         label: currentLabel,
@@ -821,12 +821,13 @@ const generateBatch = async () => {
         labelOffsetY: 0,
         loteStatus: 'AVAILABLE',
         metaJson: {},
-      }
+      })
 
-      const created = await api.createHotspot(plantMap.value.id, payload)
-      newHotspots.push(created)
       nextNum++
     }
+
+    // Single request — all hotspots created in one DB transaction
+    const newHotspots = await api.createHotspotsBulk(plantMap.value.id, payloads)
 
     localHotspots.value.push(...newHotspots)
     showSuccess(`${newHotspots.length} hotspots criados com sucesso!`)

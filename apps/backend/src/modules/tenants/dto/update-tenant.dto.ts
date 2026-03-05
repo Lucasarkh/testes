@@ -21,4 +21,25 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // Public profile fields
+  @ApiPropertyOptional({ example: 'CRECI-GO 12345 J' })
+  @IsOptional()
+  @IsString()
+  creci?: string | null;
+
+  @ApiPropertyOptional({ example: '(62) 99999-9999' })
+  @IsOptional()
+  @IsString()
+  phone?: string | null;
+
+  @ApiPropertyOptional({ example: 'contato@empresa.com.br' })
+  @IsOptional()
+  @IsString()
+  publicEmail?: string | null;
+
+  @ApiPropertyOptional({ example: 'https://empresa.com.br' })
+  @IsOptional()
+  @IsString()
+  website?: string | null;
 }

@@ -341,7 +341,7 @@ export class LeadsService {
     query: LeadsQueryDto,
     user: { id: string; role: string; agencyId?: string }
   ): Promise<PaginatedResponse<any>> {
-    const { projectId, status, search, mapElementId, page = 1, limit = 10 } = query;
+    const { projectId, status, search, mapElementId, realtorLinkId: queryRealtorLinkId, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     // ... (rest of the realtor logic)
@@ -351,6 +351,9 @@ export class LeadsService {
         where: { userId: user.id }
       });
       realtorLinkId = realtor?.id || 'none';
+    } else if (queryRealtorLinkId) {
+      // LOTEADORA/IMOBILIARIA/SYSADMIN can filter by a specific corretor
+      realtorLinkId = queryRealtorLinkId;
     }
 
     // New Agency restriction

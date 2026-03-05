@@ -104,6 +104,68 @@
         </div>
       </div>
     </div>
+
+    <!-- Loteadora public profile section -->
+    <div v-if="authStore.isLoteadora" class="card empresa-card">
+      <h2 style="margin-bottom: 4px;">Dados Públicos da Empresa</h2>
+      <p style="font-size: 0.875rem; color: var(--color-surface-400); margin-bottom: 20px;">
+        Essas informações aparecem no rodapé das páginas de loteamento.
+      </p>
+
+      <!-- Logos section -->
+      <div class="form-group" style="margin-bottom: 24px;">
+        <label class="form-label">Logos / Realização e Propriedade</label>
+        <p class="form-help" style="margin-bottom: 10px;">Envie os logos que aparecerão na seção de realização no rodapé. Pode ser mais de um.</p>
+        <div class="logos-grid">
+          <div v-for="logo in empresaLogos" :key="logo.id" class="logo-card">
+            <img :src="logo.url" :alt="logo.label || 'Logo'" class="logo-thumb" />
+            <button type="button" class="logo-delete-btn" @click="deleteLogo(logo.id)" :disabled="deletingLogoId === logo.id">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <label class="logo-upload-btn" :class="{ uploading: uploadingLogo }">
+            <svg v-if="!uploadingLogo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <div v-else class="logo-spin"></div>
+            <input type="file" accept="image/*" style="display:none" @change="uploadLogo" :disabled="uploadingLogo" />
+          </label>
+        </div>
+      </div>
+
+      <form @submit.prevent="handleUpdateEmpresa">
+        <div class="empresa-grid">
+          <div class="form-group">
+            <label class="form-label">CRECI</label>
+            <input v-model="empresaForm.creci" class="form-input" placeholder="Ex.: CRECI-GO 12345 J" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Telefone / WhatsApp</label>
+            <input
+              :value="empresaForm.phone"
+              @input="empresaForm.phone = maskPhone($event.target.value)"
+              class="form-input"
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">E-mail público</label>
+            <input v-model="empresaForm.publicEmail" class="form-input" type="email" placeholder="contato@empresa.com.br" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Site</label>
+            <input v-model="empresaForm.website" class="form-input" placeholder="https://empresa.com.br" />
+          </div>
+        </div>
+
+        <div v-if="empresaError" class="alert alert-error" style="margin-top: 12px;">{{ empresaError }}</div>
+
+        <button type="submit" class="btn btn-primary" :disabled="empresaLoading" style="margin-top: 16px;">
+          {{ empresaLoading ? 'Salvando...' : 'Salvar Dados da Empresa' }}
+        </button>
+      </form>
+    </div>
   </div>
 </template>
 
@@ -112,7 +174,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
-const { fetchApi } = useApi()
+const { fetchApi, uploadApi } = useApi()
 const toast = useToast()
 const { maskPhone, unmask } = useMasks()
 
@@ -139,9 +201,25 @@ const realtorForm = ref({
 const twoFactorEnabled = ref(false)
 const twoFactorLoading = ref(false)
 
+// Empresa (loteadora) profile state
+const empresaLoading = ref(false)
+const empresaError = ref('')
+const empresaLogos = ref([])
+const uploadingLogo = ref(false)
+const deletingLogoId = ref(null)
+const empresaForm = ref({
+  creci: '',
+  phone: '',
+  publicEmail: '',
+  website: '',
+})
+
 onMounted(async () => {
   if (authStore.user?.role === 'CORRETOR') {
     fetchRealtorData()
+  }
+  if (authStore.isLoteadora) {
+    fetchEmpresaData()
   }
   fetch2FAStatus()
 })
@@ -243,6 +321,69 @@ async function handleToggle2FA() {
     twoFactorLoading.value = false
   }
 }
+
+async function fetchEmpresaData() {
+  try {
+    const data = await fetchApi('/tenants/me')
+    empresaLogos.value = data.logos || []
+    empresaForm.value = {
+      creci: data.creci || '',
+      phone: data.phone ? maskPhone(data.phone) : '',
+      publicEmail: data.publicEmail || '',
+      website: data.website || '',
+    }
+  } catch (err) {
+    console.error('Falha ao carregar dados da empresa', err)
+  }
+}
+
+async function handleUpdateEmpresa() {
+  empresaLoading.value = true
+  empresaError.value = ''
+  try {
+    const body = {
+      creci: empresaForm.value.creci?.trim() || null,
+      phone: empresaForm.value.phone ? unmask(empresaForm.value.phone) : null,
+      publicEmail: empresaForm.value.publicEmail?.trim() || null,
+      website: empresaForm.value.website?.trim() || null,
+    }
+    await fetchApi('/tenants/me/profile', { method: 'PATCH', body })
+    toast.success('Dados da empresa atualizados com sucesso!')
+  } catch (err) {
+    empresaError.value = err?.data?.message || err?.message || 'Erro ao salvar dados da empresa.'
+  } finally {
+    empresaLoading.value = false
+  }
+}
+
+async function uploadLogo(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploadingLogo.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const logo = await uploadApi('/tenants/me/logos', fd)
+    empresaLogos.value.push(logo)
+    e.target.value = ''
+  } catch (err) {
+    toast.error(err?.message || 'Erro ao enviar logo.')
+  } finally {
+    uploadingLogo.value = false
+  }
+}
+
+async function deleteLogo(logoId) {
+  deletingLogoId.value = logoId
+  try {
+    await fetchApi(`/tenants/me/logos/${logoId}`, { method: 'DELETE' })
+    empresaLogos.value = empresaLogos.value.filter(l => l.id !== logoId)
+  } catch (err) {
+    toast.error(err?.message || 'Erro ao remover logo.')
+  } finally {
+    deletingLogoId.value = null
+  }
+}
 </script>
 
 <style scoped>
@@ -291,4 +432,85 @@ async function handleToggle2FA() {
 @media (max-width: 767px) {
   .profile-grid { grid-template-columns: 1fr; gap: 1rem; }
 }
+
+.empresa-card { margin-top: 1.5rem; }
+
+.empresa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+@media (max-width: 640px) {
+  .empresa-grid { grid-template-columns: 1fr; }
+}
+
+.logos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.logo-card {
+  position: relative;
+  width: 90px;
+  height: 60px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-thumb {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 6px;
+}
+.logo-delete-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.logo-card:hover .logo-delete-btn { opacity: 1; }
+.logo-delete-btn:hover { background: rgba(239,68,68,0.8); }
+
+.logo-upload-btn {
+  width: 90px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px dashed rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-surface-400);
+  transition: all 150ms;
+}
+.logo-upload-btn:hover { border-color: var(--color-primary-500); color: var(--color-primary-400); }
+.logo-upload-btn.uploading { opacity: 0.5; cursor: not-allowed; }
+
+.logo-spin {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: var(--color-primary-400);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

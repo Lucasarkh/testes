@@ -17,11 +17,11 @@
 
     <!-- Project -->
     <template v-else-if="project">
-      <ProjectSideMenu 
-        :has-plant="!!plantMap"
-        :has-panorama="panoramas.length > 0" 
+      <ProjectSideMenu
+        :has-plant="!!project?.plantMap"
+        :has-panorama="panoramas.length > 0"
         :has-info="hasInfo"
-        :has-lots="unifiedAvailableLots.length > 0"
+        :has-lots="(project?.lotSummary?.available ?? 0) > 0"
         :has-gallery="!!project.projectMedias?.length"
         :has-location="!!project.googleMapsUrl || !!project.address"
         :has-nearby="hasNearbyData"
@@ -122,8 +122,9 @@
         </div>
       </section>
 
-      <!-- Planta Interativa -->
-      <section v-if="plantMap" class="v4-section v4-section-alt" id="planta">
+      <!-- Planta Interativa — section shows as soon as we know the project has a plant map;
+           the actual hotspot data is fetched lazily when this section enters the viewport -->
+      <section v-if="project?.plantMap" class="v4-section v4-section-alt" id="planta">
         <div class="v4-container">
           <div class="v4-section-header center">
             <h2 class="v4-section-title">Planta Interativa</h2>
@@ -132,10 +133,14 @@
           <ClientOnly>
             <div style="height: 540px; border-radius: 16px; overflow: hidden; box-shadow: var(--v4-shadow-elevated);">
               <PlantMapViewer
+                v-if="plantMap"
                 :plant-map="plantMap"
                 :show-controls="true"
                 :show-legend="true"
               />
+              <div v-else style="height:100%; background:#1a1a2e; display:flex; align-items:center; justify-content:center; color:#64748b;">
+                <div class="loading-spinner"></div>
+              </div>
             </div>
             <template #fallback>
               <div style="height: 540px; border-radius:16px; background:#1a1a2e; display:flex; align-items:center; justify-content:center; color:#64748b;">
@@ -216,7 +221,7 @@
       </section>
 
       <!-- Available Lots Grid -->
-      <section v-if="unifiedAvailableLots.length" class="v4-section v4-section-alt" id="lotes">
+      <section v-if="(project?.lotSummary?.available ?? 0) > 0" class="v4-section v4-section-alt" id="lotes">
         <div class="v4-container">
           <div class="v4-section-header">
             <h2 class="v4-section-title">Lotes Disponíveis</h2>
@@ -224,10 +229,10 @@
           </div>
 
           <div class="v4-lots-grid">
-            <NuxtLink 
-              v-for="lot in unifiedAvailableLots.slice(0, 6)" 
-              :key="lot.id" 
-              :to="lotPageUrl(lot)" 
+            <NuxtLink
+              v-for="lot in project?.teaserLots || []"
+              :key="lot.id"
+              :to="lotPageUrl(lot)"
               class="v4-lot-card"
               @click="tracking.trackLotClick(lot.code || lot.name || lot.id, lot.id)"
             >
@@ -263,9 +268,9 @@
             </NuxtLink>
           </div>
 
-          <div v-if="unifiedAvailableLots.length > 6" style="margin-top: 56px; display: flex; justify-content: center;">
+          <div v-if="(project?.lotSummary?.available ?? 0) > 6" style="margin-top: 56px; display: flex; justify-content: center;">
             <NuxtLink :to="unitsUrl" class="v4-btn-primary" style="min-width: 280px; text-decoration: none; text-align: center;" @click="tracking.trackClick('Botão: Ver todas unidades')">
-              Ver todos os {{ unifiedAvailableLots.length }} lotes disponíveis
+              Ver todos os {{ project?.lotSummary?.available ?? 0 }} lotes disponíveis
             </NuxtLink>
           </div>
         </div>
@@ -409,7 +414,7 @@
                 <h2 class="v4-title-display">Garanta sua unidade agora</h2>
                 <p class="v4-subtitle-clean">Restam poucas unidades disponíveis. Preencha o formulário e nossa equipe entrará em contato para tirar suas dúvidas.</p>
                 
-                <div v-if="lotElements.length" class="v4-lot-badge-minimal">
+                <div v-if="(project?.lotSummary?.total ?? 0) > 0" class="v4-lot-badge-minimal">
                   <span class="v4-sparkle">✨</span> <strong>{{ availableLots }}</strong> lotes disponíveis no momento
                 </div>
               </div>
@@ -487,12 +492,62 @@
       <footer class="v4-footer">
         <div class="v4-container">
           <div class="v4-footer-inner">
-            <div class="v4-footer-brand">
-              <span class="v4-footer-tenant">{{ project.tenant?.name }}</span>
-              <span class="v4-footer-project">Loteamento {{ project.name }}</span>
+            <!-- Logos: Realização e Propriedade -->
+            <div v-if="project.tenant?.logos?.length" class="v4-footer-realizacao">
+              <span class="v4-footer-realizacao-label">Realização e Propriedade:</span>
+              <div class="v4-footer-logos">
+                <img
+                  v-for="logo in project.tenant.logos"
+                  :key="logo.id"
+                  :src="logo.url"
+                  :alt="logo.label || project.tenant.name"
+                  class="v4-footer-logo"
+                />
+              </div>
             </div>
+
+            <!-- Loteadora branding -->
+            <div class="v4-footer-brand">
+              <div class="v4-footer-company">
+                <span class="v4-footer-tenant">{{ project.tenant?.name }}</span>
+                <span v-if="project.tenant?.creci" class="v4-footer-creci">{{ project.tenant.creci }}</span>
+              </div>
+            </div>
+
+            <!-- Contact info -->
+            <div v-if="project.tenant?.phone || project.tenant?.publicEmail || project.tenant?.website" class="v4-footer-contact">
+              <a
+                v-if="project.tenant?.phone"
+                :href="`https://wa.me/${project.tenant.phone.replace(/\D/g,'')}`"
+                target="_blank"
+                class="v4-footer-contact-item"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.557 4.122 1.526 5.852L0 24l6.335-1.508A11.946 11.946 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.013-1.38l-.36-.214-3.75.893.925-3.645-.235-.375A9.818 9.818 0 112 12 9.818 9.818 0 0112 21.818z"/></svg>
+                <span>{{ project.tenant.phone }}</span>
+              </a>
+              <a
+                v-if="project.tenant?.publicEmail"
+                :href="`mailto:${project.tenant.publicEmail}`"
+                class="v4-footer-contact-item"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span>{{ project.tenant.publicEmail }}</span>
+              </a>
+              <a
+                v-if="project.tenant?.website"
+                :href="project.tenant.website"
+                target="_blank"
+                class="v4-footer-contact-item"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                <span>{{ project.tenant.website.replace(/^https?:\/\//, '') }}</span>
+              </a>
+            </div>
+
+            <!-- Copyright -->
             <div class="v4-footer-copyright">
-              © {{ getYearInBrasilia() }} — Todos os direitos reservados.
+              <span>Loteamento {{ project.name }}</span>
+              <span>© {{ getYearInBrasilia() }} — Todos os direitos reservados.</span>
             </div>
           </div>
         </div>
@@ -512,9 +567,9 @@
 
       <!-- Sticky mobile CTA -->
       <nav class="v4-sticky-nav">
-        <a v-if="plantMap" href="#planta" class="v4-nav-item">Planta</a>
+        <a v-if="project?.plantMap" href="#planta" class="v4-nav-item">Planta</a>
         <a v-if="panoramas.length" href="#panorama" class="v4-nav-item">Panorama</a>
-        <a v-if="unifiedAvailableLots.length" href="#lotes" class="v4-nav-item">Unidades</a>
+        <a v-if="(project?.lotSummary?.available ?? 0) > 0" href="#lotes" class="v4-nav-item">Unidades</a>
         <a href="#contato" class="v4-nav-item v4-nav-cta">TENHO INTERESSE</a>
       </nav>
       <!-- Floating Search CTA -->
@@ -952,52 +1007,23 @@ const formattedLocationText = computed(() => {
     .join('')
 })
 
-const totalLots = computed(() => {
-  if (hasMapData.value) return mapDataLots.value.length
-  return lotElements.value.length
-})
-const availableLots = computed(() => {
-  if (hasMapData.value) return mapDataLots.value.filter((l: any) => l.status === 'available').length
-  return availableLotElements.value.length
-})
-const reservedLots = computed(() => {
-  if (hasMapData.value) return mapDataLots.value.filter((l: any) => l.status === 'reserved').length
-  return lotElements.value.filter((e: any) => e.lotDetails?.status === 'RESERVED').length
-})
-const soldLots = computed(() => {
-  if (hasMapData.value) return mapDataLots.value.filter((l: any) => l.status === 'sold').length
-  return lotElements.value.filter((e: any) => e.lotDetails?.status === 'SOLD').length
-})
+const totalLots = computed(() => project.value?.lotSummary?.total ?? 0)
+const availableLots = computed(() => project.value?.lotSummary?.available ?? 0)
+const reservedLots = computed(() => project.value?.lotSummary?.reserved ?? 0)
+const soldLots = computed(() => project.value?.lotSummary?.sold ?? 0)
 
 const minArea = computed(() => {
   if (project.value?.startingArea) return project.value.startingArea
-  
-  const areas = unifiedAvailableLots.value
-    .map((l: any) => l.lotDetails?.areaM2)
-    .filter((a: number | null): a is number => a !== null && a > 0)
-  
-  if (!areas.length) return null
-  return Math.min(...areas)
+  const area = project.value?.lotSummary?.minArea
+  return (area && area > 0) ? area : null
 })
 
 const priceRange = computed(() => {
   if (project.value?.startingPrice) {
     return project.value.startingPrice.toLocaleString('pt-BR')
   }
-
-  let prices: number[] = []
-  if (hasMapData.value) {
-    prices = mapDataLots.value
-      .filter((l: any) => l.status === 'available' && l.price)
-      .map((l: any) => Number(l.price))
-  } else {
-    prices = availableLotElements.value
-      .map((e: any) => Number(e.lotDetails?.price))
-      .filter(Boolean)
-  }
-  if (!prices.length) return null
-  const min = Math.min(...prices)
-  return min.toLocaleString('pt-BR')
+  const min = project.value?.lotSummary?.minPrice
+  return (min && min > 0) ? Number(min).toLocaleString('pt-BR') : null
 })
 
 const lotPageUrl = (lot: any) => {
@@ -1033,21 +1059,34 @@ onMounted(async () => {
           { name: 'theme-color', content: '#ffffff' }
         ]
       })
-      // Fetch plant map for this project (non-blocking)
-      getPublicPlantMap(p.value.id, isPreview.value).then((pm) => {
-        if (pm && pm.hotspots) {
-          pm.hotspots = pm.hotspots.map(h => {
-            if (h.linkType === 'LOTE_PAGE' && h.linkId) {
-              const lotModel = (unifiedAvailableLots.value as any[]).find(l => l.id === h.linkId);
-              if (lotModel) {
-                 (h as any).code = lotModel.code || lotModel.name;
-              }
-            }
-            return h;
-          })
+      // Fetch plant map lazily — only when the #planta section enters the viewport.
+      // This avoids a heavy API call for users who never scroll to the map section.
+      if (p.value.plantMap) {
+        let plantMapLoaded = false
+        const loadPlantMap = () => {
+          if (plantMapLoaded) return
+          plantMapLoaded = true
+          getPublicPlantMap(p.value.id, isPreview.value).then((pm) => {
+            plantMap.value = pm
+          }).catch(() => {})
         }
-        plantMap.value = pm
-      }).catch(() => {})
+
+        nextTick(() => {
+          const plantSection = document.getElementById('planta')
+          if (!plantSection || typeof IntersectionObserver === 'undefined') {
+            // Fallback: load immediately if section not in DOM yet or no IO support
+            loadPlantMap()
+            return
+          }
+          const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+              loadPlantMap()
+              observer.disconnect()
+            }
+          }, { rootMargin: '300px' })
+          observer.observe(plantSection)
+        })
+      }
       // Fetch panoramas for this project (non-blocking)
       getPublicPanoramas(p.value.id, isPreview.value).then((panos) => {
         panoramas.value = panos ?? []
@@ -2562,9 +2601,33 @@ function openLightbox(idx: number) {
 }
 
 /* Footer */
-.v4-footer { padding: 80px 0; border-top: 1px solid var(--v4-border); background: var(--v4-bg-alt); }
-.v4-footer-tenant { font-weight: 600; font-size: 17px; margin-bottom: 4px; display: block; }
-.v4-footer-copyright { font-size: 12px; color: var(--v4-text-muted); }
+.v4-footer { padding: 60px 0; border-top: 1px solid var(--v4-border); background: var(--v4-bg-alt); }
+.v4-footer-inner { display: flex; flex-direction: column; gap: 28px; }
+
+.v4-footer-realizacao { display: flex; flex-direction: column; gap: 12px; }
+.v4-footer-realizacao-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--v4-text-muted); }
+.v4-footer-logos { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.v4-footer-logo { height: 120px; max-width: 140px; object-fit: contain; opacity: 0.9; }
+
+.v4-footer-brand { display: flex; align-items: center; gap: 16px; }
+.v4-footer-company { display: flex; flex-direction: column; gap: 4px; }
+.v4-footer-tenant { font-weight: 700; font-size: 18px; color: var(--v4-text); display: block; }
+.v4-footer-creci { font-size: 12px; color: var(--v4-text-muted); display: block; letter-spacing: 0.02em; }
+
+.v4-footer-contact { display: flex; flex-wrap: wrap; gap: 20px; }
+.v4-footer-contact-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--v4-text-secondary); font-size: 14px; text-decoration: none;
+  transition: color 150ms;
+}
+.v4-footer-contact-item:hover { color: var(--v4-text); }
+.v4-footer-contact-item svg { flex-shrink: 0; opacity: 0.7; }
+
+.v4-footer-copyright {
+  display: flex; flex-direction: column; gap: 4px;
+  border-top: 1px solid var(--v4-border); padding-top: 20px;
+  font-size: 12px; color: var(--v4-text-muted);
+}
 
 /* Sticky mobile CTA */
 .v4-sticky-nav {

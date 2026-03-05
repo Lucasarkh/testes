@@ -180,6 +180,12 @@ model Tenant {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Public profile fields (shown on landing page footer)
+  creci        String?
+  phone        String?
+  publicEmail  String?
+  website      String?
+
   // Billing fields
   stripeCustomerId  String?        @unique
   billingStatus     BillingStatus  @default(OK)
@@ -217,6 +223,19 @@ model Tenant {
   billingInvoices   BillingInvoice[]
   supportTickets    SupportTicket[]
   inviteCodes       TenantInviteCode[]
+  logos             TenantLogo[]
+}
+
+model TenantLogo {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  url       String
+  label     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model Agency {

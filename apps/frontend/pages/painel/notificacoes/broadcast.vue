@@ -130,6 +130,13 @@
         <div class="preview-dot"></div>
       </div>
 
+      <div v-if="submitError" class="submit-error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        {{ submitError }}
+      </div>
+
       <div class="form-actions">
         <NuxtLink to="/painel/notificacoes" class="btn btn-ghost">Cancelar</NuxtLink>
         <button class="btn btn-primary" :disabled="sending || !isValid" @click="handleSubmit">
@@ -159,6 +166,7 @@ if (!authStore.isSysAdmin) {
 }
 
 const sending = ref(false)
+const submitError = ref('')
 const audienceType = ref('all')
 
 const audienceOptions = [
@@ -187,6 +195,7 @@ const isValid = computed(() => {
 async function handleSubmit() {
   if (!isValid.value || sending.value) return
   sending.value = true
+  submitError.value = ''
   try {
     const payload = {
       title: form.value.title.trim(),
@@ -198,10 +207,12 @@ async function handleSubmit() {
     if (audienceType.value === 'tenant') payload.tenantId = form.value.tenantId?.trim()
 
     const result = await broadcast(payload)
-    toastSuccess(`Notificação enviada para ${result.sent} usuário(s)!`)
+    toastSuccess(`Notificação enviada para ${result?.sent ?? 0} usuário(s)!`)
     router.push('/painel/notificacoes')
   } catch (e) {
-    toastError('Erro ao enviar notificação. Tente novamente.')
+    const msg = e?.message || 'Erro ao enviar notificação. Tente novamente.'
+    submitError.value = msg
+    toastError(msg)
   } finally {
     sending.value = false
   }
@@ -323,6 +334,16 @@ label { font-size: 0.875rem; font-weight: 600; color: var(--color-surface-200); 
   color: var(--color-surface-400);
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--color-surface-200); }
+
+.submit-error {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  color: #f87171;
+  font-size: 0.875rem;
+}
 
 .spin-icon { animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

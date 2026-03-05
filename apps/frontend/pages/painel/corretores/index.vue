@@ -2,6 +2,7 @@
 const auth = useAuthStore()
 const { get, post, patch, delete: del } = useApi()
 const toast = useToast()
+const router = useRouter()
 
 const realtors = ref([])
 const projects = ref([])
@@ -289,7 +290,7 @@ definePageMeta({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="realtor in realtors" :key="realtor.id">
+          <tr v-for="realtor in realtors" :key="realtor.id" class="clickable-row" @click="router.push(`/painel/corretores/${realtor.id}`)">
             <td>
               <div class="realtor-name">
                 <div class="realtor-avatar-placeholder">{{ realtor.name[0] }}</div>
@@ -314,10 +315,10 @@ definePageMeta({
               <span v-else class="badge badge-neutral">Sem conta</span>
             </td>
             <td class="text-right actions vertical-actions">
-              <button class="btn-icon" @click="openEdit(realtor)" title="Editar">
+              <button class="btn-icon" @click.stop="openEdit(realtor)" title="Editar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn-icon text-danger" @click="removeRealtor(realtor.id)" title="Remover">
+              <button class="btn-icon text-danger" @click.stop="removeRealtor(realtor.id)" title="Remover">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
               </button>
             </td>
@@ -500,6 +501,14 @@ h1 {
 .table td {
   padding: 16px;
   border-bottom: 1px solid var(--glass-border-subtle);
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background 150ms;
+}
+.clickable-row:hover td {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .realtor-name {

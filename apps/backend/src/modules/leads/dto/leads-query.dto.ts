@@ -26,4 +26,9 @@ export class LeadsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   mapElementId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by realtor link ID' })
+  @IsOptional()
+  @IsString()
+  realtorLinkId?: string;
 }
