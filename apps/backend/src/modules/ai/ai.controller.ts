@@ -20,15 +20,15 @@ import { TenantGuard } from '@common/guards/tenant.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 @ApiTags('AI')
+@ApiBearerAuth()
 @Controller('ai')
+@UseGuards(AuthGuard('jwt'), TenantGuard, RolesGuard)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
   @Post('chat')
-  @ApiOperation({ summary: 'Interagir com a IA (Aberto a clientes via endpoint público se for omitida a auth, mas por agora requer auth em painel)' })
-  // Note: For client usage on landing page, this should probably be public 
-  // with some rate limiting and tenant verification via header/origin.
-  // For now, setting up for panel testing.
+  @Roles('LOTEADORA', 'SYSADMIN', 'IMOBILIARIA', 'CORRETOR')
+  @ApiOperation({ summary: 'Interagir com a IA no painel autenticado' })
   chat(
     @TenantId() tenantId: string,
     @Body() dto: ChatDto
@@ -38,8 +38,6 @@ export class AiController {
 
   // --- Configuration Management ---
   @Get('configs')
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), TenantGuard, RolesGuard)
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Listar configurações de IA do tenant' })
   listConfigs(@TenantId() tenantId: string) {
@@ -47,8 +45,6 @@ export class AiController {
   }
 
   @Post('configs')
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), TenantGuard, RolesGuard)
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Criar configuração de IA' })
   createConfig(@TenantId() tenantId: string, @Body() dto: CreateAiConfigDto) {
@@ -56,8 +52,6 @@ export class AiController {
   }
 
   @Put('configs/:id')
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), TenantGuard, RolesGuard)
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Atualizar configuração de IA' })
   updateConfig(
@@ -69,8 +63,6 @@ export class AiController {
   }
 
   @Delete('configs/:id')
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'), TenantGuard, RolesGuard)
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Excluir configuração de IA' })
   deleteConfig(@Param('id') id: string, @TenantId() tenantId: string) {

@@ -42,6 +42,12 @@ export class TenantsController {
     return this.tenantsService.findAll();
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Buscar uma loteadora por ID' })
+  findOne(@Param('id') id: string) {
+    return this.tenantsService.findById(id);
+  }
+
   @Get('me')
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Retorna perfil público da loteadora autenticada' })

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import {
+  getPasswordPolicyError,
+  PASSWORD_POLICY_HINT
+} from '~/utils/passwordPolicy'
 const auth = useAuthStore()
 const { get, post, patch, delete: del } = useApi()
 const toast = useToast()
@@ -37,6 +41,10 @@ const form = ref({
   projectIds: [],
   accountEmail: '',
   accountPassword: ''
+})
+const accountPasswordError = computed(() => {
+  if (editingRealtor.value || !form.value.accountPassword) return ''
+  return getPasswordPolicyError(form.value.accountPassword)
 })
 
 watch(() => form.value.phone, (v) => { if (v) form.value.phone = maskPhone(v) })
@@ -120,6 +128,10 @@ async function fetchData() {
 async function saveRealtor() {
   if (emailError.value || codeError.value) {
     toast.error('Por favor, corrija os erros no formulário antes de salvar.')
+    return
+  }
+  if (!editingRealtor.value && accountPasswordError.value) {
+    toast.error(accountPasswordError.value)
     return
   }
 
@@ -381,7 +393,8 @@ definePageMeta({
                 </div>
                 <div class="form-group">
                   <label class="form-label">Senha Inicial *</label>
-                  <AppPasswordInput v-model="form.accountPassword" placeholder="Mín. 6 caracteres" required minlength="6" autocomplete="new-password" />
+                  <AppPasswordInput v-model="form.accountPassword" :placeholder="PASSWORD_POLICY_HINT" required autocomplete="new-password" />
+                  <span v-if="accountPasswordError" class="error-text">{{ accountPasswordError }}</span>
                   <small class="help-text">O corretor poderá alterar depois no painel.</small>
                 </div>
               </div>

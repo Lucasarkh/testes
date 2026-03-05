@@ -1,5 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: false })
+import {
+  getPasswordPolicyError,
+  PASSWORD_POLICY_HINT
+} from '~/utils/passwordPolicy'
 
 const { get, post } = usePublicApi()
 const route = useRoute()
@@ -56,8 +60,9 @@ async function register() {
   }
 
   const pwd = form.value.password
-  if (pwd.length < 8 || !/[a-zA-Z]/.test(pwd) || !/[0-9]/.test(pwd)) {
-    errorMsg.value = 'A senha deve ter pelo menos 8 caracteres com letras e números.'
+  const passwordError = getPasswordPolicyError(pwd)
+  if (passwordError) {
+    errorMsg.value = passwordError
     return
   }
 
@@ -169,7 +174,10 @@ onMounted(fetchCodeData)
 
           <div class="form-group">
             <label class="form-label">Senha <span class="required">*</span></label>
-            <AppPasswordInput v-model="form.password" placeholder="Mínimo 8 caracteres com letras e números" required />
+            <AppPasswordInput v-model="form.password" :placeholder="PASSWORD_POLICY_HINT" required />
+            <div v-if="form.password && getPasswordPolicyError(form.password)" class="alert-error">
+              {{ getPasswordPolicyError(form.password) }}
+            </div>
           </div>
 
           <div class="form-group">

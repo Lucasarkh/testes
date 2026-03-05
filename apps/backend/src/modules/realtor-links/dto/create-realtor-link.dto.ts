@@ -4,9 +4,13 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-  MinLength
+  Matches
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORD_POLICY_REGEX
+} from '@/common/security/password-policy';
 
 export class CreateRealtorLinkDto {
   @ApiProperty({ example: 'João Corretor' })
@@ -72,6 +76,6 @@ export class CreateRealtorLinkDto {
   })
   @IsOptional()
   @IsString()
-  @MinLength(6, { message: 'Senha deve ter pelo menos 6 caracteres' })
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   accountPassword?: string;
 }

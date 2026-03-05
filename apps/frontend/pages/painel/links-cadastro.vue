@@ -51,6 +51,7 @@ async function fetchCodes() {
     codes.value = Array.isArray(data) ? data : []
   } catch (err: any) {
     console.error('Failed to load invite codes:', err?.message)
+    toastError(err?.message || 'Erro ao carregar links de cadastro.')
     codes.value = []
   } finally {
     loading.value = false

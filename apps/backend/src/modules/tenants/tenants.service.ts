@@ -23,6 +23,13 @@ export class TenantsService {
     private s3: S3Service,
   ) {}
 
+  private nullable(value?: string | null): string | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
   async create(dto: RegisterTenantDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() }
@@ -49,7 +56,28 @@ export class TenantsService {
         data: {
           name: dto.tenantName,
           slug,
-          customDomain: dto.customDomain || null
+          customDomain: this.nullable(dto.customDomain),
+          cnpj: this.nullable(dto.cnpj),
+          legalName: this.nullable(dto.legalName),
+          stateRegistration: this.nullable(dto.stateRegistration),
+          municipalRegistration: this.nullable(dto.municipalRegistration),
+          legalRepresentative: this.nullable(dto.legalRepresentative),
+          creci: this.nullable(dto.creci),
+          phone: this.nullable(dto.phone),
+          whatsapp: this.nullable(dto.whatsapp),
+          publicEmail: this.nullable(dto.publicEmail),
+          website: this.nullable(dto.website),
+          contactName: this.nullable(dto.contactName),
+          contactEmail: this.nullable(dto.contactEmail),
+          contactPhone: this.nullable(dto.contactPhone),
+          addressZipCode: this.nullable(dto.addressZipCode),
+          addressStreet: this.nullable(dto.addressStreet),
+          addressNumber: this.nullable(dto.addressNumber),
+          addressComplement: this.nullable(dto.addressComplement),
+          addressDistrict: this.nullable(dto.addressDistrict),
+          addressCity: this.nullable(dto.addressCity),
+          addressState: this.nullable(dto.addressState),
+          addressCountry: this.nullable(dto.addressCountry),
         }
       });
 
@@ -94,6 +122,27 @@ export class TenantsService {
       name: t.name,
       slug: t.slug,
       customDomain: t.customDomain,
+      cnpj: t.cnpj,
+      legalName: t.legalName,
+      stateRegistration: t.stateRegistration,
+      municipalRegistration: t.municipalRegistration,
+      legalRepresentative: t.legalRepresentative,
+      creci: t.creci,
+      phone: t.phone,
+      whatsapp: t.whatsapp,
+      publicEmail: t.publicEmail,
+      website: t.website,
+      contactName: t.contactName,
+      contactEmail: t.contactEmail,
+      contactPhone: t.contactPhone,
+      addressZipCode: t.addressZipCode,
+      addressStreet: t.addressStreet,
+      addressNumber: t.addressNumber,
+      addressComplement: t.addressComplement,
+      addressDistrict: t.addressDistrict,
+      addressCity: t.addressCity,
+      addressState: t.addressState,
+      addressCountry: t.addressCountry,
       isActive: t.isActive,
       billingStatus: t.billingStatus || 'OK',
       stripeCustomerId: t.stripeCustomerId || null,
@@ -108,16 +157,76 @@ export class TenantsService {
     }));
   }
 
+  async findById(id: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        customDomain: true,
+        cnpj: true,
+        legalName: true,
+        stateRegistration: true,
+        municipalRegistration: true,
+        legalRepresentative: true,
+        creci: true,
+        phone: true,
+        whatsapp: true,
+        publicEmail: true,
+        website: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true,
+        addressZipCode: true,
+        addressStreet: true,
+        addressNumber: true,
+        addressComplement: true,
+        addressDistrict: true,
+        addressCity: true,
+        addressState: true,
+        addressCountry: true,
+        isActive: true,
+        createdAt: true,
+      }
+    });
+
+    if (!tenant) throw new NotFoundException('Tenant não encontrado');
+    return tenant;
+  }
+
   async update(id: string, dto: UpdateTenantDto) {
     const tenant = await this.prisma.tenant.findUnique({ where: { id } });
     if (!tenant) throw new NotFoundException('Tenant não encontrado');
 
-    const data: any = { ...dto };
+    const data: any = {
+      ...dto,
+      customDomain: this.nullable(dto.customDomain),
+      cnpj: this.nullable(dto.cnpj),
+      legalName: this.nullable(dto.legalName),
+      stateRegistration: this.nullable(dto.stateRegistration),
+      municipalRegistration: this.nullable(dto.municipalRegistration),
+      legalRepresentative: this.nullable(dto.legalRepresentative),
+      creci: this.nullable(dto.creci),
+      phone: this.nullable(dto.phone),
+      whatsapp: this.nullable(dto.whatsapp),
+      publicEmail: this.nullable(dto.publicEmail),
+      website: this.nullable(dto.website),
+      contactName: this.nullable(dto.contactName),
+      contactEmail: this.nullable(dto.contactEmail),
+      contactPhone: this.nullable(dto.contactPhone),
+      addressZipCode: this.nullable(dto.addressZipCode),
+      addressStreet: this.nullable(dto.addressStreet),
+      addressNumber: this.nullable(dto.addressNumber),
+      addressComplement: this.nullable(dto.addressComplement),
+      addressDistrict: this.nullable(dto.addressDistrict),
+      addressCity: this.nullable(dto.addressCity),
+      addressState: this.nullable(dto.addressState),
+      addressCountry: this.nullable(dto.addressCountry),
+    };
 
-    // Treat empty string as null for uniqueness
-    if (data.customDomain === '') {
-      data.customDomain = null;
-    }
+    // Keep boolean updates intact when omitted from payload
+    if (dto.isActive === undefined) delete data.isActive;
 
     // If slug is changing, check uniqueness
     if (dto.slug && dto.slug !== tenant.slug) {
@@ -181,10 +290,27 @@ export class TenantsService {
         name: true,
         slug: true,
         customDomain: true,
+        cnpj: true,
+        legalName: true,
+        stateRegistration: true,
+        municipalRegistration: true,
+        legalRepresentative: true,
         creci: true,
         phone: true,
+        whatsapp: true,
         publicEmail: true,
         website: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true,
+        addressZipCode: true,
+        addressStreet: true,
+        addressNumber: true,
+        addressComplement: true,
+        addressDistrict: true,
+        addressCity: true,
+        addressState: true,
+        addressCountry: true,
         logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
       }
     });
@@ -196,14 +322,53 @@ export class TenantsService {
     await this.findSelf(tenantId);
     return this.prisma.tenant.update({
       where: { id: tenantId },
-      data: { ...dto },
+      data: {
+        cnpj: this.nullable(dto.cnpj),
+        legalName: this.nullable(dto.legalName),
+        stateRegistration: this.nullable(dto.stateRegistration),
+        municipalRegistration: this.nullable(dto.municipalRegistration),
+        legalRepresentative: this.nullable(dto.legalRepresentative),
+        creci: this.nullable(dto.creci),
+        phone: this.nullable(dto.phone),
+        whatsapp: this.nullable(dto.whatsapp),
+        publicEmail: this.nullable(dto.publicEmail),
+        website: this.nullable(dto.website),
+        contactName: this.nullable(dto.contactName),
+        contactEmail: this.nullable(dto.contactEmail),
+        contactPhone: this.nullable(dto.contactPhone),
+        addressZipCode: this.nullable(dto.addressZipCode),
+        addressStreet: this.nullable(dto.addressStreet),
+        addressNumber: this.nullable(dto.addressNumber),
+        addressComplement: this.nullable(dto.addressComplement),
+        addressDistrict: this.nullable(dto.addressDistrict),
+        addressCity: this.nullable(dto.addressCity),
+        addressState: this.nullable(dto.addressState),
+        addressCountry: this.nullable(dto.addressCountry),
+      },
       select: {
         id: true,
         name: true,
+        cnpj: true,
+        legalName: true,
+        stateRegistration: true,
+        municipalRegistration: true,
+        legalRepresentative: true,
         creci: true,
         phone: true,
+        whatsapp: true,
         publicEmail: true,
         website: true,
+        contactName: true,
+        contactEmail: true,
+        contactPhone: true,
+        addressZipCode: true,
+        addressStreet: true,
+        addressNumber: true,
+        addressComplement: true,
+        addressDistrict: true,
+        addressCity: true,
+        addressState: true,
+        addressCountry: true,
       }
     });
   }

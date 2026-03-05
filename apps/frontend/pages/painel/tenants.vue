@@ -83,6 +83,97 @@
             <label class="form-label">Domínio Customizado (Ex: vendas.loteadora.com)</label>
             <input v-model="form.customDomain" class="form-input" placeholder="vendas.meu-site.com.br" />
           </div>
+
+          <h3 style="margin: 20px 0 12px;">Dados Jurídicos</h3>
+          <div class="form-group">
+            <label class="form-label">Razão Social</label>
+            <input v-model="form.legalName" class="form-input" placeholder="Razão social da empresa" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">CNPJ</label>
+            <input v-model="form.cnpj" class="form-input" placeholder="00.000.000/0000-00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Inscrição Estadual</label>
+            <input v-model="form.stateRegistration" class="form-input" placeholder="Opcional" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Inscrição Municipal</label>
+            <input v-model="form.municipalRegistration" class="form-input" placeholder="Opcional" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Representante Legal</label>
+            <input v-model="form.legalRepresentative" class="form-input" placeholder="Nome do representante legal" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">CRECI</label>
+            <input v-model="form.creci" class="form-input" placeholder="CRECI da empresa/responsável" />
+          </div>
+
+          <h3 style="margin: 20px 0 12px;">Dados de Contato</h3>
+          <div class="form-group">
+            <label class="form-label">Nome do Contato Comercial</label>
+            <input v-model="form.contactName" class="form-input" placeholder="Nome do responsável comercial" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-mail de Contato</label>
+            <input v-model="form.contactEmail" class="form-input" type="email" placeholder="comercial@empresa.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefone de Contato</label>
+            <input v-model="form.contactPhone" class="form-input" placeholder="(00) 0000-0000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefone Principal</label>
+            <input v-model="form.phone" class="form-input" placeholder="(00) 0000-0000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp</label>
+            <input v-model="form.whatsapp" class="form-input" placeholder="(00) 00000-0000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-mail Público</label>
+            <input v-model="form.publicEmail" class="form-input" type="email" placeholder="contato@empresa.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Website</label>
+            <input v-model="form.website" class="form-input" placeholder="https://empresa.com.br" />
+          </div>
+
+          <h3 style="margin: 20px 0 12px;">Endereço</h3>
+          <div class="form-group">
+            <label class="form-label">CEP</label>
+            <input v-model="form.addressZipCode" class="form-input" placeholder="00000-000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Logradouro</label>
+            <input v-model="form.addressStreet" class="form-input" placeholder="Rua, avenida, etc." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Número</label>
+            <input v-model="form.addressNumber" class="form-input" placeholder="123" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Complemento</label>
+            <input v-model="form.addressComplement" class="form-input" placeholder="Sala, bloco, etc." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bairro</label>
+            <input v-model="form.addressDistrict" class="form-input" placeholder="Bairro" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cidade</label>
+            <input v-model="form.addressCity" class="form-input" placeholder="Cidade" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estado (UF)</label>
+            <input v-model="form.addressState" class="form-input" placeholder="UF" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">País</label>
+            <input v-model="form.addressCountry" class="form-input" placeholder="Brasil" />
+          </div>
+
           <hr v-if="!editingId" style="margin: 24px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
           <div v-if="!editingId">
             <h3 style="margin-bottom: 16px;">Usuário Administrador</h3>
@@ -96,7 +187,8 @@
             </div>
             <div class="form-group">
               <label class="form-label">Senha Inicial</label>
-              <AppPasswordInput v-model="form.password" placeholder="Min. 6 caracteres" required minlength="6" autocomplete="new-password" />
+              <AppPasswordInput v-model="form.password" :placeholder="PASSWORD_POLICY_HINT" required autocomplete="new-password" />
+              <div v-if="tenantPasswordError" class="form-error">{{ tenantPasswordError }}</div>
               <small style="color: var(--color-surface-400)">O cliente poderá alterar esta senha depois.</small>
             </div>
           </div>
@@ -173,7 +265,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import {
+  getPasswordPolicyError,
+  PASSWORD_POLICY_HINT
+} from '~/utils/passwordPolicy'
 
 const { fetchApi } = useApi()
 const toast = useToast()
@@ -196,9 +292,34 @@ const form = ref({
   tenantName: '',
   tenantSlug: '',
   customDomain: '',
+  legalName: '',
+  cnpj: '',
+  creci: '',
+  stateRegistration: '',
+  municipalRegistration: '',
+  legalRepresentative: '',
+  contactName: '',
+  contactEmail: '',
+  contactPhone: '',
+  phone: '',
+  whatsapp: '',
+  publicEmail: '',
+  website: '',
+  addressZipCode: '',
+  addressStreet: '',
+  addressNumber: '',
+  addressComplement: '',
+  addressDistrict: '',
+  addressCity: '',
+  addressState: '',
+  addressCountry: '',
   name: '',
   email: '',
   password: ''
+})
+const tenantPasswordError = computed(() => {
+  if (editingId.value || !form.value.password) return ''
+  return getPasswordPolicyError(form.value.password)
 })
 
 function generateSlug() {
@@ -228,6 +349,27 @@ function openCreateModal() {
     tenantName: '',
     tenantSlug: '',
     customDomain: '',
+    legalName: '',
+    cnpj: '',
+    creci: '',
+    stateRegistration: '',
+    municipalRegistration: '',
+    legalRepresentative: '',
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
+    phone: '',
+    whatsapp: '',
+    publicEmail: '',
+    website: '',
+    addressZipCode: '',
+    addressStreet: '',
+    addressNumber: '',
+    addressComplement: '',
+    addressDistrict: '',
+    addressCity: '',
+    addressState: '',
+    addressCountry: '',
     name: '',
     email: '',
     password: ''
@@ -236,12 +378,41 @@ function openCreateModal() {
   error.value = ''
 }
 
-function openEditModal(tenant) {
+async function openEditModal(tenant) {
+  let details = tenant
+  try {
+    details = await fetchApi(`/tenants/${tenant.id}`)
+  } catch (_err) {
+    toast.error('Nao foi possivel carregar todos os dados da loteadora. Exibindo dados basicos.')
+    // Fallback to table payload when details request fails
+  }
+
   editingId.value = tenant.id
   form.value = {
-    tenantName: tenant.name,
-    tenantSlug: tenant.slug,
-    customDomain: tenant.customDomain || '',
+    tenantName: details.name,
+    tenantSlug: details.slug,
+    customDomain: details.customDomain || '',
+    legalName: details.legalName || '',
+    cnpj: details.cnpj || '',
+    creci: details.creci || '',
+    stateRegistration: details.stateRegistration || '',
+    municipalRegistration: details.municipalRegistration || '',
+    legalRepresentative: details.legalRepresentative || '',
+    contactName: details.contactName || '',
+    contactEmail: details.contactEmail || '',
+    contactPhone: details.contactPhone || '',
+    phone: details.phone || '',
+    whatsapp: details.whatsapp || '',
+    publicEmail: details.publicEmail || '',
+    website: details.website || '',
+    addressZipCode: details.addressZipCode || '',
+    addressStreet: details.addressStreet || '',
+    addressNumber: details.addressNumber || '',
+    addressComplement: details.addressComplement || '',
+    addressDistrict: details.addressDistrict || '',
+    addressCity: details.addressCity || '',
+    addressState: details.addressState || '',
+    addressCountry: details.addressCountry || '',
     name: '—', // Not editable here
     email: '—',
     password: '—'
@@ -251,6 +422,11 @@ function openEditModal(tenant) {
 }
 
 async function handleCreate() {
+  if (!editingId.value && tenantPasswordError.value) {
+    error.value = tenantPasswordError.value
+    return
+  }
+
   saving.value = true
   error.value = ''
   try {
@@ -261,7 +437,28 @@ async function handleCreate() {
         body: {
           name: form.value.tenantName,
           slug: form.value.tenantSlug,
-          customDomain: form.value.customDomain || null
+          customDomain: form.value.customDomain || null,
+          legalName: form.value.legalName || null,
+          cnpj: form.value.cnpj || null,
+          creci: form.value.creci || null,
+          stateRegistration: form.value.stateRegistration || null,
+          municipalRegistration: form.value.municipalRegistration || null,
+          legalRepresentative: form.value.legalRepresentative || null,
+          contactName: form.value.contactName || null,
+          contactEmail: form.value.contactEmail || null,
+          contactPhone: form.value.contactPhone || null,
+          phone: form.value.phone || null,
+          whatsapp: form.value.whatsapp || null,
+          publicEmail: form.value.publicEmail || null,
+          website: form.value.website || null,
+          addressZipCode: form.value.addressZipCode || null,
+          addressStreet: form.value.addressStreet || null,
+          addressNumber: form.value.addressNumber || null,
+          addressComplement: form.value.addressComplement || null,
+          addressDistrict: form.value.addressDistrict || null,
+          addressCity: form.value.addressCity || null,
+          addressState: form.value.addressState || null,
+          addressCountry: form.value.addressCountry || null,
         }
       })
       toast.success('Loteadora atualizada!')

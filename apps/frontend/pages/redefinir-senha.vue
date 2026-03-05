@@ -24,17 +24,20 @@
       <form v-else @submit.prevent="handleSubmit">
         <div class="form-group">
           <label class="form-label">Nova Senha</label>
-          <AppPasswordInput v-model="password" placeholder="Mínimo 6 caracteres" required minlength="6" />
+          <AppPasswordInput v-model="password" :placeholder="PASSWORD_POLICY_HINT" required />
+          <div v-if="passwordPolicyError" class="form-error">
+            {{ passwordPolicyError }}
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Confirmar Nova Senha</label>
-          <AppPasswordInput v-model="confirmPassword" placeholder="Repita a nova senha" required minlength="6" />
+          <AppPasswordInput v-model="confirmPassword" placeholder="Repita a nova senha" required />
           <div v-if="confirmPassword && confirmPassword !== password" class="form-error">
             As senhas não coincidem
           </div>
         </div>
         <div v-if="error" class="alert alert-error">{{ error }}</div>
-        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" :disabled="loading || (confirmPassword && confirmPassword !== password)">
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" :disabled="loading || !!passwordPolicyError || (confirmPassword && confirmPassword !== password)">
           {{ loading ? 'Redefinindo...' : 'Redefinir Senha' }}
         </button>
       </form>
@@ -43,7 +46,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { getPasswordPolicyError, PASSWORD_POLICY_HINT } from '~/utils/passwordPolicy'
 
 const password = ref('')
 const confirmPassword = ref('')
@@ -54,12 +58,18 @@ const config = useRuntimeConfig()
 const route = useRoute()
 
 const token = computed(() => route.query.token as string || '')
+const passwordPolicyError = computed(() => getPasswordPolicyError(password.value))
 
 definePageMeta({
   layout: 'public'
 })
 
 const handleSubmit = async () => {
+  if (passwordPolicyError.value) {
+    error.value = passwordPolicyError.value
+    return
+  }
+
   if (password.value !== confirmPassword.value) {
     error.value = 'As senhas não coincidem'
     return

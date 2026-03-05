@@ -1,5 +1,16 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsEnum,
+  Matches
+} from 'class-validator';
 import { UserRole } from '@prisma/client';
+import {
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORD_POLICY_REGEX
+} from '@/common/security/password-policy';
 
 export class CreateInviteDto {
   @IsEmail()
@@ -26,5 +37,6 @@ export class AcceptInviteDto {
 
   @IsString()
   @IsNotEmpty()
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   password: string;
 }

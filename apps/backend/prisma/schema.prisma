@@ -186,6 +186,25 @@ model Tenant {
   publicEmail  String?
   website      String?
 
+  // Extended tenant registration fields
+  cnpj                     String?
+  legalName                String?
+  stateRegistration        String?
+  municipalRegistration    String?
+  legalRepresentative      String?
+  whatsapp                 String?
+  contactName              String?
+  contactEmail             String?
+  contactPhone             String?
+  addressZipCode           String?
+  addressStreet            String?
+  addressNumber            String?
+  addressComplement        String?
+  addressDistrict          String?
+  addressCity              String?
+  addressState             String?
+  addressCountry           String?
+
   // Billing fields
   stripeCustomerId  String?        @unique
   billingStatus     BillingStatus  @default(OK)
@@ -503,6 +522,11 @@ model Lead {
   lastContactAt DateTime?
   reservedAt    DateTime?
   notes         String?    @db.Text
+
+  // AI Chat context
+  aiChatTranscript  String?   @db.Text
+  aiChatSummary     String?   @db.Text
+
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h1>Usuários</h1>
-        <p>Gerenciar usuários da empresa</p>
+        <p>{{ authStore.isSysAdmin ? 'Gerenciar usuários internos da Lotio' : 'Gerenciar usuários da empresa' }}</p>
       </div>
       <button class="btn btn-primary" @click="showCreate = true">+ Novo Usuário</button>
     </div>
@@ -74,14 +74,13 @@
             </div>
             <div class="form-group">
               <label class="form-label">{{ editingUser ? 'Nova Senha (deixe vazio para manter)' : 'Senha' }}</label>
-              <AppPasswordInput v-model="form.password" :minlength="editingUser ? 0 : 6" :required="!editingUser" :placeholder="editingUser ? 'Deixe vazio para manter a atual' : 'Mín. 6 caracteres'" />
-              <div v-if="form.password && form.password.length < 6 && form.password.length > 0" class="form-error">Senha deve ter no mínimo 6 caracteres</div>
+              <AppPasswordInput v-model="form.password" :required="!editingUser" :placeholder="editingUser ? 'Deixe vazio para manter a atual' : PASSWORD_POLICY_HINT" />
+              <div v-if="modalPasswordError" class="form-error">{{ modalPasswordError }}</div>
             </div>
             <div class="form-group">
               <label class="form-label">Papel</label>
               <select v-model="form.role" class="form-select" required>
-                <option value="LOTEADORA">Loteadora (Admin)</option>
-                <option value="CORRETOR">Corretor</option>
+                <option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
               </select>
             </div>
             <div v-if="formError" class="alert alert-error">{{ formError }}</div>
@@ -99,7 +98,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import {
+  getPasswordPolicyError,
+  PASSWORD_POLICY_HINT
+} from '~/utils/passwordPolicy'
 
 const { fetchApi } = useApi()
 const authStore = useAuthStore()
@@ -113,10 +116,28 @@ const showCreate = ref(false)
 const editingUser = ref(null)
 const formLoading = ref(false)
 const formError = ref('')
-const form = ref({ name: '', email: '', password: '', role: 'CORRETOR' })
+const getDefaultRole = () => (authStore.isSysAdmin ? 'SYSADMIN' : 'CORRETOR')
+const form = ref({ name: '', email: '', password: '', role: getDefaultRole() })
+const modalPasswordError = computed(() => {
+  if (!form.value.password) return ''
+  return getPasswordPolicyError(form.value.password)
+})
 
-const roleBadge = (r) => ({ SYSADMIN: 'badge-danger', LOTEADORA: 'badge-primary', CORRETOR: 'badge-neutral' }[r] || 'badge-neutral')
-const roleLabel = (r) => ({ SYSADMIN: 'System Admin', LOTEADORA: 'Loteadora', CORRETOR: 'Corretor' }[r] || r)
+const roleOptions = computed(() => {
+  if (authStore.isSysAdmin) {
+    return [
+      { value: 'SYSADMIN', label: 'Admin do Sistema (Lotio)' }
+    ]
+  }
+
+  return [
+    { value: 'LOTEADORA', label: 'Loteadora (Admin)' },
+    { value: 'CORRETOR', label: 'Corretor' }
+  ]
+})
+
+const roleBadge = (r) => ({ SYSADMIN: 'badge-danger', LOTEADORA: 'badge-primary', IMOBILIARIA: 'badge-info', CORRETOR: 'badge-neutral' }[r] || 'badge-neutral')
+const roleLabel = (r) => ({ SYSADMIN: 'System Admin', LOTEADORA: 'Loteadora', IMOBILIARIA: 'Imobiliária', CORRETOR: 'Corretor' }[r] || r)
 
 const loadUsers = async (page = 1) => {
   loading.value = true
@@ -134,11 +155,12 @@ const loadUsers = async (page = 1) => {
 
 const closeModal = () => {
   showCreate.value = false; editingUser.value = null; formError.value = ''
-  form.value = { name: '', email: '', password: '', role: 'CORRETOR' }
+  form.value = { name: '', email: '', password: '', role: getDefaultRole() }
 }
 
 const createUser = async () => {
-  if (form.value.password.length < 6) { formError.value = 'Senha deve ter no mínimo 6 caracteres'; return }
+  const passwordError = getPasswordPolicyError(form.value.password)
+  if (passwordError) { formError.value = passwordError; return }
   formLoading.value = true; formError.value = ''
   try {
     await fetchApi('/users', { method: 'POST', body: JSON.stringify(form.value) })
@@ -158,7 +180,10 @@ const startEdit = (u) => {
 }
 
 const saveEdit = async () => {
-  if (form.value.password && form.value.password.length < 6) { formError.value = 'Senha deve ter no mínimo 6 caracteres'; return }
+  if (form.value.password) {
+    const passwordError = getPasswordPolicyError(form.value.password)
+    if (passwordError) { formError.value = passwordError; return }
+  }
   formLoading.value = true; formError.value = ''
   try {
     const payload = { name: form.value.name, role: form.value.role }

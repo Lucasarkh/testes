@@ -16,6 +16,7 @@ import {
   WebhookPaymentStatus,
 } from './interfaces/payment-gateway.interface';
 import { PaymentProvider } from '@prisma/client';
+import { NotificationsService } from '@modules/notifications/notifications.service';
 
 @Injectable()
 export class PaymentService {
@@ -28,6 +29,7 @@ export class PaymentService {
     private readonly asaas: AsaasAdapter,
     private readonly pagarMe: PagarMeAdapter,
     private readonly pagSeguro: PagSeguroAdapter,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private getGateway(provider: PaymentProvider): IPaymentGateway {
@@ -292,6 +294,10 @@ export class PaymentService {
         },
       });
     });
+
+    this.notifications
+      .onLeadReservationConfirmed(payment.leadId, provider)
+      .catch((e) => this.logger.error('Notification onLeadReservationConfirmed (gateway)', e.message));
   }
 
   private async handleFailedPayment(externalId: string, provider: PaymentProvider) {

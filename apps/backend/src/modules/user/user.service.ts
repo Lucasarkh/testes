@@ -31,7 +31,11 @@ export class UserService {
     private emailQueueService: EmailQueueService
   ) {}
 
-  async create(tenantId: string, dto: CreateUserDto) {
+  private buildTenantScope(tenantId?: string) {
+    return tenantId ? { tenantId } : { tenantId: null };
+  }
+
+  async create(tenantId: string | undefined, dto: CreateUserDto, currentUser?: { role?: UserRole }) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() }
     });
@@ -41,58 +45,31 @@ export class UserService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    // If role is LOTEADORA and no tenantId is provided, create a new tenant
-    if (dto.role === UserRole.LOTEADORA && !tenantId) {
-      const user = await this.prisma.$transaction(async (tx) => {
-        const slug = dto.name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '');
-
-        let uniqueSlug = slug;
-        const existingTenant = await tx.tenant.findUnique({
-          where: { slug: uniqueSlug }
-        });
-        if (existingTenant) {
-          uniqueSlug = `${slug}-${Math.floor(Math.random() * 1000)}`;
-        }
-
-        const tenant = await tx.tenant.create({
-          data: {
-            name: dto.name,
-            slug: uniqueSlug
-          }
-        });
-
-        return tx.user.create({
-          data: {
-            tenantId: tenant.id,
-            name: dto.name,
-            email: dto.email.toLowerCase(),
-            passwordHash,
-            role: UserRole.LOTEADORA
-          },
-          select: { ...USER_SELECT, tenant: { select: { name: true } } }
-        });
-      });
-
-      try {
-        await this.emailQueueService.queueWelcomeTenantEmail(
-          user.email,
-          user.name,
-          user.tenant?.name || dto.name
+    // In global (no tenant) scope, /users is only for internal LOTIO users.
+    if (!tenantId) {
+      if (dto.role && dto.role !== UserRole.SYSADMIN) {
+        throw new BadRequestException(
+          'No contexto global, apenas usuários SYSADMIN podem ser criados em /users. Para criar loteadora, use a tela de Loteadoras.'
         );
-      } catch (error: any) {
-        this.logger.error(`Failed to queue welcome tenant email for ${user.email}:`, error.message);
       }
+
+      const user = await this.prisma.user.create({
+        data: {
+          tenantId: null,
+          name: dto.name,
+          email: dto.email.toLowerCase(),
+          passwordHash,
+          role: UserRole.SYSADMIN
+        },
+        select: { ...USER_SELECT, tenant: { select: { name: true } } }
+      });
 
       return user;
     }
 
-    if (dto.role === UserRole.CORRETOR && !tenantId) {
-      throw new BadRequestException('Um tenant é obrigatório para o papel de corretor.');
+    // Tenant-scoped managers cannot create SYSADMIN users.
+    if (dto.role === UserRole.SYSADMIN) {
+      throw new BadRequestException('Usuário SYSADMIN só pode ser criado no contexto global da Lotio.');
     }
 
     const user = await this.prisma.user.create({
@@ -124,20 +101,21 @@ export class UserService {
     return user;
   }
 
-  async findAll(tenantId: string, query: PaginationQueryDto) {
+  async findAll(tenantId: string | undefined, query: PaginationQueryDto) {
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
+    const where = this.buildTenantScope(tenantId);
 
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
-        where: { tenantId },
+        where,
         select: USER_SELECT,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' }
       }),
       this.prisma.user.count({
-        where: { tenantId }
+        where
       })
     ]);
 
@@ -153,9 +131,9 @@ export class UserService {
     };
   }
 
-  async findById(tenantId: string, id: string) {
+  async findById(tenantId: string | undefined, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenantId },
+      where: { id, ...this.buildTenantScope(tenantId) },
       select: USER_SELECT
     });
 
@@ -163,11 +141,19 @@ export class UserService {
     return user;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateUserDto) {
+  async update(tenantId: string | undefined, id: string, dto: UpdateUserDto) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenantId }
+      where: { id, ...this.buildTenantScope(tenantId) }
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    if (!tenantId && dto.role && dto.role !== UserRole.SYSADMIN) {
+      throw new BadRequestException('No contexto global, usuários internos devem permanecer com papel SYSADMIN.');
+    }
+
+    if (tenantId && dto.role === UserRole.SYSADMIN) {
+      throw new BadRequestException('Não é permitido promover usuário de tenant para SYSADMIN por este endpoint.');
+    }
 
     const data: any = {};
     if (dto.name) data.name = dto.name;
@@ -181,9 +167,9 @@ export class UserService {
     });
   }
 
-  async remove(tenantId: string, id: string) {
+  async remove(tenantId: string | undefined, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, tenantId }
+      where: { id, ...this.buildTenantScope(tenantId) }
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 

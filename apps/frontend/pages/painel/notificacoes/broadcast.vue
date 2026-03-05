@@ -233,7 +233,7 @@ async function handleSubmit() {
 .page-header p  { font-size: 0.875rem; color: var(--color-surface-400); margin: 0; }
 
 .broadcast-card {
-  background: rgba(255,255,255,0.02);
+  background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: var(--radius-lg);
   padding: 28px;

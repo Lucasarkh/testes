@@ -3,6 +3,7 @@ import { PrismaService } from '@infra/db/prisma.service';
 import { NotificationType, UserRole } from '@prisma/client';
 import { BroadcastNotificationDto } from './dto/broadcast-notification.dto';
 import { EmailQueueService } from '@infra/email-queue/email-queue.service';
+import { WhapiService } from '@infra/whapi/whapi.service';
 
 // ─── Milestone definitions ────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailQueue: EmailQueueService,
+    private readonly whapi: WhapiService,
   ) {}
 
   // ─── Core CRUD ─────────────────────────────────────────────────────────────
@@ -215,6 +217,13 @@ export class NotificationsService {
     projectId: string,
     projectName: string,
     realtorLinkId?: string | null,
+    leadContext?: {
+      leadId?: string;
+      leadName?: string;
+      leadPhone?: string | null;
+      lotCode?: string | null;
+      sendLeadWelcome?: boolean;
+    },
   ) {
     // Resolve realtorLink → userId + agencyId
     let realtorUserId: string | undefined;
@@ -265,6 +274,25 @@ export class NotificationsService {
     this.checkLeadMilestones(tenantId, projectId, projectName, realtorUserId, agencyId).catch(
       (e) => this.logger.error('checkLeadMilestones', e.message),
     );
+
+    // 5. WhatsApp alerts for teams + optional welcome message for lead
+    this.sendNewLeadWhatsAppAlerts(
+      tenantId,
+      projectName,
+      leadContext?.leadName,
+      leadContext?.leadPhone || null,
+      realtorLinkId ?? null,
+      leadContext?.lotCode ?? null,
+      leadContext?.leadId,
+    ).catch((e) => this.logger.error('sendNewLeadWhatsAppAlerts', e.message));
+
+    if (leadContext?.sendLeadWelcome && leadContext.leadPhone) {
+      this.sendLeadWelcomeWhatsApp(
+        leadContext.leadPhone,
+        leadContext.leadName || 'cliente',
+        projectName,
+      ).catch((e) => this.logger.error('sendLeadWelcomeWhatsApp', e.message));
+    }
   }
 
   /** Called after a new scheduling is created */
@@ -311,6 +339,162 @@ export class NotificationsService {
     this.checkAccessMilestones(tenantId, projectId, project.name).catch(
       (e) => this.logger.error('checkAccessMilestones', e.message),
     );
+  }
+
+  async onLeadReservationConfirmed(leadId: string, provider?: string) {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        project: { select: { id: true, name: true } },
+        mapElement: { select: { code: true, name: true } },
+      },
+    });
+
+    if (!lead?.project) return;
+
+    const lotLabel = lead.mapElement?.code || lead.mapElement?.name || null;
+    const channel = provider ? ` via ${provider}` : '';
+
+    const recipients = await this.resolveWhatsAppRecipients(lead.tenantId, lead.realtorLinkId || null);
+    await this.sendWhatsAppToMany(
+      recipients,
+      `Reserva confirmada${channel} no empreendimento *${lead.project.name}*.` +
+        `${lead.name ? `\nLead: ${lead.name}.` : ''}` +
+        `${lotLabel ? `\nLote: ${lotLabel}.` : ''}` +
+        '\nA equipe deve entrar em contato para prosseguir.',
+    );
+
+    if (lead.phone) {
+      await this.whapi.sendText(
+        lead.phone,
+        `Reserva confirmada com sucesso no empreendimento *${lead.project.name}*.` +
+          `${lotLabel ? `\nLote: ${lotLabel}.` : ''}` +
+          '\nEm breve nossa equipe entrara em contato para seguir com os proximos passos.',
+      );
+    }
+  }
+
+  async onLeadUncontactedFollowUp(leadId: string, daysWithoutContact: 1 | 3 | 7) {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      include: {
+        project: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!lead?.project) return;
+
+    const recipients = await this.resolveWhatsAppRecipients(lead.tenantId, lead.realtorLinkId || null);
+    await this.sendWhatsAppToMany(
+      recipients,
+      `Alerta de lead sem atendimento (${daysWithoutContact} dia${daysWithoutContact > 1 ? 's' : ''}).` +
+        `\nEmpreendimento: *${lead.project.name}*.` +
+        `${lead.name ? `\nLead: ${lead.name}.` : ''}` +
+        `${lead.phone ? `\nTelefone: ${lead.phone}.` : ''}` +
+        '\nPriorize este contato para evitar perda da oportunidade.',
+    );
+  }
+
+  async onPublicSchedulingCreated(schedulingId: string) {
+    const scheduling = await this.prisma.scheduling.findUnique({
+      where: { id: schedulingId },
+      include: {
+        lead: { select: { name: true, phone: true } },
+        project: { select: { name: true } },
+      },
+    });
+
+    if (!scheduling?.lead?.phone || !scheduling.project) return;
+
+    const when = scheduling.scheduledAt.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+
+    await this.whapi.sendText(
+      scheduling.lead.phone,
+      `Recebemos seu agendamento para o empreendimento *${scheduling.project.name}*.` +
+        `\nData e horario: ${when}.` +
+        '\nNossa equipe confirmara os detalhes em breve.',
+    );
+  }
+
+  private async sendNewLeadWhatsAppAlerts(
+    tenantId: string,
+    projectName: string,
+    leadName?: string,
+    leadPhone?: string | null,
+    realtorLinkId?: string | null,
+    lotCode?: string | null,
+    leadId?: string,
+  ) {
+    const recipients = await this.resolveWhatsAppRecipients(tenantId, realtorLinkId ?? null);
+    const msg =
+      `Novo lead recebido no empreendimento *${projectName}*.` +
+      `${leadName ? `\nNome: ${leadName}.` : ''}` +
+      `${leadPhone ? `\nTelefone: ${leadPhone}.` : ''}` +
+      `${lotCode ? `\nLote de interesse: ${lotCode}.` : ''}` +
+      `${leadId ? `\nLead ID: ${leadId}.` : ''}` +
+      '\nAcesse o painel para atendimento rapido.';
+
+    await this.sendWhatsAppToMany(recipients, msg);
+  }
+
+  private async sendLeadWelcomeWhatsApp(phone: string, leadName: string, projectName: string) {
+    await this.whapi.sendText(
+      phone,
+      `Ola, ${leadName}! Obrigado pelo seu interesse no empreendimento *${projectName}*.` +
+        '\nRecebemos sua solicitacao e em breve um corretor entrara em contato para te atender.',
+    );
+  }
+
+  private async resolveWhatsAppRecipients(
+    tenantId: string,
+    realtorLinkId?: string | null,
+  ): Promise<string[]> {
+    const recipients = new Set<string>();
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        phone: true,
+        whatsapp: true,
+        contactPhone: true,
+      },
+    });
+
+    if (tenant?.phone) recipients.add(tenant.phone);
+    if (tenant?.whatsapp) recipients.add(tenant.whatsapp);
+    if (tenant?.contactPhone) recipients.add(tenant.contactPhone);
+
+    if (realtorLinkId) {
+      const realtor = await this.prisma.realtorLink.findUnique({
+        where: { id: realtorLinkId },
+        select: {
+          phone: true,
+          agency: { select: { phone: true } },
+        },
+      });
+
+      if (realtor?.phone) recipients.add(realtor.phone);
+      if (realtor?.agency?.phone) recipients.add(realtor.agency.phone);
+    }
+
+    return Array.from(recipients);
+  }
+
+  private async sendWhatsAppToMany(phones: string[], message: string): Promise<number> {
+    if (!phones.length) return 0;
+
+    const results = await Promise.allSettled(phones.map((phone) => this.whapi.sendText(phone, message)));
+    const sent = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+
+    if (sent === 0) {
+      this.logger.warn('No WhatsApp message was sent successfully in this batch.');
+    }
+
+    return sent;
   }
 
   // ─── Milestone Checks ───────────────────────────────────────────────────────

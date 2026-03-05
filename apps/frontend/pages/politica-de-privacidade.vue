@@ -9,7 +9,7 @@
       <div class="legal-header">
         <img src="/img/logo.svg" alt="Lotio" class="legal-logo" />
         <h1>Política de Privacidade</h1>
-        <p class="legal-version">Versão 1.0 — Última atualização: 03 de março de 2026</p>
+        <p class="legal-version">Versão 1.1 — Última atualização: 05 de março de 2026</p>
       </div>
 
       <div class="legal-content">
@@ -35,6 +35,7 @@
             <li><strong>Encarregado de Dados (DPO):</strong> [Nome do DPO], acessível pelo e-mail dpo@lotio.com.br.</li>
           </ul>
           <p>2.2. Em relação aos dados de leads, visitantes e clientes inseridos pelo Contratante na Plataforma, a Lotio atua como <strong>Operadora de Dados</strong>, cabendo ao Contratante a qualidade de <strong>Controlador</strong> perante seus próprios titulares.</p>
+          <p>2.3. A analise de credito de leads e clientes para fins de reserva, proposta ou venda de lotes e de responsabilidade exclusiva da loteadora/Contratante, que define os criterios e decide sobre aprovacao ou reprovacao. Nessa etapa, a Lotio atua apenas como fornecedora de infraestrutura tecnologica.</p>
         </section>
 
         <section>
@@ -56,6 +57,7 @@
             <li>Endereço e dados complementares;</li>
             <li>Documentos anexados;</li>
             <li>Histórico de interações, status do lead e registros de pagamento;</li>
+            <li>Transcrição de interações com assistente virtual e resumo da conversa, quando houver aceite específico no chatbot;</li>
             <li>Dados de atribuição de origem (UTM, fonte, campanhas).</li>
           </ul>
 
@@ -76,6 +78,7 @@
             <li>Data e hora do aceite (timestamp com fuso horário);</li>
             <li>Endereço IP no momento do aceite;</li>
             <li>User-Agent do navegador no momento do aceite.</li>
+            <li>Registro de aceite específico para uso do chatbot com armazenamento de resumo da conversa.</li>
           </ul>
 
           <p>3.5. <strong>Dados de cobrança e assinatura:</strong></p>
@@ -126,6 +129,10 @@
                 <td>Legítimo interesse (art. 7º, IX)</td>
               </tr>
               <tr>
+                <td>Registro de transcrição e resumo de conversa com assistente virtual para continuidade de atendimento</td>
+                <td>Consentimento (art. 7º, I)</td>
+              </tr>
+              <tr>
                 <td>Rastreamento de sessões em sites de projetos</td>
                 <td>Legítimo interesse (art. 7º, IX)</td>
               </tr>
@@ -157,10 +164,13 @@
             <li><strong>b) Gateways de pagamento:</strong> Stripe, Mercado Pago, PagSeguro, Asaas, Pagar.me — exclusivamente para processamento de cobranças da assinatura da Lotio. As integrações de pagamento do Contratante são geridas diretamente por ele;</li>
             <li><strong>c) Provedores de e-mail:</strong> Para envio de e-mails transacionais (confirmação de conta, 2FA, notificações);</li>
             <li><strong>d) Provedores de IA:</strong> Quando o Contratante utilizar módulos de IA com suas próprias chaves de API. Os dados enviados aos provedores de IA são de responsabilidade do Contratante;</li>
-            <li><strong>e) Autoridades públicas:</strong> Quando houver obrigação legal, determinação judicial ou requisição administrativa legítima;</li>
-            <li><strong>f) Auditores e consultores:</strong> Para cumprimento de obrigações legais e regulatórias, sob obrigação de sigilo.</li>
+            <li><strong>e) Provedores de mensageria:</strong> Quando o Contratante utilizar canais como WhatsApp/WhatsApp Business Platform ou integrações equivalentes para atendimento de leads. Nesses casos, dados de contato e conteudo de mensagens podem ser processados pelo respectivo provedor terceiro, conforme seus proprios termos e politicas;</li>
+            <li><strong>f) Autoridades públicas:</strong> Quando houver obrigação legal, determinação judicial ou requisição administrativa legítima;</li>
+            <li><strong>g) Auditores e consultores:</strong> Para cumprimento de obrigações legais e regulatórias, sob obrigação de sigilo.</li>
           </ul>
           <p>5.2. A Lotio <strong>não comercializa, aluga ou compartilha</strong> dados pessoais com terceiros para fins de marketing ou publicidade.</p>
+          <p>5.3. O uso de canais de mensageria de terceiros para atendimento (incluindo WhatsApp) depende de politicas e disponibilidade desses provedores, podendo ocorrer interferencias, atrasos, pausas, bloqueios ou desativacoes fora da governanca direta da Lotio.</p>
+          <p>5.4. Imagens, textos, videos, documentos comerciais e demais conteudos publicados nos empreendimentos sao fornecidos pela loteadora/Contratante, que responde integralmente pela legalidade, veracidade e adequacao desses materiais.</p>
         </section>
 
         <section>
@@ -203,6 +213,10 @@
               <tr>
                 <td>Dados de rastreamento/sessões</td>
                 <td>24 meses a partir da coleta</td>
+              </tr>
+              <tr>
+                <td>Transcrição e resumo de conversa com assistente virtual</td>
+                <td>24 meses a partir do registro, salvo exclusão antecipada por solicitação válida</td>
               </tr>
               <tr>
                 <td>Registros de aceite de termos</td>

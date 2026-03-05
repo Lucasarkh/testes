@@ -8,8 +8,13 @@ import {
   IsNotEmpty,
   IsEmail,
   Min,
+  Matches,
 } from 'class-validator';
 import { UserRole } from '@prisma/client';
+import {
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORD_POLICY_REGEX
+} from '@/common/security/password-policy';
 
 export class CreateInviteCodeDto {
   @IsString()
@@ -41,6 +46,7 @@ export class RegisterWithInviteCodeDto {
 
   @IsString()
   @IsNotEmpty()
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   password: string;
 
   @IsString()

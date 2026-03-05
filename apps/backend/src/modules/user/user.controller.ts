@@ -18,6 +18,7 @@ import { TenantGuard } from '@common/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { TenantId } from '@common/decorators/tenant-id.decorator';
+import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 
@@ -31,8 +32,12 @@ export class UserController {
   @Post()
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Criar usuário no tenant' })
-  create(@TenantId() tenantId: string, @Body() dto: CreateUserDto) {
-    return this.userService.create(tenantId, dto);
+  create(
+    @TenantId() tenantId: string,
+    @Body() dto: CreateUserDto,
+    @CurrentUser() user: any
+  ) {
+    return this.userService.create(tenantId, dto, user);
   }
 
   @Get()

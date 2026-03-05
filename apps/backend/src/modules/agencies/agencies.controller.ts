@@ -35,28 +35,6 @@ export class AgenciesController {
     return this.agenciesService.listAgencies(req.user.tenantId, p, l, search);
   }
 
-  @Get(':id')
-  @Roles('LOTEADORA', 'IMOBILIARIA')
-  findOne(@Req() req, @Param('id') id: string) {
-    // If user is IMOBILIARIA, they can only see their own agency
-    const targetId = req.user.role === 'IMOBILIARIA' ? req.user.agencyId : id;
-    return this.agenciesService.getAgency(targetId, req.user.tenantId);
-  }
-
-  @Put(':id')
-  @Roles('LOTEADORA', 'IMOBILIARIA')
-  update(@Req() req, @Param('id') id: string, @Body() dto: UpdateAgencyDto) {
-    // If user is IMOBILIARIA, they can only update their own agency
-    const targetId = req.user.role === 'IMOBILIARIA' ? req.user.agencyId : id;
-    return this.agenciesService.updateAgency(targetId, req.user.tenantId, dto);
-  }
-
-  @Delete(':id')
-  @Roles('LOTEADORA')
-  remove(@Req() req, @Param('id') id: string) {
-    return this.agenciesService.deleteAgency(id, req.user.tenantId);
-  }
-
   // --- Invites ---
 
   @Post('invite')
@@ -125,5 +103,29 @@ export class AgenciesController {
     const agencyId = queryAgencyId || req.user.agencyId;
     if (!agencyId) throw new Error('Acesso negado: ID da imobiliária não fornecido');
     return this.agenciesService.getAgencyMetrics(agencyId);
+  }
+
+  // Keep dynamic ":id" routes last so they do not shadow static routes like
+  // /invite-codes and /metrics.
+  @Get(':id')
+  @Roles('LOTEADORA', 'IMOBILIARIA')
+  findOne(@Req() req, @Param('id') id: string) {
+    // If user is IMOBILIARIA, they can only see their own agency
+    const targetId = req.user.role === 'IMOBILIARIA' ? req.user.agencyId : id;
+    return this.agenciesService.getAgency(targetId, req.user.tenantId);
+  }
+
+  @Put(':id')
+  @Roles('LOTEADORA', 'IMOBILIARIA')
+  update(@Req() req, @Param('id') id: string, @Body() dto: UpdateAgencyDto) {
+    // If user is IMOBILIARIA, they can only update their own agency
+    const targetId = req.user.role === 'IMOBILIARIA' ? req.user.agencyId : id;
+    return this.agenciesService.updateAgency(targetId, req.user.tenantId, dto);
+  }
+
+  @Delete(':id')
+  @Roles('LOTEADORA')
+  remove(@Req() req, @Param('id') id: string) {
+    return this.agenciesService.deleteAgency(id, req.user.tenantId);
   }
 }

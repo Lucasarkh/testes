@@ -3,11 +3,15 @@ import {
   IsEnum,
   IsNotEmpty,
   IsString,
-  MinLength
+  Matches
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { IsOptional } from 'class-validator';
+import {
+  PASSWORD_POLICY_MESSAGE,
+  PASSWORD_POLICY_REGEX
+} from '@/common/security/password-policy';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'Ana Editora' })
@@ -23,7 +27,7 @@ export class CreateUserDto {
   @ApiProperty({ example: 'senha123' })
   @IsString()
   @IsNotEmpty({ message: 'Senha é obrigatória' })
-  @MinLength(6, { message: 'Senha deve ter pelo menos 6 caracteres' })
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   password: string;
 
   @ApiPropertyOptional({ enum: UserRole, example: 'LOTEADORA' })

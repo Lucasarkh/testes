@@ -61,7 +61,7 @@ export class BackupService {
     label: string = 'manual'
   ): Promise<{ success: boolean; key?: string; error?: string }> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `floweats-backup-${timestamp}-${label}.sql.gz`;
+    const filename = `lotio-backup-${timestamp}-${label}.sql.gz`;
     const tempPath = path.join(os.tmpdir(), filename);
 
     this.logger.log(`Iniciando backup do banco de dados (${label})...`);
@@ -212,7 +212,7 @@ export class BackupService {
         (obj) => obj.Key && obj.Size && obj.LastModified
       )
         .map((obj) => {
-          // Extract label from filename (e.g., floweats-backup-2025-01-27T10-00-00-000Z-morning.sql.gz)
+          // Extract label from filename (e.g., lotio-backup-2025-01-27T10-00-00-000Z-morning.sql.gz)
           const filename = obj.Key!.split('/').pop() || '';
           const labelMatch = filename.match(/-(\w+)\.sql\.gz$/);
           const label = labelMatch ? labelMatch[1] : 'unknown';

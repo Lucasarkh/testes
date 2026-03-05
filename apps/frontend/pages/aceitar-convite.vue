@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import {
+  getPasswordPolicyError,
+  PASSWORD_POLICY_HINT
+} from '~/utils/passwordPolicy'
 const { get, post } = usePublicApi()
 const route = useRoute()
 const router = useRouter()
@@ -50,14 +54,9 @@ async function acceptInvite() {
   }
 
   const password = form.value.password
-  
-  // Regras separadas para melhor feedback e clareza
-  const hasMinLength = password.length >= 8
-  const hasLetters = /[a-zA-Z]/.test(password)
-  const hasNumbers = /[0-9]/.test(password)
-
-  if (!hasMinLength || !hasLetters || !hasNumbers) {
-    errorMsg.value = 'A senha deve ter pelo menos 8 caracteres, contendo letras e números.'
+  const passwordError = getPasswordPolicyError(password)
+  if (passwordError) {
+    errorMsg.value = passwordError
     return
   }
   
@@ -135,8 +134,11 @@ onMounted(() => {
           <AppPasswordInput
             v-model="form.password"
             required
-            placeholder="••••••••"
+            :placeholder="PASSWORD_POLICY_HINT"
           />
+          <div v-if="form.password && getPasswordPolicyError(form.password)" class="alert alert-error">
+            {{ getPasswordPolicyError(form.password) }}
+          </div>
         </div>
         
         <div class="form-group">

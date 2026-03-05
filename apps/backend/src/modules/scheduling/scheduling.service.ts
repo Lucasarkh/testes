@@ -186,6 +186,12 @@ export class SchedulingService {
       .onNewScheduling(tenantId, projectId, scheduling.project.name, scheduling.id)
       .catch((e) => this.logger.error('Notification onNewScheduling', e.message));
 
+    if (!userId) {
+      this.notifications
+        .onPublicSchedulingCreated(scheduling.id)
+        .catch((e) => this.logger.error('Notification onPublicSchedulingCreated', e.message));
+    }
+
     return scheduling;
   }
 

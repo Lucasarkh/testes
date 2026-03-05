@@ -21,6 +21,7 @@
             👤 {{ lead.realtorLink.name }}
           </div>
           <div v-if="lead.isRecurrent" class="badge-recurrent">Recorrente</div>
+          <div v-if="lead.aiChatTranscript" class="badge-ai">IA</div>
         </div>
       </div>
     </div>
@@ -63,4 +64,5 @@ const columns = computed(() => {
 .card-footer { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--glass-border-subtle); font-size: 0.75rem; color: var(--color-surface-200); }
 
 .badge-recurrent { position: absolute; top: -6px; right: 10px; background: var(--color-warning); color: white; font-size: 0.625rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.badge-ai { position: absolute; top: -6px; right: 80px; background: #6366f1; color: white; font-size: 0.625rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 </style>

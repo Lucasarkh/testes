@@ -271,7 +271,7 @@ onMounted(loadProjects)
           <!-- Reservation rules info -->
           <div v-if="reservationRules" class="rules-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0; color:var(--color-primary-400)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <span>Taxa de reserva: <strong>{{ feeDisplay }}</strong> · Validade: <strong>{{ expiryDisplay }}</strong> após confirmar a reserva.</span>
+            <span>Taxa de reserva: <strong>{{ feeDisplay }}</strong> · Validade: <strong>{{ expiryDisplay }}</strong> após confirmar a reserva. Esta reserva esta sujeita a analise de credito da loteadora.</span>
           </div>
 
           <div v-if="loadingLots" class="loading-state">
@@ -386,7 +386,7 @@ onMounted(loadProjects)
           <div class="confirm-row"><span>Taxa de reserva</span><strong>{{ feeDisplay }}</strong></div>
           <div v-if="feeAmount" class="confirm-row"><span>Valor estimado</span><strong>{{ formatPrice(feeAmount) }}</strong></div>
           <div class="confirm-row"><span>Validade</span><strong>{{ expiryDisplay }}</strong></div>
-          <p class="confirm-note">O lote será bloqueado imediatamente para outros compradores. A reserva expirará automaticamente após o prazo se não for confirmada.</p>
+          <p class="confirm-note">O lote será bloqueado imediatamente para outros compradores. A reserva expirará automaticamente após o prazo se não for confirmada. A efetivacao da venda esta sujeita a analise de credito da loteadora, que e a responsavel exclusiva por essa etapa.</p>
         </div>
       </div>
 

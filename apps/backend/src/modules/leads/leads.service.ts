@@ -19,6 +19,8 @@ import {
   AddLeadPaymentDto
 } from './dto/manual-lead.dto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
+import OpenAI from 'openai';
+import axios from 'axios';
 
 @Injectable()
 export class LeadsService {
@@ -101,6 +103,54 @@ export class LeadsService {
     }
   }
 
+  @Cron(CronExpression.EVERY_HOUR)
+  async sendUncontactedLeadReminders() {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const leads = await this.prisma.lead.findMany({
+      where: {
+        status: 'NEW',
+        lastContactAt: null,
+        phone: { not: null },
+        createdAt: { lte: oneDayAgo },
+      },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    for (const lead of leads) {
+      const elapsedDays = Math.floor((now.getTime() - lead.createdAt.getTime()) / (24 * 60 * 60 * 1000));
+      if (![1, 3, 7].includes(elapsedDays)) continue;
+
+      const tag = `[WHAPI_FOLLOWUP_D${elapsedDays}]`;
+      const alreadySent = await this.prisma.leadHistory.findFirst({
+        where: {
+          leadId: lead.id,
+          createdBy: 'SYSTEM_WHAPI',
+          notes: { contains: tag },
+        },
+        select: { id: true },
+      });
+
+      if (alreadySent) continue;
+
+      await this.notifications.onLeadUncontactedFollowUp(lead.id, elapsedDays as 1 | 3 | 7);
+
+      await this.prisma.leadHistory.create({
+        data: {
+          leadId: lead.id,
+          toStatus: lead.status,
+          notes: `${tag} Alerta de lead sem atendimento enviado por WhatsApp`,
+          createdBy: 'SYSTEM_WHAPI',
+        },
+      });
+    }
+  }
+
   /** Public – anyone can create a lead for a published project */
   async createPublic(projectSlug: string, dto: CreateLeadDto) {
     const project = await this.prisma.project.findUnique({
@@ -173,10 +223,11 @@ export class LeadsService {
       realtorLinkId = sessionRealtorLinkId;
     }
 
-    const { realtorCode, mapElementId, sessionId, ...leadData } = dto;
+    const { realtorCode, mapElementId, sessionId, aiChatTranscript: rawTranscript, ...leadData } = dto;
 
     // Validate if mapElementId exists within this project to avoid FK errors
     let validMapElementId: string | undefined;
+    let lotCode: string | undefined;
     if (
       mapElementId &&
       typeof mapElementId === 'string' &&
@@ -184,10 +235,29 @@ export class LeadsService {
     ) {
       const exists = await this.prisma.mapElement.findFirst({
         where: { id: mapElementId, projectId: project.id, tenantId },
-        select: { id: true }
+        select: { id: true, code: true }
       });
       if (exists) {
         validMapElementId = exists.id;
+        lotCode = exists.code || undefined;
+      }
+    }
+
+    // Validate and sanitize AI chat transcript
+    let sanitizedTranscript: string | null = null;
+    if (rawTranscript) {
+      try {
+        const parsed = JSON.parse(rawTranscript);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const cleaned = parsed
+            .filter((m: any) => m.role && m.text)
+            .map((m: any) => ({ role: String(m.role), text: String(m.text) }));
+          if (cleaned.length > 0) {
+            sanitizedTranscript = JSON.stringify(cleaned);
+          }
+        }
+      } catch {
+        this.logger.warn(`Invalid aiChatTranscript JSON for lead in project ${projectSlug}`);
       }
     }
 
@@ -201,11 +271,14 @@ export class LeadsService {
         sessionId: sessionId || null,
         isRecurrent,
         ...attributionData,
-        source: realtorCode
-          ? `corretor:${realtorCode}`
-          : realtorLinkId
-          ? 'corretor:atribuição'
-          : 'website'
+        aiChatTranscript: sanitizedTranscript,
+        source: sanitizedTranscript
+          ? (realtorCode ? `corretor:${realtorCode}:ai_chat` : 'website:ai_chat')
+          : realtorCode
+            ? `corretor:${realtorCode}`
+            : realtorLinkId
+            ? 'corretor:atribuição'
+            : 'website'
       }
     });
 
@@ -214,15 +287,31 @@ export class LeadsService {
       data: {
         leadId: lead.id,
         toStatus: LeadStatus.NEW,
-        notes: isRecurrent ? 'Lead recorrente detectado' : 'Lead criado via site',
+        notes: isRecurrent
+          ? 'Lead recorrente detectado'
+          : sanitizedTranscript
+          ? 'Lead criado via site (interagiu com IA)'
+          : 'Lead criado via site',
         createdBy: 'SYSTEM'
       }
     });
 
     // Fire-and-forget: notify panel users about the new lead
     this.notifications
-      .onNewLead(tenantId, project.id, project.name, realtorLinkId ?? null)
+      .onNewLead(tenantId, project.id, project.name, realtorLinkId ?? null, {
+        leadId: lead.id,
+        leadName: lead.name,
+        leadPhone: lead.phone,
+        lotCode: lotCode ?? null,
+        sendLeadWelcome: true,
+      })
       .catch((e) => this.logger.error('Notification onNewLead (public)', e.message));
+
+    // Fire-and-forget: generate AI summary of the chat transcript
+    if (sanitizedTranscript) {
+      this.generateAiChatSummary(lead.id, sanitizedTranscript, project.id, tenantId)
+        .catch((e) => this.logger.error('AI summary generation failed', e.message));
+    }
 
     return lead;
   }
@@ -329,7 +418,12 @@ export class LeadsService {
 
     // Fire-and-forget: notify panel users about the new manual lead
     this.notifications
-      .onNewLead(tenantId, project.id, project.name, realtorLinkId ?? null)
+      .onNewLead(tenantId, project.id, project.name, realtorLinkId ?? null, {
+        leadId: createdLead.id,
+        leadName: createdLead.name,
+        leadPhone: createdLead.phone,
+        sendLeadWelcome: false,
+      })
       .catch((e) => this.logger.error('Notification onNewLead (manual)', e.message));
 
     return createdLead;
@@ -539,7 +633,7 @@ export class LeadsService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedLead = await this.prisma.$transaction(async (tx) => {
       const updatedLead = await tx.lead.update({
         where: { id },
         data: {
@@ -623,6 +717,14 @@ export class LeadsService {
 
       return updatedLead;
     });
+
+    if (dto.status === 'RESERVATION') {
+      this.notifications
+        .onLeadReservationConfirmed(id, 'PAINEL')
+        .catch((e) => this.logger.error('Notification onLeadReservationConfirmed (panel)', e.message));
+    }
+
+    return updatedLead;
   }
 
   async addDocument(
@@ -694,11 +796,124 @@ export class LeadsService {
     if (user.role !== 'CORRETOR') return lead;
 
     const { payments, ...maskedLead } = lead;
-    
-    // As per requirement "corretor não deve ter acesso a dados sensiveis" 
+
+    // As per requirement "corretor não deve ter acesso a dados sensiveis"
     return {
       ...maskedLead,
-      payments: [] 
+      payments: []
     };
+  }
+
+  /**
+   * Generates an AI summary of a chat transcript and stores it on the lead.
+   * Called fire-and-forget after lead creation to avoid blocking the user.
+   */
+  private async generateAiChatSummary(
+    leadId: string,
+    transcript: string,
+    projectId: string,
+    tenantId: string
+  ): Promise<void> {
+    try {
+      const messages: { role: string; text: string }[] = JSON.parse(transcript);
+
+      // Strip LOT_CARD blocks from AI messages for a cleaner summary input
+      const cleanedMessages = messages.map(m => ({
+        role: m.role,
+        text: m.role === 'ai'
+          ? m.text.replace(/:::LOT_CARD[\s\S]*?:::/g, '[Sugestão de lote]').trim()
+          : m.text
+      }));
+
+      const conversationText = cleanedMessages
+        .map(m => `${m.role === 'user' ? 'Visitante' : 'Assistente IA'}: ${m.text}`)
+        .join('\n');
+
+      // Look up the project's AI config to reuse the same provider/key
+      const project = await this.prisma.project.findFirst({
+        where: { id: projectId, tenantId },
+        include: { aiConfig: true }
+      });
+
+      const aiConfig = project?.aiConfig;
+      if (!aiConfig?.apiKey) {
+        const fallback = this.buildFallbackSummary(cleanedMessages);
+        await this.prisma.lead.update({
+          where: { id: leadId },
+          data: { aiChatSummary: fallback }
+        });
+        return;
+      }
+
+      const apiKey = aiConfig.apiKey;
+      const provider = (aiConfig.provider || 'OPENAI').toUpperCase();
+
+      const summaryPrompt = `Você é um assistente que resume conversas de atendimento imobiliário.
+Analise a conversa abaixo entre um visitante e o assistente virtual de um loteamento.
+Gere um resumo CONCISO (máximo 3-4 frases) em português brasileiro contendo:
+1. O que o visitante estava procurando (tipo de lote, características, faixa de preço)
+2. Quais lotes foram sugeridos pela IA (se houver)
+3. Nível de interesse aparente (baixo, médio, alto)
+
+Conversa:
+${conversationText}
+
+Resumo:`;
+
+      let summary: string;
+
+      if (provider === 'OPENAI') {
+        const openai = new OpenAI({ apiKey });
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [{ role: 'user', content: summaryPrompt }],
+          temperature: 0.3,
+          max_tokens: 300,
+        });
+        summary = response.choices[0].message.content || '';
+      } else if (provider === 'ANTHROPIC') {
+        const resp = await axios.post(
+          'https://api.anthropic.com/v1/messages',
+          {
+            model: 'claude-3-5-haiku-20241022',
+            max_tokens: 300,
+            messages: [{ role: 'user', content: summaryPrompt }],
+            temperature: 0.3,
+          },
+          {
+            headers: {
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+          }
+        );
+        summary = resp.data.content[0].text;
+      } else {
+        // Google or unsupported: use fallback
+        summary = this.buildFallbackSummary(cleanedMessages);
+      }
+
+      await this.prisma.lead.update({
+        where: { id: leadId },
+        data: { aiChatSummary: summary }
+      });
+
+      this.logger.log(`AI summary generated for lead ${leadId}`);
+    } catch (error) {
+      this.logger.error(`Failed to generate AI summary for lead ${leadId}:`, error.message);
+    }
+  }
+
+  /**
+   * Builds a simple text summary from the transcript without calling an LLM.
+   */
+  private buildFallbackSummary(messages: { role: string; text: string }[]): string {
+    const userMessages = messages.filter(m => m.role === 'user');
+    const messageCount = messages.length;
+    const userMsgCount = userMessages.length;
+    const topics = userMessages.map(m => m.text).join(' | ');
+
+    return `Visitante interagiu com o chatbot de IA (${messageCount} mensagens, ${userMsgCount} do visitante). Perguntas: ${topics.substring(0, 500)}`;
   }
 }

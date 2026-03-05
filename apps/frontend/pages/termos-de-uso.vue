@@ -9,7 +9,7 @@
       <div class="legal-header">
         <img src="/img/logo.svg" alt="Lotio" class="legal-logo" />
         <h1>Termos de Uso</h1>
-        <p class="legal-version">Versão 1.0 — Última atualização: 03 de março de 2026</p>
+        <p class="legal-version">Versão 1.1 — Última atualização: 05 de março de 2026</p>
       </div>
 
       <div class="legal-content">
@@ -26,7 +26,8 @@
           <h2>2. OBJETO DA PLATAFORMA</h2>
           <p>2.1. A Lotio é uma plataforma SaaS (Software as a Service) destinada à gestão de loteamentos, empreendimentos imobiliários, vendas de lotes, acompanhamento de leads, geração de mapas interativos, panoramas 360°, plantas interativas, assistente de inteligência artificial, integração com gateways de pagamento, gestão de corretores e imobiliárias, campanhas de marketing e agendamentos.</p>
           <p>2.2. A Plataforma é disponibilizada em modelo de assinatura recorrente, com funcionalidades que variam conforme o plano contratado, podendo incluir módulos adicionais conforme a evolução do produto.</p>
-          <p>2.3. A Lotio <strong>não atua como imobiliária, corretora de imóveis, instituição financeira, gateway de pagamento ou prestadora de serviços jurídicos</strong>. A Plataforma é uma ferramenta tecnológica que auxilia o Contratante na gestão de seus próprios empreendimentos e operações.</p>
+          <p>2.3. A Lotio <strong>não atua como imobiliária, corretora de imóveis, instituição financeira, gateway de pagamento, agencia de marketing ou prestadora de serviços jurídicos</strong>. A Plataforma é uma ferramenta tecnológica que auxilia o Contratante na gestão de seus próprios empreendimentos e operações.</p>
+          <p>2.4. A Lotio oferece infraestrutura tecnológica para apoiar a comercializacao dos lotes. A definicao de estrategia comercial, oferta, negociacao, documentacao, analise de credito, aprovacao e conclusao da venda sao de responsabilidade exclusiva da loteadora/Contratante.</p>
         </section>
 
         <section>
@@ -49,7 +50,9 @@
             <li><strong>f)</strong> A observância de todas as obrigações tributárias, fiscais e regulatórias incidentes sobre suas atividades;</li>
             <li><strong>g)</strong> A obtenção de consentimento de seus próprios clientes para coleta e tratamento de dados pessoais, em conformidade com a LGPD;</li>
             <li><strong>h)</strong> O backup independente de seus dados críticos, quando julgar pertinente.</li>
+            <li><strong>i)</strong> A analise de credito de leads e clientes, bem como os criterios de aprovacao ou reprovacao para reserva, proposta e venda dos lotes.</li>
           </ul>
+          <p>4.2. A Lotio nao valida, audita ou garante a veracidade de imagens, textos, videos, plantas, memorial descritivo, condicoes comerciais e demais materiais publicados pela loteadora, que responde integralmente por esse conteudo perante terceiros e orgaos reguladores.</p>
         </section>
 
         <section>
@@ -103,6 +106,10 @@
 
           <p>6.5. A Lotio <strong>não garante a precisão, completude ou adequação</strong> das respostas geradas por serviços de IA, que são fornecidos por provedores terceirizados. Os conteúdos gerados por IA são oferecidos "no estado em que se encontram" (<em>as is</em>).</p>
           <p>6.6. A utilização de módulos de IA está sujeita ao Marco Legal da Inteligência Artificial (Lei nº 21.604/2025, quando em vigor) e eventuais regulamentações aplicáveis no Brasil.</p>
+          <p>6.7. Nas interações com o chatbot público do empreendimento, o visitante deverá manifestar aceite específico para o tratamento de dados da conversa por meio do aviso exibido no próprio chat antes do envio da primeira mensagem.</p>
+          <p>6.8. Mediante esse aceite, a Plataforma poderá registrar a transcrição e gerar um resumo da conversa para fins de atendimento comercial do lead, continuidade do contato humano, auditoria interna, segurança e melhoria contínua do serviço, observados os limites destes Termos e da <NuxtLink to="/politica-de-privacidade">Política de Privacidade</NuxtLink>.</p>
+          <p>6.9. O Contratante compromete-se a utilizar os dados de conversa e respectivos resumos exclusivamente para finalidades legítimas de atendimento e relacionamento com o cliente, vedado uso discriminatório, abusivo ou incompatível com a LGPD.</p>
+          <p>6.10. As funcionalidades de envio e recebimento de mensagens por canais de mensageria de terceiros (incluindo WhatsApp/WhatsApp Business Platform e integrações similares) possuem natureza de conveniência operacional e dependem de infraestrutura, APIs, politicas, moderacao, validacoes e disponibilidade desses provedores. Assim, o Contratante reconhece que tais canais podem sofrer interferencias, atrasos, limitacoes, pausas, bloqueios ou desativacao temporaria/permanente, sem que isso configure inadimplemento da Lotio, desde que nao haja culpa grave comprovada da Plataforma.</p>
         </section>
 
         <section>
@@ -181,7 +188,8 @@
             <li><strong>e)</strong> Falhas em serviços de terceiros (gateways, provedores de IA, serviços de e-mail, DNS, CDN);</li>
             <li><strong>f)</strong> Ações ou omissões de corretores, imobiliárias ou quaisquer terceiros convidados pelo Contratante;</li>
             <li><strong>g)</strong> Dados inseridos erroneamente pelo Contratante;</li>
-            <li><strong>h)</strong> Descumprimento de legislação específica por parte do Contratante em relação a seus empreendimentos.</li>
+            <li><strong>h)</strong> Descumprimento de legislação específica por parte do Contratante em relação a seus empreendimentos;</li>
+            <li><strong>i)</strong> Suspensão, bloqueio, limitação ou desativação de números, contas ou templates em canais de mensageria de terceiros (incluindo WhatsApp), quando decorrentes de politicas, analises automatizadas, fiscalizacao, indisponibilidade ou decisões dos respectivos provedores.</li>
           </ul>
         </section>
 

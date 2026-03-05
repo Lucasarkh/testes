@@ -42,4 +42,9 @@ export class CreateLeadDto {
   @IsOptional()
   @IsString()
   sessionId?: string;
+
+  @ApiPropertyOptional({ description: 'JSON da conversa com o chatbot de IA' })
+  @IsOptional()
+  @IsString()
+  aiChatTranscript?: string;
 }

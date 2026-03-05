@@ -14,6 +14,10 @@ import { UserRole } from '@prisma/client';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { EmailQueueService } from '@infra/email-queue/email-queue.service';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  isStrongPassword,
+  PASSWORD_POLICY_MESSAGE
+} from '@/common/security/password-policy';
 
 @Injectable()
 export class AuthService {
@@ -285,6 +289,9 @@ export class AuthService {
 
     const isValid = await bcrypt.compare(currentPass, user.passwordHash);
     if (!isValid) throw new UnauthorizedException('Senha atual incorreta');
+    if (!isStrongPassword(newPass)) {
+      throw new BadRequestException(PASSWORD_POLICY_MESSAGE);
+    }
 
     const passwordHash = await bcrypt.hash(newPass, 10);
     await this.prisma.user.update({
@@ -334,6 +341,9 @@ export class AuthService {
 
     if (!reset || reset.expiresAt < new Date()) {
       throw new BadRequestException('Token inválido ou expirado');
+    }
+    if (!isStrongPassword(newPass)) {
+      throw new BadRequestException(PASSWORD_POLICY_MESSAGE);
     }
 
     const passwordHash = await bcrypt.hash(newPass, 10);

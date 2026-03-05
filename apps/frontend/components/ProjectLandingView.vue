@@ -1121,6 +1121,7 @@ async function submitLead() {
       message: leadForm.value.message || undefined,
       realtorCode: corretorCode || undefined,
       sessionId: trackingStore.sessionId || undefined,
+      aiChatTranscript: chatStore.getTranscript() || undefined,
     }
     await fetchPublic(`/p/${projectSlug.value}/leads`, {
       method: 'POST',
@@ -1133,6 +1134,7 @@ async function submitLead() {
     leadSuccess.value = true
     toastSuccess('Formulário enviado com sucesso!')
     leadForm.value = { name: '', email: '', phone: '', mapElementId: '', message: '' }
+    if (chatStore.hasConversation()) chatStore.clear()
   } catch (e: any) {
     leadError.value = e.message || 'Erro ao enviar'
   }

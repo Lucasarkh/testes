@@ -8,10 +8,11 @@ import { AsaasAdapter } from './adapters/asaas.adapter';
 import { PagarMeAdapter } from './adapters/pagar-me.adapter';
 import { PagSeguroAdapter } from './adapters/pagseguro.adapter';
 import { DbModule } from '@infra/db/db.module';
+import { NotificationsModule } from '@modules/notifications/notifications.module';
 
 @Global() // Global so other modules can easily trigger payments
 @Module({
-  imports: [DbModule],
+  imports: [DbModule, NotificationsModule],
   controllers: [PaymentController, WebhooksController, PaymentConfigController],
   providers: [
     PaymentService,

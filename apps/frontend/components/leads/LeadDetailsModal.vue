@@ -44,6 +44,9 @@
               <div class="info-row">
                 <strong>Origem:</strong> {{ lead.source || 'Website' }}
               </div>
+              <div v-if="lead.aiChatTranscript" class="info-row">
+                <span class="ai-badge">Interagiu com IA</span>
+              </div>
             </div>
 
             <hr class="my-4">
@@ -179,6 +182,41 @@
                   </div>
                 </div>
               </div>
+
+              <!-- AI Chat -->
+              <div v-if="activeTab === 'ai'" class="tab-pane">
+                <h3>Interação com Assistente Virtual</h3>
+
+                <div v-if="lead.aiChatSummary" class="ai-summary-card">
+                  <label class="form-label text-xs uppercase text-gray-400 font-bold mb-2">Resumo gerado pela IA</label>
+                  <p class="ai-summary-text">{{ lead.aiChatSummary }}</p>
+                </div>
+                <div v-else class="ai-summary-card ai-summary-pending">
+                  <p>Resumo sendo gerado...</p>
+                </div>
+
+                <div v-if="parsedTranscript.length" class="mt-4">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-label text-xs uppercase text-gray-400 font-bold mb-0">
+                      Conversa completa ({{ parsedTranscript.length }} mensagens)
+                    </label>
+                    <button class="btn btn-ghost btn-sm" @click="showFullTranscript = !showFullTranscript">
+                      {{ showFullTranscript ? 'Recolher' : 'Expandir' }}
+                    </button>
+                  </div>
+                  <div v-if="showFullTranscript" class="ai-transcript">
+                    <div
+                      v-for="(msg, i) in parsedTranscript"
+                      :key="i"
+                      class="transcript-msg"
+                      :class="msg.role === 'user' ? 'transcript-user' : 'transcript-ai'"
+                    >
+                      <strong>{{ msg.role === 'user' ? 'Visitante' : 'Assistente IA' }}</strong>
+                      <p>{{ cleanMessageText(msg.text) }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -235,6 +273,22 @@ const authStore = useAuthStore()
 
 const activeTab = ref('info')
 
+// AI Chat
+const showFullTranscript = ref(false)
+
+const parsedTranscript = computed(() => {
+  if (!props.lead.aiChatTranscript) return []
+  try {
+    return JSON.parse(props.lead.aiChatTranscript)
+  } catch {
+    return []
+  }
+})
+
+const cleanMessageText = (text) => {
+  return text.replace(/:::LOT_CARD[\s\S]*?:::/g, '[Sugestão de lote exibida]').trim()
+}
+
 // Reservation state
 const showReserveConfirm = ref(false)
 const reserving = ref(false)
@@ -262,6 +316,9 @@ const tabs = computed(() => {
     { id: 'docs', label: 'Documentos', count: props.lead.documents?.length },
     { id: 'history', label: 'Histórico' }
   ]
+  if (props.lead.aiChatTranscript || props.lead.aiChatSummary) {
+    t.splice(1, 0, { id: 'ai', label: 'Chat IA' })
+  }
   if (authStore.isLoteadora || authStore.isSysAdmin) {
     t.push({ id: 'finance', label: 'Financeiro', count: props.lead.payments?.length })
   }
@@ -349,4 +406,69 @@ const saveDoc = async () => {
 
 .btn-reserve-cta { background: linear-gradient(135deg, #1a3a2a, #1d4d35); color: #4ade80; border: 1px solid #2d6a47; font-weight: 600; }
 .btn-reserve-cta:hover { background: linear-gradient(135deg, #1d4d35, #22623f); color: #86efac; border-color: #3d7a57; }
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.ai-summary-card {
+  background: var(--glass-bg-heavy);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border-left: 4px solid #818cf8;
+}
+.ai-summary-card.ai-summary-pending {
+  border-left-color: var(--color-surface-400);
+  font-style: italic;
+  color: var(--color-surface-400);
+}
+.ai-summary-text {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-surface-200);
+  margin: 0;
+}
+
+.ai-transcript {
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.transcript-msg {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+}
+.transcript-msg strong {
+  display: block;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  color: var(--color-surface-400);
+}
+.transcript-msg p {
+  margin: 0;
+  line-height: 1.5;
+}
+.transcript-user {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  margin-left: 24px;
+}
+.transcript-ai {
+  background: var(--glass-bg-heavy);
+  border: 1px solid var(--glass-border-subtle);
+  margin-right: 24px;
+}
 </style>

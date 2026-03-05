@@ -105,6 +105,7 @@
                 <div class="d-flex flex-column">
                   <strong>{{ lead.name }}</strong>
                   <span v-if="lead.isRecurrent" class="badge-recurrent-tag">Recorrente</span>
+                  <span v-if="lead.aiChatTranscript" class="badge-ai-tag">IA</span>
                 </div>
               </td>
               <td>
@@ -294,13 +295,24 @@ onMounted(async () => {
 
 .small-info { display: flex; flex-direction: column; font-size: 0.8125rem; color: var(--color-surface-200); gap: 2px; }
 
-.badge-recurrent-tag { 
-  font-size: 0.625rem; 
-  background: rgba(245, 158, 11, 0.1); 
-  color: var(--color-warning); 
-  padding: 1px 6px; 
-  border-radius: 4px; 
-  font-weight: 700; 
+.badge-recurrent-tag {
+  font-size: 0.625rem;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  width: fit-content;
+  margin-top: 2px;
+}
+
+.badge-ai-tag {
+  font-size: 0.625rem;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
   width: fit-content;
   margin-top: 2px;
 }

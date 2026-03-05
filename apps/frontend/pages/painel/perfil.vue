@@ -69,11 +69,14 @@
           </div>
           <div class="form-group">
             <label class="form-label">Nova Senha</label>
-            <AppPasswordInput v-model="passForm.newPassword" required minlength="6" />
+            <AppPasswordInput v-model="passForm.newPassword" :placeholder="PASSWORD_POLICY_HINT" required />
+            <div v-if="passwordPolicyError" class="form-error">
+              {{ passwordPolicyError }}
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Confirmar Nova Senha</label>
-            <AppPasswordInput v-model="passForm.confirmPassword" required minlength="6" />
+            <AppPasswordInput v-model="passForm.confirmPassword" required />
             <div v-if="passForm.confirmPassword && passForm.confirmPassword !== passForm.newPassword" class="form-error">
               As senhas não coincidem
             </div>
@@ -81,7 +84,7 @@
           
           <div v-if="error" class="alert alert-error">{{ error }}</div>
           
-          <button type="submit" class="btn btn-primary" :disabled="loading || (passForm.newPassword !== passForm.confirmPassword)">
+          <button type="submit" class="btn btn-primary" :disabled="loading || !!passwordPolicyError || (passForm.newPassword !== passForm.confirmPassword)">
             {{ loading ? 'Alterando...' : 'Atualizar Senha' }}
           </button>
         </form>
@@ -170,8 +173,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth'
+import {
+  getPasswordPolicyError,
+  PASSWORD_POLICY_HINT
+} from '~/utils/passwordPolicy'
 
 const authStore = useAuthStore()
 const { fetchApi, uploadApi } = useApi()
@@ -185,6 +192,7 @@ const passForm = ref({
   newPassword: '',
   confirmPassword: ''
 })
+const passwordPolicyError = computed(() => getPasswordPolicyError(passForm.value.newPassword))
 
 // Realtor-specific state
 const realtorLoading = ref(false)
@@ -277,6 +285,15 @@ async function handleUpdateRealtor() {
 }
 
 async function handleChangePassword() {
+  if (passwordPolicyError.value) {
+    error.value = passwordPolicyError.value
+    return
+  }
+  if (passForm.value.newPassword !== passForm.value.confirmPassword) {
+    error.value = 'As senhas não coincidem'
+    return
+  }
+
   loading.value = true
   error.value = ''
   try {

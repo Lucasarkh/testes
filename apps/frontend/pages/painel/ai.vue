@@ -137,7 +137,7 @@ function openEdit(config: AiConfig) {
     name: config.name,
     provider: config.provider,
     model: config.model,
-    apiKey: config.apiKey || '',
+    apiKey: '',
     systemPrompt: config.systemPrompt || '',
     temperature: config.temperature ?? 0.7,
     maxTokens: config.maxTokens ?? 1000,
@@ -256,7 +256,12 @@ onMounted(() => {
 
             <div class="form-group">
               <label class="form-label">Chave de API (API Key)</label>
-              <AppPasswordInput v-model="form.apiKey" :placeholder="apiKeyPlaceholder" :class="{ 'input-error': validateApiKey }" required />
+              <AppPasswordInput
+                v-model="form.apiKey"
+                :placeholder="editingConfig ? 'Deixe em branco para manter a chave atual' : apiKeyPlaceholder"
+                :class="{ 'input-error': validateApiKey }"
+                :required="!editingConfig"
+              />
               <small v-if="validateApiKey" class="error-msg">{{ validateApiKey }}</small>
               <small v-else class="text-muted">Sua chave é salva com segurança.</small>
             </div>

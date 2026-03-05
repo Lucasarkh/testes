@@ -448,6 +448,7 @@
                       <span>Reserva Online Garantida</span>
                     </div>
                     <p>Reserve este lote agora mesmo e garanta sua unidade.</p>
+                    <p class="reserve-small">Reserva sujeita a analise de credito da loteadora responsavel pelo empreendimento.</p>
                     <button @click="() => { bookingMode = true; tracking.trackClick('Botão: Abrir Reserva Online', 'CONVERSION'); }" class="cta-reserve-v4">
                       Reservar Lote
                     </button>
@@ -476,7 +477,7 @@
                       </div>
                       <div class="f-checkbox">
                         <input v-model="reservationForm.acceptTerms" type="checkbox" id="terms" required />
-                        <label for="terms">Aceito os termos de reserva e políticas de privacidade.</label>
+                        <label for="terms">Aceito os termos de reserva e politicas de privacidade e estou ciente de que a reserva esta sujeita a analise de credito da loteadora.</label>
                       </div>
                       <div v-if="bookingError" class="f-error">{{ bookingError }}</div>
                       <button type="submit" class="cta-submit-booking-v4" :disabled="bookingLoading">
@@ -1088,6 +1089,7 @@ async function submitLead() {
       message: leadForm.value.message || `Quero mais informações sobre o lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
       sessionId: trackingStore.sessionId || undefined,
+      aiChatTranscript: chatStore.getTranscript() || undefined,
     }
     const baseUrl = isPreview.value ? `/p/preview/${previewId.value}` : `/p/${projectSlug.value}`
     await fetchPublic(`${baseUrl}/leads`, {
@@ -1101,6 +1103,7 @@ async function submitLead() {
     leadSuccess.value = true
     financeUnlocked.value = true
     toastSuccess('Formulário enviado! Entraremos em contato.')
+    if (chatStore.hasConversation()) chatStore.clear()
   } catch (e: any) {
     leadError.value = e.message || 'Erro ao enviar'
   }
@@ -1122,6 +1125,7 @@ async function submitGateLead() {
       message: `Liberou a tabela de preços do lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
       sessionId: trackingStore.sessionId || undefined,
+      aiChatTranscript: chatStore.getTranscript() || undefined,
     }
     await fetchPublic(`/p/${projectSlug.value}/leads`, {
       method: 'POST',
@@ -1133,6 +1137,7 @@ async function submitGateLead() {
 
     financeUnlocked.value = true
     toastSuccess('Tabela liberada com sucesso!')
+    if (chatStore.hasConversation()) chatStore.clear()
   } catch (e: any) {
     toastSuccess('Tabela liberada!') // Fallback success to not block user
     financeUnlocked.value = true
@@ -1171,6 +1176,7 @@ async function submitReservation() {
       message: `RESERVA ONLINE: Intenção de compra do lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
       sessionId: trackingStore.sessionId || undefined,
+      aiChatTranscript: chatStore.getTranscript() || undefined,
     }
     
     const leadRes = await fetchPublic(`/p/${projectSlug.value}/leads`, {

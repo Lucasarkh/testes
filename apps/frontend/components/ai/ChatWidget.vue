@@ -18,6 +18,12 @@ const input = ref('')
 const loading = ref(false)
 const loadingStatus = ref('')
 const scrollContainer = ref<HTMLElement | null>(null)
+const lgpdConsentAccepted = ref(false)
+
+const consentStorageKey = computed(() => {
+  const projectSlug = props.project?.slug || 'global'
+  return `lotio-ai-chat-consent:${projectSlug}`
+})
 
 // Persist isOpen and messages in store
 const isOpen = computed({
@@ -45,6 +51,11 @@ watch(isOpen, (newVal) => {
     nextTick(scrollToBottom)
   }
 })
+
+watch(() => props.project?.slug, () => {
+  if (!process.client) return
+  lgpdConsentAccepted.value = localStorage.getItem(consentStorageKey.value) === 'accepted'
+}, { immediate: true })
 
 const getPathPrefix = () => {
   const host = process.client ? window.location.host : ''
@@ -112,7 +123,7 @@ function toggleChat() {
 }
 
 async function sendMessage() {
-  if (!input.value.trim() || loading.value) return
+  if (!lgpdConsentAccepted.value || !input.value.trim() || loading.value) return
   
   const userMsg = input.value
   tracking.trackClick('Chat: Enviar Mensagem', 'AI_CHAT')
@@ -149,6 +160,21 @@ async function sendMessage() {
     await nextTick()
     scrollToBottom()
   }
+}
+
+function onConsentChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  lgpdConsentAccepted.value = target.checked
+
+  if (!process.client) return
+
+  if (target.checked) {
+    localStorage.setItem(consentStorageKey.value, 'accepted')
+    tracking.trackClick('Chat: Aceite LGPD', 'AI_CHAT')
+    return
+  }
+
+  localStorage.removeItem(consentStorageKey.value)
 }
 
 function scrollToBottom() {
@@ -243,17 +269,34 @@ onMounted(() => {
       </div>
 
       <form class="ai-input-area" @submit.prevent="sendMessage">
+        <div class="ai-privacy-consent">
+          <label class="ai-consent-label">
+            <input
+              type="checkbox"
+              :checked="lgpdConsentAccepted"
+              @change="onConsentChange"
+            />
+            <span>
+              Concordo que um resumo desta conversa com o assistente virtual possa ser registrado para atendimento e melhoria do serviço, conforme
+              <NuxtLink to="/termos-de-uso" target="_blank">Termos de Uso</NuxtLink>
+              e
+              <NuxtLink to="/politica-de-privacidade" target="_blank">Política de Privacidade</NuxtLink>.
+            </span>
+          </label>
+        </div>
+
         <div class="ai-input-wrapper">
           <input 
             v-model="input" 
             placeholder="Digite sua dúvida..." 
             maxlength="280"
+            :disabled="!lgpdConsentAccepted"
           />
           <div class="input-limit" :class="{ 'error': input.length >= 280 }">
             {{ input.length }}/280
           </div>
         </div>
-        <button type="submit" :disabled="!input.trim() || loading">
+        <button type="submit" :disabled="!lgpdConsentAccepted || !input.trim() || loading">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </form>
@@ -631,8 +674,35 @@ onMounted(() => {
   background: var(--glass-bg);
   border-top: 1px solid #e2e8f0;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+}
+
+.ai-privacy-consent {
+  width: 100%;
+  background: var(--glass-bg-heavy);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.ai-consent-label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.72rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.ai-consent-label input {
+  margin-top: 2px;
+}
+
+.ai-consent-label a {
+  color: #0071e3;
+  text-decoration: underline;
 }
 
 .ai-input-wrapper {

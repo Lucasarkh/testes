@@ -35,6 +35,15 @@ export const useAiChatStore = defineStore('aiChat', () => {
     hasInitialized.value = false
   }
 
+  function hasConversation(): boolean {
+    return messages.value.length > 1
+  }
+
+  function getTranscript(): string | null {
+    if (!hasConversation()) return null
+    return JSON.stringify(messages.value)
+  }
+
   return {
     isOpen,
     messages,
@@ -43,6 +52,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
     init,
     toggle,
     addMessage,
-    clear
+    clear,
+    hasConversation,
+    getTranscript
   }
 })
