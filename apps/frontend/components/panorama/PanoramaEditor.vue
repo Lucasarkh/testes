@@ -200,7 +200,7 @@
 
     <!-- ── Create Panorama Modal ──────────────────────── -->
     <Teleport to="body">
-      <div v-if="showCreatePanorama" class="modal-backdrop" @click.self="showCreatePanorama = false">
+      <div v-if="showCreatePanorama" class="modal-backdrop">
         <div class="modal-content" style="max-width: 440px;">
           <h2>Novo Panorama</h2>
           <div class="form-group">
@@ -226,7 +226,7 @@
 
     <!-- ── Add Snapshot Modal ─────────────────────────── -->
     <Teleport to="body">
-      <div v-if="showAddSnapshot" class="modal-backdrop" @click.self="showAddSnapshot = false">
+      <div v-if="showAddSnapshot" class="modal-backdrop">
         <div class="modal-content" style="max-width: 480px;">
           <h2>Adicionar Snapshot</h2>
           <div class="form-group">
@@ -250,7 +250,7 @@
 
     <!-- ── Beacon Edit Modal ──────────────────────────── -->
     <Teleport to="body">
-      <div v-if="showBeaconModal" class="modal-backdrop" @click.self="closeBeaconModal">
+      <div v-if="showBeaconModal" class="modal-backdrop">
         <div class="modal-content" style="max-width: 480px;">
           <h2>{{ editingBeacon ? 'Editar Beacon' : 'Novo Beacon' }}</h2>
           <div class="form-group">
@@ -294,7 +294,7 @@
 
     <!-- ── Settings Modal ─────────────────────────────── -->
     <Teleport to="body">
-      <div v-if="showSettings" class="modal-backdrop" @click.self="showSettings = false">
+      <div v-if="showSettings" class="modal-backdrop">
         <div class="modal-content" style="max-width: 480px;">
           <h2>Configurações do Panorama</h2>
           <div class="form-group">

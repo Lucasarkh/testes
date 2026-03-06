@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="modelValue" class="pm-modal-overlay" @click.self="$emit('update:modelValue', false)">
+      <div v-if="modelValue" class="pm-modal-overlay">
         <div class="pm-modal" role="dialog" aria-modal="true" :aria-label="isEdit ? 'Editar hotspot' : 'Novo hotspot'">
           <div class="pm-modal__header">
             <h3>{{ isEdit ? 'Editar hotspot' : 'Novo hotspot' }}</h3>

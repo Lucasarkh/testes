@@ -467,7 +467,7 @@ onMounted(fetchData)
     </template>
 
     <!-- ─── Pricing Table Modal (Volume Pricing) ───────── -->
-    <div v-if="showPricingTableModal" class="modal-overlay" @click.self="showPricingTableModal = false">
+    <div v-if="showPricingTableModal" class="modal-overlay">
       <div class="modal modal-lg" @click.stop>
         <div class="modal-header">
           <div>
@@ -603,7 +603,7 @@ onMounted(fetchData)
     </div>
 
     <!-- ─── Assign Pricing Table Modal ─────────────────── -->
-    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
+    <div v-if="showAssignModal" class="modal-overlay">
       <div class="modal modal-lg" @click.stop>
         <div class="modal-header">
           <div>
@@ -666,7 +666,7 @@ onMounted(fetchData)
     </div>
 
     <!-- ─── Limits Modal ───────────────────────────────── -->
-    <div v-if="showLimitsModal" class="modal-overlay" @click.self="showLimitsModal = false">
+    <div v-if="showLimitsModal" class="modal-overlay">
       <div class="modal" style="max-width: 450px;" @click.stop>
         <div class="modal-header">
           <h3>Limites — {{ selectedTenant?.name }}</h3>
@@ -712,7 +712,7 @@ onMounted(fetchData)
     </div>
 
     <!-- ─── Anchor Modal ───────────────────────────────── -->
-    <div v-if="showAnchorModal" class="modal-overlay" @click.self="showAnchorModal = false">
+    <div v-if="showAnchorModal" class="modal-overlay">
       <div class="modal" style="max-width: 400px;" @click.stop>
         <div class="modal-header">
           <h3>Data de Vencimento — {{ selectedTenant?.name }}</h3>

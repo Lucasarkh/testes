@@ -434,7 +434,7 @@
       </section>
 
       <!-- Modal de Agendamento (Overlay) -->
-      <div v-if="showSchedulingModal" class="v4-modal-overlay" @click.self="showSchedulingModal = false">
+      <div v-if="showSchedulingModal" class="v4-modal-overlay">
         <div class="v4-modal-content" style="max-width: 600px; position: relative;">
           <button @click="showSchedulingModal = false" class="v4-modal-close">×</button>
           <LandingPublicSchedulingForm :project-slug="project.slug" @success="showSchedulingModal = false" />
@@ -626,7 +626,7 @@
 
       <!-- Filter Selection Modal -->
       <Transition name="fade">
-        <div v-if="isFilterModalOpen" class="v4-filter-modal-overlay" @click.self="toggleFilterModal">
+        <div v-if="isFilterModalOpen" class="v4-filter-modal-overlay">
           <div class="v4-filter-modal-card">
             <div class="v4-modal-header">
               <h3 class="v4-modal-title">Lote Ideal</h3>

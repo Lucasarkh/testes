@@ -370,7 +370,7 @@ definePageMeta({
 
     <!-- Modal Modal -->
     <Teleport to="body">
-      <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div v-if="showModal" class="modal-overlay">
         <div class="modal modal-lg" @click.stop>
           <div class="modal-header">
             <h2>{{ editingRealtor ? 'Editar Corretor' : 'Novo Corretor' }}</h2>
@@ -458,7 +458,7 @@ definePageMeta({
 
     <!-- Invite Modal -->
     <Teleport to="body">
-      <div v-if="showInviteModal" class="modal-overlay" @click.self="showInviteModal = false">
+      <div v-if="showInviteModal" class="modal-overlay">
         <div class="modal" @click.stop>
           <div class="modal-header">
             <h2>Convidar Corretor</h2>

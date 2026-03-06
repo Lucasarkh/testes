@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
+    <div v-if="visible" class="modal-overlay">
       <div class="modal-card">
         <h3 class="modal-title">Gerar grade de lotes</h3>
         <p class="modal-desc">Crie uma grade de lotes automaticamente. Os lotes serão colocados a partir da posição (0, 0) no mapa.</p>

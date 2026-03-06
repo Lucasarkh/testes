@@ -268,7 +268,7 @@ onMounted(fetchData)
     </div>
 
     <!-- Modal Form -->
-    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+    <div v-if="showModal" class="modal-overlay">
       <div class="modal" style="max-width: 600px;">
         <div class="modal-header">
           <h3>{{ editingConfig ? 'Editar' : 'Novo' }} Gateway de Pagamento</h3>

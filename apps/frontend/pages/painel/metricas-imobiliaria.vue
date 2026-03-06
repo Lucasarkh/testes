@@ -92,7 +92,7 @@
 
     <!-- Invite Modal -->
     <Teleport to="body">
-      <div v-if="showInviteModal" class="modal-overlay" @click.self="showInviteModal = false">
+      <div v-if="showInviteModal" class="modal-overlay">
         <div class="modal" @click.stop>
           <div class="modal-header">
             <h2>Convidar Novo Corretor</h2>

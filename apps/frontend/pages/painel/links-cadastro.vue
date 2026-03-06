@@ -209,7 +209,7 @@ onMounted(fetchCodes)
 
     <!-- Create Modal -->
     <Teleport to="body">
-      <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div v-if="showModal" class="modal-overlay">
         <div class="modal">
           <div class="modal-header">
             <h2>Novo Link de Cadastro</h2>

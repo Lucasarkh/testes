@@ -56,7 +56,7 @@
     </div>
 
     <!-- Create / Edit Modal -->
-    <div v-if="showCreate || editingUser" class="modal-overlay" @click.self="closeModal">
+    <div v-if="showCreate || editingUser" class="modal-overlay">
       <div class="modal">
         <div class="modal-header">
           <h2>{{ editingUser ? 'Editar Usuário' : 'Novo Usuário' }}</h2>

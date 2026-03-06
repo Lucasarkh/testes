@@ -73,7 +73,7 @@
     </div>
 
     <!-- Restore Confirmation Modal -->
-    <div v-if="showRestoreModal" class="modal-overlay" @click.self="showRestoreModal = false">
+    <div v-if="showRestoreModal" class="modal-overlay">
       <div class="modal" style="max-width: 500px;">
         <div class="modal-header">
           <h2 style="color: #ef4444;">

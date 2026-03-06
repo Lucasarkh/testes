@@ -25,7 +25,7 @@
     </div>
 
     <!-- Contact Form Modal -->
-    <div v-if="showContactForm" class="modal-overlay" @click.self="showContactForm = false">
+    <div v-if="showContactForm" class="modal-overlay">
       <div class="modal-content animate-scale-in">
         <button class="modal-close" @click="showContactForm = false">&times;</button>
         <h2 class="modal-title">Solicite uma Demonstração</h2>

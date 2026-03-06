@@ -614,7 +614,7 @@
       </section>
 
       <!-- Reservation Details Modal -->
-      <div v-if="viewingReservation" class="modal-overlay" @click.self="viewingReservation = null">
+      <div v-if="viewingReservation" class="modal-overlay">
         <div class="modal" style="max-width: 520px;">
           <div class="modal-header" style="margin-bottom: 16px;">
             <h3>Reserva — {{ viewingReservation.mapElement?.code }}</h3>
@@ -665,7 +665,7 @@
       </div>
 
       <!-- Lot Edit Modal -->
-      <div v-if="editingLot" class="modal-overlay" @click.self="editingLot = null">
+      <div v-if="editingLot" class="modal-overlay">
         <div class="modal" style="max-width: 800px;">
           <div class="modal-header" style="margin-bottom: 16px;">
             <h3>Editar Lote: {{ editingLot.mapElement?.code || editingLot.id }}</h3>

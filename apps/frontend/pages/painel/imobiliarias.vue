@@ -293,7 +293,7 @@ onMounted(fetchAgencies)
 
     <!-- Modal Padrão -->
     <Teleport to="body">
-      <div v-if="showModal || showInviteModal" class="modal-overlay" @click.self="showModal = false; showInviteModal = false">
+      <div v-if="showModal || showInviteModal" class="modal-overlay">
         <div class="modal" @click.stop>
           <div class="modal-header">
             <h2>{{ showInviteModal ? 'Enviar Convite' : (editingAgency ? 'Editar Imobiliária' : 'Nova Imobiliária') }}</h2>

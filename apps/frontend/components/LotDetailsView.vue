@@ -664,7 +664,7 @@
 
       <!-- Ideal Lot Filter Modal -->
       <Transition name="fade-lot-modal">
-        <div v-if="isIdealLotModalOpen" class="v4-filter-modal-overlay" @click.self="toggleIdealLotModal">
+        <div v-if="isIdealLotModalOpen" class="v4-filter-modal-overlay">
           <div class="v4-filter-modal-card">
             <div class="v4-modal-header">
               <h3 class="v4-modal-title">Lote Ideal</h3>

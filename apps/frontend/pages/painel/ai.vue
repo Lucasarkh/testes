@@ -215,7 +215,7 @@ onMounted(() => {
     </div>
 
     <!-- Modal -->
-    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+    <div v-if="showModal" class="modal-overlay">
       <div class="modal-card max-w-2xl">
         <div class="modal-header">
           <h2>{{ editingConfig ? 'Editar Configuração' : 'Nova Configuração' }}</h2>

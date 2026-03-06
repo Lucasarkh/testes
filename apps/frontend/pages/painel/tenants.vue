@@ -63,7 +63,7 @@
     </div>
 
     <!-- Create Tenant Modal -->
-    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+    <div v-if="showModal" class="modal-overlay">
       <div class="modal modal-lg" @click.stop>
         <div class="modal-header">
           <h2>{{ editingId ? 'Editar Loteadora' : 'Nova Loteadora' }}</h2>
@@ -207,7 +207,7 @@
     </div>
 
     <!-- Projects List Modal -->
-    <div v-if="showProjectsModal" class="modal-overlay" @click.self="showProjectsModal = false">
+    <div v-if="showProjectsModal" class="modal-overlay">
       <div class="modal modal-xl" @click.stop>
         <div class="modal-header">
           <div>

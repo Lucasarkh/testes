@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-overlay">
     <div class="modal modal-xl">
       <div class="modal-header d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-3">
@@ -225,7 +225,7 @@
 
     <!-- Modals Inner -->
     <!-- Reserve Lot Confirmation -->
-    <div v-if="showReserveConfirm" class="modal-overlay" @click.self="showReserveConfirm = false">
+    <div v-if="showReserveConfirm" class="modal-overlay">
       <div class="modal sm">
         <div class="modal-header"><h3>Confirmar Reserva</h3></div>
         <div class="modal-body">
@@ -241,7 +241,7 @@
       </div>
     </div>
 
-    <div v-if="showAddDoc" class="modal-overlay" @click.self="showAddDoc = false">
+    <div v-if="showAddDoc" class="modal-overlay">
       <div class="modal sm">
         <div class="modal-header"><h3>Novo Documento</h3></div>
         <div class="modal-body">

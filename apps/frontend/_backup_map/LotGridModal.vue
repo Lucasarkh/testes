@@ -1,5 +1,5 @@
 <template>
-  <div class="lot-grid-modal-overlay" @click.self="$emit('close')">
+  <div class="lot-grid-modal-overlay">
     <div class="lot-grid-modal">
       <div class="modal-header">
         <h3>⊞ Grade de Lotes</h3>

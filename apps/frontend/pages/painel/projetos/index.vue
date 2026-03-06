@@ -31,7 +31,7 @@
     <CommonPagination :meta="meta" @change="loadProjects" />
 
     <!-- Create modal -->
-    <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
+    <div v-if="showCreate" class="modal-overlay">
       <div class="modal">
         <div class="modal-title">Novo Projeto</div>
         <form @submit.prevent="handleCreate">

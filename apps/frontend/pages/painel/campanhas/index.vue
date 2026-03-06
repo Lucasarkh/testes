@@ -198,7 +198,7 @@ definePageMeta({
 
     <!-- Modal Form -->
     <Teleport to="body">
-      <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div v-if="showModal" class="modal-overlay">
         <div class="modal modal-lg" @click.stop>
           <div class="modal-header">
             <h2>{{ editingCampaign ? 'Editar Campanha' : 'Nova Campanha' }}</h2>
