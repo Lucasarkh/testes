@@ -925,8 +925,101 @@ const slopeLabel = (s: string) => {
 
 const otherLots = computed(() => {
   if (!project.value) return []
-  return (project.value.mapElements || [])
-    .filter((e: any) => e.type === 'LOT' && e.id !== lot.value?.id && (e.lotDetails?.status || 'AVAILABLE') === 'AVAILABLE')
+
+  let mapData: any = null
+  try {
+    mapData = (project.value as any).mapData
+      ? (typeof (project.value as any).mapData === 'string'
+        ? JSON.parse((project.value as any).mapData)
+        : (project.value as any).mapData)
+      : null
+  } catch {
+    mapData = null
+  }
+
+  const fromElements = ((project.value as any).mapElements || [])
+    .filter((e: any) => e.type === 'LOT')
+    .map((e: any) => ({
+      id: e.id,
+      code: e.code || e.name || e.id,
+      name: e.name || e.code || 'Lote',
+      lotDetails: e.lotDetails || {},
+    }))
+
+  const fromMapData = mapData
+    ? (Array.isArray(mapData.lots)
+      ? mapData.lots.map(([, l]: [any, any]) => l)
+      : (mapData.lots ? Object.values(mapData.lots) : []))
+        .map((l: any) => ({
+          id: l.id,
+          code: l.code || l.label || l.id,
+          name: l.label || l.code || 'Lote',
+          lotDetails: {
+            status: (l.status || 'AVAILABLE').toString().toUpperCase(),
+            areaM2: l.manualAreaM2 ?? null,
+            price: l.price ?? null,
+          },
+        }))
+    : []
+
+  const fromTeaser = (((project.value as any).teaserLots || []) as any[])
+    .map((l: any) => ({
+      id: l.id,
+      code: l.code || l.name || l.id,
+      name: l.name || l.code || 'Lote',
+      lotDetails: {
+        ...(l.lotDetails || {}),
+        status: ((l.lotDetails?.status || 'AVAILABLE') as string).toUpperCase(),
+      },
+    }))
+
+  const fromPublicLots = ((publicLotCandidates.value || []) as any[])
+    .map((l: any) => ({
+      id: l.id,
+      code: l.code || l.name || l.id,
+      name: l.name || l.code || 'Lote',
+      lotDetails: {
+        ...(l.lotDetails || {}),
+        status: ((l.lotDetails?.status || 'AVAILABLE') as string).toUpperCase(),
+      },
+    }))
+
+  const currentLotCode = normalizeLotIdentifier(lot.value?.code)
+    || normalizeLotIdentifier(lot.value?.name)
+    || normalizeLotIdentifier(lot.value?.id)
+  const currentLotId = normalizeLotIdentifier(lot.value?.id)
+
+  const merged = [...fromElements, ...fromMapData, ...fromTeaser, ...fromPublicLots]
+  const deduped = new Map<string, any>()
+
+  for (const item of merged) {
+    const idKey = normalizeLotIdentifier(item.id)
+    const codeKey = normalizeLotIdentifier(item.code || item.name)
+    const key = idKey || codeKey
+    if (!key) continue
+
+    if (!deduped.has(key)) {
+      deduped.set(key, item)
+      continue
+    }
+
+    const prev = deduped.get(key)
+    // Prefer richer entries that have explicit lotDetails values.
+    const prevScore = Number(!!prev?.lotDetails?.price) + Number(!!prev?.lotDetails?.areaM2)
+    const nextScore = Number(!!item?.lotDetails?.price) + Number(!!item?.lotDetails?.areaM2)
+    if (nextScore >= prevScore) {
+      deduped.set(key, { ...prev, ...item, lotDetails: { ...(prev?.lotDetails || {}), ...(item?.lotDetails || {}) } })
+    }
+  }
+
+  return Array.from(deduped.values())
+    .filter((e: any) => {
+      const idMatch = normalizeLotIdentifier(e.id) && normalizeLotIdentifier(e.id) === currentLotId
+      const codeMatch = normalizeLotIdentifier(e.code || e.name) && normalizeLotIdentifier(e.code || e.name) === currentLotCode
+      if (idMatch || codeMatch) return false
+
+      return (e.lotDetails?.status || 'AVAILABLE').toUpperCase() === 'AVAILABLE'
+    })
 })
 
 const otherLotUrl = (l: any) => {
@@ -1078,8 +1171,27 @@ onMounted(async () => {
 
     if (!isPreview.value && lotCode.value) {
       try {
-        const lotsResponse = await fetchPublic(`/p/${projectSlug.value}/lots?search=${searchParam}&limit=50&page=1`)
-        publicLotCandidates.value = Array.isArray(lotsResponse?.data) ? lotsResponse.data : []
+        // Load a wider candidate set so we can render "Outras Oportunidades"
+        // even when project payloads don't include mapElements/mapData.
+        const [allLotsResponse, searchedLotResponse] = await Promise.allSettled([
+          fetchPublic(`/p/${projectSlug.value}/lots?limit=100&page=1`),
+          fetchPublic(`/p/${projectSlug.value}/lots?search=${searchParam}&limit=20&page=1`),
+        ])
+
+        const allLots = allLotsResponse.status === 'fulfilled' && Array.isArray(allLotsResponse.value?.data)
+          ? allLotsResponse.value.data
+          : []
+        const searchedLots = searchedLotResponse.status === 'fulfilled' && Array.isArray(searchedLotResponse.value?.data)
+          ? searchedLotResponse.value.data
+          : []
+
+        const byId = new Map<string, any>()
+        for (const item of [...allLots, ...searchedLots]) {
+          const key = String(item?.id || item?.code || item?.name || '')
+          if (!key) continue
+          if (!byId.has(key)) byId.set(key, item)
+        }
+        publicLotCandidates.value = Array.from(byId.values())
       } catch {
         publicLotCandidates.value = []
       }
@@ -1546,6 +1658,7 @@ async function submitReservation() {
 .v4-footer-tenant { font-weight: 600; font-size: 17px; margin-bottom: 4px; display: block; }
 .v4-footer-project { font-size: 14px; color: var(--v4-text-muted); }
 .v4-footer-copyright { font-size: 12px; color: var(--v4-text-muted); }
+.v4-footer { padding: 32px 0;}
 .other-assets-v4 { width: 100%; position: relative; margin-bottom: 60px; padding-bottom: 60px; border-bottom: 1px solid var(--v4-border); }
 .assets-header-v4 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 32px; }
 .assets-header-v4 h3 { font-size: 24px; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
@@ -1691,6 +1804,7 @@ async function submitReservation() {
 .lightbox-close { position: absolute; top: 20px; right: 20px; color: white; background: none; border: none; font-size: 32px; cursor: pointer; }
 
 @media (max-width: 768px) {
+  .other-assets-v4 { margin-bottom: 32px; padding-bottom: 0; } 
   .hero-v4, .section-v4 { padding: 20px; border-radius: 20px; }
   .hero-header-row { flex-direction: column; align-items: flex-start; gap: 24px; margin-bottom: 32px; }
   .lot-code-title { font-size: 32px; }
@@ -1707,7 +1821,7 @@ async function submitReservation() {
   .q-val { font-size: 18px; }
   .q-unit { font-size: 10px; }
   
-  .split-view { padding-top: 20px; padding-bottom: 40px; gap: 24px; }
+  .split-view { padding: 20px 16px 40px; gap: 0; }
   
   .r-value { font-size: 26px !important; letter-spacing: -0.5px; word-break: break-all; }
   .r-label { font-size: 13px; }

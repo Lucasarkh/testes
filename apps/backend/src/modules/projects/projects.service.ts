@@ -470,6 +470,12 @@ export class ProjectsService {
         ...(dto.bannerImageUrl !== undefined && {
           bannerImageUrl: dto.bannerImageUrl
         }),
+        ...(dto.bannerImageTabletUrl !== undefined && {
+          bannerImageTabletUrl: dto.bannerImageTabletUrl
+        }),
+        ...(dto.bannerImageMobileUrl !== undefined && {
+          bannerImageMobileUrl: dto.bannerImageMobileUrl
+        }),
         ...(dto.status && { status: dto.status }),
         ...(dto.mapData !== undefined && { mapData: dto.mapData }),
         ...(dto.highlightsJson !== undefined && {

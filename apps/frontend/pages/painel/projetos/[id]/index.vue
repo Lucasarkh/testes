@@ -903,17 +903,59 @@
         <div class="pub-row pub-row--2col">
           <div class="pub-card">
             <h4 class="pub-card__title">Banner</h4>
-            <div v-if="project.bannerImageUrl" style="position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--glass-border-subtle); aspect-ratio: 16/6;">
-              <img :src="project.bannerImageUrl" alt="Banner" style="width: 100%; height: 100%; object-fit: cover;" />
-              <button v-if="authStore.canEdit" class="pub-card__overlay-btn" @click="removeBannerImage">Remover</button>
+            <p style="margin: 0 0 12px 0; color: var(--color-surface-500); font-size: 0.75rem;">
+              Cada faixa de resolução usa um banner dedicado na página pública.
+            </p>
+
+            <div class="pub-banner-grid">
+              <div class="pub-banner-item">
+                <div class="pub-banner-item__head">
+                  <strong>Desktop</strong>
+                  <span>&gt; 1024px</span>
+                </div>
+                <div v-if="bannerUrlByDevice('desktop')" class="pub-banner-preview">
+                  <img :src="bannerUrlByDevice('desktop')" alt="Banner desktop" />
+                  <button v-if="authStore.canEdit" class="pub-card__overlay-btn" @click="removeBannerImage('desktop')">Remover</button>
+                </div>
+                <div v-else class="pub-banner-empty">Nenhum banner desktop</div>
+                <label v-if="authStore.canEdit" class="pub-card__upload-btn">
+                  {{ uploadingBannerDevice === 'desktop' ? 'Enviando...' : 'Enviar Desktop' }}
+                  <input type="file" accept="image/*" style="display:none" @change="uploadBannerImage($event, 'desktop')" :disabled="!!uploadingBannerDevice" />
+                </label>
+              </div>
+
+              <div class="pub-banner-item">
+                <div class="pub-banner-item__head">
+                  <strong>Tablet</strong>
+                  <span>769px a 1024px</span>
+                </div>
+                <div v-if="bannerUrlByDevice('tablet')" class="pub-banner-preview">
+                  <img :src="bannerUrlByDevice('tablet')" alt="Banner tablet" />
+                  <button v-if="authStore.canEdit && project.bannerImageTabletUrl" class="pub-card__overlay-btn" @click="removeBannerImage('tablet')">Remover</button>
+                </div>
+                <div v-else class="pub-banner-empty">Usará banner desktop</div>
+                <label v-if="authStore.canEdit" class="pub-card__upload-btn">
+                  {{ uploadingBannerDevice === 'tablet' ? 'Enviando...' : 'Enviar Tablet' }}
+                  <input type="file" accept="image/*" style="display:none" @change="uploadBannerImage($event, 'tablet')" :disabled="!!uploadingBannerDevice" />
+                </label>
+              </div>
+
+              <div class="pub-banner-item">
+                <div class="pub-banner-item__head">
+                  <strong>Celular</strong>
+                  <span>&lt;= 768px</span>
+                </div>
+                <div v-if="bannerUrlByDevice('mobile')" class="pub-banner-preview">
+                  <img :src="bannerUrlByDevice('mobile')" alt="Banner mobile" />
+                  <button v-if="authStore.canEdit && project.bannerImageMobileUrl" class="pub-card__overlay-btn" @click="removeBannerImage('mobile')">Remover</button>
+                </div>
+                <div v-else class="pub-banner-empty">Usará banner tablet/desktop</div>
+                <label v-if="authStore.canEdit" class="pub-card__upload-btn">
+                  {{ uploadingBannerDevice === 'mobile' ? 'Enviando...' : 'Enviar Celular' }}
+                  <input type="file" accept="image/*" style="display:none" @change="uploadBannerImage($event, 'mobile')" :disabled="!!uploadingBannerDevice" />
+                </label>
+              </div>
             </div>
-            <div v-else style="border: 2px dashed var(--glass-border-subtle); background: var(--glass-bg-heavy); border-radius: 10px; padding: 32px; text-align: center;">
-              <p style="color: var(--color-surface-500); font-size: 0.8rem; margin: 0;">Nenhum banner configurado</p>
-            </div>
-            <label v-if="authStore.canEdit" class="pub-card__upload-btn">
-              {{ uploadingBanner ? 'Enviando...' : 'Enviar Banner' }}
-              <input type="file" accept="image/*" style="display:none" @change="uploadBannerImage" :disabled="uploadingBanner" />
-            </label>
           </div>
 
           <div class="pub-card">
@@ -1375,7 +1417,8 @@ const lotStats = computed(() => {
   return { total, available, reserved, sold }
 })
 const activeSection = ref('configuracoes')
-const uploadingBanner = ref(false)
+type BannerDevice = 'desktop' | 'tablet' | 'mobile'
+const uploadingBannerDevice = ref<BannerDevice | null>(null)
 const uploadingMedia = ref(false)
 const savingSettings = ref(false)
 const settingsError = ref('')
@@ -2752,25 +2795,34 @@ const confirmDelete = async () => {
   }
 }
 
-const uploadBannerImage = async (e: Event) => {
+const bannerUrlByDevice = (device: BannerDevice) => {
+  if (!project.value) return ''
+  if (device === 'mobile') return project.value.bannerImageMobileUrl || ''
+  if (device === 'tablet') return project.value.bannerImageTabletUrl || ''
+  return project.value.bannerImageUrl || ''
+}
+
+const uploadBannerImage = async (e: Event, device: BannerDevice = 'desktop') => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  uploadingBanner.value = true
+  uploadingBannerDevice.value = device
   try {
     const fd = new FormData(); fd.append('file', file)
-    project.value = await uploadApi(`/projects/${projectId}/banner-image`, fd)
-    toastSuccess('Banner do projeto enviado!')
+    project.value = await uploadApi(`/projects/${projectId}/banner-image?device=${device}`, fd)
+    const deviceLabel = device === 'desktop' ? 'desktop' : device === 'tablet' ? 'tablet' : 'celular'
+    toastSuccess(`Banner ${deviceLabel} enviado!`)
   } catch (err) {
     toastFromError(err, 'Erro ao enviar banner')
   }
   (e.target as HTMLInputElement).value = ''
-  uploadingBanner.value = false
+  uploadingBannerDevice.value = null
 }
 
-const removeBannerImage = async () => {
+const removeBannerImage = async (device: BannerDevice = 'desktop') => {
   try {
-    project.value = await fetchApi(`/projects/${projectId}/banner-image`, { method: 'DELETE' })
-    toastSuccess('Banner removido')
+    project.value = await fetchApi(`/projects/${projectId}/banner-image?device=${device}`, { method: 'DELETE' })
+    const deviceLabel = device === 'desktop' ? 'desktop' : device === 'tablet' ? 'tablet' : 'celular'
+    toastSuccess(`Banner ${deviceLabel} removido`)
   } catch (e: any) {
     toastFromError(e, 'Erro ao remover banner')
   }
@@ -3542,6 +3594,63 @@ onMounted(async () => {
 }
 .pub-nearby-item__link:hover {
   text-decoration: underline;
+}
+
+.pub-banner-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  max-width: 820px;
+}
+
+.pub-banner-item {
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--glass-bg-heavy);
+}
+
+.pub-banner-item__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pub-banner-item__head strong {
+  font-size: 0.84rem;
+  color: var(--color-surface-200);
+}
+
+.pub-banner-item__head span {
+  font-size: 0.72rem;
+  color: var(--color-surface-500);
+}
+
+.pub-banner-preview {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border-subtle);
+  aspect-ratio: 16 / 5;
+  margin-bottom: 10px;
+}
+
+.pub-banner-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pub-banner-empty {
+  border: 1px dashed var(--glass-border-subtle);
+  background: var(--glass-bg);
+  border-radius: 8px;
+  padding: 16px 12px;
+  margin-bottom: 10px;
+  text-align: center;
+  color: var(--color-surface-500);
+  font-size: 0.74rem;
 }
 
 /* Save bar */

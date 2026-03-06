@@ -40,18 +40,20 @@ export class UploadController {
   uploadBannerImage(
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFile() file: Express.Multer.File,
+    @Query('device') device?: string,
   ) {
-    return this.uploadService.uploadBannerImage(tenantId, projectId, file);
+    return this.uploadService.uploadBannerImage(tenantId, projectId, file, device);
   }
 
   @Delete('banner-image')
   @Roles('LOTEADORA', 'SYSADMIN')
   removeBannerImage(
     @TenantId() tenantId: string,
-    @Param('projectId') projectId: string
+    @Param('projectId') projectId: string,
+    @Query('device') device?: string,
   ) {
-    return this.uploadService.removeBannerImage(tenantId, projectId);
+    return this.uploadService.removeBannerImage(tenantId, projectId, device);
   }
 
   // ── Project footer logos (Realizacao e Propriedade) ───

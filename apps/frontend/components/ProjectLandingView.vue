@@ -29,8 +29,8 @@
       />
 
       <!-- Hero section -->
-      <section id="inicio" class="v4-hero" :class="{ 'has-banner': !!project.bannerImageUrl }">
-        <div v-if="project.bannerImageUrl" class="v4-hero-bg" :style="{ backgroundImage: `url(${project.bannerImageUrl})` }"></div>
+      <section id="inicio" class="v4-hero" :class="{ 'has-banner': hasHeroBanner }">
+        <div v-if="hasHeroBanner" class="v4-hero-bg" :style="heroBackgroundStyle"></div>
         <div class="v4-hero-overlay"></div>
 
         <div class="v4-container">
@@ -40,9 +40,9 @@
               <h1 class="v4-hero-title text-balance">{{ project.name }}</h1>
               <p v-if="project.description" class="v4-hero-desc text-balance">{{ project.description }}</p>
               <div class="v4-hero-actions">
-                <a href="#planta" class="v4-btn-primary" @click="tracking.trackClick('Botão: Ver Planta Interativa')">Ver Planta Interativa</a>
-                <a v-if="schedulingConfig?.enabled" href="#agendamento" class="v4-btn-white" @click="tracking.trackClick('Botão: Agendar Visita')">Agendar Visita</a>
-                <a href="#contato" class="v4-btn-white" @click="tracking.trackClick('Botão: Solicitar Informações')">Solicitar informações</a>
+                <a href="#planta" class="v4-btn-primary v4-hero-btn" @click="tracking.trackClick('Botão: Ver Planta Interativa')">Ver Planta Interativa</a>
+                <a v-if="schedulingConfig?.enabled" href="#agendamento" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Agendar Visita')">Agendar Visita</a>
+                <a href="#contato" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Solicitar Informações')">Solicitar informações</a>
               </div>
             </div>
 
@@ -55,7 +55,7 @@
                 <span class="v4-stat-label">Área a partir de</span>
                 <span class="v4-stat-value">{{ minArea }}<small>m²</small></span>
               </div>
-              <div v-if="priceRange" class="v4-stat-card">
+              <div v-if="priceRange" class="v4-stat-card v4-stat-card--price">
                 <span class="v4-stat-label">Preços a partir de</span>
                 <span class="v4-stat-value"><small>R$</small> {{ priceRange }}</span>
                 <div v-if="project.maxInstallments || project.paymentConditionsSummary" class="v4-stat-meta">
@@ -1083,6 +1083,50 @@ const priceRange = computed(() => {
   return (min && min > 0) ? Number(min).toLocaleString('pt-BR') : null
 })
 
+const hasHeroBanner = computed(() => {
+  return !!(
+    project.value?.bannerImageUrl
+    || project.value?.bannerImageTabletUrl
+    || project.value?.bannerImageMobileUrl
+  )
+})
+
+const heroBannerDesktopUrl = computed(() => {
+  return project.value?.bannerImageUrl
+    || project.value?.bannerImageTabletUrl
+    || project.value?.bannerImageMobileUrl
+    || ''
+})
+
+const heroBannerTabletUrl = computed(() => {
+  return project.value?.bannerImageTabletUrl
+    || heroBannerDesktopUrl.value
+    || project.value?.bannerImageMobileUrl
+    || ''
+})
+
+const heroBannerMobileUrl = computed(() => {
+  return project.value?.bannerImageMobileUrl
+    || heroBannerTabletUrl.value
+    || heroBannerDesktopUrl.value
+    || ''
+})
+
+const heroBackgroundStyle = computed(() => {
+  const desktop = heroBannerDesktopUrl.value
+  const tablet = heroBannerTabletUrl.value || desktop
+  const mobile = heroBannerMobileUrl.value || tablet || desktop
+  if (!desktop && !tablet && !mobile) return {}
+
+  const cssUrl = (value: string) => `url(\"${String(value || '').replace(/\"/g, '\\\"')}\")`
+
+  return {
+    '--v4-hero-bg-desktop': cssUrl(desktop || tablet || mobile),
+    '--v4-hero-bg-tablet': cssUrl(tablet || desktop || mobile),
+    '--v4-hero-bg-mobile': cssUrl(mobile || tablet || desktop),
+  }
+})
+
 const lotPageUrl = (lot: any) => {
   const code = lot.code || lot.name || lot.id
   const base = pathPrefix.value === '' 
@@ -1640,11 +1684,24 @@ function openLightbox(idx: number) {
 .v4-hero-bg {
   position: absolute;
   inset: 0;
+  background-image: var(--v4-hero-bg-desktop);
   background-size: cover;
   background-position: center;
   z-index: 1;
   opacity: 1;
   transition: all 0.5s ease;
+}
+
+@media (max-width: 1024px) {
+  .v4-hero-bg {
+    background-image: var(--v4-hero-bg-tablet, var(--v4-hero-bg-desktop));
+  }
+}
+
+@media (max-width: 768px) {
+  .v4-hero-bg {
+    background-image: var(--v4-hero-bg-mobile, var(--v4-hero-bg-tablet, var(--v4-hero-bg-desktop)));
+  }
 }
 
 .v4-hero.has-banner .v4-hero-bg {
@@ -2751,28 +2808,69 @@ function openLightbox(idx: number) {
 
 /* Responsive tweaks and improvements */
 @media (max-width: 768px) {
-  .v4-hero { min-height: 520px; }
-  .v4-hero-content { flex-direction: column; gap: 24px; padding: 24px 0 40px; }
-  .v4-hero-title { font-size: 28px; margin-bottom: 12px; }
-  .v4-hero-desc { font-size: 15px; margin-bottom: 18px; }
+  .v4-hero {
+    min-height: 580px;
+    align-items: flex-end;
+  }
+
+  .v4-hero-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    padding: 22px 0 32px;
+  }
+
+  .v4-hero-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .v4-hero-tag { margin-bottom: 12px; }
+  .v4-hero-title { font-size: 34px; margin-bottom: 10px; }
+  .v4-hero-desc { font-size: 15px; margin-bottom: 16px; max-width: 34ch; }
 
   .v4-hero-stats {
-    flex-direction: row;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
     border-left: none;
     border-top: 1px solid rgba(255,255,255,0.15);
     padding-left: 0;
-    padding-top: 20px;
-    gap: 16px;
+    padding-top: 14px;
+    gap: 14px 12px;
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .v4-stat-card {
+    min-width: 0;
+    align-items: center;
+    text-align: center;
     width: 100%;
   }
-  .v4-stat-card { flex: 1; min-width: 80px; align-items: center; text-align: center; }
+
+  .v4-stat-card--price { grid-column: 1 / -1; }
   .v4-stat-label { font-size: 9px; }
-  .v4-stat-value { font-size: 26px; }
+  .v4-stat-value { font-size: 34px; }
   .v4-stat-meta { display: none; }
 
-  .v4-hero-actions { flex-direction: column; width: 100%; gap: 12px; }
-  .v4-btn-primary, .v4-btn-white { width: 100%; text-align: center; font-size: 16px; padding: 14px; }
+  .v4-hero-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+    max-width: 340px;
+  }
+
+  .v4-hero-btn,
+  .v4-btn-primary,
+  .v4-btn-white {
+    width: 100%;
+    text-align: center;
+    font-size: 16px;
+    padding: 13px 16px;
+  }
   
   .v4-trust-bar { padding: 8px 0; }
   .v4-trust-label { font-size: 10px; }

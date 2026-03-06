@@ -354,6 +354,8 @@ model Project {
   description     String?       @db.Text
   status          ProjectStatus @default(DRAFT)
   bannerImageUrl  String?
+  bannerImageTabletUrl String?
+  bannerImageMobileUrl String?
   mapData         Json?
   highlightsJson  Json?
   highlightsTitle String?       @default("Sua família merece o melhor.")

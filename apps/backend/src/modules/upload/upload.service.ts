@@ -5,12 +5,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@infra/db/prisma.service';
 import { S3Service } from '@infra/s3/s3.service';
-import { MediaType } from '@prisma/client';
+import { MediaType, Prisma } from '@prisma/client';
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_MEDIA_TYPES = [...ALLOWED_IMAGE_TYPES, 'video/mp4', 'video/webm'];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_MEDIA_SIZE = 50 * 1024 * 1024; // 50 MB
+type BannerDevice = 'desktop' | 'tablet' | 'mobile';
 
 @Injectable()
 export class UploadService {
@@ -24,9 +25,12 @@ export class UploadService {
   async uploadBannerImage(
     tenantId: string,
     projectId: string,
-    file: Express.Multer.File
+    file: Express.Multer.File,
+    deviceRaw?: string,
   ) {
     this.validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
+    const device = this.normalizeBannerDevice(deviceRaw);
+    const bannerField = this.bannerFieldByDevice(device);
 
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, tenantId }
@@ -34,38 +38,37 @@ export class UploadService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     // Delete old image from S3 if it exists
-    if (project.bannerImageUrl) {
-      const oldKey = this.s3.keyFromUrl(project.bannerImageUrl);
+    const previousUrl = (project as any)[bannerField] as string | null | undefined;
+    if (previousUrl) {
+      const oldKey = this.s3.keyFromUrl(previousUrl);
       if (oldKey) await this.s3.delete(oldKey).catch(() => {});
     }
 
     const key = this.s3.buildKey(
       tenantId,
-      `projects/${projectId}/banner`,
+      `projects/${projectId}/banner/${device}`,
       file.originalname
     );
     const url = await this.s3.upload(file.buffer, key, file.mimetype);
 
-    return this.prisma.project.update({
-      where: { id: projectId },
-      data: { bannerImageUrl: url }
-    });
+    return this.updateProjectBannerField(projectId, bannerField, url);
   }
 
-  async removeBannerImage(tenantId: string, projectId: string) {
+  async removeBannerImage(tenantId: string, projectId: string, deviceRaw?: string) {
+    const device = this.normalizeBannerDevice(deviceRaw);
+    const bannerField = this.bannerFieldByDevice(device);
+
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, tenantId }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
-    if (!project.bannerImageUrl) return project;
+    const previousUrl = (project as any)[bannerField] as string | null | undefined;
+    if (!previousUrl) return project;
 
-    const oldKey = this.s3.keyFromUrl(project.bannerImageUrl);
+    const oldKey = this.s3.keyFromUrl(previousUrl);
     if (oldKey) await this.s3.delete(oldKey).catch(() => {});
 
-    return this.prisma.project.update({
-      where: { id: projectId },
-      data: { bannerImageUrl: null }
-    });
+    return this.updateProjectBannerField(projectId, bannerField, null);
   }
 
   // ── Project footer logos (Realizacao e Propriedade) ───
@@ -226,6 +229,47 @@ export class UploadService {
       throw new BadRequestException(
         `Arquivo muito grande. Máximo: ${(maxSize / 1024 / 1024).toFixed(0)} MB`
       );
+  }
+
+  private normalizeBannerDevice(deviceRaw?: string): BannerDevice {
+    const normalized = (deviceRaw || 'desktop').toLowerCase();
+    if (normalized === 'desktop' || normalized === 'tablet' || normalized === 'mobile') {
+      return normalized;
+    }
+    throw new BadRequestException('Dispositivo inválido. Use desktop, tablet ou mobile.');
+  }
+
+  private bannerFieldByDevice(device: BannerDevice): 'bannerImageUrl' | 'bannerImageTabletUrl' | 'bannerImageMobileUrl' {
+    if (device === 'tablet') return 'bannerImageTabletUrl';
+    if (device === 'mobile') return 'bannerImageMobileUrl';
+    return 'bannerImageUrl';
+  }
+
+  private async updateProjectBannerField(
+    projectId: string,
+    field: 'bannerImageUrl' | 'bannerImageTabletUrl' | 'bannerImageMobileUrl',
+    value: string | null,
+  ) {
+    if (field === 'bannerImageUrl') {
+      return this.prisma.project.update({
+        where: { id: projectId },
+        data: { bannerImageUrl: value },
+      });
+    }
+
+    if (field === 'bannerImageTabletUrl') {
+      await this.prisma.$executeRaw(
+        Prisma.sql`UPDATE "Project" SET "bannerImageTabletUrl" = ${value}, "updatedAt" = NOW() WHERE "id" = ${projectId}`,
+      );
+    } else {
+      await this.prisma.$executeRaw(
+        Prisma.sql`UPDATE "Project" SET "bannerImageMobileUrl" = ${value}, "updatedAt" = NOW() WHERE "id" = ${projectId}`,
+      );
+    }
+
+    const refreshed = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
+    return refreshed;
   }
 
   private async ensureProjectExists(tenantId: string, projectId: string) {

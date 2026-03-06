@@ -24,6 +24,16 @@ export class UpdateProjectDto {
   @IsString()
   bannerImageUrl?: string;
 
+  @ApiPropertyOptional({ example: 'http://example.com/banner-tablet.png' })
+  @IsOptional()
+  @IsString()
+  bannerImageTabletUrl?: string;
+
+  @ApiPropertyOptional({ example: 'http://example.com/banner-mobile.png' })
+  @IsOptional()
+  @IsString()
+  bannerImageMobileUrl?: string;
+
   @ApiPropertyOptional({ enum: ProjectStatus })
   @IsOptional()
   @IsEnum(ProjectStatus)

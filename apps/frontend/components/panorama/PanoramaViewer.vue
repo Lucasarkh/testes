@@ -766,4 +766,47 @@ function handleBeaconClick(beacon: PanoramaBeacon) {
   font-size: 0.9rem;
   margin-top: 4px;
 }
+
+@media (max-width: 768px) {
+  .panorama-top-left {
+    top: 12px;
+    left: 12px;
+    right: 92px;
+  }
+
+  .panorama-view-label {
+    font-size: 0.72rem;
+  }
+
+  .panorama-date-label {
+    font-size: 0.88rem;
+  }
+
+  .panorama-top-right {
+    top: 12px;
+    right: 12px;
+  }
+
+  .panorama-ui-btn {
+    padding: 7px 10px;
+    font-size: 0.72rem;
+    border-radius: 10px;
+  }
+
+  .panorama-bottom-center {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    transform: none;
+    display: flex;
+    justify-content: center;
+  }
+
+  .panorama-beacon-details {
+    left: 12px;
+    right: 12px;
+    bottom: 64px;
+    max-width: none;
+  }
+}
 </style>
