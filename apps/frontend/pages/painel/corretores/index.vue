@@ -14,6 +14,7 @@ const loading = ref(true)
 const showModal = ref(false)
 const showInviteModal = ref(false)
 const editingRealtor = ref(null)
+const approvingId = ref<string | null>(null)
 
 const emailError = ref('')
 const codeError = ref('')
@@ -213,6 +214,23 @@ function getProjectNames(realtor) {
   return realtor.projects.map(p => p.name).join(', ')
 }
 
+function isPendingRealtor(realtor: any) {
+  return realtor?.isPending || (typeof realtor?.notes === 'string' && realtor.notes.includes('[PENDING_APPROVAL_REQUEST]'))
+}
+
+async function approvePendingRealtor(realtor: any) {
+  approvingId.value = realtor.id
+  try {
+    await patch(`/realtor-links/${realtor.id}`, { enabled: true })
+    toast.success('Solicitação aprovada. Corretor ativado com sucesso.')
+    await fetchData()
+  } catch (error) {
+    toast.error(error?.data?.message || 'Erro ao aprovar solicitação do corretor')
+  } finally {
+    approvingId.value = null
+  }
+}
+
 function copyLink(realtor, project = null) {
   let url = ''
   
@@ -323,8 +341,19 @@ definePageMeta({
             </td>
             <td>{{ realtor.phone }}</td>
             <td>
-              <span v-if="realtor.user" class="badge badge-success">{{ realtor.user.email }}</span>
-              <span v-else class="badge badge-neutral">Sem conta</span>
+              <div class="account-status-col">
+                <span v-if="isPendingRealtor(realtor)" class="badge badge-pending">Pendente</span>
+                <span v-else-if="realtor.user" class="badge badge-success">{{ realtor.user.email }}</span>
+                <span v-else class="badge badge-neutral">Sem conta</span>
+                <button
+                  v-if="isPendingRealtor(realtor)"
+                  class="btn-copy-small btn-approve"
+                  :disabled="approvingId === realtor.id"
+                  @click.stop="approvePendingRealtor(realtor)"
+                >
+                  {{ approvingId === realtor.id ? 'Aprovando...' : 'Aprovar' }}
+                </button>
+              </div>
             </td>
             <td class="text-right actions vertical-actions">
               <button class="btn-icon" @click.stop="openEdit(realtor)" title="Editar">
@@ -740,6 +769,30 @@ h1 {
 .badge-neutral {
   background: var(--glass-bg-heavy);
   color: var(--color-surface-400);
+}
+
+.badge-pending {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.account-status-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.btn-copy-small.btn-approve {
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.btn-copy-small.btn-approve:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .text-right {

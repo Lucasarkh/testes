@@ -16,12 +16,15 @@ interface RealtorLink {
   phone: string | null
   creci: string | null
   enabled: boolean
+  notes?: string | null
+  isPending?: boolean
   projects: { id: string; name: string; slug: string }[]
   _count: { leads: number }
 }
 
 const link = ref<RealtorLink | null>(null)
 const loading = ref(true)
+const requestingAccess = ref(false)
 const copiedKey = ref<string | null>(null)
 
 const baseUrl = computed(() => {
@@ -32,6 +35,12 @@ const baseUrl = computed(() => {
 function projectLink(slug: string) {
   return `${baseUrl.value}/${slug}?c=${link.value?.code}`
 }
+
+const isPendingLink = computed(() => {
+  if (!link.value) return false
+  if (link.value.isPending) return true
+  return typeof link.value.notes === 'string' && link.value.notes.includes('[PENDING_APPROVAL_REQUEST]')
+})
 
 async function fetchLink() {
   loading.value = true
@@ -60,6 +69,22 @@ async function copyLink(key: string, text: string) {
   }
 }
 
+async function requestAccess() {
+  requestingAccess.value = true
+  try {
+    const res = await fetchApi('/realtor-links/me/request-access', { method: 'POST' })
+    const requestedLink = res?.realtorLink as RealtorLink | undefined
+    if (requestedLink) {
+      link.value = requestedLink
+    }
+    toastSuccess(res?.message || 'Solicitação enviada para a loteadora.')
+  } catch (err: any) {
+    toastError(err?.message || 'Não foi possível enviar sua solicitação no momento.')
+  } finally {
+    requestingAccess.value = false
+  }
+}
+
 onMounted(fetchLink)
 </script>
 
@@ -83,6 +108,9 @@ onMounted(fetchLink)
       </svg>
       <h3>Nenhum vínculo encontrado</h3>
       <p>Você ainda não foi vinculado a nenhuma loteadora. Entre em contato com seu gestor.</p>
+      <button class="btn btn-primary" :disabled="requestingAccess" @click="requestAccess">
+        {{ requestingAccess ? 'Enviando solicitação...' : 'Solicitar link para loteadora' }}
+      </button>
     </div>
 
     <template v-else>
@@ -110,13 +138,21 @@ onMounted(fetchLink)
           </div>
           <div class="info-item">
             <span class="info-label">Status</span>
-            <span class="status-badge" :class="link.enabled ? 'active' : 'inactive'">
-              {{ link.enabled ? 'Ativo' : 'Inativo' }}
+            <span class="status-badge" :class="isPendingLink ? 'pending' : (link.enabled ? 'active' : 'inactive')">
+              {{ isPendingLink ? 'Pendente' : (link.enabled ? 'Ativo' : 'Inativo') }}
             </span>
           </div>
         </div>
+        <div v-if="isPendingLink" class="warning-notice" style="background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.2); color: #fbbf24;">
+          Sua solicitação está pendente de aprovação pela loteadora.
+        </div>
         <div v-if="!link.enabled" class="warning-notice">
           Seu vínculo está inativo. Entre em contato com seu gestor para reativar.
+        </div>
+        <div v-if="!link.enabled && !isPendingLink" style="margin-top: 12px;">
+          <button class="btn btn-primary" :disabled="requestingAccess" @click="requestAccess">
+            {{ requestingAccess ? 'Enviando solicitação...' : 'Solicitar reativação para loteadora' }}
+          </button>
         </div>
       </div>
 
@@ -127,7 +163,16 @@ onMounted(fetchLink)
       </div>
 
       <!-- No projects -->
-      <div v-if="link.projects.length === 0" class="empty-state" style="padding: 40px 0">
+      <div v-if="isPendingLink" class="empty-state" style="padding: 40px 0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <h3>Solicitação em análise</h3>
+        <p>Assim que sua solicitação for aprovada, seus links aparecerão aqui.</p>
+      </div>
+
+      <div v-else-if="link.projects.length === 0" class="empty-state" style="padding: 40px 0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
           <rect x="3" y="3" width="18" height="18" rx="2"/>
           <path d="M3 9h18"/>
@@ -226,6 +271,7 @@ onMounted(fetchLink)
 }
 .status-badge.active { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.2); }
 .status-badge.inactive { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.15); }
+.status-badge.pending { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
 
 .warning-notice {
   margin-top: 12px; padding: 8px 14px;

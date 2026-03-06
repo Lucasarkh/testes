@@ -434,13 +434,6 @@ h1 {
   align-items: center;
 }
 
-.stat-label {
-  color: var(--color-surface-400);
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
 .stat-value {
   font-size: 32px;
   font-weight: 800;
@@ -730,7 +723,7 @@ h1 {
 }
 
 .stat-label {
-  color: var(--color-surface-400);
+  color: var(--color-surface-200);
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 8px;

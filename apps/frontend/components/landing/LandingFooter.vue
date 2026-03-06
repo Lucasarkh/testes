@@ -23,12 +23,6 @@
             <a href="#" class="link-item">Incorporadoras</a>
             <a href="#" class="link-item">Imobiliárias e Corretores</a>
           </div>
-          <div class="link-group">
-            <h4 class="link-title">Suporte</h4>
-            <a href="#" class="link-item">Central de Ajuda</a>
-            <a href="#" class="link-item">Contato Comercial</a>
-            <a href="#" class="link-item">Documentação</a>
-          </div>
         </div>
       </div>
 

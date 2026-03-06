@@ -8,11 +8,66 @@ import { PrismaService } from '@infra/db/prisma.service';
 import { CreateRealtorLinkDto } from './dto/create-realtor-link.dto';
 import { UpdateRealtorLinkDto } from './dto/update-realtor-link.dto';
 import * as bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
+import { NotificationType, UserRole } from '@prisma/client';
+import { NotificationsService } from '@modules/notifications/notifications.service';
+
+const PENDING_REQUEST_MARKER = '[PENDING_APPROVAL_REQUEST]';
 
 @Injectable()
 export class RealtorLinksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private isPendingRequest(notes?: string | null) {
+    return typeof notes === 'string' && notes.includes(PENDING_REQUEST_MARKER);
+  }
+
+  private ensurePendingMarker(notes?: string | null) {
+    if (!notes || !notes.trim()) return PENDING_REQUEST_MARKER;
+    if (this.isPendingRequest(notes)) return notes;
+    return `${notes}\n${PENDING_REQUEST_MARKER}`;
+  }
+
+  private removePendingMarker(notes?: string | null) {
+    if (!notes) return notes;
+    return notes
+      .replace(PENDING_REQUEST_MARKER, '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  private toRealtorLinkResponse<T extends Record<string, any>>(link: T): T & { isPending: boolean } {
+    return {
+      ...link,
+      isPending: this.isPendingRequest(link.notes),
+    };
+  }
+
+  private async buildUniqueCode(tenantId: string, baseName: string) {
+    const slugBase = (baseName || 'corretor')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'corretor';
+
+    for (let i = 0; i < 10; i++) {
+      const suffix = i === 0 ? '' : `-${Math.floor(100 + Math.random() * 900)}`;
+      const candidate = `${slugBase}${suffix}`;
+      const exists = await this.prisma.realtorLink.findUnique({
+        where: { tenantId_code: { tenantId, code: candidate } },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+
+    return `${slugBase}-${Date.now().toString().slice(-6)}`;
+  }
 
   async create(tenantId: string, dto: CreateRealtorLinkDto, currentUser?: any) {
     const { projectIds, accountEmail, accountPassword, ...data } = dto;
@@ -98,7 +153,7 @@ export class RealtorLinksService {
       if (!agencyId) return [];
     }
 
-    return this.prisma.realtorLink.findMany({
+    const links = await this.prisma.realtorLink.findMany({
       where: {
         tenantId,
         ...(projectId ? { projects: { some: { id: projectId } } } : {}),
@@ -112,6 +167,8 @@ export class RealtorLinksService {
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    return links.map((link) => this.toRealtorLinkResponse(link));
   }
 
   async findOne(tenantId: string, id: string) {
@@ -123,7 +180,7 @@ export class RealtorLinksService {
       }
     });
     if (!link) throw new NotFoundException('Link de corretor não encontrado.');
-    return link;
+    return this.toRealtorLinkResponse(link);
   }
 
   async findByUserId(userId: string) {
@@ -134,7 +191,120 @@ export class RealtorLinksService {
         _count: { select: { leads: true } }
       }
     });
-    return link;
+    return link ? this.toRealtorLinkResponse(link) : null;
+  }
+
+  async requestAccess(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        tenantId: true,
+        agencyId: true,
+      },
+    });
+
+    if (!user) throw new NotFoundException('Usuário não encontrado.');
+    if (user.role !== UserRole.CORRETOR) {
+      throw new BadRequestException('Apenas corretores podem solicitar vínculo.');
+    }
+    if (!user.tenantId) {
+      throw new BadRequestException('Sua conta não está vinculada a uma loteadora.');
+    }
+
+    const existingLink = await this.prisma.realtorLink.findUnique({
+      where: { userId: user.id },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } },
+        _count: { select: { leads: true } },
+      },
+    });
+
+    if (existingLink) {
+      if (this.isPendingRequest(existingLink.notes)) {
+        return {
+          alreadyRequested: true,
+          realtorLink: this.toRealtorLinkResponse(existingLink),
+          message: 'Sua solicitação já está pendente de aprovação.',
+        };
+      }
+
+      if (!existingLink.enabled) {
+        const reRequested = await this.prisma.realtorLink.update({
+          where: { id: existingLink.id },
+          data: {
+            notes: this.ensurePendingMarker(existingLink.notes || 'Solicitação de reativação criada pelo corretor no painel.'),
+          },
+          include: {
+            projects: { select: { id: true, name: true, slug: true } },
+            _count: { select: { leads: true } },
+          },
+        });
+
+        await this.notificationsService.notifyTenantLoteadoras(
+          user.tenantId,
+          NotificationType.SYSTEM,
+          'Solicitação de reativação de corretor',
+          `${user.name} (${user.email}) solicitou reativação do link de compartilhamento no painel.`,
+          '/painel/corretores',
+          {
+            event: 'REALTOR_LINK_REACTIVATION_REQUESTED',
+            realtorLinkId: reRequested.id,
+            requesterUserId: user.id,
+          },
+        );
+
+        return {
+          alreadyRequested: false,
+          realtorLink: this.toRealtorLinkResponse(reRequested),
+          message: 'Solicitação de reativação enviada para a loteadora.',
+        };
+      }
+
+      throw new ConflictException('Seu vínculo de corretor já está cadastrado.');
+    }
+
+    const generatedCode = await this.buildUniqueCode(user.tenantId, user.name || user.email);
+    const pendingNotes = this.ensurePendingMarker('Solicitação de vínculo criada pelo corretor no painel.');
+
+    const createdLink = await this.prisma.realtorLink.create({
+      data: {
+        tenantId: user.tenantId,
+        userId: user.id,
+        agencyId: user.agencyId || null,
+        name: user.name,
+        email: user.email,
+        code: generatedCode,
+        enabled: false,
+        notes: pendingNotes,
+      },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } },
+        _count: { select: { leads: true } },
+      },
+    });
+
+    await this.notificationsService.notifyTenantLoteadoras(
+      user.tenantId,
+      NotificationType.SYSTEM,
+      'Solicitação de vínculo de corretor',
+      `${user.name} (${user.email}) solicitou link de compartilhamento no painel. Aprove para liberar o acesso.`,
+      '/painel/corretores',
+      {
+        event: 'REALTOR_LINK_REQUESTED',
+        realtorLinkId: createdLink.id,
+        requesterUserId: user.id,
+      },
+    );
+
+    return {
+      alreadyRequested: false,
+      realtorLink: this.toRealtorLinkResponse(createdLink),
+      message: 'Solicitação enviada com sucesso para a loteadora.',
+    };
   }
 
   async checkEmail(email: string, excludeId?: string) {
@@ -253,16 +423,27 @@ export class RealtorLinksService {
         throw new ConflictException('Código já utilizado por outro corretor.');
     }
 
-    return this.prisma.realtorLink.update({
+    const normalizedData: any = { ...data };
+    if (dto.enabled === true) {
+      normalizedData.notes = this.removePendingMarker(
+        dto.notes !== undefined ? dto.notes : link.notes,
+      );
+    } else if (dto.notes !== undefined) {
+      normalizedData.notes = dto.notes;
+    }
+
+    const updated = await this.prisma.realtorLink.update({
       where: { id },
       data: {
-        ...data,
+        ...normalizedData,
         projects: projectIds
           ? { set: projectIds.map((id) => ({ id })) }
           : undefined
       },
       include: { projects: true }
     });
+
+    return this.toRealtorLinkResponse(updated);
   }
 
   async remove(tenantId: string, id: string) {
@@ -319,13 +500,13 @@ export class RealtorLinksService {
       return acc;
     }, {});
 
-    return {
+    return this.toRealtorLinkResponse({
       ...link,
       totalLeads,
       leadsByStatus: statusMap,
       schedulingCount,
       sessionCount,
       recentLeads,
-    };
+    });
   }
 }

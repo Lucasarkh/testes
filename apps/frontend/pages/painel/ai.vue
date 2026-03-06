@@ -199,15 +199,15 @@ onMounted(() => {
           </div>
           <div v-if="config.systemPrompt" class="detail-item">
             <span class="detail-label">Prompt custom</span>
-            <span class="detail-value" style="font-size:0.75rem; color: var(--color-primary-400);">Configurado</span>
+            <span class="detail-value detail-value-accent">Configurado</span>
           </div>
         </div>
 
-        <div class="ai-card-actions mt-auto border-t border-gray-100 pt-5 flex gap-2">
-          <button class="btn btn-outline btn-sm flex-1" @click="openEdit(config)">
+        <div class="ai-card-actions mt-auto">
+          <button class="btn btn-outline btn-sm btn-action-main" @click="openEdit(config)">
              <i class="pi pi-pencil mr-1"></i> Editar
           </button>
-          <button class="btn btn-ghost btn-sm text-danger" @click="removeConfig(config.id)">
+          <button class="btn btn-danger btn-sm btn-action-danger" @click="removeConfig(config.id)">
              <i class="pi pi-trash mr-1"></i> Excluir
           </button>
         </div>
@@ -339,18 +339,18 @@ onMounted(() => {
 .ai-config-card {
   display: flex;
   flex-direction: column;
-  transition: all 0.2s ease;
-  min-height: 220px;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 240px;
   background: var(--glass-bg);
-  border-radius: 12px;
-  border: 1px solid var(--glass-border-subtle);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
   padding: 24px;
 }
 
 .ai-config-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.5);
-  border-color: rgba(16, 185, 129, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  border-color: rgba(52, 211, 153, 0.22);
 }
 
 .ai-card-header {
@@ -363,65 +363,76 @@ onMounted(() => {
 .ai-card-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .config-name {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   color: var(--color-surface-50);
   margin: 0;
+  line-height: 1.3;
 }
 
 .provider-badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  background: var(--glass-bg);
-  min-width: 70px;
-  height: 28px;
+  letter-spacing: 0.08em;
+  background: rgba(255, 255, 255, 0.04);
+  min-width: 82px;
+  height: 30px;
   border-radius: 6px;
-  color: var(--color-surface-400);
-  border: 1px solid var(--glass-border-subtle);
-  padding: 0 8px;
+  color: var(--color-surface-200);
+  border: 1px solid var(--glass-border);
+  padding: 0 10px;
   text-transform: uppercase;
 }
 
 .ai-config-card:hover .provider-badge {
-  background: var(--glass-bg);
-  border-color: rgba(16, 185, 129, 0.1);
-  color: var(--color-primary-500);
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--color-primary-300);
 }
 
 .ai-config-details {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--glass-border-subtle);
+  border-bottom: 1px solid var(--glass-border-subtle);
 }
 
 .detail-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  gap: 12px;
+  padding: 2px 0;
 }
 
 .detail-label {
-  color: var(--color-surface-500);
-  font-size: 0.65rem;
+  color: var(--color-surface-300);
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .detail-value {
   font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--color-surface-200);
+  font-size: 0.86rem;
+  color: var(--color-surface-100);
+  text-align: right;
+}
+
+.detail-value-accent {
+  font-size: 0.76rem;
+  color: var(--color-primary-300);
 }
 
 .font-mono {
@@ -431,11 +442,16 @@ onMounted(() => {
 .ai-card-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding-top: 14px;
 }
 
-.text-danger {
-  color: var(--color-danger);
+.btn-action-main {
+  flex: 1;
+}
+
+.btn-action-danger {
+  min-width: 112px;
 }
 
 .empty-state {
@@ -531,5 +547,32 @@ onMounted(() => {
   font-size: 1.5rem;
   cursor: pointer;
   color: var(--color-surface-500);
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    gap: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-config-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .ai-config-card {
+    padding: 18px;
+    min-height: auto;
+  }
+
+  .ai-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-action-danger {
+    min-width: 0;
+  }
 }
 </style>

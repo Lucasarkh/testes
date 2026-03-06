@@ -11,7 +11,7 @@
       <div class="page-header" style="border-bottom: 1px solid var(--glass-border-subtle); padding-bottom: 24px; margin-bottom: 32px;">
         <div style="flex: 1;">
           <div class="flex items-center gap-2" style="margin-bottom: 4px;">
-            <NuxtLink to="/painel/projetos" class="btn btn-ghost btn-sm" style="padding-left: 0; color: var(--color-surface-400);">← Projetos</NuxtLink>
+            <NuxtLink to="/painel/projetos" class="btn btn-sm" style="padding-left: 0; color: var(--color-surface-200);">← Projetos</NuxtLink>
             <div style="width: 1px; height: 10px; background: rgba(255, 255, 255, 0.06);"></div>
             <span class="badge" :class="project.status === 'PUBLISHED' ? 'badge-success' : 'badge-neutral'" style="font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;">
               {{ project.status === 'PUBLISHED' ? 'Publicado' : 'Rascunho' }}
@@ -258,11 +258,10 @@
 
           <div v-if="editForm.aiEnabled">
             <div class="form-group">
-              <label class="form-label">Modelo de Assistente (Configuração de IA)</label>
-              <select v-model="editForm.aiConfigId" class="form-input">
-                <option value="">Selecione uma configuração...</option>
-                <option v-for="c in aiConfigs" :key="c.id" :value="c.id">{{ c.name }} ({{ c.model }})</option>
-              </select>
+              <label class="form-label">Configuração de IA</label>
+              <div class="form-input" style="display:flex; align-items:center; min-height: 42px; color: var(--color-surface-200);">
+                {{ activeAiConfigLabel || 'A configuração será vinculada automaticamente ao salvar.' }}
+              </div>
               <small class="text-muted">As configurações de modelos e chaves de API são feitas na página <NuxtLink to="/painel/ai">Assistente IA</NuxtLink>.</small>
             </div>
             
@@ -270,8 +269,8 @@
               ⚠️ Você ainda não tem nenhuma configuração de IA cadastrada. <NuxtLink to="/painel/ai" style="color: #ef4444; font-weight: 700;">Clique aqui para criar</NuxtLink>.
             </div>
 
-            <div v-else-if="!editForm.aiConfigId" style="background: rgba(59, 130, 246, 0.08); color: #60a5fa; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 12px; border: 1px solid rgba(59, 130, 246, 0.3);">
-              ℹ️ Selecione um modelo acima para habilitar o chat na página pública deste projeto.
+            <div v-else style="background: rgba(59, 130, 246, 0.08); color: #60a5fa; padding: 12px; border-radius: 8px; font-size: 0.85rem; margin-top: 12px; border: 1px solid rgba(59, 130, 246, 0.3);">
+              ℹ️ A configuração da página Assistente IA será usada automaticamente neste projeto.
             </div>
           </div>
 
@@ -1685,6 +1684,18 @@ watch(() => editForm.value.slug, (newSlug) => {
   }, 500)
 })
 
+watch(
+  [() => editForm.value.aiEnabled, () => aiConfigs.value.length],
+  ([enabled]) => {
+    if (enabled && !editForm.value.aiConfigId && aiConfigs.value.length > 0) {
+      const firstConfig = aiConfigs.value[0]
+      if (firstConfig) {
+        editForm.value.aiConfigId = firstConfig.id
+      }
+    }
+  }
+)
+
 // ── Live Preview Logic ──────────────────────────────────
 const previewDownPayment = ref(0)
 const previewMonths = ref(120)
@@ -2152,10 +2163,29 @@ const toggleGateway = async (configId: string, active: boolean) => {
 
 // ── AI Configuration ─────────────────────────────────────
 const aiConfigs = ref<AiConfig[]>([])
+const resolveAiConfigId = () => {
+  if (editForm.value.aiConfigId) return editForm.value.aiConfigId
+  return aiConfigs.value[0]?.id || ''
+}
+
+const activeAiConfigLabel = computed(() => {
+  const aiConfigId = resolveAiConfigId()
+  if (!aiConfigId) return ''
+  const selected = aiConfigs.value.find(c => c.id === aiConfigId)
+  return selected ? `${selected.name} (${selected.model})` : ''
+})
+
 const loadAiConfigs = async () => {
   try {
     const res = await fetchApi('/ai/configs')
     aiConfigs.value = res || []
+
+    if (editForm.value.aiEnabled && !editForm.value.aiConfigId && aiConfigs.value.length > 0) {
+      const firstConfig = aiConfigs.value[0]
+      if (firstConfig) {
+        editForm.value.aiConfigId = firstConfig.id
+      }
+    }
   } catch (e) {
     console.error('Error loading AI configs', e)
   }
@@ -2285,6 +2315,16 @@ const saveSettings = async () => {
   try {
     // Exclude paymentConditions (not in UpdateProjectDto)
     const { paymentConditions: _pc, ...raw } = editForm.value
+
+    if (raw.aiEnabled) {
+      raw.aiConfigId = resolveAiConfigId()
+      if (!raw.aiConfigId) {
+        settingsError.value = 'Nenhuma configuração de IA foi encontrada. Crie uma em Assistente IA antes de ativar para este projeto.'
+        savingSettings.value = false
+        return
+      }
+    }
+
     // Coerce numeric fields to ensure they're numbers, not strings
     const settingsPayload = {
       ...raw,

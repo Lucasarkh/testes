@@ -211,7 +211,7 @@ definePageMeta({ layout: 'default' })
   color: white;
 }
 .stat-card--highlight .stat-value { color: white; }
-.stat-card--highlight .stat-label { color: rgba(255, 255, 255, 0.7); }
+.stat-card--highlight .stat-label { color: white; }
 .stat-card--highlight .stat-icon-wrap { background: rgba(255, 255, 255, 0.2) !important; color: white !important; }
 
 .stat-icon-wrap {

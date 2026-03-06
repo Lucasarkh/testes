@@ -436,7 +436,7 @@ export class NotificationsService {
       `${leadPhone ? `\nTelefone: ${leadPhone}.` : ''}` +
       `${lotCode ? `\nLote de interesse: ${lotCode}.` : ''}` +
       `${leadId ? `\nLead ID: ${leadId}.` : ''}` +
-      '\nAcesse o painel para atendimento rapido.';
+      '\nAcesse o painel para conferir mais detalhes!';
 
     await this.sendWhatsAppToMany(recipients, msg);
   }
@@ -444,8 +444,8 @@ export class NotificationsService {
   private async sendLeadWelcomeWhatsApp(phone: string, leadName: string, projectName: string) {
     await this.whapi.sendText(
       phone,
-      `Ola, ${leadName}! Obrigado pelo seu interesse no empreendimento *${projectName}*.` +
-        '\nRecebemos sua solicitacao e em breve um corretor entrara em contato para te atender.',
+      `👋 Olá, ${leadName}! Obrigado pelo seu interesse no empreendimento *${projectName}*. 🏠` +
+      '\n✅ Recebemos sua solicitação e em breve um corretor entrará em contato para te atender. 📞',
     );
   }
 

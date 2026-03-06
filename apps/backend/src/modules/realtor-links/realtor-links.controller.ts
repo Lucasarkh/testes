@@ -93,6 +93,13 @@ export class RealtorLinksController {
     return this.service.updateMe(req.user.id, dto);
   }
 
+  @Post('me/request-access')
+  @Roles('CORRETOR')
+  @ApiOperation({ summary: 'Solicitar vínculo de link para o corretor logado' })
+  requestAccess(@Request() req: any) {
+    return this.service.requestAccess(req.user.id);
+  }
+
   @Get(':id/stats')
   @Roles('LOTEADORA', 'IMOBILIARIA', 'SYSADMIN')
   @ApiOperation({ summary: 'Estatísticas detalhadas de um corretor' })

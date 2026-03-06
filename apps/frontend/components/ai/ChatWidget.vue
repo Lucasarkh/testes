@@ -19,6 +19,7 @@ const loading = ref(false)
 const loadingStatus = ref('')
 const scrollContainer = ref<HTMLElement | null>(null)
 const lgpdConsentAccepted = ref(false)
+const consentClosing = ref(false)
 
 const consentStorageKey = computed(() => {
   const projectSlug = props.project?.slug || 'global'
@@ -32,6 +33,7 @@ const isOpen = computed({
 })
 
 const messages = computed(() => chatStore.messages)
+const showConsentBlock = computed(() => !lgpdConsentAccepted.value || consentClosing.value)
 
 onMounted(() => {
   if (props.project?.name) {
@@ -98,7 +100,14 @@ const parseMessage = (text: string) => {
     }
     
     try {
-      const cardData = JSON.parse(match[1])
+      const cardRaw = match[1]
+      if (!cardRaw) {
+        parts.push({ type: 'text', content: match[0] })
+        lastIndex = regex.lastIndex
+        continue
+      }
+
+      const cardData = JSON.parse(cardRaw)
       parts.push({ type: 'card', content: cardData })
     } catch (e) {
       parts.push({ type: 'text', content: match[0] })
@@ -171,9 +180,17 @@ function onConsentChange(event: Event) {
   if (target.checked) {
     localStorage.setItem(consentStorageKey.value, 'accepted')
     tracking.trackClick('Chat: Aceite LGPD', 'AI_CHAT')
+
+    // Keep it visible long enough to play the close animation.
+    consentClosing.value = true
+    setTimeout(() => {
+      consentClosing.value = false
+    }, 240)
+
     return
   }
 
+  consentClosing.value = false
   localStorage.removeItem(consentStorageKey.value)
 }
 
@@ -269,7 +286,7 @@ onMounted(() => {
       </div>
 
       <form class="ai-input-area" @submit.prevent="sendMessage">
-        <div class="ai-privacy-consent">
+        <div v-if="showConsentBlock" class="ai-privacy-consent" :class="{ 'is-closing': consentClosing }">
           <label class="ai-consent-label">
             <input
               type="checkbox"
@@ -311,6 +328,15 @@ onMounted(() => {
   left: 24px;
   z-index: 2147483647;
   font-family: var(--font-sans, sans-serif);
+  --chat-bg: #0f1d21;
+  --chat-surface: #142a30;
+  --chat-surface-2: #1a3640;
+  --chat-border: #2d4c57;
+  --chat-text: #e7f4f7;
+  --chat-muted: #a8c3cb;
+  --chat-primary: #15b4a6;
+  --chat-primary-strong: #0e9c90;
+  --chat-user-bubble: #0ca678;
 }
 
 @media (max-width: 768px) {
@@ -332,10 +358,10 @@ onMounted(() => {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #111;
+  background: linear-gradient(135deg, #15b4a6 0%, #0d8f86 100%);
   color: white;
-  border: none;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  border: 1px solid #0b6f68;
+  box-shadow: 0 8px 22px rgba(3, 42, 46, 0.45);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -352,11 +378,11 @@ onMounted(() => {
 
 .ai-bubble:hover {
   transform: scale(1.05);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 12px 26px rgba(3, 42, 46, 0.52);
 }
 
 .ai-bubble.is-open {
-  background: var(--color-surface-100);
+  background: #113f4a;
 }
 
 .ai-tooltip {
@@ -364,13 +390,13 @@ onMounted(() => {
   left: 70px;
   top: 50%;
   transform: translateY(-50%);
-  background: var(--glass-bg);
-  color: var(--color-surface-100);
+  background: #0f2b32;
+  color: #dcf2f6;
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 0.825rem;
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 14px rgba(1, 16, 20, 0.35);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
@@ -390,9 +416,10 @@ onMounted(() => {
   max-width: calc(100vw - 40px);
   height: 500px;
   max-height: calc(100vh - 120px);
-  background: var(--glass-bg);
+  background: var(--chat-bg);
+  border: 1px solid var(--chat-border);
   border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  box-shadow: 0 18px 45px rgba(3, 17, 20, 0.55);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -406,7 +433,8 @@ onMounted(() => {
 
 .ai-header {
   padding: 16px 20px;
-  background: #111;
+  background: #0a1418;
+  border-bottom: 1px solid var(--chat-border);
   color: white;
   display: flex;
   align-items: center;
@@ -414,7 +442,8 @@ onMounted(() => {
 }
 
 .ai-avatar {
-  background: rgba(255,255,255,0.1);
+  background: #17323a;
+  border: 1px solid #27515d;
   width: 36px;
   height: 36px;
   display: flex;
@@ -430,7 +459,7 @@ onMounted(() => {
 
 .ai-status {
   font-size: 0.7rem;
-  opacity: 0.6;
+  color: #c9e7ed;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -466,7 +495,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--glass-bg-heavy);
+  background: var(--chat-surface);
 }
 
 .ai-msg {
@@ -487,8 +516,8 @@ onMounted(() => {
   display: flex !important;
   align-items: center;
   gap: 10px;
-  background: var(--glass-bg-heavy) !important;
-  color: #64748b !important;
+  background: #173741 !important;
+  color: #b8d5dd !important;
   font-style: italic;
   font-size: 0.85rem;
   padding: 12px 16px !important;
@@ -503,7 +532,7 @@ onMounted(() => {
 .searching-animation .dot {
   width: 6px;
   height: 6px;
-  background: #94a3b8;
+  background: #7dc6d2;
   border-radius: 50%;
   animation: pulse 1.5s infinite ease-in-out;
 }
@@ -526,16 +555,17 @@ onMounted(() => {
 }
 
 .ai-msg-user .ai-msg-bubble {
-  background: var(--color-primary-500);
+  background: var(--chat-user-bubble);
   color: white;
   border-bottom-right-radius: 2px;
 }
 
 .ai-msg-ai .ai-msg-bubble {
-  background: var(--glass-bg);
-  color: var(--color-surface-100);
+  background: var(--chat-surface-2);
+  color: var(--chat-text);
+  border: 1px solid var(--chat-border);
   border-bottom-left-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 5px rgba(2, 14, 17, 0.24);
 }
 
 .ai-message-part + .ai-message-part {
@@ -544,8 +574,8 @@ onMounted(() => {
 
 /* Lot Mini Card */
 .lot-mini-card {
-  background: var(--glass-bg);
-  border: 1px solid #e2e8f0;
+  background: #173741;
+  border: 1px solid #2f5562;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -558,19 +588,19 @@ onMounted(() => {
 .lot-mini-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  border-color: #cbd5e1;
+  border-color: #4f7886;
 }
 
 .lot-mini-footer {
   padding: 8px 12px;
-  background: var(--glass-bg-heavy);
-  border-top: 1px solid #e2e8f0;
+  background: #122d35;
+  border-top: 1px solid #2f5562;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #0071e3;
+  color: #7ad7e4;
 }
 
 .ai-msg-actions {
@@ -581,7 +611,7 @@ onMounted(() => {
 }
 
 .ai-action-btn {
-  background: #0071e3;
+  background: var(--chat-primary);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -590,19 +620,19 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.2);
+  box-shadow: 0 6px 14px rgba(9, 82, 92, 0.35);
 }
 
 .ai-action-btn:hover {
-  background: #0077ed;
+  background: var(--chat-primary-strong);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 113, 227, 0.3);
+  box-shadow: 0 8px 18px rgba(9, 82, 92, 0.45);
 }
 
 .lot-mini-header {
   padding: 10px 12px;
-  background: var(--glass-bg-heavy);
-  border-bottom: 1px solid #e2e8f0;
+  background: #122d35;
+  border-bottom: 1px solid #2f5562;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -610,7 +640,7 @@ onMounted(() => {
 
 .lot-mini-code {
   font-weight: 700;
-  color: var(--color-surface-50);
+  color: #ebf9fc;
 }
 
 .lot-mini-status {
@@ -645,12 +675,12 @@ onMounted(() => {
 }
 
 .lot-mini-info .label {
-  color: #64748b;
+  color: var(--chat-muted);
 }
 
 .lot-mini-info .value {
   font-weight: 600;
-  color: #1e293b;
+  color: #e6f4f8;
 }
 
 .lot-mini-tags {
@@ -658,21 +688,21 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed #38606d;
 }
 
 .lot-mini-tags .tag {
   font-size: 0.7rem;
-  background: var(--glass-bg-heavy);
-  color: #475569;
+  background: #0f2b32;
+  color: #c9e7ed;
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 .ai-input-area {
   padding: 12px 15px;
-  background: var(--glass-bg);
-  border-top: 1px solid #e2e8f0;
+  background: #10262d;
+  border-top: 1px solid var(--chat-border);
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -681,10 +711,25 @@ onMounted(() => {
 
 .ai-privacy-consent {
   width: 100%;
-  background: var(--glass-bg-heavy);
-  border: 1px solid #e2e8f0;
+  background: #0d2128;
+  border: 1px solid #a6c9d1;
   border-radius: 10px;
   padding: 8px 10px;
+  overflow: hidden;
+  max-height: 160px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: max-height 0.24s ease, opacity 0.24s ease, transform 0.24s ease, margin 0.24s ease, padding 0.24s ease, border-width 0.24s ease;
+}
+
+.ai-privacy-consent.is-closing {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
 }
 
 .ai-consent-label {
@@ -692,7 +737,7 @@ onMounted(() => {
   gap: 8px;
   align-items: flex-start;
   font-size: 0.72rem;
-  color: #475569;
+  color: #cfe8ee;
   line-height: 1.45;
 }
 
@@ -701,8 +746,12 @@ onMounted(() => {
 }
 
 .ai-consent-label a {
-  color: #0071e3;
+  color: #61d9ff;
   text-decoration: underline;
+}
+
+.ai-consent-label input {
+  accent-color: var(--chat-primary);
 }
 
 .ai-input-wrapper {
@@ -713,27 +762,31 @@ onMounted(() => {
 }
 
 .ai-input-area input {
-  width: 100%;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #86aeb8;
   border-radius: 20px;
   padding: 11px 65px 11px 18px;
   font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
-  background: var(--glass-bg-heavy);
+  background: #0b1e24;
+  color: #ecfafc;
+}
+
+.ai-input-area input::placeholder {
+  color: #8eb2bc;
 }
 
 .ai-input-area input:focus {
-  border-color: var(--color-primary-500);
-  background: var(--glass-bg);
-  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.05);
+  border-color: var(--chat-primary);
+  background: #0a1a20;
+  box-shadow: 0 0 0 3px rgba(21, 180, 166, 0.2);
 }
 
 .input-limit {
   position: absolute;
   right: 15px;
   font-size: 0.65rem;
-  color: #94a3b8;
+  color: #a8c7cf;
   pointer-events: none;
   font-weight: 500;
 }
@@ -743,7 +796,7 @@ onMounted(() => {
 }
 
 .ai-input-area button {
-  background: var(--color-primary-500);
+  background: var(--chat-primary);
   color: white;
   border: none;
   width: 40px;
@@ -756,13 +809,13 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(0, 113, 227, 0.2);
+  box-shadow: 0 4px 10px rgba(8, 75, 84, 0.45);
 }
 
 .ai-input-area button:hover:not(:disabled) {
   transform: scale(1.05);
-  background: #0077ed;
-  box-shadow: 0 4px 8px rgba(0, 113, 227, 0.3);
+  background: var(--chat-primary-strong);
+  box-shadow: 0 6px 12px rgba(8, 75, 84, 0.55);
 }
 
 .ai-input-area button:disabled {
