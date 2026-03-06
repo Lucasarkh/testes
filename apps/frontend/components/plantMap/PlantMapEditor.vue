@@ -320,7 +320,7 @@
 
               <div class="pme__bulk-row">
                 <select v-model="bulkBlockExisting" class="pme__input pme__select pme__input--sm" :disabled="savingBulkBlock || !existingBlocks.length">
-                  <option value="">Selecionar quadra existente</option>
+                  <option value="">Selec. quadra</option>
                   <option v-for="block in existingBlocks" :key="block" :value="block">{{ block }}</option>
                 </select>
                 <button
@@ -1386,6 +1386,7 @@ onBeforeUnmount(() => {
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0;
 }
 
 .pme__canvas-wrap {
@@ -1441,13 +1442,14 @@ onBeforeUnmount(() => {
 
 /* ── Sidebar ────────────────────────────────────────────── */
 .pme__sidebar {
-  width: 220px;
+  width: 280px;
   flex-shrink: 0;
   background: #1e293b;
   border-left: 1px solid #334155;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 .pme__sidebar-header {
   display: flex;
@@ -1472,6 +1474,7 @@ onBeforeUnmount(() => {
 .pme__hs-list { 
   overflow-y: auto; 
   flex: 1; 
+  min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: #475569 transparent;
 }
@@ -1532,13 +1535,14 @@ onBeforeUnmount(() => {
 
 .pme__bulk-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .pme__bulk-row .pme__btn {
-  width: 100%;
+  width: auto;
+  min-width: 110px;
 }
 
 .pme__hs-group-header {
@@ -1756,7 +1760,13 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-  .pme__sidebar { width: 160px; }
+  .pme__sidebar { width: 200px; }
   .pme__toolbar { flex-direction: column; align-items: flex-start; }
+  .pme__bulk-row {
+    grid-template-columns: 1fr;
+  }
+  .pme__bulk-row .pme__btn {
+    width: 100%;
+  }
 }
 </style>

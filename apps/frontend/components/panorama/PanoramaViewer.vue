@@ -256,6 +256,16 @@ watch([activeSnapshot, () => props.panorama.projection, () => props.panorama.bea
   }
 })
 
+watch(
+  () => props.panorama.beacons,
+  (beacons) => {
+    if (!selectedBeacon.value) return
+    const fresh = beacons.find((b) => b.id === selectedBeacon.value?.id) ?? null
+    selectedBeacon.value = fresh
+  },
+  { deep: true },
+)
+
 // Pan state
 let isPanning = false
 let panStartX = 0
@@ -490,10 +500,11 @@ function pinchDist(touches: TouchList) {
 // ── Beacon click ─────────────────────────────────────
 
 function handleBeaconClick(beacon: PanoramaBeacon) {
+  const freshBeacon = props.panorama.beacons.find((b) => b.id === beacon.id) ?? beacon
   if (props.showBeaconInfo) {
-    selectedBeacon.value = beacon
+    selectedBeacon.value = freshBeacon
   }
-  emit('beaconClick', beacon)
+  emit('beaconClick', freshBeacon)
 }
 </script>
 

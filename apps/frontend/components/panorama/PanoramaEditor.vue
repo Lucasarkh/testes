@@ -600,19 +600,33 @@ async function doSaveBeacon() {
   }
   savingBeacon.value = true
   try {
+    const wasEditing = !!editingBeacon.value
+    const normalizedDescription = beaconForm.description.trim()
+
     if (editingBeacon.value) {
       const updated = await api.updateBeacon(editingBeacon.value.id, {
         title: beaconForm.title,
-        description: beaconForm.description || undefined,
+        description: normalizedDescription || undefined,
         style: beaconForm.style,
         visible: beaconForm.visible,
       })
+
       const idx = activePanorama.value.beacons.findIndex(b => b.id === updated.id)
-      if (idx >= 0) activePanorama.value.beacons[idx] = updated
+      if (idx >= 0) {
+        const current = activePanorama.value.beacons[idx]
+        activePanorama.value.beacons[idx] = {
+          ...current,
+          ...updated,
+          title: beaconForm.title,
+          description: normalizedDescription || null,
+          style: beaconForm.style,
+          visible: beaconForm.visible,
+        }
+      }
     } else {
       const created = await api.createBeacon(activePanorama.value.id, {
         title: beaconForm.title,
-        description: beaconForm.description || undefined,
+        description: normalizedDescription || undefined,
         x: beaconForm.x,
         y: beaconForm.y,
         style: beaconForm.style,
@@ -621,7 +635,7 @@ async function doSaveBeacon() {
       activePanorama.value.beacons.push(created)
     }
     closeBeaconModal()
-    toast.success(editingBeacon.value ? 'Beacon atualizado!' : 'Beacon criado!')
+    toast.success(wasEditing ? 'Beacon atualizado!' : 'Beacon criado!')
     emitUpdate()
   } catch (e: any) {
     toast.error(e.message || 'Erro ao salvar beacon')
