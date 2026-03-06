@@ -135,7 +135,7 @@
                     <span class="m-unit">m² totais</span>
                   </div>
                   <div class="v4-metric" v-if="lot.lotDetails?.pricePerM2">
-                    <span class="m-val">R$ {{ lot.lotDetails.pricePerM2.toLocaleString('pt-BR') }}</span>
+                    <span class="m-val">{{ formatCurrencyToBrasilia(lot.lotDetails.pricePerM2) }}</span>
                     <span class="m-unit">valor m²</span>
                   </div>
                   <div class="v4-metric" v-else-if="lot.lotDetails?.frontage">
@@ -147,7 +147,7 @@
                 <div class="v4-card-footer">
                   <div class="v4-price" v-if="lot.lotDetails?.price">
                     <span class="p-label">Investimento</span>
-                    <span class="p-val">R$ {{ lot.lotDetails.price.toLocaleString('pt-BR') }}</span>
+                    <span class="p-val">{{ formatCurrencyToBrasilia(lot.lotDetails.price) }}</span>
                   </div>
                   <div class="v4-cta-arrow">
                     <span>Detalhes</span>
@@ -184,6 +184,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
 import { useTracking } from '~/composables/useTracking'
 import CommonPagination from '~/components/common/Pagination.vue'
+import { formatCurrencyToBrasilia } from '~/utils/money'
 
 const props = defineProps({
   slug: {

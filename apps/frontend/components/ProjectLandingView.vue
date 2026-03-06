@@ -57,7 +57,7 @@
               </div>
               <div v-if="priceRange" class="v4-stat-card v4-stat-card--price">
                 <span class="v4-stat-label">Preços a partir de</span>
-                <span class="v4-stat-value"><small>R$</small> {{ priceRange }}</span>
+                <span class="v4-stat-value">{{ priceRange }}</span>
                 <div v-if="project.maxInstallments || project.paymentConditionsSummary" class="v4-stat-meta">
                   <span v-if="project.maxInstallments" class="v4-stat-installments">em até {{ project.maxInstallments }}x</span>
                   <p v-if="project.paymentConditionsSummary" class="v4-stat-summary">{{ project.paymentConditionsSummary }}</p>
@@ -285,12 +285,12 @@
               <div class="v4-lot-card-body">
                 <div class="v4-lot-info-row">
                   <span class="v4-info-item">📐 {{ lot.lotDetails?.areaM2 || '---' }} m²</span>
-                  <span v-if="lot.lotDetails?.pricePerM2" class="v4-info-item">💰 R$ {{ lot.lotDetails.pricePerM2.toLocaleString('pt-BR') }} / m²</span>
+                  <span v-if="lot.lotDetails?.pricePerM2" class="v4-info-item">💰 {{ formatCurrencyToBrasilia(lot.lotDetails.pricePerM2) }} / m²</span>
                   <span v-else-if="lot.lotDetails?.frontage" class="v4-info-item">↔ {{ lot.lotDetails.frontage }}m frente</span>
                 </div>
                 <div v-if="lot.lotDetails?.price" class="v4-lot-price">
                   <span class="v4-price-label">Valor do investimento</span>
-                  <span class="v4-price-value">R$ {{ lot.lotDetails.price.toLocaleString('pt-BR') }}</span>
+                  <span class="v4-price-value">{{ formatCurrencyToBrasilia(lot.lotDetails.price) }}</span>
                 </div>
               </div>
               
@@ -708,6 +708,7 @@ import type { Panorama } from '~/composables/panorama/types'
 import PanoramaViewer from '~/components/panorama/PanoramaViewer.vue'
 import { useTracking } from '~/composables/useTracking'
 import { useTrackingStore } from '~/stores/tracking'
+import { formatCurrencyToBrasilia } from '~/utils/money'
 const corretorCode = route.query.c || ''
 const projectUrl = computed(() => {
   const base = pathPrefix.value || '/'
@@ -1149,10 +1150,10 @@ const minArea = computed(() => {
 
 const priceRange = computed(() => {
   if (project.value?.startingPrice) {
-    return project.value.startingPrice.toLocaleString('pt-BR')
+    return formatCurrencyToBrasilia(project.value.startingPrice)
   }
   const min = project.value?.lotSummary?.minPrice
-  return (min && min > 0) ? Number(min).toLocaleString('pt-BR') : null
+  return (min && min > 0) ? formatCurrencyToBrasilia(Number(min)) : null
 })
 
 const hasHeroBanner = computed(() => {
