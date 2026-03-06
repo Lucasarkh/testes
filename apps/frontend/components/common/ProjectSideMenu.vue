@@ -32,7 +32,7 @@ const props = defineProps<{
 
 const allItems = [
   { id: 'inicio', label: 'INÍCIO' },
-  { id: 'info', label: 'FICHA' },
+  { id: 'info', label: 'INFO' },
   { id: 'planta', label: 'PLANTA' },
   { id: 'panorama', label: '360°' },
   { id: 'lotes', label: 'UNIDADES' },
