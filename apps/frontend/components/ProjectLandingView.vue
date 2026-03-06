@@ -860,7 +860,25 @@ const filteredCount = computed(() => {
 
 const toggleFilterModal = () => {
   isFilterModalOpen.value = !isFilterModalOpen.value
+  if (process.client) {
+    document.body.style.overflow = isFilterModalOpen.value ? 'hidden' : ''
+  }
 }
+
+function handleModalKeyDown(e: KeyboardEvent) {
+  if (e.key !== 'Escape') return
+  if (isFilterModalOpen.value) toggleFilterModal()
+  if (showSchedulingModal.value) {
+    showSchedulingModal.value = false
+    if (process.client) document.body.style.overflow = ''
+  }
+}
+
+watch(showSchedulingModal, (v) => {
+  if (process.client) {
+    document.body.style.overflow = v ? 'hidden' : ''
+  }
+})
 
 const toggleFilterTag = (tag: string) => {
   const idx = selectedFilterTags.value.indexOf(tag)
@@ -883,6 +901,7 @@ const applyFiltersAndSearch = () => {
   }
   
   isFilterModalOpen.value = false
+  if (process.client) document.body.style.overflow = ''
   navigateTo({
     path: pathPrefix.value + '/unidades',
     query
@@ -1212,6 +1231,7 @@ const lotPageUrl = (lot: any) => {
 onMounted(async () => {
   detectTouchMobile()
   window.addEventListener('resize', detectTouchMobile)
+  window.addEventListener('keydown', handleModalKeyDown)
 
   try {
     const baseUrl = isPreview.value ? `/p/preview/${previewId.value}` : `/p/${projectSlug.value}`
@@ -1280,6 +1300,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', detectTouchMobile)
+  window.removeEventListener('keydown', handleModalKeyDown)
+  document.body.style.overflow = ''
 })
 
 async function submitLead() {
@@ -1624,19 +1646,46 @@ function openLightbox(idx: number) {
   backdrop-filter: blur(8px);
   z-index: 2000;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 24px;
+  padding: 0;
+}
+
+@media (min-width: 769px) {
+  .v4-filter-modal-overlay {
+    align-items: center;
+    padding: 24px;
+  }
 }
 
 .v4-filter-modal-card {
   background: white;
   width: 100%;
   max-width: 500px;
-  border-radius: 28px;
-  padding: 40px;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.15);
-  animation: modal-appear 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  border-radius: 28px 28px 0 0;
+  padding: 32px 24px 40px;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
+  max-height: 85dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  animation: modal-slide-up 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+@media (min-width: 769px) {
+  .v4-filter-modal-card {
+    border-radius: 28px;
+    padding: 40px;
+    max-height: 90dvh;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+    animation: modal-appear 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+}
+
+@keyframes modal-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 @keyframes modal-appear {
@@ -1649,6 +1698,7 @@ function openLightbox(idx: number) {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-shrink: 0;
 }
 .v4-modal-title { font-size: 24px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.02em; }
 .v4-modal-close {
@@ -1664,10 +1714,11 @@ function openLightbox(idx: number) {
   font-size: 20px;
   color: #86868b;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 .v4-modal-close:hover { background: #e8e8ed; color: #1d1d1f; }
 
-.v4-modal-body { margin-bottom: 32px; }
+.v4-modal-body { flex: 1; overflow-y: auto; margin-bottom: 24px; }
 .v4-modal-label { font-size: 13px; font-weight: 700; color: #86868b; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 16px; }
 
 .v4-modal-tags {
@@ -1711,6 +1762,7 @@ function openLightbox(idx: number) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex-shrink: 0;
 }
 .v4-btn-modal-search {
   background: #0071e3;
@@ -3113,19 +3165,38 @@ function openLightbox(idx: number) {
   backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 24px;
+  padding: 0;
+  overflow-y: auto;
+}
+
+@media (min-width: 769px) {
+  .v4-modal-overlay {
+    align-items: center;
+    padding: 24px;
+  }
 }
 
 .v4-modal-content {
   background: white;
-  border-radius: 32px;
+  border-radius: 32px 32px 0 0;
   width: 100%;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
+  max-height: 92dvh;
+  overflow-y: auto;
 }
 
-.v4-modal-close {
+@media (min-width: 769px) {
+  .v4-modal-content {
+    border-radius: 32px;
+    max-width: 600px;
+    max-height: 90dvh;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+  }
+}
+
+.v4-modal-content .v4-modal-close {
   position: absolute;
   top: 24px;
   right: 24px;

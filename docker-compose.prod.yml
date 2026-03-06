@@ -156,8 +156,7 @@ services:
       WHAPI_TIMEOUT_MS: ${WHAPI_TIMEOUT_MS:-15000}
       # OpenAI
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      
+
     depends_on:
       db:
         condition: service_healthy

@@ -656,16 +656,60 @@
         <a href="#contato" class="v4-nav-item v4-nav-cta">TENHO INTERESSE</a>
       </nav>
 
-      <div class="v4-floating-cta">
-        <a href="#contato" class="v4-cta-btn-animated" @click="tracking.trackClick('CTA Flutuante Lote: Tenho Interesse')">
+      <div v-if="otherLotsAvailableTags.length > 0" class="v4-floating-cta">
+        <button class="v4-cta-btn-animated" @click="() => { tracking.trackClick('CTA Flutuante Lote: Encontrar Lote Ideal'); toggleIdealLotModal() }">
           <div class="v4-cta-inner">
             <span class="v4-cta-icon-spark">✨</span>
-            <span class="v4-cta-label">Tenho interesse neste lote</span>
+            <span class="v4-cta-label">Encontrar lote ideal</span>
             <span class="v4-cta-arrow-icon">→</span>
           </div>
           <div class="v4-cta-glow"></div>
-        </a>
+        </button>
       </div>
+
+      <!-- Ideal Lot Filter Modal -->
+      <Transition name="fade-lot-modal">
+        <div v-if="isIdealLotModalOpen" class="v4-filter-modal-overlay" @click.self="toggleIdealLotModal">
+          <div class="v4-filter-modal-card">
+            <div class="v4-modal-header">
+              <h3 class="v4-modal-title">Lote Ideal</h3>
+              <button class="v4-modal-close" @click="toggleIdealLotModal">✕</button>
+            </div>
+            <div class="v4-modal-body">
+              <p style="margin-bottom: 24px; color: #86868b; font-size: 15px;">Escolha as características para encontrar o seu lote ideal.</p>
+              <span class="v4-modal-label">Características</span>
+              <div class="v4-modal-tags">
+                <button
+                  v-for="tag in otherLotsAvailableTags"
+                  :key="tag"
+                  class="v4-modal-tag"
+                  :class="{ active: idealLotSelectedTags.includes(tag) }"
+                  @click="toggleIdealLotTag(tag)"
+                >
+                  {{ tag }}
+                </button>
+              </div>
+              <div class="v4-modal-options">
+                <label class="v4-modal-option">
+                  <input type="checkbox" v-model="idealLotExactMatch" />
+                  <div class="v4-option-info">
+                    <span class="v4-option-title">Correspondência Exata</span>
+                    <span class="v4-option-desc">Mostrar apenas lotes com todos os selos selecionados.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div class="v4-modal-footer">
+              <button class="v4-btn-modal-search" @click="applyIdealLotFilters">
+                {{ idealLotSelectedTags.length ? `Ver ${idealLotFilteredCount} unidades compatíveis` : 'Ver todas as unidades' }}
+              </button>
+              <button v-if="idealLotSelectedTags.length" class="v4-btn-modal-clear" @click="idealLotSelectedTags = []">
+                Limpar seleção
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </template>
   </div>
 </template>
@@ -1199,6 +1243,56 @@ function clearOtherLotsFilters() {
   selectedOtherLotsTags.value = []
 }
 
+// Ideal Lot Modal
+const isIdealLotModalOpen = ref(false)
+const idealLotSelectedTags = ref<string[]>([])
+const idealLotExactMatch = ref(false)
+
+const idealLotFilteredCount = computed(() => {
+  if (idealLotSelectedTags.value.length === 0) return otherLots.value.length
+  return otherLots.value.filter((l: any) => {
+    const lotTags: string[] = l.lotDetails?.tags || []
+    if (idealLotExactMatch.value) {
+      return idealLotSelectedTags.value.every(t => lotTags.includes(t))
+    }
+    return idealLotSelectedTags.value.some(t => lotTags.includes(t))
+  }).length
+})
+
+function toggleIdealLotModal() {
+  isIdealLotModalOpen.value = !isIdealLotModalOpen.value
+  if (process.client) {
+    document.body.style.overflow = isIdealLotModalOpen.value ? 'hidden' : ''
+  }
+}
+
+function toggleIdealLotTag(tag: string) {
+  const idx = idealLotSelectedTags.value.indexOf(tag)
+  if (idx > -1) idealLotSelectedTags.value.splice(idx, 1)
+  else idealLotSelectedTags.value.push(tag)
+}
+
+function applyIdealLotFilters() {
+  tracking.trackClick('Botão: Aplicar Filtros Lote Ideal', 'LIST_FILTER')
+  const query: Record<string, string> = {}
+  if (idealLotSelectedTags.value.length) {
+    query.tags = idealLotSelectedTags.value.join(',')
+  }
+  if (idealLotExactMatch.value) {
+    query.match = 'exact'
+  }
+  if (corretorCode) {
+    query.c = corretorCode
+  }
+  isIdealLotModalOpen.value = false
+  if (process.client) document.body.style.overflow = ''
+  navigateTo({ path: pathPrefix.value + '/unidades', query })
+}
+
+function handleModalKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isIdealLotModalOpen.value) toggleIdealLotModal()
+}
+
 const otherLotUrl = (l: any) => {
   const code = l.code || l.name || l.id
   const base = pathPrefix.value === '' 
@@ -1374,6 +1468,7 @@ onMounted(async () => {
   detectTouchMobile()
   window.addEventListener('resize', detectTouchMobile)
   window.addEventListener('scroll', handleScroll)
+  window.addEventListener('keydown', handleModalKeyDown)
   handleScroll()
   
   try {
@@ -1455,6 +1550,8 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', detectTouchMobile)
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('keydown', handleModalKeyDown)
+  document.body.style.overflow = ''
 })
 
 async function submitLead() {
@@ -2397,5 +2494,150 @@ async function submitReservation() {
 .f-checkbox input {
   margin-top: 3px;
 }
+
+/* Ideal Lot Filter Modal */
+.v4-filter-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-width: 769px) {
+  .v4-filter-modal-overlay {
+    align-items: center;
+    padding: 24px;
+  }
+}
+
+.v4-filter-modal-card {
+  background: white;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 28px 28px 0 0;
+  padding: 32px 24px 40px;
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
+  max-height: 85dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  animation: lot-slide-up 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+@media (min-width: 769px) {
+  .v4-filter-modal-card {
+    border-radius: 28px;
+    padding: 40px;
+    max-height: 90dvh;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+    animation: lot-modal-appear 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+}
+
+@keyframes lot-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes lot-modal-appear {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.v4-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+.v4-modal-title { font-size: 24px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.02em; }
+
+.v4-modal-close {
+  background: #f5f5f7;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #86868b;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.v4-modal-close:hover { background: #e8e8ed; color: #1d1d1f; }
+
+.v4-modal-body { flex: 1; overflow-y: auto; margin-bottom: 24px; }
+.v4-modal-label { font-size: 13px; font-weight: 700; color: #86868b; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 16px; }
+
+.v4-modal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.v4-modal-tag {
+  background: #f5f5f7;
+  border: 1px solid #d2d2d7;
+  padding: 10px 18px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.v4-modal-tag:hover { background: #e8e8ed; }
+.v4-modal-tag.active { background: #0071e3; color: white; border-color: #0071e3; }
+
+.v4-modal-options {
+  background: #f5f5f7;
+  padding: 16px;
+  border-radius: 16px;
+}
+.v4-modal-option { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.v4-modal-option input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+.v4-option-info { display: flex; flex-direction: column; }
+.v4-option-title { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+.v4-option-desc { font-size: 12px; color: #86868b; }
+
+.v4-modal-footer { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; }
+
+.v4-btn-modal-search {
+  background: #0071e3;
+  color: white;
+  border: none;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.v4-btn-modal-search:hover { background: #0077ed; transform: scale(1.02); }
+
+.v4-btn-modal-clear {
+  background: transparent;
+  color: #0071e3;
+  border: none;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.fade-lot-modal-enter-active, .fade-lot-modal-leave-active { transition: opacity 0.3s; }
+.fade-lot-modal-enter-from, .fade-lot-modal-leave-to { opacity: 0; }
 </style>
 
