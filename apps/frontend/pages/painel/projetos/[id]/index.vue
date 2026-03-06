@@ -916,6 +916,11 @@
                 Preview disponível ao usar link /embed/.
               </div>
             </div>
+            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary btn-sm" :disabled="savingPublicVideo" @click="savePublicVideoBlock">
+                {{ savingPublicVideo ? 'Salvando...' : 'Salvar Vídeo' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -935,6 +940,11 @@
               <label class="form-label">Resumo das Condições</label>
               <input v-model="pubInfoForm.paymentConditionsSummary" class="form-input" placeholder="Entrada facilitada em 6x e saldo em 120 meses." :disabled="!authStore.canEdit" />
             </div>
+          </div>
+          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary btn-sm" :disabled="savingPublicPricing" @click="savePublicPricingBlock">
+              {{ savingPublicPricing ? 'Salvando...' : 'Salvar Preços e Condições' }}
+            </button>
           </div>
         </div>
 
@@ -966,6 +976,12 @@
             <input v-model.number="newWorkStage.percentage" type="number" min="0" max="100" class="form-input" placeholder="%" style="width: 80px;" />
             <button class="btn btn-primary btn-sm" @click="addWorkStage">Adicionar</button>
           </div>
+
+          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary btn-sm" :disabled="savingPublicConstruction" @click="savePublicConstructionBlock">
+              {{ savingPublicConstruction ? 'Salvando...' : 'Salvar Acompanhamento' }}
+            </button>
+          </div>
         </div>
 
         <!-- ── Localização & Proximidades ── -->
@@ -980,19 +996,25 @@
               <label class="form-label">Link Google Maps</label>
               <input v-model="pubInfoForm.googleMapsUrl" class="form-input" placeholder="Link ou Embed URL" :disabled="!authStore.canEdit" />
             </div>
+
+            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary btn-sm" :disabled="savingPublicLocation" @click="savePublicLocationBlock">
+                {{ savingPublicLocation ? 'Salvando...' : 'Salvar Localização' }}
+              </button>
+            </div>
           </div>
 
           <div class="pub-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <h4 class="pub-card__title" style="margin: 0;">Proximidades</h4>
-              <div v-if="hasAddress" class="toggle-switch" title="Exibir na página pública">
+              <div v-if="hasSavedAddress" class="toggle-switch" title="Exibir na página pública">
                 <input type="checkbox" id="nearby-toggle" v-model="nearbyEnabled" @change="toggleNearby" :disabled="!authStore.canEdit" />
                 <label for="nearby-toggle"></label>
               </div>
             </div>
 
-            <div v-if="!hasAddress" class="pub-notice pub-notice--warn">
-              Cadastre o endereço ao lado para gerar as proximidades automaticamente.
+            <div v-if="!hasSavedAddress" class="pub-notice pub-notice--warn">
+              Salve um endereço no bloco de Localização para habilitar as proximidades.
             </div>
 
             <template v-else>
@@ -1085,6 +1107,12 @@
                 <button class="btn btn-primary btn-sm" @click="addInfraCategory">Criar</button>
               </div>
             </div>
+
+            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary btn-sm" :disabled="savingPublicHighlights" @click="savePublicHighlightsBlock">
+                {{ savingPublicHighlights ? 'Salvando...' : 'Salvar Infraestrutura' }}
+              </button>
+            </div>
           </div>
 
           <!-- Destaques -->
@@ -1120,6 +1148,12 @@
                 <button class="btn btn-primary btn-sm" @click="addHighlight">Adicionar</button>
               </div>
             </div>
+
+            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary btn-sm" :disabled="savingPublicHighlights" @click="savePublicHighlightsBlock">
+                {{ savingPublicHighlights ? 'Salvando...' : 'Salvar Destaques' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1142,6 +1176,12 @@
               v-html="initialEditorContent"
               style="min-height: 200px; padding: 16px; line-height: 1.6; border-radius: 8px; font-size: 0.85rem; background: var(--glass-bg); border: 1px solid var(--glass-border); overflow-y: auto;"
             ></div>
+          </div>
+
+          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary btn-sm" :disabled="savingPublicDescription" @click="savePublicDescriptionBlock">
+              {{ savingPublicDescription ? 'Salvando...' : 'Salvar Texto Descritivo' }}
+            </button>
           </div>
         </div>
 
@@ -1174,16 +1214,12 @@
           <h4 class="pub-card__title">Informações Legais</h4>
           <p style="font-size: 0.75rem; color: var(--color-surface-400); margin: 0 0 12px;">Texto exibido no final da página pública. Ideal para dados de registro, aprovações e licenças.</p>
           <textarea v-model="pubInfoForm.legalNotice" class="form-textarea" rows="4" placeholder="Ex: Loteamento aprovado pela Prefeitura Municipal, através do Decreto n.º..." :disabled="!authStore.canEdit" style="font-size: 0.85rem; line-height: 1.5;"></textarea>
-        </div>
 
-        <!-- ── Save Bar ── -->
-        <div v-if="authStore.canEdit" class="pub-save-bar">
-          <transition name="fade">
-            <span v-if="pubInfoSaved" style="color: var(--color-success); font-weight: 600; font-size: 0.85rem;">Salvo!</span>
-          </transition>
-          <button class="btn btn-primary" style="min-width: 180px; padding: 10px 24px;" :disabled="savingPubInfo" @click="savePubInfo">
-            {{ savingPubInfo ? 'Salvando...' : 'Salvar Alterações' }}
-          </button>
+          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary btn-sm" :disabled="savingPublicLegal" @click="savePublicLegalBlock">
+              {{ savingPublicLegal ? 'Salvando...' : 'Salvar Informações Legais' }}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1789,13 +1825,18 @@ const pubInfoForm = ref({
   constructionStatus: [] as { label: string, percentage: number }[],
   legalNotice: ''
 })
-const savingPubInfo = ref(false)
-const pubInfoSaved = ref(false)
+const savingPublicVideo = ref(false)
+const savingPublicPricing = ref(false)
+const savingPublicConstruction = ref(false)
+const savingPublicLocation = ref(false)
+const savingPublicHighlights = ref(false)
+const savingPublicDescription = ref(false)
+const savingPublicLegal = ref(false)
 const newHighlight = ref({ label: '', value: '' })
 const newWorkStage = ref({ label: '', percentage: 0 })
 
 // ── Nearby Places ─────────────────────────────────────────
-const hasAddress = computed(() => !!pubInfoForm.value.address?.trim())
+const hasSavedAddress = computed(() => !!project.value?.address?.trim())
 const nearbyEnabled = ref(true)
 const nearbyListExpanded = ref(false)
 const nearbyStatus = ref<any>(null)
@@ -1820,7 +1861,12 @@ const nearbyGrouped = computed(() => {
 })
 
 const loadNearbyStatus = async () => {
-  if (!project.value?.id) return
+  if (!project.value?.id || !project.value?.address?.trim()) {
+    nearbyStatus.value = null
+    nearbyEnabled.value = true
+    nearbyListExpanded.value = false
+    return
+  }
   try {
     nearbyStatus.value = await fetchApi(`/nearby/${project.value.id}/status`)
     nearbyEnabled.value = nearbyStatus.value?.enabled ?? true
@@ -1921,46 +1967,154 @@ const removeWorkStage = (i: number) => {
   pubInfoForm.value.constructionStatus = pubInfoForm.value.constructionStatus.filter((_, idx) => idx !== i)
 }
 
-const savePubInfo = async () => {
-  savingPubInfo.value = true; pubInfoSaved.value = false
-  try {
-    let mapUrl = pubInfoForm.value.googleMapsUrl || '';
-    if (mapUrl.includes('<iframe')) {
-      const match = mapUrl.match(/src=["'](.+?)["']/);
-      if (match && match[1]) mapUrl = match[1];
-    }
+type PublicBlockField =
+  | 'highlightsJson'
+  | 'highlightsTitle'
+  | 'highlightsSubtitle'
+  | 'traditionalHighlightsTitle'
+  | 'traditionalHighlightsSubtitle'
+  | 'locationText'
+  | 'startingPrice'
+  | 'maxInstallments'
+  | 'paymentConditionsSummary'
+  | 'address'
+  | 'googleMapsUrl'
+  | 'youtubeVideoUrl'
+  | 'constructionStatus'
+  | 'legalNotice'
 
-    let ytUrl = pubInfoForm.value.youtubeVideoUrl || '';
-    if (ytUrl.includes('youtube.com/watch?v=')) {
-      ytUrl = ytUrl.replace('watch?v=', 'embed/');
-    } else if (ytUrl.includes('youtu.be/')) {
-      ytUrl = ytUrl.replace('youtu.be/', 'www.youtube.com/embed/');
+const buildPublicInfoPayload = () => {
+  let mapUrl = pubInfoForm.value.googleMapsUrl || ''
+  if (mapUrl.includes('<iframe')) {
+    const match = mapUrl.match(/src=["'](.+?)["']/)
+    if (match && match[1]) mapUrl = match[1]
+  }
+
+  let ytUrl = pubInfoForm.value.youtubeVideoUrl || ''
+  if (ytUrl.includes('youtube.com/watch?v=')) {
+    ytUrl = ytUrl.replace('watch?v=', 'embed/')
+  } else if (ytUrl.includes('youtu.be/')) {
+    ytUrl = ytUrl.replace('youtu.be/', 'www.youtube.com/embed/')
+  }
+
+  return {
+    highlightsJson: pubInfoForm.value.highlightsJson,
+    highlightsTitle: pubInfoForm.value.highlightsTitle,
+    highlightsSubtitle: pubInfoForm.value.highlightsSubtitle,
+    traditionalHighlightsTitle: pubInfoForm.value.traditionalHighlightsTitle,
+    traditionalHighlightsSubtitle: pubInfoForm.value.traditionalHighlightsSubtitle,
+    locationText: pubInfoForm.value.locationText,
+    startingPrice: pubInfoForm.value.startingPrice ? Number(pubInfoForm.value.startingPrice) : null,
+    maxInstallments: pubInfoForm.value.maxInstallments ? Number(pubInfoForm.value.maxInstallments) : null,
+    paymentConditionsSummary: pubInfoForm.value.paymentConditionsSummary || null,
+    address: pubInfoForm.value.address || null,
+    googleMapsUrl: mapUrl || null,
+    youtubeVideoUrl: ytUrl || null,
+    constructionStatus: pubInfoForm.value.constructionStatus,
+    legalNotice: pubInfoForm.value.legalNotice || null,
+  }
+}
+
+const savePublicInfoBlock = async (
+  fields: PublicBlockField[],
+  savingRef: { value: boolean },
+  successMessage: string,
+  errorMessage: string,
+  afterSave?: () => Promise<void> | void,
+) => {
+  savingRef.value = true
+  try {
+    const fullPayload = buildPublicInfoPayload()
+    const payload: Record<string, any> = {}
+    for (const field of fields) {
+      payload[field] = fullPayload[field]
     }
 
     project.value = await fetchApi(`/projects/${projectId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ 
-        highlightsJson: pubInfoForm.value.highlightsJson, 
-        highlightsTitle: pubInfoForm.value.highlightsTitle,
-        highlightsSubtitle: pubInfoForm.value.highlightsSubtitle,
-        traditionalHighlightsTitle: pubInfoForm.value.traditionalHighlightsTitle,
-        traditionalHighlightsSubtitle: pubInfoForm.value.traditionalHighlightsSubtitle,
-        locationText: pubInfoForm.value.locationText,
-        startingPrice: pubInfoForm.value.startingPrice ? Number(pubInfoForm.value.startingPrice) : null,
-        maxInstallments: pubInfoForm.value.maxInstallments ? Number(pubInfoForm.value.maxInstallments) : null,
-        paymentConditionsSummary: pubInfoForm.value.paymentConditionsSummary || null,
-        address: pubInfoForm.value.address || null,
-        googleMapsUrl: mapUrl || null,
-        youtubeVideoUrl: ytUrl || null,
-        constructionStatus: pubInfoForm.value.constructionStatus,
-        legalNotice: pubInfoForm.value.legalNotice || null
-      }),
+      body: JSON.stringify(payload),
     })
-    pubInfoSaved.value = true
-    toastSuccess('Informações públicas salvas!')
-    setTimeout(() => pubInfoSaved.value = false, 2000)
-  } catch (e) { toastFromError(e, 'Erro ao salvar') }
-  savingPubInfo.value = false
+
+    toastSuccess(successMessage)
+    if (afterSave) {
+      await afterSave()
+    }
+  } catch (e) {
+    toastFromError(e, errorMessage)
+  }
+  savingRef.value = false
+}
+
+const savePublicVideoBlock = async () => {
+  await savePublicInfoBlock(
+    ['youtubeVideoUrl'],
+    savingPublicVideo,
+    'Vídeo salvo!',
+    'Erro ao salvar vídeo',
+  )
+}
+
+const savePublicPricingBlock = async () => {
+  await savePublicInfoBlock(
+    ['startingPrice', 'maxInstallments', 'paymentConditionsSummary'],
+    savingPublicPricing,
+    'Preços e condições salvos!',
+    'Erro ao salvar preços e condições',
+  )
+}
+
+const savePublicConstructionBlock = async () => {
+  await savePublicInfoBlock(
+    ['constructionStatus'],
+    savingPublicConstruction,
+    'Acompanhamento salvo!',
+    'Erro ao salvar acompanhamento',
+  )
+}
+
+const savePublicLocationBlock = async () => {
+  await savePublicInfoBlock(
+    ['address', 'googleMapsUrl'],
+    savingPublicLocation,
+    'Localização salva!',
+    'Erro ao salvar localização',
+    async () => {
+      await loadNearbyStatus()
+    },
+  )
+}
+
+const savePublicHighlightsBlock = async () => {
+  await savePublicInfoBlock(
+    [
+      'highlightsJson',
+      'highlightsTitle',
+      'highlightsSubtitle',
+      'traditionalHighlightsTitle',
+      'traditionalHighlightsSubtitle',
+    ],
+    savingPublicHighlights,
+    'Infraestrutura e destaques salvos!',
+    'Erro ao salvar infraestrutura e destaques',
+  )
+}
+
+const savePublicDescriptionBlock = async () => {
+  await savePublicInfoBlock(
+    ['locationText'],
+    savingPublicDescription,
+    'Texto descritivo salvo!',
+    'Erro ao salvar texto descritivo',
+  )
+}
+
+const savePublicLegalBlock = async () => {
+  await savePublicInfoBlock(
+    ['legalNotice'],
+    savingPublicLegal,
+    'Informações legais salvas!',
+    'Erro ao salvar informações legais',
+  )
 }
 
 // ── Corretores ────────────────────────────────────────────
