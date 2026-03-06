@@ -162,7 +162,7 @@
                   </template>
                 </ClientOnly>
                 <div v-if="showPlantMapTouchCta" class="interaction-gate-v4">
-                  <button class="interaction-gate-v4__btn" @click="enablePlantMapInteraction">
+                  <button type="button" class="interaction-gate-v4__btn" @click.stop.prevent="enablePlantMapInteraction">
                     Ver mapa interativo
                   </button>
                   <p class="interaction-gate-v4__hint">Ative para arrastar e dar zoom. Desative para voltar a rolar a pagina.</p>
@@ -191,7 +191,7 @@
                    @click="tracking.trackClick('Panorama: Interação 360', 'VIEW_360')">
                 <PanoramaViewer :panorama="lotPanorama" />
                 <div v-if="showPanoramaTouchCta" class="interaction-gate-v4">
-                  <button class="interaction-gate-v4__btn" @click="enablePanoramaInteraction">
+                  <button type="button" class="interaction-gate-v4__btn" @click.stop.prevent="enablePanoramaInteraction">
                     Ver 360 interativo
                   </button>
                   <p class="interaction-gate-v4__hint">Ative para girar a vista 360. Desative para continuar rolando a pagina.</p>
@@ -2098,6 +2098,7 @@ async function submitReservation() {
 }
 
 .panorama-container-v4 {
+  position: relative;
   width: 100%;
   height: clamp(280px, 56.25vw, 600px);
   border-radius: 16px;

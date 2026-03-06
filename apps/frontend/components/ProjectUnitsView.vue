@@ -116,7 +116,7 @@
                   <div class="v4-card-id">
                     <span class="v4-label">
                       <span v-if="lot.lotDetails?.block || lot.lotDetails?.lotNumber">
-                        QUADRA {{ lot.lotDetails.block || '---' }} · LOTE {{ lot.lotDetails.lotNumber || '---' }}
+                        QUADRA {{ normalizeBlockLabel(lot.lotDetails?.block) }} · LOTE {{ lot.lotDetails.lotNumber || '---' }}
                       </span>
                       <span v-else>LOTE</span>
                     </span>
@@ -241,6 +241,14 @@ const lots = ref<any[]>([])
 const lotsTotal = ref(0)
 const availableTags = ref<string[]>([])
 const lotsLoading = ref(false)
+
+const normalizeBlockLabel = (value?: string | null) => {
+  const block = String(value ?? '').trim()
+  if (!block) return '---'
+
+  const withoutPrefix = block.replace(/^quadra\s*/i, '').trim()
+  return withoutPrefix || block
+}
 
 async function fetchLots() {
   if (isPreview.value || !projectSlug.value) return

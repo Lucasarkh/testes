@@ -245,7 +245,7 @@
                 <div class="v4-lot-id">
                   <span class="v4-lot-label">
                     <span v-if="lot.lotDetails?.block || lot.lotDetails?.lotNumber">
-                      QUADRA {{ lot.lotDetails.block || '---' }} · LOTE {{ lot.lotDetails.lotNumber || '---' }}
+                      QUADRA {{ normalizeBlockLabel(lot.lotDetails?.block) }} · LOTE {{ lot.lotDetails.lotNumber || '---' }}
                     </span>
                     <span v-else>LOTE</span>
                   </span>
@@ -795,6 +795,14 @@ const submitting = ref(false)
 const leadSuccess = ref(false)
 const leadError = ref('')
 const formRef = ref(null)
+
+const normalizeBlockLabel = (value?: string | null) => {
+  const block = String(value ?? '').trim()
+  if (!block) return '---'
+
+  const withoutPrefix = block.replace(/^quadra\s*/i, '').trim()
+  return withoutPrefix || block
+}
 
 const isFilterModalOpen = ref(false)
 const selectedFilterTags = ref<string[]>([])

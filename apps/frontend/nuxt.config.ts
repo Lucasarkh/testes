@@ -2,6 +2,7 @@
 const configuredSiteUrl = process.env.NUXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://www.lotio.com.br'
 const siteUrl = configuredSiteUrl.replace(/\/+$/, '')
 const ogImageUrl = `${siteUrl}/img/og-image.png`
+const facebookAppId = process.env.NUXT_PUBLIC_FB_APP_ID
 const defaultTitle = 'Lotio - Gestão Inteligente para Loteamentos'
 const defaultDescription = 'Plataforma de gestão inteligente para loteamentos com experiência visual completa.'
 
@@ -22,6 +23,7 @@ export default defineNuxtConfig({
         { property: 'og:image:type', content: 'image/png' },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
+        ...(facebookAppId ? [{ property: 'fb:app_id', content: facebookAppId }] : []),
         { name: 'twitter:card', content: 'summary_large_image' },
         { name: 'twitter:title', content: defaultTitle },
         { name: 'twitter:description', content: defaultDescription },
