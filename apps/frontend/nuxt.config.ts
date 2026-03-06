@@ -1,12 +1,34 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+const ogImageUrl = `${siteUrl}/img/og-image.png`
+const defaultTitle = 'Lotio - Gestão Inteligente para Loteamentos'
+const defaultDescription = 'Plataforma de gestão inteligente para loteamentos com experiência visual completa.'
+
 export default defineNuxtConfig({
   ssr: false, 
   devtools: { enabled: true },
   app: {
     head: {
-      title: 'Lotio - Gestão Inteligente para Loteamentos',
+      title: defaultTitle,
+      meta: [
+        { name: 'description', content: defaultDescription },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'Lotio' },
+        { property: 'og:title', content: defaultTitle },
+        { property: 'og:description', content: defaultDescription },
+        { property: 'og:url', content: siteUrl },
+        { property: 'og:image', content: ogImageUrl },
+        { property: 'og:image:type', content: 'image/png' },
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: defaultTitle },
+        { name: 'twitter:description', content: defaultDescription },
+        { name: 'twitter:image', content: ogImageUrl }
+      ],
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/img/logo-icon.svg' }
+        { rel: 'icon', type: 'image/svg+xml', href: '/img/logo-icon.svg' },
+        { rel: 'image_src', href: ogImageUrl }
       ]
     }
   },
@@ -24,7 +46,8 @@ export default defineNuxtConfig({
   ],
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE,
+      siteUrl
     }
   },
   vite: {
