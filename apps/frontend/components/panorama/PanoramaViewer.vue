@@ -16,7 +16,7 @@
         class="panorama-image"
         draggable="false"
         @load="onImageLoad"
-        referrerpolicy="no-referrer"
+        decoding="async"
       />
 
       <!-- Beacons layer -->

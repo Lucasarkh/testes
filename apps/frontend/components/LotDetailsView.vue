@@ -127,9 +127,15 @@
                   class="gallery-tile" 
                   :class="{ 'main': i === 0 }"
                   @click="() => { openLightbox(Number(i)); tracking.trackClick('Galeria: Abrir Foto', 'GALLERY'); }">
-                  <img v-if="m.type === 'PHOTO'" :src="m.url" referrerpolicy="no-referrer" />
+                  <img
+                    v-if="m.type === 'PHOTO'"
+                    :src="m.url"
+                    :loading="i < 4 ? 'eager' : 'lazy'"
+                    :fetchpriority="i < 2 ? 'high' : 'auto'"
+                    decoding="async"
+                  />
                   <div v-else class="video-preview-v4">
-                    <video :src="m.url" referrerpolicy="no-referrer"></video>
+                    <video :src="m.url" preload="metadata"></video>
                     <div class="play-btn">▶</div>
                   </div>
                 </div>

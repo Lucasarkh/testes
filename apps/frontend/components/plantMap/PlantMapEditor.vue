@@ -123,7 +123,7 @@
             alt="Planta"
             draggable="false"
             @load="onImageLoad"
-            referrerpolicy="no-referrer"
+            decoding="async"
           />
 
           <!-- SVG overlay -->

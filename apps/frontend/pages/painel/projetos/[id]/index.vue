@@ -842,7 +842,13 @@
           </div>
           <div v-else class="grid grid-cols-4" style="gap: 12px; margin-bottom: 16px;">
             <div v-for="m in lotMedias" :key="m.id" class="media-card-v4">
-              <img :src="m.url" class="media-thumb-v4" />
+              <img
+                :src="m.url"
+                class="media-thumb-v4"
+                loading="eager"
+                decoding="async"
+                @error="retryMediaPreviewLoad"
+              />
               <button class="media-delete-btn-v4" @click="removeLotMedia(m.id)">✕</button>
             </div>
           </div>
@@ -857,7 +863,14 @@
           <h4 style="margin-bottom: 12px;">🌄 Panorama 360° do Lote</h4>
           <div v-if="lotForm.panoramaUrl" class="media-card-v4" style="max-width: 240px; margin-bottom: 16px;">
             <div class="relative group">
-              <img :src="lotForm.panoramaUrl" class="media-thumb-v4" style="aspect-ratio: 2/1;" />
+              <img
+                :src="lotForm.panoramaUrl"
+                class="media-thumb-v4"
+                style="aspect-ratio: 2/1;"
+                loading="eager"
+                decoding="async"
+                @error="retryMediaPreviewLoad"
+              />
               <button class="media-delete-btn-v4" @click="lotForm.panoramaUrl = null">✕</button>
               <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg pointer-events-none">
                 <span class="text-white text-xs font-bold">Vista 360° Ativa</span>
@@ -1209,8 +1222,17 @@
             Nenhuma foto ou vídeo na galeria.
           </div>
           <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;">
-            <div v-for="m in media" :key="m.id" class="media-card-v4" style="aspect-ratio: 1/1; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border-subtle);">
-              <img v-if="m.type === 'PHOTO'" :src="m.url" class="media-thumb-v4" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+            <div v-for="(m, i) in media" :key="m.id" class="media-card-v4" style="aspect-ratio: 1/1; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border-subtle);">
+              <img
+                v-if="m.type === 'PHOTO'"
+                :src="m.url"
+                class="media-thumb-v4"
+                style="width: 100%; height: 100%; object-fit: cover; display: block;"
+                :loading="i < 8 ? 'eager' : 'lazy'"
+                :fetchpriority="i < 4 ? 'high' : 'auto'"
+                decoding="async"
+                @error="retryMediaPreviewLoad"
+              />
               <video v-else :src="m.url" class="media-thumb-v4" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
               <div class="media-overlay-v4">
                 <button v-if="authStore.canEdit" class="delete-btn-circ" title="Remover" @click="deleteMedia(m.id)">✕</button>
@@ -1620,6 +1642,21 @@ const removeLotMedia = async (id: string) => {
   } catch (e) {
     toastFromError(e, 'Erro ao excluir foto')
   }
+}
+
+const retryMediaPreviewLoad = (event: Event) => {
+  const target = event.target as HTMLImageElement | null
+  if (!target) return
+
+  // Retry only once to avoid infinite loops when URL is truly invalid.
+  if (target.dataset.retryOnce === '1') return
+  target.dataset.retryOnce = '1'
+
+  const current = target.currentSrc || target.src
+  if (!current) return
+
+  const separator = current.includes('?') ? '&' : '?'
+  target.src = `${current}${separator}r=${Date.now()}`
 }
 
 const locationOrigin = computed(() => {

@@ -45,8 +45,15 @@
               class="v4-gallery-item"
               @click="openLightbox(Number(i) + (page - 1) * perPage)"
             >
-              <img v-if="m.type === 'PHOTO'" :src="m.url" :alt="m.caption || 'Foto'" loading="lazy" />
-              <video v-else :src="m.url" />
+              <img
+                v-if="m.type === 'PHOTO'"
+                :src="m.url"
+                :alt="m.caption || 'Foto'"
+                :loading="i < 6 ? 'eager' : 'lazy'"
+                :fetchpriority="i < 3 ? 'high' : 'auto'"
+                decoding="async"
+              />
+              <video v-else :src="m.url" preload="metadata" />
               <div class="v4-gallery-overlay">
                 <span v-if="m.caption" class="v4-gallery-caption">{{ m.caption }}</span>
                 <span class="v4-gallery-expand">↗</span>

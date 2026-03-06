@@ -27,7 +27,7 @@
         draggable="false"
         @load="onImageLoad"
         @error="imageError = true"
-        referrerpolicy="no-referrer"
+        decoding="async"
       />
 
       <!-- SVG overlay (hotspots + sun path) -->
