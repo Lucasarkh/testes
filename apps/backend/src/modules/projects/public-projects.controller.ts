@@ -1,26 +1,46 @@
 import { Controller, Get, Param, Req, Query, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
+import { PrismaService } from '@/infra/db/prisma.service';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('Public')
 @Controller('p')
 export class PublicProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get('resolve-tenant')
   @ApiOperation({ summary: 'Resolver contexto de tenant/projeto via Host' })
   async resolveTenant(@Req() req: any) {
     if (!req.tenantId) {
-      // In development or when no tenant is resolved, we might want to return null instead of 404
-      // This avoids console noise on the main landing page/index.vue
       return null;
     }
 
-    // You could fetch more data here (theme, logo, etc)
+    // When a custom domain is mapped to a tenant (not a specific project),
+    // look for a single active project under that tenant and auto-resolve it.
+    // This handles the case where the sysadmin set customDomain on Tenant instead of Project.
+    if (!req.projectId) {
+      const projects = await this.prisma.project.findMany({
+        where: { tenantId: req.tenantId },
+        select: { id: true, slug: true, name: true, tenantId: true },
+        take: 2,
+      });
+      if (projects.length === 1) {
+        return {
+          tenantId: req.tenantId,
+          projectId: projects[0].id,
+          project: projects[0],
+        };
+      }
+      return { tenantId: req.tenantId, projectId: null, project: null };
+    }
+
     return {
       tenantId: req.tenantId,
       projectId: req.projectId,
-      project: req.project || null
+      project: req.project || null,
     };
   }
 

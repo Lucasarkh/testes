@@ -148,8 +148,10 @@ export class TenantMiddleware implements NestMiddleware {
         if (!tenant.isActive) throw new NotFoundException('Tenant inativo.');
         const data = { tenantId: tenant.id };
         await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
+        req.tenantId = data.tenantId;
+        return next();
       }
-      
+
       // Domain not recognized
       throw new NotFoundException('Loteadora não encontrada para este domínio.');
     }
