@@ -244,21 +244,30 @@ jobs:
             set -e
             DEPLOY_PATH="${{ secrets.FRONT_DEPLOY_PATH }}"
             RELEASE="/tmp/front_release_$(date +%s)"
+            NEW_DIR="${DEPLOY_PATH}_new"
+            OLD_DIR="${DEPLOY_PATH}_old"
 
+            # Extrair build em diretório temporário
             mkdir -p "$RELEASE"
             tar -xzf /tmp/front.tar.gz -C "$RELEASE"
 
-            # Garantir que o diretório base existe
+            # Preparar novo diretório com permissões corretas
+            sudo rm -rf "$NEW_DIR"
+            sudo cp -r "$RELEASE/public" "$NEW_DIR"
+            sudo chown -R www-data:www-data "$NEW_DIR"
+            sudo find "$NEW_DIR" -type d -exec chmod 755 {} \;
+            sudo find "$NEW_DIR" -type f -exec chmod 644 {} \;
+
+            # Garantir que o diretório base existe na primeira vez
             sudo mkdir -p "$DEPLOY_PATH"
 
-            # Sincroniza apenas o conteúdo da pasta public para o destino
-            # Isso evita apagar e recriar a pasta, apenas atualiza arquivos novos/alterados
-            sudo cp -rv "$RELEASE/public/." "$DEPLOY_PATH/"
+            # Swap atômico: move atual para _old, move novo para atual
+            # mv dentro do mesmo filesystem é atômico (syscall rename)
+            sudo mv "$DEPLOY_PATH" "$OLD_DIR"
+            sudo mv "$NEW_DIR" "$DEPLOY_PATH"
 
-            # Secure permissions
-            sudo chown -R www-data:www-data "$DEPLOY_PATH"
-            sudo find "$DEPLOY_PATH" -type d -exec chmod 755 {} \;
-            sudo find "$DEPLOY_PATH" -type f -exec chmod 644 {} \;
+            # Remover versão anterior
+            sudo rm -rf "$OLD_DIR"
 
             # Cleanup
             rm -rf "$RELEASE"
