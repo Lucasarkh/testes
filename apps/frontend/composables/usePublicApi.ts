@@ -3,7 +3,26 @@
  */
 export const usePublicApi = () => {
   const config = useRuntimeConfig()
-  const apiBase = (config.public.apiBase || '').replace(/\/+$/, '')
+  let apiBase = (config.public.apiBase || '').replace(/\/+$/, '')
+
+  // In the browser: if the configured apiBase points to a different host than
+  // the current page (e.g. apiBase='https://lotio.com.br' but we are on
+  // 'vendas.saobento.com.br'), fall back to relative URLs so the request goes
+  // to the current host. Caddy will proxy it with the correct Host header,
+  // allowing TenantMiddleware to resolve the custom domain properly.
+  if (process.client && apiBase) {
+    try {
+      const configuredHost = new URL(
+        apiBase.startsWith('http') ? apiBase : `https://${apiBase}`,
+      ).hostname
+      if (configuredHost !== window.location.hostname) {
+        apiBase = ''
+      }
+    } catch {
+      // Malformed apiBase — let it fall through as-is
+    }
+  }
+
   const baseUrl = `${apiBase}/api`
 
   const fetchPublic = async (url: string, options: any = {}) => {

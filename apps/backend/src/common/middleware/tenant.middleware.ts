@@ -77,7 +77,40 @@ export class TenantMiddleware implements NestMiddleware {
       hostApex === configuredApex ||
       hostApex === 'lotio.com.br';
 
-    // 1. Resolve from custom domain (highest priority)
+    // 1a. Resolve subdomains of the main domain as project slugs
+    // e.g. empreendimento.lotio.com.br → resolves project with slug 'empreendimento'
+    const isSubdomainOfMain =
+      !isMainDomain &&
+      (hostNormalized.endsWith(`.${configuredApex}`) ||
+        hostNormalized.endsWith('.lotio.com.br'));
+
+    if (isSubdomainOfMain) {
+      const subdomain = hostNormalized.split('.')[0];
+      if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
+        const cacheKey = `domain_resolve:subdomain:${subdomain}`;
+        const cached = await this.redis.get(cacheKey);
+        if (cached) {
+          req.tenantId = cached.tenantId;
+          req.projectId = cached.projectId;
+          req.project = cached.project;
+        } else {
+          const project = await this.prisma.project.findUnique({
+            where: { slug: subdomain },
+            include: { tenant: { select: { id: true, slug: true, isActive: true } } },
+          });
+          if (project && project.tenant.isActive) {
+            const data = { tenantId: project.tenantId, projectId: project.id, project };
+            await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
+            req.tenantId = data.tenantId;
+            req.projectId = data.projectId;
+            req.project = data.project;
+          }
+        }
+      }
+      return next();
+    }
+
+    // 1b. Resolve from custom domain (third-party domains)
     if (!isMainDomain && host) {
       // Check Redis cache first
       const cacheKey = `domain_resolve:${host}`;
