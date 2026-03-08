@@ -10,28 +10,29 @@ export default defineNuxtRouteMiddleware(async (to) => {
     await tenantStore.waitUntilLoaded();
   }
 
-  // Canonicalize project routes so main and custom domains use the same page files.
+  // On custom domains, keep clean URLs without /:slug in the address bar.
   if (tenantStore.config?.projectId && tenantStore.config.project?.slug) {
     const slug = tenantStore.config.project.slug;
     const canonicalMap: Record<string, string> = {
-      '/unidades': '/unidades',
-      '/galeria': '/galeria',
-      '/espelho-planta': '/espelho-planta',
+      [`/${slug}`]: '/',
+      [`/${slug}/unidades`]: '/unidades',
+      [`/${slug}/galeria`]: '/galeria',
+      [`/${slug}/espelho-planta`]: '/espelho-planta',
     };
 
-    const suffix = canonicalMap[to.path];
-    if (suffix !== undefined) {
+    const canonicalPath = canonicalMap[to.path];
+    if (canonicalPath !== undefined) {
       return navigateTo(
-        { path: `/${slug}${suffix}`, query: to.query },
+        { path: canonicalPath, query: to.query },
         { replace: true },
       );
     }
 
-    // Legacy custom-domain lot URLs like /A12 become /:projectSlug/A12.
+    // Legacy links that still include /:slug/:lotCode should work without slug.
     const parts = to.path.split('/').filter(Boolean);
-    if (parts.length === 1 && parts[0] !== slug) {
+    if (parts.length === 2 && parts[0] === slug) {
       return navigateTo(
-        { path: `/${slug}/${parts[0]}`, query: to.query },
+        { path: `/${parts[1]}`, query: to.query },
         { replace: true },
       );
     }
