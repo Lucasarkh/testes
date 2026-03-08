@@ -14,7 +14,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (tenantStore.config?.projectId && tenantStore.config.project?.slug) {
     const slug = tenantStore.config.project.slug;
     const canonicalMap: Record<string, string> = {
-      '/': '',
       '/unidades': '/unidades',
       '/galeria': '/galeria',
       '/espelho-planta': '/espelho-planta',

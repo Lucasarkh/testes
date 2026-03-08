@@ -3,7 +3,10 @@
     <div class="spinner"></div>
   </div>
 
-  <!-- Standard platform landing — custom domain projects are redirected to /:slug by tenant-router middleware -->
+  <!-- Subdomain / custom-domain: show the resolved project directly at "/" -->
+  <ProjectLandingView v-else-if="tenantStore.config?.projectId" />
+
+  <!-- Standard platform landing for lotio.com.br -->
   <div v-else class="landing-page">
     <LandingHeader />
     <main>
@@ -17,6 +20,7 @@
 </template>
 
 <script setup>
+import ProjectLandingView from '~/components/ProjectLandingView.vue'
 import LandingHeader from '@/components/landing/LandingHeader.vue'
 import LandingHero from '@/components/landing/LandingHero.vue'
 import LandingAudience from '@/components/landing/LandingAudience.vue'
