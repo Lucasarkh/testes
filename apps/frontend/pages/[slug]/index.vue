@@ -10,6 +10,19 @@ import ProjectLandingView from '~/components/ProjectLandingView.vue'
 import { useTenantStore } from '~/stores/tenant'
 
 const tenantStore = useTenantStore()
+const route = useRoute()
+
+// On custom domains the project is served at "/". Redirect /:slug → / once
+// the tenant context confirms this slug belongs to the current domain.
+watch(
+  () => tenantStore.isLoaded,
+  (loaded) => {
+    if (loaded && tenantStore.config?.project?.slug === route.params.slug) {
+      navigateTo('/', { replace: true })
+    }
+  },
+  { immediate: true },
+)
 
 definePageMeta({
   layout: 'public'
