@@ -163,6 +163,22 @@ export class PublicProjectsController {
     return this.projectsService.findPreview(id);
   }
 
+  @Get('resolve-project-by-domain')
+  @ApiOperation({ summary: 'Resolver projeto por dominio completo' })
+  async resolveProjectByDomain(@Query('domain') domain?: string) {
+    const host = this.normalizeHost(domain);
+    if (!host) return null;
+
+    const resolved = await this.resolveFromHost(host);
+    if (!resolved?.projectId || !resolved.project) return null;
+
+    return {
+      tenantId: resolved.tenantId,
+      projectId: resolved.projectId,
+      project: resolved.project,
+    };
+  }
+
   @Get(':projectSlug/lots')
   @ApiOperation({ summary: 'Lotes disponíveis com paginação server-side' })
   @ApiQuery({ name: 'page',      required: false })

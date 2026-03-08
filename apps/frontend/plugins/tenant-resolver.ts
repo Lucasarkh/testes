@@ -34,13 +34,13 @@ export default defineNuxtPlugin(async () => {
       ? `${configuredApiBase}/api/p/resolve-tenant?${hostQuery}`
       : '';
 
-    const candidateSlugFromHost = (() => {
-      const labels = host.split('.').filter(Boolean);
-      if (labels.length < 3) return '';
-      const first = labels[0]?.toLowerCase() || '';
-      if (!first || first === 'www' || first === 'api') return '';
-      return first;
-    })();
+    const domainResolverPath = `/api/p/resolve-project-by-domain?domain=${encodeURIComponent(hostWithPort)}`;
+    const domainResolverPrimaryUrl = isLocalDev && configuredApiBase
+      ? `${configuredApiBase}${domainResolverPath}`
+      : `${window.location.origin}${domainResolverPath}`;
+    const domainResolverFallbackUrl = configuredApiBase
+      ? `${configuredApiBase}${domainResolverPath}`
+      : '';
 
     const fetchTenantConfig = async (url: string) => {
       console.log('[tenant-resolver] requesting', { url, hostWithPort });
@@ -90,11 +90,10 @@ export default defineNuxtPlugin(async () => {
       }
     };
 
-    const fetchProjectBySlug = async (baseUrl: string, slug: string) => {
-      const projectUrl = `${baseUrl}/api/p/${encodeURIComponent(slug)}`;
-      console.log('[tenant-resolver] trying slug fallback', { projectUrl, slug });
+    const fetchProjectByDomain = async (url: string) => {
+      console.log('[tenant-resolver] trying domain fallback', { url, hostWithPort });
 
-      const res = await fetch(projectUrl, {
+      const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
         headers: { Accept: 'application/json' },
@@ -102,21 +101,8 @@ export default defineNuxtPlugin(async () => {
 
       if (!res || !res.ok) return null;
       const data = await res.json().catch(() => null);
-      if (!data?.id) return null;
-
-      const tenantId = data.tenantId || data.tenant?.id || '';
-      if (!tenantId) return null;
-
-      return {
-        tenantId,
-        projectId: data.id,
-        project: {
-          id: data.id,
-          slug: data.slug || slug,
-          name: data.name || slug,
-          tenantId,
-        },
-      };
+      if (!data?.projectId || !data?.project?.id) return null;
+      return data;
     };
 
     let config = await fetchTenantConfig(primaryUrl);
@@ -125,15 +111,11 @@ export default defineNuxtPlugin(async () => {
       config = await fetchTenantConfig(fallbackUrl);
     }
 
-    // If host-based tenant resolver is empty, try project slug from subdomain.
-    if (!config && candidateSlugFromHost) {
-      config = await fetchProjectBySlug(window.location.origin, candidateSlugFromHost);
-
-      if (!config && fallbackUrl) {
-        const fallbackBase = configuredApiBase || '';
-        if (fallbackBase) {
-          config = await fetchProjectBySlug(fallbackBase, candidateSlugFromHost);
-        }
+    // If host-based tenant resolver is empty, force resolve by full domain.
+    if (!config) {
+      config = await fetchProjectByDomain(domainResolverPrimaryUrl);
+      if (!config && domainResolverFallbackUrl && domainResolverFallbackUrl !== domainResolverPrimaryUrl) {
+        config = await fetchProjectByDomain(domainResolverFallbackUrl);
       }
     }
 
