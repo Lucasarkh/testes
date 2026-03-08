@@ -30,7 +30,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
       // as well so the redirect happens before the initial page component mounts.
       if (window.location.pathname === '/' && config.projectId && config.project?.slug) {
         const slug = config.project.slug;
-        navigateTo(`/${slug}`, { replace: true });
+        await navigateTo(`/${slug}`, { replace: true });
       }
     } else {
       // Non-recognized domain or main domain without project context — normal for

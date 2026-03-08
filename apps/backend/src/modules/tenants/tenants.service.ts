@@ -2,7 +2,8 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
-  ForbiddenException
+  ForbiddenException,
+  Inject
 } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { UserRole } from '@prisma/client';
@@ -21,6 +22,7 @@ export class TenantsService {
     private prisma: PrismaService,
     private billingService: BillingService,
     private s3: S3Service,
+    @Inject('REDIS_SERVICE') private redis: any,
   ) {}
 
   private nullable(value?: string | null): string | null | undefined {
@@ -240,10 +242,23 @@ export class TenantsService {
       if (existing) throw new ConflictException('Domínio já em uso');
     }
 
-    return this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id },
       data
     });
+
+    // Invalidate Redis cache when customDomain changes so the new mapping
+    // takes effect immediately without waiting for the 5-minute TTL.
+    if (data.customDomain !== undefined) {
+      if (tenant.customDomain) {
+        await this.redis.del(`domain_resolve:${tenant.customDomain}`);
+      }
+      if (data.customDomain && data.customDomain !== tenant.customDomain) {
+        await this.redis.del(`domain_resolve:${data.customDomain}`);
+      }
+    }
+
+    return updated;
   }
 
   async updateStatus(id: string, isActive: boolean) {

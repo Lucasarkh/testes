@@ -635,6 +635,17 @@ export class ProjectsService {
       }
     });
 
+    // Invalidate Redis cache when customDomain changes so the new mapping
+    // takes effect immediately without waiting for the 5-minute TTL.
+    if (dto.customDomain !== undefined) {
+      if (project.customDomain) {
+        await this.redis.del(`domain_resolve:${project.customDomain}`);
+      }
+      if (dto.customDomain && dto.customDomain !== project.customDomain) {
+        await this.redis.del(`domain_resolve:${dto.customDomain}`);
+      }
+    }
+
     // Trigger nearby regeneration if address changed
     if (dto.address !== undefined && dto.address !== project.address) {
       this.logger.log(`Address changed for project ${id}, triggering nearby regeneration`);
