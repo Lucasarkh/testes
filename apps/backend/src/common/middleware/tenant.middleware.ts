@@ -157,8 +157,11 @@ export class TenantMiddleware implements NestMiddleware {
         return next();
       }
 
-      // Domain not recognized
-      throw new NotFoundException('Loteadora não encontrada para este domínio.');
+      // Domain not recognized — don't throw here. Allow the request to proceed
+      // without tenant context so the resolve-tenant controller's own fallback
+      // (resolveFromHost) can engage and try further resolution strategies
+      // (e.g. tenant.customDomain apex + subdomain as slug).
+      return next();
     }
 
     // 2. Resolve from Slugs (when on main domain)
