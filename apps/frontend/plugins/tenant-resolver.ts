@@ -55,7 +55,6 @@ export default defineNuxtPlugin(async () => {
       });
 
       if (!res.ok) return null;
-      const contentType = (res.headers.get('content-type') || '').toLowerCase();
       if (!contentType.includes('application/json')) return null;
 
       const data = await res.json().catch(() => null);
