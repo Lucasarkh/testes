@@ -115,23 +115,24 @@ export class TenantMiddleware implements NestMiddleware {
       return next();
     }
 
-    // 1b. Resolve from custom domain (third-party domains)
+    // 1b. Resolve from custom domain — keyed exclusively on project.customDomain.
+    // Domain configuration is always project-scoped; tenant-level domains are not used.
     if (!isMainDomain && host) {
-      // Check Redis cache first
       const cacheKey = `domain_resolve:${host}`;
       const cached = await this.redis.get(cacheKey);
-      
-      if (cached) {
-          req.tenantId = cached.tenantId;
-          req.projectId = cached.projectId;
-          req.project = cached.project;
-          return next();
+
+      // Only use the cache entry if it has a resolved projectId (avoids stale
+      // tenant-only entries that were written before this simplification).
+      if (cached?.projectId) {
+        req.tenantId = cached.tenantId;
+        req.projectId = cached.projectId;
+        req.project = cached.project;
+        return next();
       }
 
-      // Try project first
       const project = await this.prisma.project.findUnique({
         where: { customDomain: host },
-        include: { tenant: { select: { id: true, slug: true, isActive: true } } }
+        include: { tenant: { select: { id: true, slug: true, isActive: true } } },
       });
 
       if (project) {
@@ -144,23 +145,8 @@ export class TenantMiddleware implements NestMiddleware {
         return next();
       }
 
-      // Try tenant next
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { customDomain: host }
-      });
-
-      if (tenant) {
-        if (!tenant.isActive) throw new NotFoundException('Tenant inativo.');
-        const data = { tenantId: tenant.id };
-        await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
-        req.tenantId = data.tenantId;
-        return next();
-      }
-
-      // Domain not recognized — don't throw here. Allow the request to proceed
-      // without tenant context so the resolve-tenant controller's own fallback
-      // (resolveFromHost) can engage and try further resolution strategies
-      // (e.g. tenant.customDomain apex + subdomain as slug).
+      // Domain not in DB — proceed without context so resolve-tenant can return
+      // null cleanly (the controller fallback also checks project.customDomain only).
       return next();
     }
 
