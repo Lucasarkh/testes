@@ -2,6 +2,7 @@ import { Controller, Get, Param, Req, Query, ParseIntPipe, DefaultValuePipe } fr
 import { ProjectsService } from './projects.service';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ProjectStatus } from '@prisma/client';
 
 @ApiTags('Public')
 @Controller('p')
@@ -19,21 +20,28 @@ export class PublicProjectsController {
     }
 
     // When a custom domain is mapped to a tenant (not a specific project),
-    // look for a single active project under that tenant and auto-resolve it.
-    // This handles the case where the sysadmin set customDomain on Tenant instead of Project.
+    // resolve a default project so the subdomain root always renders a project page.
     if (!req.projectId) {
-      const projects = await this.prisma.project.findMany({
+      const preferredProject = await this.prisma.project.findFirst({
+        where: { tenantId: req.tenantId, status: ProjectStatus.PUBLISHED },
+        select: { id: true, slug: true, name: true, tenantId: true },
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      const fallbackProject = preferredProject ?? await this.prisma.project.findFirst({
         where: { tenantId: req.tenantId },
         select: { id: true, slug: true, name: true, tenantId: true },
-        take: 2,
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       });
-      if (projects.length === 1) {
+
+      if (fallbackProject) {
         return {
           tenantId: req.tenantId,
-          projectId: projects[0].id,
-          project: projects[0],
+          projectId: fallbackProject.id,
+          project: fallbackProject,
         };
       }
+
       return { tenantId: req.tenantId, projectId: null, project: null };
     }
 
