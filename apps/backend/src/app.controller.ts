@@ -64,20 +64,15 @@ export class AppController {
     let allowed = isMainDomainOrSubdomain;
 
     if (!allowed) {
-      const [tenant, project] = await Promise.all([
-        this.prisma.tenant.findUnique({
-          where: { customDomain: normalizedDomain },
-          select: { id: true, isActive: true },
-        }),
-        this.prisma.project.findUnique({
-          where: { customDomain: normalizedDomain },
-          select: { id: true, tenant: { select: { isActive: true } } },
-        }),
-      ]);
+      // Custom domain is always project-scoped; tenant.customDomain is not used
+      // for TLS cert issuance to avoid granting a certificate for a domain that
+      // does not route to any project (which would load the marketing home page).
+      const project = await this.prisma.project.findUnique({
+        where: { customDomain: normalizedDomain },
+        select: { id: true, tenant: { select: { isActive: true } } },
+      });
 
-      allowed =
-        Boolean(tenant?.isActive) ||
-        (Boolean(project?.id) && Boolean(project?.tenant?.isActive));
+      allowed = Boolean(project?.id) && Boolean(project?.tenant?.isActive);
     }
 
     if (!allowed) {

@@ -23,7 +23,12 @@ export class TenantMiddleware implements NestMiddleware {
   async use(req: any, res: Response, next: NextFunction) {
     if (req.method === 'OPTIONS') return next();
 
-    let host = req.headers['host'] || '';
+    // Prefer X-Forwarded-Host (set by reverse proxies like Caddy) over Host,
+    // because Caddy typically rewrites Host to the internal service address.
+    const forwardedHost = (req.headers['x-forwarded-host'] as string | undefined)
+      ?.split(',')[0]
+      ?.trim();
+    let host = (forwardedHost || req.headers['host'] || '') as string;
 
     // In local development, trust the Origin/Referer header to determine the "virtual"
     // host being accessed. This lets a frontend running on localhost:3000 simulate

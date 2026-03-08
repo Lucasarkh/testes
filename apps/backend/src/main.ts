@@ -82,19 +82,14 @@ async function bootstrap() {
         return callback(null, true);
       }
 
-      // Check custom domains in database
-      const [tenant, project] = await Promise.all([
-        prisma.tenant.findUnique({
-          where: { customDomain: host },
-          select: { id: true }
-        }),
-        prisma.project.findUnique({
-          where: { customDomain: host },
-          select: { id: true }
-        })
-      ]);
+      // Custom domain is always project-scoped; only project.customDomain is
+      // checked to ensure CORS access matches what the routing middleware resolves.
+      const project = await prisma.project.findUnique({
+        where: { customDomain: host },
+        select: { id: true }
+      });
 
-      if (tenant || project) {
+      if (project) {
         return callback(null, true);
       }
 
