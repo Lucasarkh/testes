@@ -79,10 +79,6 @@
             <label class="form-label">Slug (URL)</label>
             <input v-model="form.tenantSlug" class="form-input" placeholder="vista-verde" required />
           </div>
-          <div class="form-group">
-            <label class="form-label">Domínio Customizado (Ex: vendas.loteadora.com)</label>
-            <input v-model="form.customDomain" class="form-input" placeholder="vendas.meu-site.com.br" />
-          </div>
 
           <h3 style="margin: 20px 0 12px;">Dados Jurídicos</h3>
           <div class="form-group">
@@ -391,7 +387,6 @@ async function openEditModal(tenant) {
   form.value = {
     tenantName: details.name,
     tenantSlug: details.slug,
-    customDomain: details.customDomain || '',
     legalName: details.legalName || '',
     cnpj: details.cnpj || '',
     creci: details.creci || '',
@@ -437,7 +432,6 @@ async function handleCreate() {
         body: {
           name: form.value.tenantName,
           slug: form.value.tenantSlug,
-          customDomain: form.value.customDomain || null,
           legalName: form.value.legalName || null,
           cnpj: form.value.cnpj || null,
           creci: form.value.creci || null,

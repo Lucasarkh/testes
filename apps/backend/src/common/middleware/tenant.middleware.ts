@@ -103,9 +103,7 @@ export class TenantMiddleware implements NestMiddleware {
           });
           // BUG-06: throw 404 instead of silently serving the marketing landing page
           if (!project) throw new NotFoundException('Projeto não encontrado para este subdomínio.');
-          // BUG-04: block inactive tenant / unpublished project at the middleware level
           if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
-          if (project.status !== 'PUBLISHED') throw new NotFoundException('Projeto não disponível.');
 
           const data = { tenantId: project.tenantId, projectId: project.id, project };
           await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
@@ -138,8 +136,6 @@ export class TenantMiddleware implements NestMiddleware {
 
       if (project) {
         if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
-        // BUG-04: block unpublished projects on custom domains
-        if (project.status !== 'PUBLISHED') throw new NotFoundException('Projeto não disponível.');
         const data = { tenantId: project.tenantId, projectId: project.id, project };
         await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
         req.tenantId = data.tenantId;
