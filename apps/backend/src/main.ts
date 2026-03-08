@@ -95,7 +95,7 @@ async function bootstrap() {
 
       callback(new Error('CORS: Acesso não autorizado para este domínio.'));
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
     credentials: true
   });

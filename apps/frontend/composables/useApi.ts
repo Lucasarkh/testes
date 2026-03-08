@@ -5,7 +5,24 @@ export const useApi = () => {
   const authStore = useAuthStore();
   const router = useRouter();
 
-  const apiBase = (config.public.apiBase || '').replace(/\/+$/, '');
+  let apiBase = (config.public.apiBase || '').replace(/\/+$/, '');
+
+  // Normalize only lotio canonical host to avoid preflight redirects
+  // (www.lotio.com.br -> lotio.com.br) without affecting custom domains.
+  if (apiBase) {
+    try {
+      const parsed = new URL(
+        apiBase.startsWith('http') ? apiBase : `https://${apiBase}`,
+      );
+      if (parsed.hostname === 'www.lotio.com.br') {
+        parsed.hostname = 'lotio.com.br';
+        apiBase = `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '');
+      }
+    } catch {
+      // Keep original value if malformed; fetch will surface the error.
+    }
+  }
+
   const baseUrl = `${apiBase}/api`;
 
   const buildHeaders = (extra: Record<string, string> = {}, json = true) => {

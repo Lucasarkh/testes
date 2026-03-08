@@ -372,13 +372,13 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .ai-widget {
-    bottom: 96px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     left: 16px;
     right: auto;
   }
   .ai-bubble {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
   }
   .ai-tooltip {
     display: none;
@@ -465,14 +465,15 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .ai-window {
-    left: 12px;
-    right: 12px;
+    left: 0;
+    right: 0;
     bottom: 0;
-    width: auto;
-    max-width: none;
+    width: 100%;
+    max-width: 100%;
+    height: min(80vh, 640px);
     height: min(80dvh, 640px);
     max-height: 80dvh;
-    border-radius: 24px 24px 0 0;
+    border-radius: 20px 20px 0 0;
     animation: aiSheetUp 0.28s ease-out;
   }
 }
@@ -752,6 +753,7 @@ onMounted(() => {
 
 .ai-input-area {
   padding: 12px 15px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   background: #10262d;
   border-top: 1px solid var(--chat-border);
   display: flex;
@@ -808,11 +810,14 @@ onMounted(() => {
 .ai-input-wrapper {
   position: relative;
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
 }
 
 .ai-input-area input {
+  width: 100%;
+  max-width: 100%;
   border: 1px solid #86aeb8;
   border-radius: 20px;
   padding: 11px 65px 11px 18px;
@@ -878,6 +883,29 @@ onMounted(() => {
 
 .ai-input-area button:disabled {
   opacity: 0.5;
+}
+
+@media (max-width: 420px) {
+  .ai-input-area {
+    padding: 10px 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+
+  .ai-input-area input {
+    padding: 10px 58px 10px 14px;
+    font-size: 0.9rem;
+  }
+
+  .input-limit {
+    right: 12px;
+  }
+
+  .ai-input-area button {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
 }
 
 .typing {

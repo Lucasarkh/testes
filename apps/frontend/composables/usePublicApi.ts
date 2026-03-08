@@ -15,7 +15,13 @@ export const usePublicApi = () => {
       const configuredHost = new URL(
         apiBase.startsWith('http') ? apiBase : `https://${apiBase}`,
       ).hostname
-      if (configuredHost !== window.location.hostname) {
+
+      const currentHost = window.location.hostname
+      const isLocalDev = currentHost === 'localhost' || currentHost === '127.0.0.1'
+
+      // In local development, keep absolute apiBase to allow testing against
+      // production/staging APIs from localhost.
+      if (!isLocalDev && configuredHost !== currentHost) {
         apiBase = ''
       }
     } catch {

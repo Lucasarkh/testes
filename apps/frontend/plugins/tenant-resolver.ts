@@ -8,17 +8,39 @@ export default defineNuxtPlugin(async () => {
   const tenantStore = useTenantStore();
 
   try {
-    // Always call resolve-tenant using the current window origin so the Host
-    // header forwarded to the backend matches the page's domain. This is critical
-    // for subdomain / custom-domain tenant resolution via Caddy, and must NOT go
-    // through NUXT_PUBLIC_API_BASE (which may point to localhost in dev builds).
-    const res = await fetch(`${window.location.origin}/api/p/resolve-tenant`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    }).catch(() => null);
+    const runtime = useRuntimeConfig();
+    const configuredApiBase = (runtime.public.apiBase || '').replace(/\/+$/, '');
+    const host = window.location.hostname;
+    const isLocalDev = host === 'localhost' || host === '127.0.0.1';
 
-    const config = res && res.ok ? await res.text().then(t => (t ? JSON.parse(t) : null)) : null;
+    // On real domains, use current origin so Host is preserved for tenant
+    // resolution in reverse proxy. On localhost, prefer configured apiBase so
+    // local SPA can consume production/staging backend.
+    const primaryUrl = isLocalDev && configuredApiBase
+      ? `${configuredApiBase}/api/p/resolve-tenant`
+      : `${window.location.origin}/api/p/resolve-tenant`;
+
+    const fallbackUrl = configuredApiBase
+      ? `${configuredApiBase}/api/p/resolve-tenant`
+      : '';
+
+    const fetchTenantConfig = async (url: string) => {
+      const res = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      }).catch(() => null);
+
+      if (!res || !res.ok) return null;
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+      if (!contentType.includes('application/json')) return null;
+      return res.json().catch(() => null);
+    };
+
+    let config = await fetchTenantConfig(primaryUrl);
+    if (!config && fallbackUrl && fallbackUrl !== primaryUrl) {
+      config = await fetchTenantConfig(fallbackUrl);
+    }
 
     if (config) {
       tenantStore.setTenantConfig(config);
