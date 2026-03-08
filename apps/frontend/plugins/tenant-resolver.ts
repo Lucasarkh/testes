@@ -55,11 +55,30 @@ export default defineNuxtPlugin(async () => {
       });
 
       if (!res.ok) return null;
-      if (!contentType.includes('application/json')) return null;
 
-      const data = await res.json().catch(() => null);
-      console.log('[tenant-resolver] response body', { url, data });
-      return data;
+      if (contentType.includes('application/json')) {
+        const data = await res.json().catch(() => null);
+        console.log('[tenant-resolver] response body', { url, data });
+        return data;
+      }
+
+      // Some proxies may omit content-type even when body is JSON.
+      const rawBody = await res.text().catch(() => '');
+      console.log('[tenant-resolver] non-json response body preview', {
+        url,
+        preview: rawBody.slice(0, 300),
+      });
+
+      try {
+        const parsed = JSON.parse(rawBody);
+        console.log('[tenant-resolver] parsed JSON from non-json content-type', {
+          url,
+          parsed,
+        });
+        return parsed;
+      } catch {
+        return null;
+      }
     };
 
     let config = await fetchTenantConfig(primaryUrl);
