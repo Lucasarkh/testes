@@ -34,6 +34,14 @@ export default defineNuxtPlugin(async () => {
       ? `${configuredApiBase}/api/p/resolve-tenant?${hostQuery}`
       : '';
 
+    const candidateSlugFromHost = (() => {
+      const labels = host.split('.').filter(Boolean);
+      if (labels.length < 3) return '';
+      const first = labels[0]?.toLowerCase() || '';
+      if (!first || first === 'www' || first === 'api') return '';
+      return first;
+    })();
+
     const fetchTenantConfig = async (url: string) => {
       console.log('[tenant-resolver] requesting', { url, hostWithPort });
       const res = await fetch(url, {
@@ -82,10 +90,51 @@ export default defineNuxtPlugin(async () => {
       }
     };
 
+    const fetchProjectBySlug = async (baseUrl: string, slug: string) => {
+      const projectUrl = `${baseUrl}/api/p/${encodeURIComponent(slug)}`;
+      console.log('[tenant-resolver] trying slug fallback', { projectUrl, slug });
+
+      const res = await fetch(projectUrl, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      }).catch(() => null);
+
+      if (!res || !res.ok) return null;
+      const data = await res.json().catch(() => null);
+      if (!data?.id) return null;
+
+      const tenantId = data.tenantId || data.tenant?.id || '';
+      if (!tenantId) return null;
+
+      return {
+        tenantId,
+        projectId: data.id,
+        project: {
+          id: data.id,
+          slug: data.slug || slug,
+          name: data.name || slug,
+          tenantId,
+        },
+      };
+    };
+
     let config = await fetchTenantConfig(primaryUrl);
     if (!config && fallbackUrl && fallbackUrl !== primaryUrl) {
       console.log('[tenant-resolver] trying fallback URL', { fallbackUrl });
       config = await fetchTenantConfig(fallbackUrl);
+    }
+
+    // If host-based tenant resolver is empty, try project slug from subdomain.
+    if (!config && candidateSlugFromHost) {
+      config = await fetchProjectBySlug(window.location.origin, candidateSlugFromHost);
+
+      if (!config && fallbackUrl) {
+        const fallbackBase = configuredApiBase || '';
+        if (fallbackBase) {
+          config = await fetchProjectBySlug(fallbackBase, candidateSlugFromHost);
+        }
+      }
     }
 
     if (config) {
