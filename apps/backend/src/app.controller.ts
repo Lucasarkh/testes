@@ -13,8 +13,6 @@ import Redis from 'ioredis';
 @Controller()
 @SkipThrottle()
 export class AppController {
-  private static readonly TLS_CACHE_TTL_SECONDS = 300;
-
   constructor(
     private readonly prisma: PrismaService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
@@ -57,17 +55,6 @@ export class AppController {
       throw new BadRequestException('Query param "domain" invalido.');
     }
 
-    const cacheKey = `tls:allow-host:${normalizedDomain}`;
-    const cachedDecision = await this.safeRedisGet(cacheKey);
-
-    if (cachedDecision === '1') {
-      return { allowed: true, domain: normalizedDomain, cached: true };
-    }
-
-    if (cachedDecision === '0') {
-      throw new ForbiddenException('Dominio nao autorizado para TLS.');
-    }
-
     const allowedBaseDomains = this.getAllowedBaseDomains();
     const isMainDomainOrSubdomain = allowedBaseDomains.some(
       (baseDomain) =>
@@ -93,18 +80,11 @@ export class AppController {
         (Boolean(project?.id) && Boolean(project?.tenant?.isActive));
     }
 
-    await this.safeRedisSet(
-      cacheKey,
-      allowed ? '1' : '0',
-      'EX',
-      AppController.TLS_CACHE_TTL_SECONDS,
-    );
-
     if (!allowed) {
       throw new ForbiddenException('Dominio nao autorizado para TLS.');
     }
 
-    return { allowed: true, domain: normalizedDomain, cached: false };
+    return { allowed: true, domain: normalizedDomain };
   }
 
   private normalizeDomain(domain?: string): string | null {
@@ -156,24 +136,4 @@ export class AppController {
     return Array.from(domains);
   }
 
-  private async safeRedisGet(key: string): Promise<string | null> {
-    try {
-      return await this.redis.get(key);
-    } catch {
-      return null;
-    }
-  }
-
-  private async safeRedisSet(
-    key: string,
-    value: string,
-    mode: 'EX',
-    ttlSeconds: number,
-  ): Promise<void> {
-    try {
-      await this.redis.set(key, value, mode, ttlSeconds);
-    } catch {
-      // Cache failure must not fail TLS authorization checks.
-    }
-  }
 }
