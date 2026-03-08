@@ -12,6 +12,7 @@ export default defineNuxtPlugin(async () => {
     const configuredApiBase = (runtime.public.apiBase || '').replace(/\/+$/, '');
     const host = window.location.hostname;
     const hostWithPort = window.location.host;
+    const hostQuery = `host=${encodeURIComponent(hostWithPort)}`;
     const isLocalDev = host === 'localhost' || host === '127.0.0.1';
 
     console.log('[tenant-resolver] start', {
@@ -26,11 +27,11 @@ export default defineNuxtPlugin(async () => {
     // resolution in reverse proxy. On localhost, prefer configured apiBase so
     // local SPA can consume production/staging backend.
     const primaryUrl = isLocalDev && configuredApiBase
-      ? `${configuredApiBase}/api/p/resolve-tenant`
-      : `${window.location.origin}/api/p/resolve-tenant`;
+      ? `${configuredApiBase}/api/p/resolve-tenant?${hostQuery}`
+      : `${window.location.origin}/api/p/resolve-tenant?${hostQuery}`;
 
     const fallbackUrl = configuredApiBase
-      ? `${configuredApiBase}/api/p/resolve-tenant`
+      ? `${configuredApiBase}/api/p/resolve-tenant?${hostQuery}`
       : '';
 
     const fetchTenantConfig = async (url: string) => {

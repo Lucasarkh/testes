@@ -13,7 +13,7 @@ export class PublicProjectsController {
 
   @Get('resolve-tenant')
   @ApiOperation({ summary: 'Resolver contexto de tenant/projeto via Host' })
-  async resolveTenant(@Req() req: any) {
+  async resolveTenant(@Req() req: any, @Query('host') hostQuery?: string) {
     let tenantId = req.tenantId as string | undefined;
     let projectId: string | null | undefined = req.projectId as string | null | undefined;
     let resolvedProject = req.project as { id: string; slug: string; name: string; tenantId: string } | undefined;
@@ -21,7 +21,7 @@ export class PublicProjectsController {
     // Fallback resolver: if middleware did not inject project context (e.g. Caddy
     // rewrites Host to internal address), resolve directly from the incoming host.
     if (!tenantId) {
-      const host = this.getRequestHost(req);
+      const host = this.normalizeHost(hostQuery) || this.getRequestHost(req);
       const hostResolution = host ? await this.resolveFromHost(host) : null;
       if (!hostResolution) {
         return null;
@@ -55,8 +55,12 @@ export class PublicProjectsController {
     const forwardedHost = req.headers?.['x-forwarded-host'] as string | undefined;
     const hostHeader = req.headers?.host as string | undefined;
     const rawHost = forwardedHost?.split(',')[0]?.trim() || hostHeader?.trim();
+    return this.normalizeHost(rawHost);
+  }
+
+  private normalizeHost(rawHost?: string | null): string | null {
     if (!rawHost) return null;
-    return rawHost.toLowerCase().replace(/\.$/, '').split(':')[0];
+    return rawHost.toLowerCase().trim().replace(/\.$/, '').split(':')[0] || null;
   }
 
   private async resolveFromHost(host: string) {
@@ -106,6 +110,47 @@ export class PublicProjectsController {
           name: projectByDomain.name,
           tenantId: projectByDomain.tenantId,
         },
+      };
+    }
+
+    // Tenant-level custom domain fallback: choose a default project for root pages.
+    const tenantByDomain = await this.prisma.tenant.findUnique({
+      where: { customDomain: host },
+      select: { id: true, isActive: true },
+    });
+
+    if (tenantByDomain?.isActive) {
+      const preferredProject = await this.prisma.project.findFirst({
+        where: { tenantId: tenantByDomain.id, status: 'PUBLISHED' },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, slug: true, name: true, tenantId: true },
+      });
+
+      const fallbackProject = preferredProject
+        ? preferredProject
+        : await this.prisma.project.findFirst({
+            where: { tenantId: tenantByDomain.id },
+            orderBy: { updatedAt: 'desc' },
+            select: { id: true, slug: true, name: true, tenantId: true },
+          });
+
+      if (fallbackProject) {
+        return {
+          tenantId: tenantByDomain.id,
+          projectId: fallbackProject.id,
+          project: {
+            id: fallbackProject.id,
+            slug: fallbackProject.slug,
+            name: fallbackProject.name,
+            tenantId: fallbackProject.tenantId,
+          },
+        };
+      }
+
+      return {
+        tenantId: tenantByDomain.id,
+        projectId: null,
+        project: null,
       };
     }
 
