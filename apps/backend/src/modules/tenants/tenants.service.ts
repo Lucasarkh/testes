@@ -265,10 +265,30 @@ export class TenantsService {
     const tenant = await this.prisma.tenant.findUnique({ where: { id } });
     if (!tenant) throw new NotFoundException('Tenant não encontrado');
 
-    return this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id },
       data: { isActive }
     });
+
+    // BUG-02: flush all cached domain resolutions for this tenant so deactivation
+    // takes effect immediately, without waiting for the 5-minute Redis TTL.
+    const delKeys: Promise<any>[] = [];
+    if (tenant.customDomain) {
+      delKeys.push(this.redis.del(`domain_resolve:${tenant.customDomain}`));
+    }
+    const projects = await this.prisma.project.findMany({
+      where: { tenantId: id },
+      select: { slug: true, customDomain: true },
+    });
+    for (const p of projects) {
+      delKeys.push(this.redis.del(`domain_resolve:subdomain:${p.slug}`));
+      if (p.customDomain) {
+        delKeys.push(this.redis.del(`domain_resolve:${p.customDomain}`));
+      }
+    }
+    await Promise.all(delKeys);
+
+    return updated;
   }
 
   async resolveTenantByDomain(host: string) {

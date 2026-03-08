@@ -3,15 +3,11 @@ import { useTenantStore } from '~/stores/tenant';
 export default defineNuxtRouteMiddleware(async (to) => {
   const tenantStore = useTenantStore();
 
-  // On client side, wait for the resolver plugin to finish if needed
+  // On client side, wait for the resolver plugin to finish loading tenant context.
+  // BUG-09: use a reactive watch-based wait instead of an arbitrary polling loop
+  // so this never proceeds with stale/null state due to a fixed 2-second timeout.
   if (process.client && !tenantStore.isLoaded) {
-    // Polling or a more reactive way to wait for isLoaded
-    // This is simple and effective for initial load
-    let count = 0;
-    while (!tenantStore.isLoaded && count < 20) { // Max 2 seconds
-        await new Promise(r => setTimeout(r, 100));
-        count++;
-    }
+    await tenantStore.waitUntilLoaded();
   }
 
   // Canonicalize project routes so main and custom domains use the same page files.

@@ -25,20 +25,23 @@ export class TenantMiddleware implements NestMiddleware {
 
     let host = req.headers['host'] || '';
 
-    // In local development or via proxy, we might want to trust a custom header
-    // or the Origin/Referer header to determine the "virtual" host being accessed.
-    const origin = req.headers['origin'];
-    const referer = req.headers['referer'];
-    const virtualHost = origin || referer;
-
-    if (virtualHost && (host.startsWith('localhost') || host.startsWith('127.0.0.1'))) {
+    // In local development, trust the Origin/Referer header to determine the "virtual"
+    // host being accessed. This lets a frontend running on localhost:3000 simulate
+    // subdomain/custom-domain resolution without a real DNS entry.
+    // NEVER enabled in production — would allow tenant context spoofing via forged headers.
+    const isDev = process.env.NODE_ENV !== 'production';
+    if (isDev) {
+      const origin = req.headers['origin'] as string | undefined;
+      const referer = req.headers['referer'] as string | undefined;
+      const virtualHost = origin || referer;
+      if (virtualHost && (host === 'localhost' || host === '127.0.0.1' || host.startsWith('localhost:') || host.startsWith('127.0.0.1:'))) {
         try {
-            const originHost = new URL(virtualHost).hostname;
-            // If origin is something else like test.lucas.com.br, use it as the host
-            if (originHost !== 'localhost' && originHost !== '127.0.0.1' && originHost !== '') {
-                host = originHost;
-            }
+          const originHost = new URL(virtualHost).hostname;
+          if (originHost !== 'localhost' && originHost !== '127.0.0.1' && originHost !== '') {
+            host = originHost;
+          }
         } catch (e) { /* ignore invalid URL */ }
+      }
     }
 
     // Strip port for comparison (e.g., "localhost:3000" -> "localhost")
@@ -98,13 +101,17 @@ export class TenantMiddleware implements NestMiddleware {
             where: { slug: subdomain },
             include: { tenant: { select: { id: true, slug: true, isActive: true } } },
           });
-          if (project && project.tenant.isActive) {
-            const data = { tenantId: project.tenantId, projectId: project.id, project };
-            await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
-            req.tenantId = data.tenantId;
-            req.projectId = data.projectId;
-            req.project = data.project;
-          }
+          // BUG-06: throw 404 instead of silently serving the marketing landing page
+          if (!project) throw new NotFoundException('Projeto não encontrado para este subdomínio.');
+          // BUG-04: block inactive tenant / unpublished project at the middleware level
+          if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
+          if (project.status !== 'PUBLISHED') throw new NotFoundException('Projeto não disponível.');
+
+          const data = { tenantId: project.tenantId, projectId: project.id, project };
+          await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
+          req.tenantId = data.tenantId;
+          req.projectId = data.projectId;
+          req.project = data.project;
         }
       }
       return next();
@@ -131,6 +138,8 @@ export class TenantMiddleware implements NestMiddleware {
 
       if (project) {
         if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
+        // BUG-04: block unpublished projects on custom domains
+        if (project.status !== 'PUBLISHED') throw new NotFoundException('Projeto não disponível.');
         const data = { tenantId: project.tenantId, projectId: project.id, project };
         await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
         req.tenantId = data.tenantId;

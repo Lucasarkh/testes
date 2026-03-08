@@ -635,7 +635,7 @@ export class ProjectsService {
       }
     });
 
-    // Invalidate Redis cache when customDomain changes so the new mapping
+    // Invalidate Redis cache when customDomain or slug changes so the new mapping
     // takes effect immediately without waiting for the 5-minute TTL.
     if (dto.customDomain !== undefined) {
       if (project.customDomain) {
@@ -644,6 +644,11 @@ export class ProjectsService {
       if (dto.customDomain && dto.customDomain !== project.customDomain) {
         await this.redis.del(`domain_resolve:${dto.customDomain}`);
       }
+    }
+    // BUG-03: also flush the subdomain cache key when the project slug changes,
+    // otherwise oldSlug.lotio.com.br keeps resolving stale data for up to 5 minutes.
+    if (dto.slug && dto.slug.toLowerCase().replace(/\s+/g, '-') !== project.slug) {
+      await this.redis.del(`domain_resolve:subdomain:${project.slug}`);
     }
 
     // Trigger nearby regeneration if address changed

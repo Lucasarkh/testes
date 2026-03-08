@@ -37,10 +37,18 @@ export class PublicProjectsController {
       return { tenantId: req.tenantId, projectId: null, project: null };
     }
 
+    // BUG-07: always return a consistent minimal shape for `project` regardless of
+    // how it was resolved (subdomain, custom domain, or auto-resolve above).
+    // The full project data is loaded separately via GET /api/p/:slug by the pages.
+    const p = req.project;
+    const project = p
+      ? { id: p.id, slug: p.slug, name: p.name, tenantId: p.tenantId }
+      : null;
+
     return {
       tenantId: req.tenantId,
       projectId: req.projectId,
-      project: req.project || null,
+      project,
     };
   }
 
