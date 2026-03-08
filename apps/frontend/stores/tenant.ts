@@ -33,6 +33,14 @@ export const useTenantStore = defineStore('tenant', {
       };
       this.isLoaded = true;
       this.error = null;
+
+      if (process.client) {
+        console.log('[tenant-store] setTenantConfig', {
+          incoming: config,
+          normalized: this.config,
+          hasProjectId: Boolean(this.config?.projectId),
+        });
+      }
     },
 
     setError(message: string) {
