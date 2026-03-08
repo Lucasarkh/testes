@@ -25,7 +25,12 @@ export const useTenantStore = defineStore('tenant', {
 
   actions: {
     setTenantConfig(config: TenantConfig) {
-      this.config = config;
+      const normalizedProjectId = config.projectId ?? config.project?.id ?? null;
+
+      this.config = {
+        ...config,
+        projectId: normalizedProjectId,
+      };
       this.isLoaded = true;
       this.error = null;
     },
