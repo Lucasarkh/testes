@@ -486,7 +486,7 @@
                     <div class="reserve-fee">
                       Taxa de reserva: {{ formatCurrencyToBrasilia(reservationFeeValue) }}
                     </div>
-                    <p class="reserve-disclaimer">*Sujeito a analise de credito da loteadora responsavel pelo empreendimento.</p>
+                    <p class="reserve-disclaimer">*Sujeito a análise de crédito da loteadora responsável pelo empreendimento.</p>
                   </div>
 
                   <div v-else class="booking-form-v4">
