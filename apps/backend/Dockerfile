@@ -89,7 +89,8 @@ WORKDIR /app
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001 -G nodejs -h /home/nestjs
-
+# Create tmp directory with correct permissions before switching user
+RUN mkdir -p /app/tmp && chown -R nestjs:nodejs /app/tmp
 # 1) Production node_modules (hoisted)
 COPY --from=prod-deploy --chown=nestjs:nodejs /deploy/prod_node_modules ./node_modules
 
