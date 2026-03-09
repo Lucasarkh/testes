@@ -30,16 +30,31 @@ export class BillingService {
   ) {
     const secretKey = this.config.get<string>('STRIPE_SECRET_KEY');
     if (!secretKey) {
-      this.logger.warn('STRIPE_SECRET_KEY not set — billing features disabled');
+      this.logger.warn(
+        'STRIPE_SECRET_KEY not set — billing features will be disabled (Stripe instance not initialized)',
+      );
+      this.stripe = null as any;
+    } else {
+      this.stripe = new Stripe(secretKey, {
+        apiVersion: '2025-01-27.acacia' as any,
+      });
     }
-    this.stripe = new Stripe(secretKey || '', {
-      apiVersion: '2025-01-27.acacia' as any,
-    });
+  }
+
+  // ─── HELPER TO ENSURE STRIPE IS ACTIVE ─────────────
+
+  private ensureStripe() {
+    if (!this.stripe) {
+      throw new BadRequestException(
+        'Billing service is disabled. Check STRIPE_SECRET_KEY configuration.',
+      );
+    }
   }
 
   // ─── CUSTOMER MANAGEMENT ────────────────────────────────
 
   async ensureStripeCustomer(tenantId: string, dto?: CreateCustomerDto): Promise<string> {
+    this.ensureStripe();
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
     });

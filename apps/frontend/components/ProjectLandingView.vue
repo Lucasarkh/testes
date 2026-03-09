@@ -2560,6 +2560,8 @@ function openLightbox(idx: number) {
 }
 
 .v4-lot-price { 
+  display: flex;
+  flex-direction: column;
   margin-top: auto;
   border-top: 1px solid #f5f5f7;
   padding-top: 20px;
