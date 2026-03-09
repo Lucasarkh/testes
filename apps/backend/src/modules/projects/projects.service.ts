@@ -623,7 +623,8 @@ export class ProjectsService {
         ...(dto.aiEnabled !== undefined && { aiEnabled: dto.aiEnabled }),
         ...(dto.aiConfigId !== undefined && { aiConfigId: dto.aiConfigId || null }),
         ...(dto.legalNotice !== undefined && { legalNotice: dto.legalNotice }),
-        ...(dto.nearbyEnabled !== undefined && { nearbyEnabled: dto.nearbyEnabled })
+        ...(dto.nearbyEnabled !== undefined && { nearbyEnabled: dto.nearbyEnabled }),
+        ...(dto.sectionsLayout !== undefined && { sectionsLayout: dto.sectionsLayout })
       },
       include: {
         tenant: { select: { slug: true, name: true } },

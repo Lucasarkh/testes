@@ -18,35 +18,45 @@
     <!-- Project -->
     <template v-else-if="project">
       <ProjectSideMenu
-        :has-plant="!!project?.plantMap"
-        :has-panorama="panoramas.length > 0"
-        :has-info="hasInfo"
-        :has-lots="(project?.lotSummary?.available ?? 0) > 0"
-        :has-gallery="!!project.projectMedias?.length"
-        :has-location="!!project.googleMapsUrl || !!project.address"
-        :has-nearby="hasNearbyData"
-        :has-scheduling="schedulingConfig?.enabled"
+        :has-plant="!!project?.plantMap && isSectionVisible('plant_map')"
+        :has-panorama="panoramas.length > 0 && isSectionVisible('panorama')"
+        :has-info="hasInfo && isSectionVisible('info')"
+        :has-lots="(project?.lotSummary?.available ?? 0) > 0 && isSectionVisible('lots')"
+        :has-gallery="!!project.projectMedias?.length && isSectionVisible('gallery')"
+        :has-location="(!!project.googleMapsUrl || !!project.address) && isSectionVisible('location')"
+        :has-nearby="hasNearbyData && isSectionVisible('nearby')"
+        :has-scheduling="schedulingConfig?.enabled && isSectionVisible('scheduling')"
       />
 
+      <!-- ── Sections container (flex column, ordered by Page Builder) ── -->
+      <div class="pub-page-body" @click.capture="onPreviewClick">
+
       <!-- Hero section -->
-      <section id="inicio" class="v4-hero" :class="{ 'has-banner': hasHeroBanner }">
+      <section
+        id="inicio"
+        v-if="isSectionVisible('hero')"
+        class="v4-hero"
+        :class="[{ 'has-banner': hasHeroBanner }, pbEditClass('hero')]"
+        :style="{ order: getSectionOrder('hero'), ...pbSectionStyle('hero') }"
+        data-section-id="hero"
+      >
         <div v-if="hasHeroBanner" class="v4-hero-bg" :style="heroBackgroundStyle"></div>
-        <div class="v4-hero-overlay"></div>
+        <div class="v4-hero-overlay" :style="getSectionConfig('hero').overlayColor ? { background: getSectionConfig('hero').overlayColor, opacity: getSectionConfig('hero').overlayOpacity ?? 0.5 } : {}"></div>
 
         <div class="v4-container">
-          <div class="v4-hero-content">
+          <div class="v4-hero-content" :class="`text-${getSectionConfig('hero').titleAlign || 'left'}`">
             <div class="v4-hero-text">
               <span class="v4-hero-tag">{{ project.tenant?.name || 'Vendas Iniciadas' }}</span>
-              <h1 class="v4-hero-title text-balance">{{ project.name }}</h1>
-              <p v-if="project.description" class="v4-hero-desc text-balance">{{ project.description }}</p>
+              <EditableText tag="h1" :text="secTitle('hero', project.name)" :edit-mode="editMode" cls="v4-hero-title text-balance" @save="onTextUpdate('hero:title', $event)" />
+              <EditableText v-if="secSubtitle('hero', project.description) || editMode" tag="p" :text="secSubtitle('hero', project.description)" :edit-mode="editMode" cls="v4-hero-desc text-balance" @save="onTextUpdate('hero:subtitle', $event)" />
               <div class="v4-hero-actions">
-                <a href="#planta" class="v4-btn-primary v4-hero-btn" @click="tracking.trackClick('Botão: Ver Planta Interativa')">Ver Planta Interativa</a>
-                <a v-if="schedulingConfig?.enabled" href="#agendamento" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Agendar Visita')">Agendar Visita</a>
-                <a href="#contato" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Solicitar Informações')">Solicitar informações</a>
+                <a v-if="getSectionConfig('hero').btnPrimaryText !== ''" href="#planta" class="v4-btn-primary v4-hero-btn" @click="tracking.trackClick('Botão: Ver Planta Interativa')">{{ getSectionConfig('hero').btnPrimaryText || 'Ver Planta Interativa' }}</a>
+                <a v-if="schedulingConfig?.enabled" href="#agendamento" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Agendar Visita')">{{ getSectionConfig('hero').btnSecondaryText || 'Agendar Visita' }}</a>
+                <a href="#contato" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Solicitar Informações')">{{ getSectionConfig('hero').btnTertiaryText || 'Solicitar informações' }}</a>
               </div>
             </div>
 
-            <div class="v4-hero-stats">
+            <div v-if="getSectionConfig('hero').showStats !== false" class="v4-hero-stats">
               <div class="v4-stat-card">
                 <span class="v4-stat-label">Lotes Disponíveis</span>
                 <span class="v4-stat-value">{{ availableLots }}</span>
@@ -68,8 +78,8 @@
         </div>
       </section>
 
-      <!-- Trust bar -->
-      <div v-if="corretor" class="v4-trust-bar">
+      <!-- Trust bar (follows hero in order) -->
+      <div v-if="corretor && isSectionVisible('hero')" class="v4-trust-bar" :style="{ order: getSectionOrder('hero') }">
         <div class="v4-container">
           <div class="v4-trust-inner">
             <div class="v4-trust-person">
@@ -95,7 +105,14 @@
       </div>
 
       <!-- Highlights & Info -->
-      <section v-if="hasInfo" class="v4-section" id="info">
+      <section
+        v-if="(hasInfo || editMode) && isSectionVisible('info')"
+        class="v4-section"
+        :class="pbEditClass('info')"
+        id="info"
+        :style="{ order: getSectionOrder('info'), ...pbSectionStyle('info') }"
+        data-section-id="info"
+      >
         <div class="v4-container">
           <div v-if="hasLocationHeader" class="v4-section-header center v4-description-header">
             <h2 v-if="locationTitle" class="v4-section-title">{{ locationTitle }}</h2>
@@ -129,14 +146,21 @@
 
       <!-- Planta Interativa — section shows as soon as we know the project has a plant map;
            the actual hotspot data is fetched lazily when this section enters the viewport -->
-      <section v-if="project?.plantMap" class="v4-section v4-section-alt" id="planta">
+      <section
+        v-if="(project?.plantMap || editMode) && isSectionVisible('plant_map')"
+        class="v4-section v4-section-alt"
+        :class="pbEditClass('plant_map')"
+        id="planta"
+        :style="{ order: getSectionOrder('plant_map'), ...pbSectionStyle('plant_map') }"
+        data-section-id="plant_map"
+      >
         <div class="v4-container">
           <div class="v4-section-header center">
-            <h2 class="v4-section-title">Planta Interativa</h2>
-            <p class="v4-section-subtitle">Explore a implantação do loteamento. Clique nos pontos para mais informações.</p>
+            <EditableText tag="h2" :text="secTitle('plant_map', 'Planta Interativa')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('plant_map:title', $event)" />
+            <EditableText tag="p" :text="secSubtitle('plant_map', 'Explore a implantação do loteamento. Clique nos pontos para mais informações.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('plant_map:subtitle', $event)" />
           </div>
           <ClientOnly>
-            <div class="v4-plant-map-shell" :class="{ 'is-interaction-disabled': !isPlantMapInteractive }" style="height: 540px; border-radius: 16px; overflow: hidden; box-shadow: var(--v4-shadow-elevated); position: relative;">
+            <div class="v4-plant-map-shell" :class="{ 'is-interaction-disabled': !isPlantMapInteractive }" :style="{ height: (getSectionConfig('plant_map').mapHeight || 540) + 'px', borderRadius: '16px', overflow: 'hidden', boxShadow: 'var(--v4-shadow-elevated)', position: 'relative' }">
               <PlantMapViewer
                 v-if="plantMap"
                 :plant-map="plantMap"
@@ -144,6 +168,10 @@
                 :show-legend="true"
                 :interactive="isPlantMapInteractive"
               />
+              <div v-else-if="editMode" class="pb-section-placeholder" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; background:#f8f9fa; border-radius:16px;">
+                <i class="bi bi-grid-3x3" style="font-size:2.5rem; color:#aaa;" aria-hidden="true"></i>
+                <p style="margin:0; font-size:14px; color:#888; text-align:center;">Nenhuma planta interativa criada.<br>Acesse a aba <strong>Planta</strong> para começar.</p>
+              </div>
               <div v-else style="height:100%; background:#1a1a2e; display:flex; align-items:center; justify-content:center; color:#64748b;">
                 <div class="loading-spinner"></div>
               </div>
@@ -171,13 +199,24 @@
       </section>
 
       <!-- Panorama 360° -->
-      <section v-if="panoramas.length" class="v4-section" id="panorama">
+      <section
+        v-if="(panoramas.length || editMode) && isSectionVisible('panorama')"
+        class="v4-section"
+        :class="pbEditClass('panorama')"
+        id="panorama"
+        :style="{ order: getSectionOrder('panorama'), ...pbSectionStyle('panorama') }"
+        data-section-id="panorama"
+      >
         <div class="v4-container">
           <div class="v4-section-header center">
-            <h2 class="v4-section-title">Vista 360°</h2>
-            <p class="v4-section-subtitle">Explore o empreendimento e seus arredores com vista panorâmica.</p>
+            <EditableText tag="h2" :text="secTitle('panorama', 'Vista 360°')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('panorama:title', $event)" />
+            <EditableText tag="p" :text="secSubtitle('panorama', 'Explore o empreendimento e seus arredores com vista panorâmica.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('panorama:subtitle', $event)" />
           </div>
           <ClientOnly>
+            <div v-if="!panoramas.length && editMode" class="pb-section-placeholder" style="min-height:300px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; border-radius:16px;">
+              <i class="bi bi-camera" style="font-size:2.5rem; color:#aaa;" aria-hidden="true"></i>
+              <p style="margin:0; font-size:14px; color:#888; text-align:center;">Nenhum panorama 360° criado.<br>Acesse a aba <strong>Panorama</strong> para começar.</p>
+            </div>
             <div
               v-for="pano in panoramas"
               :key="pano.id"
@@ -209,20 +248,31 @@
       </section>
 
       <!-- Video Presentation -->
-      <section v-if="project.youtubeVideoUrl" class="v4-section v4-section-alt" id="video-apresentacao">
+      <section
+        v-if="(project?.youtubeVideoUrl || editMode) && isSectionVisible('video')"
+        class="v4-section v4-section-alt"
+        :class="pbEditClass('video')"
+        id="video-apresentacao"
+        :style="{ order: getSectionOrder('video'), ...pbSectionStyle('video') }"
+        data-section-id="video"
+      >
         <div class="v4-container">
           <div class="v4-section-header center">
-            <h2 class="v4-section-title">Apresentação</h2>
-            <p class="v4-section-subtitle">Assista ao vídeo e conheça cada detalhe do empreendimento.</p>
+            <EditableText tag="h2" :text="secTitle('video', 'Apresentação')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('video:title', $event)" />
+            <EditableText tag="p" :text="secSubtitle('video', 'Assista ao vídeo e conheça cada detalhe do empreendimento.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('video:subtitle', $event)" />
           </div>
           <div class="v4-video-wrapper">
-            <iframe 
+            <iframe
               v-if="youtubeEmbedUrl"
-              :src="youtubeEmbedUrl" 
-              width="100%" height="100%" frameborder="0" 
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              :src="youtubeEmbedUrl"
+              width="100%" height="100%" frameborder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowfullscreen
             ></iframe>
+            <div v-else-if="editMode" class="pb-section-placeholder" style="height:100%; min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;">
+              <i class="bi bi-youtube" style="font-size:2.5rem; color:#aaa;" aria-hidden="true"></i>
+              <p style="margin:0; font-size:14px; color:#888; text-align:center;">Nenhum vídeo configurado.<br>Cole o link do YouTube no painel lateral.</p>
+            </div>
             <a v-else :href="project.youtubeVideoUrl" target="_blank" class="v4-video-placeholder">
               <span>Assistir Vídeo no YouTube</span>
             </a>
@@ -232,12 +282,19 @@
 
       
       <!-- New Traditional Highlights "Destaques" -->
-      <section v-if="hasTraditionalInfo" class="v4-section" id="info">
+      <section
+        v-if="(hasTraditionalInfo || editMode) && isSectionVisible('traditional_highlights')"
+        class="v4-section"
+        :class="pbEditClass('traditional_highlights')"
+        id="destaques"
+        :style="{ order: getSectionOrder('traditional_highlights'), ...pbSectionStyle('traditional_highlights') }"
+        data-section-id="traditional_highlights"
+      >
         <div v-if="traditionalHighlights.length" class="v4-container">
           <div class="v4-destaques-grid-v2">
             <div class="v4-section-header center" style="margin-bottom: 56px;">
-              <h2 class="v4-section-title">{{ project.traditionalHighlightsTitle || 'Destaques' }}</h2>
-              <p class="v4-section-subtitle">{{ project.traditionalHighlightsSubtitle || 'Diferenciais pensados para o seu bem-estar.' }}</p>
+              <EditableText tag="h2" :text="secTitle('traditional_highlights', project.traditionalHighlightsTitle || 'Destaques')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('traditional_highlights:title', $event)" />
+              <EditableText tag="p" :text="secSubtitle('traditional_highlights', project.traditionalHighlightsSubtitle || 'Diferenciais pensados para o seu bem-estar.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('traditional_highlights:subtitle', $event)" />
             </div>
             
             <div class="v4-destaques-items">
@@ -254,11 +311,18 @@
       </section>
 
       <!-- Available Lots Grid -->
-      <section v-if="(project?.lotSummary?.available ?? 0) > 0" class="v4-section v4-section-alt" id="lotes">
+      <section
+        v-if="(project?.lotSummary?.available ?? 0) > 0 && isSectionVisible('lots')"
+        class="v4-section v4-section-alt"
+        :class="pbEditClass('lots')"
+        id="lotes"
+        :style="{ order: getSectionOrder('lots'), ...pbSectionStyle('lots') }"
+        data-section-id="lots"
+      >
         <div class="v4-container">
           <div class="v4-section-header">
-            <h2 class="v4-section-title">Lotes Disponíveis</h2>
-            <p class="v4-section-subtitle">Selecione uma opção abaixo para ver metragens e condições.</p>
+            <EditableText tag="h2" :text="secTitle('lots', 'Lotes Disponíveis')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('lots:title', $event)" />
+            <EditableText tag="p" :text="secSubtitle('lots', 'Selecione uma opção abaixo para ver metragens e condições.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('lots:subtitle', $event)" />
           </div>
 
           <div class="v4-lots-grid">
@@ -310,11 +374,18 @@
       </section>
 
       <!-- Construction Progress -->
-      <section v-if="project.constructionStatus && project.constructionStatus.length" class="v4-section" id="obras">
+      <section
+        v-if="(project?.constructionStatus?.length || editMode) && isSectionVisible('construction')"
+        class="v4-section"
+        :class="pbEditClass('construction')"
+        id="obras"
+        :style="{ order: getSectionOrder('construction'), ...pbSectionStyle('construction') }"
+        data-section-id="construction"
+      >
         <div class="v4-container">
           <div class="v4-section-header center">
-            <h2 class="v4-section-title">Acompanhamento de Obras</h2>
-            <p class="v4-section-subtitle">Acompanhe a evolução do projeto em tempo real.</p>
+            <EditableText tag="h2" :text="secTitle('construction', 'Acompanhamento de Obras')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('construction:title', $event)" />
+            <EditableText tag="p" :text="secSubtitle('construction', 'Acompanhe a evolução do projeto em tempo real.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('construction:subtitle', $event)" />
           </div>
           
           <div class="v4-construction-grid">
@@ -327,22 +398,33 @@
                 <div class="v4-progress-fill" :style="{ width: item.percentage + '%' }"></div>
               </div>
             </div>
+            <div v-if="!project.constructionStatus?.length && editMode" class="pb-section-placeholder" style="padding:40px; text-align:center;">
+              <i class="bi bi-bar-chart-steps" style="font-size:2rem; color:#aaa; margin-bottom:8px;" aria-hidden="true"></i>
+              <p style="margin:0; color:#888; font-size:14px;">Nenhuma etapa de obra cadastrada.<br>Adicione etapas no painel lateral.</p>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- Media gallery -->
-      <section v-if="project.projectMedias?.length" class="v4-section v4-section-alt" id="galeria">
+      <section
+        v-if="(project?.projectMedias?.length || editMode) && isSectionVisible('gallery')"
+        class="v4-section v4-section-alt"
+        :class="pbEditClass('gallery')"
+        id="galeria"
+        :style="{ order: getSectionOrder('gallery'), ...pbSectionStyle('gallery') }"
+        data-section-id="gallery"
+      >
         <div class="v4-container">
           <div class="v4-section-header">
-            <h2 class="v4-section-title">Galeria de Fotos</h2>
-            <p class="v4-section-subtitle">Conheça os detalhes e a infraestrutura do empreendimento.</p>
+            <EditableText tag="h2" :text="secTitle('gallery', 'Galeria de Fotos')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('gallery:title', $event)" />
+            <EditableText tag="p" :text="secSubtitle('gallery', 'Conheça os detalhes e a infraestrutura do empreendimento.')" :edit-mode="editMode" cls="v4-section-subtitle" @save="onTextUpdate('gallery:subtitle', $event)" />
           </div>
 
           <div class="v4-gallery-grid">
-            <div 
-              v-for="(m, i) in project.projectMedias.slice(0, 8)" 
-              :key="m.id" 
+            <div
+              v-for="(m, i) in project.projectMedias.slice(0, 8)"
+              :key="m.id"
               class="v4-gallery-item"
               @click="openLightbox(Number(i))"
             >
@@ -360,6 +442,10 @@
                 <span class="v4-gallery-expand">↗</span>
               </div>
             </div>
+            <div v-if="!project.projectMedias?.length && editMode" class="pb-section-placeholder" style="grid-column:1/-1; padding:48px 24px; text-align:center;">
+              <i class="bi bi-images" style="font-size:2rem; color:#aaa; margin-bottom:8px;" aria-hidden="true"></i>
+              <p style="margin:0; color:#888; font-size:14px;">Nenhuma foto ou vídeo na galeria.<br>Adicione mídia no painel lateral.</p>
+            </div>
           </div>
 
           <div v-if="project.projectMedias.length > 9" style="margin-top: 56px; display: flex; justify-content: center;">
@@ -371,10 +457,17 @@
       </section>
 
       <!-- Endereço e Mapa -->
-      <section v-if="project.googleMapsUrl || project.address" class="v4-section" id="localizacao">
+      <section
+        v-if="((project?.googleMapsUrl || project?.address) || editMode) && isSectionVisible('location')"
+        class="v4-section"
+        :class="pbEditClass('location')"
+        id="localizacao"
+        :style="{ order: getSectionOrder('location'), ...pbSectionStyle('location') }"
+        data-section-id="location"
+      >
         <div class="v4-container">
           <div class="v4-section-header center">
-            <h2 class="v4-section-title">Nossa Localização</h2>
+            <EditableText tag="h2" :text="secTitle('location', 'Nossa Localização')" :edit-mode="editMode" cls="v4-section-title" @save="onTextUpdate('location:title', $event)" />
             <p v-if="project.address" class="v4-section-subtitle" style="max-width: 600px; margin: 0 auto;">{{ project.address }}</p>
           </div>
 
@@ -393,14 +486,39 @@
       </section>
 
       <!-- Proximidades -->
-      <LandingNearbyPlaces v-if="projectSlug" :project-slug="projectSlug" @update:visible="hasNearbyData = $event" />
+      <div
+        v-if="(projectSlug || editMode) && isSectionVisible('nearby')"
+        :class="pbEditClass('nearby')"
+        :style="{ order: getSectionOrder('nearby') }"
+        data-section-id="nearby"
+      >
+        <LandingNearbyPlaces
+          v-if="projectSlug"
+          :project-slug="projectSlug"
+          @update:visible="hasNearbyData = $event"
+        />
+        <div v-else-if="editMode" class="pb-section-placeholder">
+          <i class="bi bi-pin-map" aria-hidden="true"></i> Proximidades — disponível após salvar o endereço
+        </div>
+      </div>
 
       <!-- Agendamento Section -->
-      <section v-if="project && schedulingConfig?.enabled" class="v4-section" id="agendamento" style="background: #1d1d1f; color: white;">
+      <section
+        v-if="project && (schedulingConfig?.enabled || editMode) && isSectionVisible('scheduling')"
+        class="v4-section"
+        :class="pbEditClass('scheduling')"
+        id="agendamento"
+        :style="{ order: getSectionOrder('scheduling'), background: pbSectionStyle('scheduling').background || '#1d1d1f', color: pbSectionStyle('scheduling').color || 'white' }"
+        data-section-id="scheduling"
+      >
         <div class="v4-container">
           <div class="v4-schedule-row">
             <div class="v4-schedule-info">
-              <h2 class="v4-section-title" style="color: white;">Ficou interessado?<br>Venha conhecer de perto.</h2>
+              <h2 class="v4-section-title" :style="{ color: pbSectionStyle('scheduling').color || 'white' }">
+                <EditableText tag="span" :text="secTitle('scheduling', 'Ficou interessado?')" :edit-mode="editMode" @save="onTextUpdate('scheduling:title', $event)" />
+                <br>
+                <EditableText tag="span" :text="secSubtitle('scheduling', 'Venha conhecer de perto.')" :edit-mode="editMode" @save="onTextUpdate('scheduling:subtitle', $event)" />
+              </h2>
               <p class="v4-section-subtitle" style="color: #a1a1a6; max-width: 480px;">Nada supera a sensação de estar no local onde será construído o seu futuro. Agende uma visita guiada com nossos especialistas.</p>
               
               <div class="v4-perks">
@@ -442,17 +560,24 @@
       </div>
 
       <!-- Lead form -->
-      <section class="v4-section" id="contato" style="background: #fbfbfd; padding: 120px 0;">
+      <section
+        v-if="isSectionVisible('cta')"
+        class="v4-section"
+        :class="pbEditClass('cta')"
+        id="contato"
+        :style="{ order: getSectionOrder('cta'), background: pbSectionStyle('cta').background || '#fbfbfd', paddingTop: '120px', paddingBottom: '120px' }"
+        data-section-id="cta"
+      >
         <div class="v4-container">
           <div class="v4-conversion-card-new">
             <div class="v4-conversion-content">
               <div class="v4-conversion-header-new">
                 <div class="v4-badge-clean">
                   <span class="v4-pulse-blue"></span>
-                  Oportunidade única
+                  {{ getSectionConfig('cta').badge || 'Oportunidade única' }}
                 </div>
-                <h2 class="v4-title-display">Garanta sua unidade agora</h2>
-                <p class="v4-subtitle-clean">Restam poucas unidades disponíveis. Preencha o formulário e nossa equipe entrará em contato para tirar suas dúvidas.</p>
+                <EditableText tag="h2" :text="secTitle('cta', 'Garanta sua unidade agora')" :edit-mode="editMode" cls="v4-title-display" @save="onTextUpdate('cta:title', $event)" />
+                <EditableText tag="p" :text="secSubtitle('cta', 'Restam poucas unidades disponíveis. Preencha o formulário e nossa equipe entrará em contato para tirar suas dúvidas.')" :edit-mode="editMode" cls="v4-subtitle-clean" @save="onTextUpdate('cta:subtitle', $event)" />
                 
                 <div v-if="(project?.lotSummary?.total ?? 0) > 0" class="v4-lot-badge-minimal">
                   <span class="v4-sparkle"><i class="bi bi-stars" aria-hidden="true"></i></span> <strong>{{ availableLots }}</strong> lotes disponíveis no momento
@@ -519,7 +644,13 @@
       </section>
 
       <!-- Legal Notice -->
-      <section v-if="project.legalNotice" class="v4-legal-notice">
+      <section
+        v-if="(project?.legalNotice || editMode) && isSectionVisible('legal_notice')"
+        class="v4-legal-notice"
+        :class="pbEditClass('legal_notice')"
+        :style="{ order: getSectionOrder('legal_notice') }"
+        data-section-id="legal_notice"
+      >
         <div class="v4-container">
           <div class="v4-legal-inner">
             <div class="v4-legal-icon"><i class="bi bi-clipboard-check" aria-hidden="true"></i></div>
@@ -528,8 +659,8 @@
         </div>
       </section>
 
-      <!-- Footer -->
-      <footer class="v4-footer">
+      <!-- Footer (always last) -->
+      <footer class="v4-footer" style="order: 9999;">
         <div class="v4-container">
           <div class="v4-footer-inner">
             <!-- Logos: Realização e Propriedade -->
@@ -593,7 +724,34 @@
         </div>
       </footer>
 
-      <!-- Lightbox -->
+      <!-- ── Free sections (text, text+image, image block) from Page Builder ── -->
+      <template v-for="sec in freeSections" :key="sec.id">
+        <SectionText
+          v-if="sec.type === 'text' && sec.visible"
+          :config="sec.config"
+          :style="{ order: sec.order }"
+          :class="pbEditClass(sec.id)"
+          :data-section-id="sec.id"
+        />
+        <SectionTextImage
+          v-else-if="sec.type === 'text_image' && sec.visible"
+          :config="sec.config"
+          :style="{ order: sec.order }"
+          :class="pbEditClass(sec.id)"
+          :data-section-id="sec.id"
+        />
+        <SectionImageBlock
+          v-else-if="sec.type === 'image_block' && sec.visible"
+          :config="sec.config"
+          :style="{ order: sec.order }"
+          :class="pbEditClass(sec.id)"
+          :data-section-id="sec.id"
+        />
+      </template>
+
+      </div><!-- /pub-page-body -->
+
+      <!-- Lightbox (outside flex flow) -->
       <div v-if="lightboxOpen" class="v4-lightbox" @click.self="lightboxOpen = false">
         <button class="v4-lightbox-close" @click="lightboxOpen = false">&times;</button>
         <button v-if="lightboxIdx > 0" class="v4-lightbox-btn v4-prev" @click="lightboxIdx--">&#10094;</button>
@@ -678,10 +836,27 @@
 <script setup lang="ts">
 import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
+import { resolveSectionsLayout, getSectionStyle, type PageSection } from '~/utils/page-builder'
+import SectionText from '~/components/sections/SectionText.vue'
+import SectionTextImage from '~/components/sections/SectionTextImage.vue'
+import SectionImageBlock from '~/components/sections/SectionImageBlock.vue'
 
 const props = defineProps<{
   slug?: string
   id?: string
+  /** Builder mode: pass project data directly (skips internal API fetch) */
+  projectProp?: any
+  /** Builder mode: pass sections array directly (overrides resolveSectionsLayout) */
+  sectionsProp?: PageSection[]
+  /** Builder mode: enables edit overlays and click-to-select */
+  editMode?: boolean
+  /** Builder mode: which section ID is currently selected */
+  selectedId?: string | null
+}>()
+
+const emit = defineEmits<{
+  (e: 'sectionClick', sectionId: string): void
+  (e: 'textUpdate', key: string, val: string): void
 }>()
 
 const route = useRoute()
@@ -799,10 +974,15 @@ const { success: toastSuccess } = useToast()
 const tracking = useTracking()
 const trackingStore = useTrackingStore()
 
-const loading = ref(true)
+const loading = ref(props.projectProp == null)
 const showSchedulingModal = ref(false)
 const error = ref('')
 const project = ref<any>(null)
+
+// Mirror projectProp into internal project ref (builder mode — no API fetch needed)
+watch(() => props.projectProp, (val) => {
+  if (val != null) project.value = val
+}, { immediate: true })
 const corretor = ref<any>(null)
 const plantMap = ref<PlantMap | null>(null)
 const { getPublicPlantMap } = usePublicPlantMap()
@@ -1231,6 +1411,18 @@ onMounted(async () => {
   window.addEventListener('resize', detectTouchMobile)
   window.addEventListener('keydown', handleModalKeyDown)
 
+  // Builder mode: data is provided via projectProp — skip public API fetch
+  if (props.projectProp) {
+    loading.value = false
+    // Still fetch panoramas (non-blocking) using the project ID
+    if (props.projectProp.id) {
+      getPublicPanoramas(props.projectProp.id, false).then((panos) => {
+        panoramas.value = panos ?? []
+      }).catch(() => {})
+    }
+    return
+  }
+
   try {
     const baseUrl = isPreview.value ? `/p/preview/${previewId.value}` : `/p/${projectSlug.value}`
 
@@ -1356,1932 +1548,107 @@ function openLightbox(idx: number) {
   lightboxIdx.value = idx
   lightboxOpen.value = true
 }
+
+// ─── Page Builder ─────────────────────────────────────────────────────────
+
+const sectionsLayout = computed<PageSection[]>(() => {
+  // Builder mode: use the sections array passed directly from the builder
+  if (props.sectionsProp) return props.sectionsProp
+  if (!project.value) return []
+  // Pass runtime data so defaults reflect what's really available
+  const p = {
+    ...project.value,
+    plantMap: project.value.plantMap,
+    panoramas: panoramas.value,
+    schedulingConfig: schedulingConfig.value,
+  }
+  return resolveSectionsLayout(p)
+})
+
+const sortedSections = computed<PageSection[]>(() =>
+  [...sectionsLayout.value].sort((a, b) => a.order - b.order)
+)
+
+/** Config for a specific section type (first match) */
+function getSectionConfig(type: string): Record<string, any> {
+  return sectionsLayout.value.find((s) => s.type === type)?.config ?? {}
+}
+
+/** CSS order value for a section */
+function getSectionOrder(type: string): number {
+  return sectionsLayout.value.find((s) => s.type === type)?.order ?? 999
+}
+
+/** Whether the section should render (explicit false → hidden) */
+function isSectionVisible(type: string): boolean {
+  const sec = sectionsLayout.value.find((s) => s.type === type)
+  return sec ? sec.visible !== false : true
+}
+
+/** Inline style object from section config (bg, text color, padding) */
+function pbSectionStyle(type: string): Record<string, string> {
+  return getSectionStyle(getSectionConfig(type) as any)
+}
+
+/** Title / subtitle override helpers — fall back to project defaults */
+function secTitle(type: string, fallback: string): string {
+  return getSectionConfig(type).title || fallback
+}
+function secSubtitle(type: string, fallback: string): string {
+  return getSectionConfig(type).subtitle || fallback
+}
+
+/** Text-align class from config */
+function secAlignClass(type: string): string {
+  const align = getSectionConfig(type).titleAlign
+  if (!align || align === 'left') return ''
+  if (align === 'center') return 'center'
+  if (align === 'right') return 'right'
+  return ''
+}
+
+// ─── Builder edit-mode helpers ─────────────────────────────────────────────
+
+/**
+ * Returns CSS class string for edit-mode hover/selection overlays.
+ * sectionId is the section's unique ID (= type for widget sections).
+ */
+function pbEditClass(sectionId: string): string | null {
+  if (!props.editMode) return null
+  return props.selectedId === sectionId ? 'pb-editable pb-selected' : 'pb-editable'
+}
+
+/**
+ * Delegated click handler attached to .pub-page-body in editMode.
+ * Finds the nearest element with data-section-id, stops event propagation,
+ * and emits sectionClick so the builder can select the section.
+ */
+function onPreviewClick(e: Event) {
+  if (!props.editMode) return
+  const target = e.target as HTMLElement
+  const sectionEl = target.closest('[data-section-id]') as HTMLElement | null
+  if (!sectionEl?.dataset.sectionId) return
+
+  emit('sectionClick', sectionEl.dataset.sectionId)
+
+  // For contenteditable text elements, let the click reach the element so the browser can focus it.
+  // Only stop propagation for non-editable areas (where default click behavior isn't needed).
+  if (!target.closest('[data-editable-text]')) {
+    e.stopPropagation()
+    e.preventDefault()
+  }
+}
+
+/** Relay inline text edits from EditableText components up to the builder. */
+function onTextUpdate(key: string, val: string) {
+  emit('textUpdate', key, val)
+}
+
+/** Free sections (text, text_image, image_block) sorted by order */
+const freeSections = computed<PageSection[]>(() =>
+  sortedSections.value.filter((s) =>
+    s.type === 'text' || s.type === 'text_image' || s.type === 'image_block'
+  )
+)
 </script>
 
-<style scoped>
-/* V4 Design System Tokens - Apple/Samsung Inspired */
-:global(:root) {
-  --v4-primary: #0071e3; /* Apple Blue */
-  --v4-primary-hover: #0077ed;
-  --v4-bg: #ffffff;
-  --v4-bg-alt: #f5f5f7; /* Apple secondary bg */
-  --v4-text: #1d1d1f; /* Apple Text */
-  --v4-text-muted: #86868b;
-  --v4-border: #d2d2d7;
-  --v4-radius-lg: 18px; /* Refined, not bubbly */
-  --v4-radius-md: 12px;
-  --v4-radius-sm: 8px;
-  --v4-shadow-soft: 0 4px 24px rgba(0,0,0,0.04);
-  --v4-shadow-elevated: 0 20px 40px rgba(0,0,0,0.08);
-
-  /* New mobile-specific tokens */
-  --v4-mobile-padding: 20px;
-  --v4-section-spacing-mobile: 48px;
-  --v4-section-column-gap-mobile: 24px;
-  
-  /* Section Delimitation Tokens */
-  --v4-hairline: 1px solid rgba(0, 0, 0, 0.08);
-  --v4-hairline-dark: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Base Layout */
-.pub-page {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  color: var(--v4-text);
-  background: var(--v4-bg);
-  line-height: 1.47059;
-  font-weight: 400;
-  letter-spacing: -0.022em;
-  -webkit-font-smoothing: antialiased;
-  /* Prevent margin collapse at the page level */
-  padding-top: 0.1px;
-}
-
-.v4-container {
-  max-width: 1040px; /* More focused container like Apple */
-  margin: 0 auto;
-  padding: 0 40px; /* Increased desktop padding for symmetry */
-}
-
-@media (max-width: 768px) {
-  .v4-container { padding: 0 var(--v4-mobile-padding); }
-}
-
-/* Spacing & Sections */
-.v4-section {
-  padding: 100px 0; /* Consistent desk padding */
-  position: relative;
-  border-bottom: var(--v4-hairline); /* Apple style hairline separator */
-}
-
-@media (max-width: 768px) {
-  .v4-section { padding: 64px 0; } /* Consistent mobile padding */
-}
-
-/* Fix for nested element margins leaking into section paddings */
-.v4-section > .v4-container > *:first-child {
-  margin-top: 0 !important;
-}
-
-.v4-section > .v4-container > *:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Specific section variations for delimitation */
-.v4-section:last-of-type { border-bottom: none; }
-
-.v4-section-alt {
-  background: var(--v4-bg-alt);
-}
-
-.v4-section-header {
-  margin-bottom: 56px;
-  max-width: 800px;
-}
-
-@media (max-width: 768px) {
-  .v4-section-header { margin-bottom: 32px; }
-}
-
-.v4-section-header.center {
-  margin-inline: auto;
-  text-align: center;
-}
-
-.v4-section-title {
-  font-size: 40px;
-  font-weight: 600;
-  letter-spacing: -0.003em;
-  line-height: 1.1;
-  margin-bottom: 12px;
-}
-
-@media (max-width: 768px) {
-  .v4-section-title { font-size: 28px; margin-bottom: 12px; }
-}
-
-.v4-section-subtitle {
-  font-size: 21px;
-  line-height: 1.38105;
-  color: var(--v4-text-muted);
-  font-weight: 400;
-}
-
-.v4-description-header {
-  margin-bottom: 24px;
-}
-
-.v4-rich-content {
-  font-size: 19px;
-  line-height: 1.6;
-  color: var(--v4-text);
-  max-width: 800px;
-  margin: 0 auto 32px; /* Margin bottom for text wrap, matches header's vibe */
-}
-
-/* Ensure spacing between rich content elements */
-.v4-rich-content :deep(p), .v4-rich-content p,
-.v4-rich-content :deep(div), .v4-rich-content div {
-  margin-bottom: 20px;
-}
-
-.v4-rich-content :deep(ul), .v4-rich-content ul {
-  padding-left: 24px;
-  margin-bottom: 20px;
-  list-style-type: disc;
-}
-
-.v4-rich-content :deep(li), .v4-rich-content li {
-  margin-bottom: 8px;
-}
-
-.v4-rich-content :deep(strong), .v4-rich-content strong, 
-.v4-rich-content :deep(b), .v4-rich-content b {
-  font-weight: 700;
-  color: #000;
-}
-.v4-schedule-cta h3 {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: #fff;
-}
-.v4-pulse {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: var(--v4-primary);
-  border-radius: 50%;
-  margin-right: 8px;
-  box-shadow: 0 0 0 rgba(0, 113, 227, 0.4);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 113, 227, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 113, 227, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 113, 227, 0); }
-}
-
-/* Floating Search CTA */
-.v4-floating-cta {
-  position: fixed;
-  bottom: 40px;
-  right: 24px;
-  z-index: 1000;
-  max-width: calc(100vw - 48px);
-}
-
-@media (max-width: 768px) {
-  .v4-floating-cta {
-    bottom: 100px; 
-    right: 16px;
-    max-width: 60px;
-  }
-}
-
-.v4-cta-btn-animated {
-  display: block;
-  text-decoration: none;
-  background: white;
-  padding: 2px; /* For animated border */
-  border-radius: 100px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-  transition: transform 0.3s;
-  border: none;
-  cursor: pointer;
-}
-
-@media (max-width: 768px) {
-  .v4-cta-btn-animated { 
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    padding: 2px;
-  }
-}
-
-.v4-cta-btn-animated:hover {
-  transform: translateY(-4px) scale(1.02);
-}
-
-/* Animated Border Effect */
-.v4-cta-btn-animated::before {
-  content: "";
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    transparent, 
-    var(--v4-primary), 
-    #00c3ff, 
-    var(--v4-primary), 
-    transparent 30%
-  );
-  animation: rotate-border 4s linear infinite;
-  z-index: 1;
-}
-
-@keyframes rotate-border {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.v4-cta-inner {
-  position: relative;
-  z-index: 2;
-  background: white;
-  border-radius: 100px;
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .v4-cta-inner {
-    padding: 12px;
-    border-radius: 50%;
-    aspect-ratio: 1;
-    justify-content: center;
-    width: 56px;
-    height: 56px;
-  }
-}
-
-.v4-cta-icon-spark { font-size: 18px; }
-
-@media (max-width: 768px) {
-  .v4-cta-icon-spark { font-size: 24px; margin: 0; }
-}
-
-.v4-cta-label { font-size: 14px; font-weight: 600; color: var(--v4-text); letter-spacing: -0.01em; }
-
-@media (max-width: 768px) {
-  .v4-cta-label { display: none; }
-}
-
-.v4-cta-arrow-icon { color: var(--v4-primary); font-weight: 700; transition: transform 0.2s; }
-
-@media (max-width: 768px) {
-  .v4-cta-arrow-icon { display: none; }
-}
-
-.v4-cta-btn-animated:hover .v4-cta-arrow-icon {
-  transform: translateX(4px);
-}
-
-/* Modal Search Styles */
-.v4-filter-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  z-index: 9000;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0;
-}
-
-@media (min-width: 769px) {
-  .v4-filter-modal-overlay {
-    align-items: center;
-    padding: 24px;
-  }
-}
-
-.v4-filter-modal-card {
-  background: white;
-  width: 100%;
-  max-width: 500px;
-  border-radius: 28px 28px 0 0;
-  padding: 32px 24px 40px;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
-  max-height: 85dvh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  animation: modal-slide-up 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
-@media (min-width: 769px) {
-  .v4-filter-modal-card {
-    border-radius: 28px;
-    padding: 40px;
-    max-height: 90dvh;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.15);
-    animation: modal-appear 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-  }
-}
-
-@keyframes modal-slide-up {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes modal-appear {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.v4-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  flex-shrink: 0;
-}
-.v4-modal-title { font-size: 24px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.02em; }
-.v4-modal-close {
-  background: #f5f5f7;
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: #86868b;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-.v4-modal-close:hover { background: #e8e8ed; color: #1d1d1f; }
-
-.v4-modal-body { flex: 1; overflow-y: auto; margin-bottom: 24px; }
-.v4-modal-label { font-size: 13px; font-weight: 700; color: #86868b; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 16px; }
-
-.v4-modal-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-
-.v4-modal-tag {
-  background: #f5f5f7;
-  border: 1px solid transparent;
-  padding: 10px 18px;
-  border-radius: 100px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid #d2d2d7;
-}
-.v4-modal-tag:hover { background: #e8e8ed; }
-.v4-modal-tag.active { background: #0071e3; color: white; border-color: #0071e3; }
-
-.v4-modal-options {
-  background: #f5f5f7;
-  padding: 16px;
-  border-radius: 16px;
-}
-.v4-modal-option {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-}
-.v4-modal-option input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
-.v4-option-info { display: flex; flex-direction: column; }
-.v4-option-title { font-size: 14px; font-weight: 600; color: #1d1d1f; }
-.v4-option-desc { font-size: 12px; color: #86868b; }
-
-.v4-modal-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.v4-btn-modal-search {
-  background: #0071e3;
-  color: white;
-  border: none;
-  padding: 16px;
-  border-radius: 14px;
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-}
-.v4-btn-modal-search:hover { background: #0077ed; transform: scale(1.02); }
-.v4-btn-modal-clear {
-  background: transparent;
-  color: #0071e3;
-  border: none;
-  padding: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-/* Fade animation */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-.v4-cta-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(0, 113, 227, 0.1), transparent);
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* Navigation & Hero */
-.v4-hero {
-  position: relative;
-  background: #000;
-  color: white;
-  overflow: hidden;
-  min-height: 85vh;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
-  padding: 0 0 0;
-}
-
-.v4-hero-bg {
-  position: absolute;
-  inset: 0;
-  background-image: var(--v4-hero-bg-desktop);
-  background-size: cover;
-  background-position: center;
-  z-index: 1;
-  opacity: 1;
-  transition: all 0.5s ease;
-}
-
-@media (max-width: 1024px) {
-  .v4-hero-bg {
-    background-image: var(--v4-hero-bg-tablet, var(--v4-hero-bg-desktop));
-  }
-}
-
-@media (max-width: 768px) {
-  .v4-hero-bg {
-    background-image: var(--v4-hero-bg-mobile, var(--v4-hero-bg-tablet, var(--v4-hero-bg-desktop)));
-  }
-}
-
-.v4-hero.has-banner .v4-hero-bg {
-  filter: brightness(0.9);
-  transform: none;
-}
-
-.v4-hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.15) 100%);
-  z-index: 2;
-}
-
-.v4-hero.has-banner .v4-hero-overlay {
-  background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.1) 70%, transparent 100%);
-}
-
-.v4-hero-content {
-  position: relative;
-  z-index: 3;
-  width: 100%;
-  padding: 48px 0 56px;
-  display: flex;
-  align-items: flex-end;
-  gap: 48px;
-}
-
-.v4-hero-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.v4-hero-tag {
-  display: inline-block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
-  margin-bottom: 16px;
-  background: var(--v4-primary);
-  padding: 6px 16px;
-  border-radius: 100px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
-}
-
-.v4-hero-title {
-  font-size: clamp(32px, 6vw, 64px);
-  font-weight: 700;
-  text-wrap: pretty;
-  line-height: 1;
-  margin-bottom: 20px;
-  color: #ffffff;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  text-transform: uppercase;
-}
-
-.v4-hero-desc {
-  font-size: clamp(15px, 2vw, 18px);
-  color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 28px;
-  max-width: 560px;
-  line-height: 1.5;
-}
-
-/* Hero Stats — vertical stack on the right */
-.v4-hero-stats {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-left: 40px;
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
-  margin-bottom: 8px;
-}
-
-.v4-stat-card {
-  text-align: left;
-  min-width: 140px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.v4-stat-label {
-  display: block;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 4px;
-  font-weight: 700;
-}
-
-.v4-stat-value {
-  font-size: 40px;
-  font-weight: 700;
-  color: #ffffff;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.v4-stat-value small {
-  font-size: 0.55em;
-  font-weight: 500;
-  opacity: 0.8;
-  vertical-align: middle;
-}
-
-.v4-stat-meta {
-  margin-top: 12px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.4;
-  max-width: 200px;
-}
-
-.v4-stat-installments {
-  font-weight: 700;
-  color: #32d74b;
-  display: block;
-  font-size: 16px;
-  margin-bottom: 4px;
-}
-
-.v4-stat-summary {
-  margin-top: 2px;
-  opacity: 0.8;
-  color: #fff;
-}
-
-.v4-hero-actions {
-  display: flex;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-/* Buttons */
-.v4-btn-primary {
-  background: var(--v4-primary);
-  color: white;
-  padding: 12px 28px;
-  border-radius: 100px;
-  font-weight: 500;
-  font-size: 17px;
-  text-decoration: none;
-  transition: background 0.3s;
-}
-
-.v4-btn-white {
-  background: white;
-  color: #1d1d1f;
-  padding: 12px 28px;
-  border-radius: 100px;
-  font-weight: 500;
-  font-size: 17px;
-  text-decoration: none;
-  transition: all 0.3s;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-}
-
-.v4-btn-primary:hover { background: var(--v4-primary-hover); transform: translateY(-1px); }
-.v4-btn-white:hover { background: #f5f5f7; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
-
-/* Trust Bar */
-.v4-trust-bar {
-  background: rgba(255, 255, 255, 0.85); /* Slightly more transparent */
-  backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid rgba(0,0,0,0.05); /* Softer border */
-  padding: 12px 0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 4px 30px rgba(0,0,0,0.03);
-}
-
-.v4-trust-inner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.v4-trust-person {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.v4-trust-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: #f5f5f7;
-  border: 1px solid var(--v4-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.v4-trust-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.v4-avatar-placeholder {
-  line-height: 1;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--v4-primary);
-  text-transform: uppercase;
-}
-
-.v4-trust-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.v4-trust-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--v4-text-muted);
-  letter-spacing: 0.05em;
-  margin-bottom: 2px;
-}
-
-.v4-trust-name {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--v4-text);
-}
-
-.v4-trust-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.v4-trust-btn {
-  padding: 10px 20px;
-  border-radius: 100px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-
-.v4-trust-btn--whatsapp { background: #25d366; color: white; }
-.v4-trust-btn--primary { background: var(--v4-primary); color: white; }
-
-/* Infrastructure Split Layout (Sophisticated) */
-.v4-infra-split {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-@media (min-width: 992px) {
-  .v4-infra-split { grid-template-columns: 1fr 1.5fr; gap: 100px; }
-}
-
-.v4-infra-hero-text {
-  font-size: clamp(32px, 5vw, 48px);
-  font-weight: 700;
-  line-height: 1.1;
-  color: var(--v4-text);
-  margin-bottom: 24px;
-  letter-spacing: -0.02em;
-}
-
-@media (max-width: 768px) {
-  .v4-infra-hero-text {
-    font-size: 28px;
-    margin-bottom: 16px;
-    text-align: center;
-  }
-}
-
-.v4-infra-sub-text {
-  font-size: 19px;
-  color: var(--v4-text-muted);
-  line-height: 1.4;
-  margin-bottom: 40px;
-}
-
-@media (max-width: 768px) {
-  .v4-infra-sub-text {
-    font-size: 16px;
-    text-align: center;
-    margin-bottom: 24px;
-  }
-}
-
-.v4-infra-divider {
-  width: 60px;
-  height: 4px;
-  background: var(--v4-primary);
-  border-radius: 2px;
-}
-
-@media (max-width: 768px) {
-  .v4-infra-divider {
-    margin: 0 auto 32px;
-  }
-}
-
-.v4-infra-right {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 40px;
-}
-
-@media (max-width: 768px) {
-  .v4-infra-right {
-    gap: 32px;
-    grid-template-columns: 1fr;
-  }
-}
-
-.v4-infra-group-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--v4-text);
-  margin-bottom: 20px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  opacity: 0.8;
-}
-
-@media (max-width: 768px) {
-  .v4-infra-group-title {
-    margin-bottom: 12px;
-    font-size: 13px;
-  }
-}
-
-.v4-infra-items-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.v4-infra-list-item {
-  font-size: 16px;
-  color: var(--v4-text-muted);
-  margin-bottom: 12px;
-  display: flex;
-  gap: 8px;
-  line-height: 1.4;
-}
-
-.v4-infra-bullet {
-  color: var(--v4-primary);
-  font-weight: bold;
-}
-
-/* Traditional Highlights Grid v2 (Destaques) */
-.v4-destaques-grid-v2 {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.v4-destaques-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 40px 60px;
-}
-
-.v4-destaque-card-minimal {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.v4-destaque-marker-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--v4-primary);
-  margin-top: 10px;
-  flex-shrink: 0;
-}
-
-.v4-destaque-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.v4-destaque-title {
-  font-size: 20px;
-  font-weight: 500;
-  color: var(--v4-text);
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-.v4-destaque-detail {
-  font-size: 16px;
-  color: var(--v4-text-muted);
-  line-height: 1.4;
-  margin: 0;
-}
-
-@media (max-width: 768px) {
-  .v4-destaques-items {
-    grid-template-columns: 1fr;
-    gap: 30px;
-  }
-}
-
-/* Video Presentation */
-.v4-video-wrapper {
-  max-width: 800px;
-  margin: 0 auto;
-  aspect-ratio: 16/9;
-  border-radius: 24px;
-  overflow: hidden;
-  background: black;
-  box-shadow: var(--v4-shadow-elevated);
-}
-.v4-video-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #111;
-  color: white;
-  text-decoration: none;
-  font-weight: 600;
-  gap: 12px;
-}
-.v4-video-placeholder:hover { background: #222; }
-
-.v4-interaction-gate {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
-  text-align: center;
-}
-
-.v4-interaction-gate__btn {
-  border: none;
-  background: #ffffff;
-  color: #111827;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.v4-interaction-gate__hint {
-  margin: 0;
-  color: #e5e7eb;
-  font-size: 12px;
-  line-height: 1.35;
-  max-width: 280px;
-}
-
-.v4-interaction-toggle {
-  margin-top: 12px;
-  border: 1px solid var(--v4-border);
-  background: #fff;
-  color: var(--v4-text-muted);
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.v4-panorama-card {
-  position: relative;
-  height: clamp(260px, 56.25vw, 540px);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: var(--v4-shadow-elevated);
-  margin-bottom: 24px;
-}
-
-.v4-panorama-card.is-interaction-disabled :deep(.panorama-viewer) {
-  pointer-events: none;
-}
-
-.v4-panorama-card--fallback {
-  background: #111;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-}
-
-@media (max-width: 768px) {
-  .v4-panorama-card {
-    height: clamp(220px, 56vw, 320px);
-    margin-bottom: 16px;
-  }
-}
-
-/* Construction Progress */
-.v4-construction-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  max-width: 1000px;
-  margin: 40px auto 0;
-}
-@media (min-width: 768px) {
-  .v4-construction-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
-}
-
-.v4-construction-item {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.v4-construction-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.v4-construction-label { font-size: 17px; font-weight: 600; color: var(--v4-text); }
-.v4-construction-percentage { font-size: 15px; font-weight: 700; color: var(--v4-primary); }
-
-.v4-progress-bar {
-  width: 100%;
-  height: 12px;
-  background: var(--v4-bg-alt);
-  border-radius: 6px;
-  overflow: hidden;
-}
-.v4-progress-fill {
-  height: 100%;
-  background: var(--v4-primary);
-  border-radius: 6px;
-  transition: width 1s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-
-/* Rich Content */
-.v4-rich-content {
-  font-size: 19px;
-  line-height: 1.6;
-  color: var(--v4-text);
-  max-width: 800px;
-  margin: 0 auto 60px;
-  text-align: left;
-}
-.v4-rich-content :deep(p) { margin-bottom: 1.2rem; }
-.v4-rich-content :deep(strong), .v4-rich-content :deep(b) { color: var(--v4-text); font-weight: 700; }
-
-@media (max-width: 768px) {
-  .v4-rich-content { font-size: 17px; padding: 0 20px; }
-}
-
-/* Map Container */
-.v4-map-container {
-  background: white;
-  border-radius: var(--v4-radius-lg);
-  overflow: hidden;
-  box-shadow: var(--v4-shadow-soft);
-  border: 1px solid var(--v4-border);
-}
-
-.v4-map-legend {
-  padding: 24px;
-  border-bottom: 1px solid var(--v4-border);
-  display: flex;
-  justify-content: center;
-  gap: 32px;
-}
-
-.v4-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--v4-text-muted);
-}
-
-.v4-legend-item .dot { width: 8px; height: 8px; border-radius: 50%; }
-.v4-legend-item .dot.available { background: #32d74b; } /* Apple Green */
-.v4-legend-item .dot.reserved { background: #ff9f0a; } /* Apple Orange */
-.v4-legend-item .dot.sold { background: #ff453a; } /* Apple Red */
-
-.v4-map-viewport {
-  background: #fafafa;
-  min-height: 500px;
-}
-
-/* Lots Grid */
-.v4-lots-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-@media (max-width: 768px) {
-  .v4-lots-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-}
-
-.v4-lot-card {
-  background: white;
-  border-radius: var(--v4-radius-lg);
-  padding: 32px;
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #f2f2f2;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: relative;
-}
-
-@media (max-width: 768px) {
-  .v4-lot-card {
-    padding: 16px;
-    border-radius: 16px;
-    gap: 8px;
-  }
-}
-
-.v4-lot-card:hover { 
-  box-shadow: var(--v4-shadow-elevated);
-  transform: translateY(-4px);
-  border-color: var(--v4-primary);
-}
-
-.v4-lot-card-header { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: flex-start;
-  margin-bottom: 20px; 
-}
-
-@media (max-width: 768px) {
-  .v4-lot-card-header {
-    margin-bottom: 12px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-}
-
-.v4-lot-id {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.v4-lot-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--v4-text-muted);
-  letter-spacing: 0.1em;
-}
-
-@media (max-width: 768px) {
-  .v4-lot-label { font-size: 9px; }
-}
-
-.v4-lot-code { 
-  font-size: 26px; 
-  font-weight: 700; 
-  letter-spacing: -0.02em; 
-  color: var(--v4-text); 
-}
-
-@media (max-width: 768px) {
-  .v4-lot-code { font-size: 18px; line-height: 1.2; }
-}
-
-.v4-lot-status { 
-  font-size: 11px; 
-  font-weight: 700; 
-  color: #32d74b;
-  background: rgba(50, 215, 75, 0.1);
-  padding: 6px 14px;
-  border-radius: 100px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-@media (max-width: 768px) {
-  .v4-lot-status { 
-    font-size: 8px;
-    padding: 4px 8px;
-    position: static;
-    align-self: flex-start;
-  }
-}
-
-.v4-lot-info-row { 
-  display: flex; 
-  gap: 20px; 
-  margin-bottom: 20px; 
-  color: var(--v4-text-muted); 
-  font-size: 15px;
-  align-items: center;
-}
-
-@media (max-width: 768px) {
-  .v4-lot-info-row { 
-    gap: 8px; 
-    font-size: 12px; 
-    margin-bottom: 8px; 
-    flex-direction: column; 
-    align-items: flex-start; 
-  }
-}
-
-.v4-lot-price { 
-  margin-top: auto;
-  border-top: 1px solid #f5f5f7;
-  padding-top: 20px;
-}
-
-@media (max-width: 768px) {
-  .v4-lot-price { padding-top: 12px; margin-top: 4px; }
-}
-
-.v4-price-label { font-size: 12px; color: var(--v4-text-muted); }
-
-@media (max-width: 768px) {
-  .v4-price-label { font-size: 9px; margin-bottom: 2px; display: block; }
-}
-
-.v4-price-value { font-size: 20px; font-weight: 600; color: var(--v4-text); }
-
-@media (max-width: 768px) {
-  .v4-price-value { font-size: 15px; }
-}
-
-.v4-lot-card-footer { 
-  margin-top: 20px;
-  font-size: 15px;
-  color: var(--v4-primary);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-@media (max-width: 768px) {
-  .v4-lot-card-footer { display: none; }
-}
-
-/* Final Conversion Card Modern */
-.v4-conversion-card-new {
-  background: white;
-  border-radius: 40px;
-  max-width: 1000px;
-  margin: 0 auto;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.06);
-  border: 1px solid #d2d2d7;
-  overflow: hidden;
-}
-
-.v4-conversion-content {
-  display: flex;
-  min-height: 600px;
-}
-
-@media (max-width: 900px) {
-  .v4-conversion-content { flex-direction: column; }
-  .v4-conversion-card-new { border-radius: 24px; }
-}
-
-.v4-conversion-header-new {
-  flex: 1;
-  background: #fbfbfd;
-  padding: 80px 60px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-@media (max-width: 900px) {
-  .v4-conversion-header-new {
-    background: #1d1d1f; /* Dark background like the example */
-    color: white;
-    text-align: center;
-    padding: 60px 24px;
-    align-items: center;
-  }
-}
-
-.v4-form-container-new {
-  flex: 1.2;
-  padding: 80px 60px;
-}
-
-@media (max-width: 900px) {
-  .v4-conversion-header-new { padding: 48px 32px; }
-  .v4-form-container-new { 
-    padding: 40px 20px; 
-    background: white;
-  }
-}
-
-.v4-badge-clean {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #0071e3;
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 900px) {
-  .v4-badge-clean {
-    color: #40a9ff;
-    margin-bottom: 16px;
-  }
-}
-
-.v4-title-display {
-  font-size: 44px;
-  font-weight: 600;
-  line-height: 1.1;
-  color: #1d1d1f;
-  margin-bottom: 20px;
-  letter-spacing: -0.02em;
-}
-
-@media (max-width: 900px) {
-  .v4-title-display {
-    font-size: 32px;
-    color: white;
-    margin-bottom: 16px;
-  }
-}
-
-.v4-subtitle-clean {
-  font-size: 19px;
-  line-height: 1.5;
-  color: #86868b;
-  margin-bottom: 40px;
-}
-
-@media (max-width: 900px) {
-  .v4-subtitle-clean {
-    font-size: 16px;
-    color: rgba(255,255,255,0.7);
-    margin-bottom: 32px;
-  }
-}
-
-.v4-lot-badge-minimal {
-  margin-top: auto;
-  background: white;
-  border: 1px solid #d2d2d7;
-  padding: 16px 24px;
-  border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 16px;
-  color: #1d1d1f;
-}
-
-@media (max-width: 900px) {
-  .v4-lot-badge-minimal {
-    background: rgba(255,255,255,0.05);
-    border-color: rgba(255,255,255,0.1);
-    color: white;
-    font-size: 14px;
-    padding: 12px 20px;
-  }
-}
-
-.v4-form-modern {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.v4-form-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-@media (max-width: 600px) {
-  .v4-form-cols { grid-template-columns: 1fr; }
-}
-
-.v4-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.v4-input-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #86868b;
-  margin-left: 2px;
-}
-
-.v4-input-group input, 
-.v4-input-group select, 
-.v4-input-group textarea {
-  width: 100%;
-  padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #d2d2d7;
-  border-radius: 12px;
-  font-size: 17px;
-  color: #1d1d1f;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.v4-input-group input:focus, 
-.v4-input-group select:focus, 
-.v4-input-group textarea:focus {
-  outline: none;
-  border-color: #0071e3;
-  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.08);
-}
-
-.v4-btn-submit-modern {
-  width: 100%;
-  background: #0071e3;
-  color: white;
-  border: none;
-  padding: 18px;
-  border-radius: 14px;
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 12px;
-}
-
-.v4-btn-submit-modern:hover { background: #0077ed; transform: translateY(-1px); }
-.v4-btn-submit-modern:active { transform: translateY(0); }
-
-.v4-privacy-legal {
-  text-align: center;
-  font-size: 13px;
-  color: #86868b;
-  margin-top: 16px;
-}
-
-.v4-form-error-msg {
-  background: #fff1f0;
-  color: #df1125;
-  padding: 12px;
-  border-radius: 10px;
-  font-size: 14px;
-  text-align: center;
-}
-
-.v4-form-success-new { text-align: center; padding: 40px 0; }
-.v4-success-circle { width: 64px; height: 64px; background: #e6f7ed; color: #008a32; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
-.v4-success-circle svg { width: 32px; height: 32px; }
-.v4-btn-back { background: #f5f5f7; border: none; padding: 12px 32px; border-radius: 10px; cursor: pointer; margin-top: 24px; font-weight: 600; }
-
-/* Gallery */
-.v4-gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  grid-auto-rows: 180px;
-  gap: 12px;
-}
-
-.v4-gallery-item {
-  position: relative;
-  border-radius: var(--v4-radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  background: var(--v4-bg-alt);
-  border: 1px solid var(--v4-border);
-}
-
-@media (max-width: 768px) {
-  .v4-gallery-grid {
-    grid-template-columns: repeat(2, 1fr);
-    grid-auto-rows: 160px;
-  }
-}
-
-.v4-gallery-item img, .v4-gallery-item video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.v4-gallery-item:hover img, .v4-gallery-item:hover video {
-  transform: scale(1.05);
-}
-
-.v4-gallery-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 60%);
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 24px;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.v4-gallery-item:hover .v4-gallery-overlay {
-  opacity: 1;
-}
-
-.v4-gallery-caption {
-  color: white;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.v4-gallery-expand {
-  color: white;
-  font-size: 20px;
-}
-
-/* Form Styles */
-.v4-conversion-form-wrapper { 
-  background: white; 
-  border-radius: 18px; 
-  padding: 40px; 
-  border: 1px solid #d2d2d7;
-  box-shadow: var(--v4-shadow-elevated);
-}
-
-.v4-form-title { font-size: 24px; font-weight: 600; margin-bottom: 32px; text-align: center; }
-
-.v4-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-@media (max-width: 768px) { .v4-form-grid { grid-template-columns: 1fr; gap: 0; } }
-
-.v4-form-group { margin-bottom: 24px; }
-.v4-form-group label { display: block; font-size: 12px; font-weight: 600; color: #86868b; margin-bottom: 8px; }
-.v4-form-group input, .v4-form-group select, .v4-form-group textarea {
-  width: 100%; padding: 14px 16px; border: 1px solid #d2d2d7; border-radius: 12px; font-family: inherit; font-size: 17px; color: #1d1d1f; background: #fafafa;
-}
-.v4-form-group input:focus { outline: none; border-color: var(--v4-primary); background: white; }
-
-.v4-btn-submit {
-  width: 100%; background: var(--v4-primary); color: white; border: none; padding: 16px; border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.2s;
-}
-.v4-btn-submit:hover { background: var(--v4-primary-hover); }
-
-/* Legal Notice */
-.v4-legal-notice {
-  padding: 40px 0;
-  background: var(--v4-bg-alt);
-  border-top: 1px solid var(--v4-border);
-}
-.v4-legal-inner {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px 28px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--v4-border);
-  border-radius: 12px;
-}
-.v4-legal-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-.v4-legal-text {
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--v4-text-muted);
-  margin: 0;
-  white-space: pre-line;
-}
-
-/* Footer */
-.v4-footer { padding: 60px 0; border-top: 1px solid var(--v4-border); background: var(--v4-bg-alt); }
-.v4-footer-inner { display: flex; flex-direction: column; gap: 28px; }
-
-.v4-footer-realizacao { display: flex; flex-direction: column; gap: 12px; }
-.v4-footer-realizacao-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--v4-text-muted); }
-.v4-footer-logos { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-.v4-footer-logo { height: 120px; max-width: 140px; object-fit: contain; opacity: 0.9; }
-
-.v4-footer-brand { display: flex; align-items: center; gap: 16px; }
-.v4-footer-company { display: flex; flex-direction: column; gap: 4px; }
-.v4-footer-tenant { font-weight: 700; font-size: 18px; color: var(--v4-text); display: block; }
-.v4-footer-creci { font-size: 12px; color: var(--v4-text-muted); display: block; letter-spacing: 0.02em; }
-
-.v4-footer-contact { display: flex; flex-wrap: wrap; gap: 20px; }
-.v4-footer-contact-item {
-  display: inline-flex; align-items: center; gap: 7px;
-  color: var(--v4-text-secondary); font-size: 14px; text-decoration: none;
-  transition: color 150ms;
-}
-.v4-footer-contact-item:hover { color: var(--v4-text); }
-.v4-footer-contact-item svg { flex-shrink: 0; opacity: 0.7; }
-
-.v4-footer-copyright {
-  display: flex; flex-direction: column; gap: 4px;
-  border-top: 1px solid var(--v4-border); padding-top: 20px;
-  font-size: 12px; color: var(--v4-text-muted);
-}
-
-/* Sticky mobile CTA */
-.v4-sticky-nav {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(29, 29, 31, 0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  padding: 6px;
-  border-radius: 100px;
-  display: none;
-  align-items: center;
-  gap: 4px;
-  width: auto;
-  min-width: 320px;
-  max-width: 92vw;
-  z-index: 1000;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.08);
-}
-
-@media (max-width: 768px) {
-  .v4-sticky-nav {
-    display: flex;
-    bottom: 20px;
-    min-width: 280px;
-    padding: 4px;
-    gap: 2px;
-  }
-}
-
-.v4-nav-item {
-  color: white; text-decoration: none; font-size: 13px; font-weight: 500; padding: 10px 18px; border-radius: 100px; transition: all 0.2s;
-}
-
-@media (max-width: 768px) {
-  .v4-nav-item { font-size: 11px; padding: 8px 10px; }
-}
-
-.v4-nav-cta { background: var(--v4-primary); flex: 1; text-align: center; font-weight: 600; }
-
-@media (max-width: 768px) {
-  .v4-nav-cta { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
-}
-
-/* Lightbox V4 */
-.v4-lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; }
-.v4-lightbox-btn { position: absolute; background: none; border: none; color: white; font-size: 40px; cursor: pointer; padding: 20px; opacity: 0.5; transition: 0.2s; }
-.v4-lightbox-btn:hover { opacity: 1; }
-.v4-prev { left: 20px; }
-.v4-next { right: 20px; }
-.v4-lightbox-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 32px; cursor: pointer; z-index: 2100; }
-.v4-lightbox-content { max-width: 90%; max-height: 80%; }
-.v4-lightbox-content img, .v4-lightbox-content video { max-width: 100%; max-height: 100%; border-radius: 12px; }
-
-@keyframes spinner { to { transform: rotate(360deg); } }
-.loading-spinner { width: 32px; height: 32px; border: 3px solid rgba(0, 113, 227, 0.1); border-top-color: var(--v4-primary); border-radius: 50%; animation: spinner 1s linear infinite; }
-
-/* Responsive tweaks and improvements */
-@media (max-width: 768px) {
-  .v4-hero {
-    min-height: 580px;
-    align-items: flex-end;
-  }
-
-  .v4-hero-content {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 20px;
-    padding: 22px 0 32px;
-  }
-
-  .v4-hero-text {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .v4-hero-tag { margin-bottom: 12px; }
-  .v4-hero-title { font-size: 34px; margin-bottom: 10px; }
-  .v4-hero-desc { font-size: 15px; margin-bottom: 16px; max-width: 34ch; }
-
-  .v4-hero-stats {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    border-left: none;
-    border-top: 1px solid rgba(255,255,255,0.15);
-    padding-left: 0;
-    padding-top: 14px;
-    gap: 14px 12px;
-    width: 100%;
-    margin-bottom: 0;
-  }
-
-  .v4-stat-card {
-    min-width: 0;
-    align-items: center;
-    text-align: center;
-    width: 100%;
-  }
-
-  .v4-stat-card--price { grid-column: 1 / -1; }
-  .v4-stat-label { font-size: 9px; }
-  .v4-stat-value { font-size: 34px; }
-  .v4-stat-meta { display: none; }
-
-  .v4-hero-actions {
-    flex-direction: column;
-    width: 100%;
-    gap: 10px;
-    max-width: 340px;
-  }
-
-  .v4-hero-btn,
-  .v4-btn-primary,
-  .v4-btn-white {
-    width: 100%;
-    text-align: center;
-    font-size: 16px;
-    padding: 13px 16px;
-  }
-  
-  .v4-trust-bar { padding: 8px 0; }
-  .v4-trust-label { font-size: 10px; }
-  .v4-trust-name { font-size: 14px; }
-  .v4-trust-btn { padding: 8px 12px; font-size: 11px; font-weight: 700; white-space: nowrap; border-radius: 8px; }
-  .v4-trust-actions { gap: 4px; }
-  .v4-trust-inner { gap: 12px; }
-  .v4-trust-person { gap: 8px; }
-  .v4-trust-avatar { width: 36px; height: 36px; }
-  .v4-avatar-placeholder { font-size: 14px; }
-  .v4-conversion-form-wrapper { padding: 20px 4px; border-radius: 12px; }
-}
-
-/* Success Message Improvements */
-.v4-form-success {
-  text-align: center;
-  padding: 48px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  animation: v4-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.v4-success-icon {
-  width: 72px;
-  height: 72px;
-  background: #32d74b;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 12px 24px rgba(50, 215, 75, 0.25);
-  position: relative;
-}
-
-.v4-success-icon::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border: 2px solid #32d74b;
-  border-radius: 50%;
-  opacity: 0.3;
-  animation: v4-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-.v4-form-success h3 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1d1d1f;
-  margin-bottom: 12px;
-  letter-spacing: -0.02em;
-}
-
-.v4-form-success p {
-  font-size: 17px;
-  line-height: 1.5;
-  color: #86868b;
-  max-width: 280px;
-  margin: 0 auto;
-}
-
-@keyframes v4-fade-in {
-  from { opacity: 0; transform: scale(0.95) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-@keyframes v4-ping {
-  75%, 100% {
-    transform: scale(1.4);
-    opacity: 0;
-  }
-}
-
-.v4-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0;
-  overflow-y: auto;
-}
-
-@media (min-width: 769px) {
-  .v4-modal-overlay {
-    align-items: center;
-    padding: 24px;
-  }
-}
-
-.v4-modal-content {
-  background: white;
-  border-radius: 32px 32px 0 0;
-  width: 100%;
-  box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
-  max-height: 92dvh;
-  overflow-y: auto;
-}
-
-@media (min-width: 769px) {
-  .v4-modal-content {
-    border-radius: 32px;
-    max-width: 600px;
-    max-height: 90dvh;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.4);
-  }
-}
-
-.v4-modal-content .v4-modal-close {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.05);
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  z-index: 1;
-}
-
-/* Agendamento Section Styles */
-.v4-schedule-row {
-  display: flex;
-  align-items: center;
-  margin-top: 40px;
-  justify-content: space-between;
-  gap: 80px;
-  padding: 60px 0;
-}
-
-@media (max-width: 992px) {
-  .v4-schedule-row {
-    flex-direction: column;
-    text-align: center;
-    gap: 32px;
-    padding: 0;
-  }
-}
-
-.v4-schedule-info {
-  flex: 1;
-}
-
-.v4-schedule-card {
-  flex: 1;
-  width: 100%;
-  max-width: 500px;
-}
-
-.v4-perks {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  margin-top: 48px;
-  border-left: 2px solid #333;
-  padding-left: 32px;
-}
-
-@media (max-width: 992px) {
-  .v4-perks {
-    border-left: none;
-    padding-left: 0;
-  }
-}
-
-.v4-perk-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.v4-perk-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.v4-perk-icon--red { background: #fee2e2; color: #dc2626; }
-.v4-perk-icon--blue { background: #dbeafe; color: #2563eb; }
-
-.v4-perk-content strong {
-  display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1d1d1f;
-}
-
-.v4-perk-content p {
-  font-size: 14px;
-  color: #86868b;
-  margin: 0;
-}
-</style>

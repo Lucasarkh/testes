@@ -44,6 +44,7 @@ export default defineNuxtConfig({
   },
   css: [
     '@/assets/css/main.css',
+    '@/assets/css/landing.css',
     'bootstrap-icons/font/bootstrap-icons.css',
     'vue3-toastify/dist/index.css',
     'primeicons/primeicons.css'

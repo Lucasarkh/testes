@@ -135,6 +135,10 @@
               <span class="sidebar-icon"><i class="bi bi-image-fill" aria-hidden="true"></i></span>
               <span class="sidebar-label">Panorama 360°</span>
             </NuxtLink>
+            <NuxtLink :to="`/painel/projetos/${projectId}/builder`" class="sidebar-tool-link sidebar-tool-link--highlight">
+              <span class="sidebar-icon"><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i></span>
+              <span class="sidebar-label">Page Builder</span>
+            </NuxtLink>
           </div>
         </aside>
 
@@ -939,11 +943,21 @@
       </div>
 
 
-      <!-- Página Pública -->
-      <section v-if="activeSection === 'pagina-publica'" id="pagina-publica" class="content-section pub-page">
-
-        <!-- ── Banner & Vídeo (lado a lado) ── -->
-        <div class="pub-row pub-row--2col">
+      <!-- Página Pública → redirect para o Page Builder -->
+      <section v-if="activeSection === 'pagina-publica'" id="pagina-publica" class="content-section">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 24px; text-align: center; gap: 16px;">
+          <i class="bi bi-layout-wtf" style="font-size: 3rem; color: var(--color-surface-400);"></i>
+          <h3 style="margin: 0; font-size: 1.25rem;">Edição da Página Pública</h3>
+          <p style="margin: 0; color: var(--color-surface-400); max-width: 400px; line-height: 1.6;">
+            A edição completa da página pública foi movida para o <strong>Page Builder</strong>, onde você pode editar o conteúdo em tempo real com preview.
+          </p>
+          <NuxtLink :to="`/painel/projetos/${projectId}/builder`" class="btn btn-primary" style="border-radius: 9999px; padding: 10px 28px; margin-top: 8px;">
+            <i class="bi bi-layout-wtf" aria-hidden="true"></i>
+            Abrir Page Builder
+          </NuxtLink>
+        </div>
+        <!-- legacy content removed, kept v-if to not break ?sec=pagina-publica deep links -->
+        <div class="pub-row pub-row--2col" style="display:none!important">
           <div class="pub-card">
             <h4 class="pub-card__title">Banner</h4>
             <p style="margin: 0 0 12px 0; color: var(--color-surface-500); font-size: 0.75rem;">
@@ -1019,366 +1033,6 @@
                 {{ savingPublicVideo ? 'Salvando...' : 'Salvar Vídeo' }}
               </button>
             </div>
-          </div>
-        </div>
-
-        <!-- ── Logos de Rodapé ── -->
-        <div class="pub-card pub-card--compact">
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <div>
-              <h4 class="pub-card__title" style="margin: 0;">Logos de Rodapé</h4>
-              <p style="margin: 4px 0 0 0; color: var(--color-surface-500); font-size: 0.75rem;">Realização e Propriedade exibidos neste projeto.</p>
-            </div>
-
-            <label v-if="authStore.canEdit" class="btn btn-primary btn-sm" style="cursor: pointer;">
-              {{ uploadingFooterLogo ? 'Enviando...' : '+ Adicionar Logo' }}
-              <input
-                type="file"
-                accept="image/*"
-                style="display:none"
-                @change="uploadFooterLogo"
-                :disabled="uploadingFooterLogo"
-              />
-            </label>
-          </div>
-
-          <div v-if="projectFooterLogos.length" style="display: flex; flex-wrap: wrap; gap: 12px;">
-            <div
-              v-for="logo in projectFooterLogos"
-              :key="logo.id"
-              style="position: relative; width: 110px; height: 74px; border-radius: 8px; border: 1px solid var(--glass-border-subtle); background: var(--glass-bg-heavy); overflow: hidden; display: flex; align-items: center; justify-content: center;"
-            >
-              <img :src="logo.url" :alt="logo.label || project?.name || 'Logo'" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 8px;" />
-              <button
-                v-if="authStore.canEdit"
-                type="button"
-                class="pub-remove-btn"
-                style="position: absolute; top: 6px; right: 6px;"
-                :disabled="deletingFooterLogoId === logo.id"
-                @click="deleteFooterLogo(logo.id)"
-              >
-                {{ deletingFooterLogoId === logo.id ? '...' : '✕' }}
-              </button>
-            </div>
-          </div>
-
-          <div v-else class="pub-empty">Nenhum logo de rodapé cadastrado para este projeto.</div>
-        </div>
-
-        <!-- ── Preços & Condições ── -->
-        <div class="pub-card pub-card--compact">
-          <h4 class="pub-card__title">Preços e Condições</h4>
-          <div class="pub-row pub-row--3col" style="margin-bottom: 0;">
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">A partir de (R$)</label>
-              <input v-model="pubInfoForm.startingPrice" type="number" step="0.01" class="form-input" placeholder="144000" :disabled="!authStore.canEdit" />
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">Parcelamento (Vezes)</label>
-              <input v-model="pubInfoForm.maxInstallments" type="number" class="form-input" placeholder="180" :disabled="!authStore.canEdit" />
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label">Resumo das Condições</label>
-              <input v-model="pubInfoForm.paymentConditionsSummary" class="form-input" placeholder="Entrada facilitada em 6x e saldo em 120 meses." :disabled="!authStore.canEdit" />
-            </div>
-          </div>
-          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-            <button class="btn btn-primary btn-sm" :disabled="savingPublicPricing" @click="savePublicPricingBlock">
-              {{ savingPublicPricing ? 'Salvando...' : 'Salvar Preços e Condições' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- ── Acompanhamento de Obras ── -->
-        <div class="pub-card">
-          <h4 class="pub-card__title">Acompanhamento de Obras</h4>
-
-          <div v-if="pubInfoForm.constructionStatus.length === 0" class="pub-empty">
-            Nenhuma etapa cadastrada. Adicione etapas para exibir o progresso da obra na página pública.
-          </div>
-
-          <div v-else class="pub-works-grid">
-            <div v-for="(item, i) in pubInfoForm.constructionStatus" :key="i" class="pub-work-item">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 600; font-size: 0.8rem;">{{ item.label }}</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-weight: 700; color: var(--color-success); font-size: 0.8rem;">{{ item.percentage }}%</span>
-                  <button v-if="authStore.canEdit" class="pub-remove-btn" @click="removeWorkStage(i)">✕</button>
-                </div>
-              </div>
-              <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden;">
-                <div :style="{ width: item.percentage + '%' }" style="height: 100%; background: var(--color-success); transition: width 0.3s ease;"></div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="authStore.canEdit" class="pub-inline-form" style="margin-top: 16px;">
-            <input v-model="newWorkStage.label" class="form-input" placeholder="Nome da etapa..." style="flex: 1;" />
-            <input v-model.number="newWorkStage.percentage" type="number" min="0" max="100" class="form-input" placeholder="%" style="width: 80px;" />
-            <button class="btn btn-primary btn-sm" @click="addWorkStage">Adicionar</button>
-          </div>
-
-          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-            <button class="btn btn-primary btn-sm" :disabled="savingPublicConstruction" @click="savePublicConstructionBlock">
-              {{ savingPublicConstruction ? 'Salvando...' : 'Salvar Acompanhamento' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- ── Localização & Proximidades ── -->
-        <div class="pub-row pub-row--2col">
-          <div class="pub-card">
-            <h4 class="pub-card__title">Localização</h4>
-            <div class="form-group" style="margin-bottom: 16px;">
-              <label class="form-label">Endereço</label>
-              <input v-model="pubInfoForm.address" class="form-input" placeholder="Av. Brasil, 1000 - Centro" :disabled="!authStore.canEdit" />
-            </div>
-            <div class="form-group" style="margin: 0;">
-              <label class="form-label">Link Google Maps</label>
-              <input v-model="pubInfoForm.googleMapsUrl" class="form-input" placeholder="Link ou Embed URL" :disabled="!authStore.canEdit" />
-            </div>
-
-            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-              <button class="btn btn-primary btn-sm" :disabled="savingPublicLocation" @click="savePublicLocationBlock">
-                {{ savingPublicLocation ? 'Salvando...' : 'Salvar Localização' }}
-              </button>
-            </div>
-          </div>
-
-          <div class="pub-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <h4 class="pub-card__title" style="margin: 0;">Proximidades</h4>
-              <div v-if="hasSavedAddress" class="toggle-switch" title="Exibir na página pública">
-                <input type="checkbox" id="nearby-toggle" v-model="nearbyEnabled" @change="toggleNearby" :disabled="!authStore.canEdit" />
-                <label for="nearby-toggle"></label>
-              </div>
-            </div>
-
-            <div v-if="!hasSavedAddress" class="pub-notice pub-notice--warn">
-              Salve um endereço no bloco de Localização para habilitar as proximidades.
-            </div>
-
-            <template v-else>
-              <div v-if="nearbyStatus" style="margin-bottom: 12px;">
-                <div v-if="nearbyStatus.status === 'ok' && nearbyStatus.itemCount > 0" class="pub-notice pub-notice--ok">
-                  {{ nearbyStatus.itemCount }} locais encontrados
-                  <span v-if="nearbyEnabled"> · visível no site</span>
-                  <span v-else> · oculto</span>
-                </div>
-                <div v-else-if="nearbyStatus.status === 'error'" class="pub-notice pub-notice--error">
-                  {{ nearbyStatus.errorMessage || 'Erro ao gerar' }}
-                </div>
-                <div v-else class="pub-notice pub-notice--neutral">
-                  Proximidades ainda não geradas
-                </div>
-              </div>
-
-              <button class="btn btn-secondary btn-sm" style="width: 100%;" @click="regenerateNearby" :disabled="!authStore.canEdit || nearbyRegenerating">
-                <span v-if="nearbyRegenerating">Gerando...</span>
-                <span v-else-if="nearbyStatus?.status === 'ok' && nearbyStatus?.itemCount > 0">Regerar Proximidades</span>
-                <span v-else>Gerar Proximidades</span>
-              </button>
-
-              <!-- Collapsible nearby list -->
-              <div v-if="nearbyStatus?.items?.length" style="margin-top: 12px;">
-                <button class="pub-collapse-toggle" @click="nearbyListExpanded = !nearbyListExpanded">
-                  {{ nearbyListExpanded ? '▾ Ocultar detalhes' : '▸ Ver ' + nearbyStatus.itemCount + ' locais encontrados' }}
-                </button>
-                <div v-if="nearbyListExpanded" class="pub-nearby-list">
-                  <div v-for="group in nearbyGrouped" :key="group.category" style="margin-bottom: 10px;">
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; padding: 4px 0;">
-                      <span style="font-size: 0.85rem;"><i :class="['bi', nearbyCategoryIcon(group.category)]" aria-hidden="true"></i></span>
-                      <span style="font-size: 0.72rem; font-weight: 700; color: var(--color-surface-200);">{{ group.categoryLabel }}</span>
-                      <span style="font-size: 0.6rem; color: var(--color-surface-500);">({{ group.items.length }})</span>
-                    </div>
-                    <div v-for="item in group.items" :key="item.id || item.name" class="pub-nearby-item" :style="{ opacity: item.visible === false ? 0.45 : 1, background: item.visible === false ? 'rgba(255,0,0,0.04)' : 'rgba(255,255,255,0.02)' }">
-                      <div v-if="authStore.canEdit" style="flex-shrink: 0; margin-right: 6px;">
-                        <input type="checkbox" :checked="item.visible !== false" @change="toggleNearbyItemVisibility(item)" style="cursor: pointer; accent-color: var(--color-success);" title="Mostrar/ocultar na página pública" />
-                      </div>
-                      <span class="pub-nearby-item__name">{{ item.name }}</span>
-                      <span class="pub-nearby-item__dist">{{ item.distanceLabel }}</span>
-                      <a :href="item.routeUrl" target="_blank" rel="noopener" class="pub-nearby-item__link">Rota ↗</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- ── Infraestrutura & Destaques ── -->
-        <div class="pub-row pub-row--2col">
-          <!-- Infraestrutura -->
-          <div class="pub-card">
-            <h4 class="pub-card__title">Infraestrutura</h4>
-
-            <div class="pub-sub-section">
-              <span class="pub-sub-label">Títulos da seção no site</span>
-              <div class="form-group" style="margin-bottom: 8px;">
-                <input v-model="pubInfoForm.highlightsTitle" class="form-input" placeholder="Sua família merece o melhor." />
-              </div>
-              <div class="form-group" style="margin: 0;">
-                <input v-model="pubInfoForm.highlightsSubtitle" class="form-input" placeholder="Qualidade de vida, segurança..." />
-              </div>
-            </div>
-
-            <div v-if="pubInfoForm.highlightsJson.filter(h => h.type === 'category').length">
-              <div v-for="(cat, idx) in pubInfoForm.highlightsJson" :key="idx" v-show="cat.type === 'category'" class="pub-infra-cat">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                  <strong style="font-size: 0.85rem; color: var(--color-surface-100);">{{ cat.title }}</strong>
-                  <button v-if="authStore.canEdit" class="pub-remove-btn" @click="removeHighlight(idx)">✕</button>
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
-                  <div v-for="(it, itIdx) in cat.items" :key="itIdx" class="infra-badge-v4">
-                    {{ it }}
-                    <span v-if="authStore.canEdit" class="infra-badge-remove" @click="removeInfraItem(idx, itIdx)">✕</span>
-                  </div>
-                </div>
-                <div v-if="authStore.canEdit" class="pub-inline-form">
-                  <input v-model="infraItemInputs[idx]" @keyup.enter="addInfraItem(idx)" class="form-input" placeholder="Adicionar item..." style="flex: 1;" />
-                  <button class="btn btn-dark btn-sm" style="padding: 0 14px;" @click="addInfraItem(idx)">+</button>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="authStore.canEdit" class="pub-sub-section" style="margin-top: 16px;">
-              <span class="pub-sub-label">Nova Categoria</span>
-              <div class="pub-inline-form">
-                <input v-model="newInfraCategory" class="form-input" placeholder="Ex: Equipamentos" style="flex: 1;" />
-                <button class="btn btn-primary btn-sm" @click="addInfraCategory">Criar</button>
-              </div>
-            </div>
-
-            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-              <button class="btn btn-primary btn-sm" :disabled="savingPublicHighlights" @click="savePublicHighlightsBlock">
-                {{ savingPublicHighlights ? 'Salvando...' : 'Salvar Infraestrutura' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Destaques -->
-          <div class="pub-card">
-            <h4 class="pub-card__title">Destaques</h4>
-
-            <div class="pub-sub-section">
-              <span class="pub-sub-label">Títulos da seção no site</span>
-              <div class="form-group" style="margin-bottom: 8px;">
-                <input v-model="pubInfoForm.traditionalHighlightsTitle" class="form-input" placeholder="Destaques" />
-              </div>
-              <div class="form-group" style="margin: 0;">
-                <input v-model="pubInfoForm.traditionalHighlightsSubtitle" class="form-input" placeholder="Diferenciais pensados para..." />
-              </div>
-            </div>
-
-            <div v-if="pubInfoForm.highlightsJson.filter(h => h.type === 'highlight' || !h.type).length" style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
-              <div v-for="(h, idx) in pubInfoForm.highlightsJson" :key="idx" v-show="h.type === 'highlight' || !h.type" class="pub-highlight-item">
-                <span style="color: #059669; font-size: 0.9rem;"><i :class="resolveHighlightIcon(h.icon)" aria-hidden="true"></i></span>
-                <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  <strong style="font-size: 0.8rem;">{{ h.label }}</strong>
-                  <span style="font-size: 0.72rem; color: var(--color-surface-400); margin-left: 4px;">{{ h.value }}</span>
-                </div>
-                <button v-if="authStore.canEdit" class="pub-remove-btn" @click="removeHighlight(idx)">✕</button>
-              </div>
-            </div>
-
-            <div v-if="authStore.canEdit" class="pub-sub-section" style="margin-top: 16px;">
-              <span class="pub-sub-label">Novo Diferencial</span>
-              <div class="pub-inline-form">
-                <input v-model="newHighlight.label" class="form-input" placeholder="Rótulo (ex: Segurança)" style="flex: 1;" />
-                <input v-model="newHighlight.value" class="form-input" placeholder="Detalhe (ex: 24h)" style="flex: 1;" />
-                <button class="btn btn-primary btn-sm" @click="addHighlight">Adicionar</button>
-              </div>
-            </div>
-
-            <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-              <button class="btn btn-primary btn-sm" :disabled="savingPublicHighlights" @click="savePublicHighlightsBlock">
-                {{ savingPublicHighlights ? 'Salvando...' : 'Salvar Destaques' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Texto Descritivo ── -->
-        <div class="pub-card">
-          <h4 class="pub-card__title">Texto Descritivo</h4>
-          <div class="pub-sub-section" style="margin-bottom: 12px;">
-            <span class="pub-sub-label">Título e subtítulo (opcionais)</span>
-            <div class="form-group" style="margin-bottom: 8px;">
-              <input v-model="pubInfoForm.locationTitle" class="form-input" placeholder="Ex: Sobre o empreendimento" />
-            </div>
-            <div class="form-group" style="margin: 0;">
-              <input v-model="pubInfoForm.locationSubtitle" class="form-input" placeholder="Ex: Localização estratégica e excelente infraestrutura" />
-            </div>
-          </div>
-
-          <div class="form-group" style="margin: 0;">
-            <div v-if="authStore.canEdit" class="flex gap-2" style="margin-bottom: 8px;">
-              <button class="btn btn-xs btn-outline" @click.prevent="execCommand('bold')"><b>B</b></button>
-              <button class="btn btn-xs btn-outline" @click.prevent="execCommand('italic')"><i>I</i></button>
-              <button class="btn btn-xs btn-outline" @click.prevent="execCommand('insertUnorderedList')">• Lista</button>
-            </div>
-            <div
-              ref="richEditor"
-              contenteditable="true"
-              class="form-textarea rich-editor-v4"
-              :class="{ 'disabled': !authStore.canEdit }"
-              @input="updateFromEditor"
-              @blur="updateFromEditor"
-              v-html="initialEditorContent"
-              style="min-height: 200px; padding: 16px; line-height: 1.6; border-radius: 8px; font-size: 0.85rem; background: var(--glass-bg); border: 1px solid var(--glass-border); overflow-y: auto;"
-            ></div>
-          </div>
-
-          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-            <button class="btn btn-primary btn-sm" :disabled="savingPublicDescription" @click="savePublicDescriptionBlock">
-              {{ savingPublicDescription ? 'Salvando...' : 'Salvar Texto Descritivo' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- ── Galeria de Mídia ── -->
-        <div class="pub-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h4 class="pub-card__title" style="margin: 0;">Galeria de Mídia</h4>
-            <label v-if="authStore.canEdit" class="btn btn-primary btn-sm" style="cursor: pointer;">
-              {{ uploadingMedia ? 'Enviando...' : '+ Adicionar' }}
-              <input type="file" accept="image/*,video/*" style="display:none" @change="uploadMediaFile" :disabled="uploadingMedia" />
-            </label>
-          </div>
-
-          <div v-if="media.length === 0" class="pub-empty">
-            Nenhuma foto ou vídeo na galeria.
-          </div>
-          <div v-else style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;">
-            <div v-for="(m, i) in media" :key="m.id" class="media-card-v4" style="aspect-ratio: 1/1; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border-subtle);">
-              <img
-                v-if="m.type === 'PHOTO'"
-                :src="m.url"
-                class="media-thumb-v4"
-                style="width: 100%; height: 100%; object-fit: cover; display: block;"
-                :loading="i < 8 ? 'eager' : 'lazy'"
-                :fetchpriority="i < 4 ? 'high' : 'auto'"
-                decoding="async"
-                @error="retryMediaPreviewLoad"
-              />
-              <video v-else :src="m.url" class="media-thumb-v4" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-              <div class="media-overlay-v4">
-                <button v-if="authStore.canEdit" class="delete-btn-circ" title="Remover" @click="deleteMedia(m.id)">✕</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ── Informações Legais ── -->
-        <div class="pub-card">
-          <h4 class="pub-card__title">Informações Legais</h4>
-          <p style="font-size: 0.75rem; color: var(--color-surface-400); margin: 0 0 12px;">Texto exibido no final da página pública. Ideal para dados de registro, aprovações e licenças.</p>
-          <textarea v-model="pubInfoForm.legalNotice" class="form-textarea" rows="4" placeholder="Ex: Loteamento aprovado pela Prefeitura Municipal, através do Decreto n.º..." :disabled="!authStore.canEdit" style="font-size: 0.85rem; line-height: 1.5;"></textarea>
-
-          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
-            <button class="btn btn-primary btn-sm" :disabled="savingPublicLegal" @click="savePublicLegalBlock">
-              {{ savingPublicLegal ? 'Salvando...' : 'Salvar Informações Legais' }}
-            </button>
           </div>
         </div>
       </section>
@@ -2666,7 +2320,6 @@ const sidebarSections = computed(() => {
   const sections = [
     { id: 'configuracoes', icon: 'bi bi-gear-fill', label: 'Configurações' },
     { id: 'lotes', icon: 'bi bi-geo-alt-fill', label: 'Lotes' },
-    { id: 'pagina-publica', icon: 'bi bi-file-earmark-text-fill', label: 'Página Pública' },
     { id: 'financeiro', icon: 'bi bi-calculator-fill', label: 'Simulação Financeira' },
     { id: 'agendamento', icon: 'bi bi-calendar-event-fill', label: 'Agendamento' },
   ]
@@ -3043,6 +2696,17 @@ onMounted(async () => {
   border-color: var(--color-primary-500);
   color: var(--color-primary-400, #34d399);
   transform: translateX(2px);
+}
+
+.sidebar-tool-link--highlight {
+  border-color: var(--color-primary-600);
+  color: var(--color-primary-400);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.sidebar-tool-link--highlight:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--color-primary-400);
 }
 
 .project-content {

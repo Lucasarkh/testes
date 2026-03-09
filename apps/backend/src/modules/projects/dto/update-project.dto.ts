@@ -201,4 +201,8 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsBoolean()
   nearbyEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'Layout das seções da página pública (Page Builder)' })
+  @IsOptional()
+  sectionsLayout?: any;
 }
