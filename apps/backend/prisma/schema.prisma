@@ -176,6 +176,14 @@ enum TicketCategory {
   BUG
 }
 
+enum LotImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+}
+
 // ─── CORE MODELS ────────────────────────────────────────
 
 model Tenant {
@@ -623,6 +631,41 @@ model LeadPayment {
   updatedAt   DateTime          @updatedAt
 
   @@index([leadId])
+}
+
+model LotImportJob {
+  id            String          @id @default(cuid())
+  tenantId      String
+  projectId     String
+  createdById   String?
+  fileName      String
+  status        LotImportStatus @default(PENDING)
+  totalRows     Int             @default(0)
+  processedRows Int             @default(0)
+  successRows   Int             @default(0)
+  errorRows     Int             @default(0)
+  message       String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  errors LotImportError[]
+
+  @@index([tenantId, projectId, createdAt(sort: Desc)])
+}
+
+model LotImportError {
+  id        String   @id @default(cuid())
+  importId  String
+  importJob LotImportJob @relation(fields: [importId], references: [id], onDelete: Cascade)
+  line      Int
+  code      String?
+  message   String
+  raw       Json?
+  createdAt DateTime @default(now())
+
+  @@index([importId, line])
 }
 
 model LeadHistory {

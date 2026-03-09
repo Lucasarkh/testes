@@ -318,7 +318,11 @@ export class ProjectsService {
             : Object.values(data.lots))
         : [];
 
-      lots = lots.filter((l: any) => l.status === 'available');
+      // If we're searching for specific codes, include all lots.
+      // Otherwise only public listings show available.
+      if (!codes?.length && !search) {
+        lots = lots.filter((l: any) => l.status === 'available');
+      }
 
       if (codes?.length) lots = lots.filter((l: any) => codes.includes(l.code));
 
@@ -374,7 +378,11 @@ export class ProjectsService {
     }
 
     // ── New mapElements path ──────────────────────────────────────────────────
-    const lotDetailsFilter: any = { status: 'AVAILABLE' };
+    const lotDetailsFilter: any = {};
+    if (!codes?.length && !search) {
+      lotDetailsFilter.status = 'AVAILABLE';
+    }
+
     if (tags?.length) {
       Object.assign(lotDetailsFilter, matchMode === 'exact'
         ? { tags: { hasEvery: tags } }

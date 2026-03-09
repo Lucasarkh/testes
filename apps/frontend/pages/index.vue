@@ -115,7 +115,7 @@ definePageMeta({
 .btn-outline {
   background-color: transparent;
   border-color: var(--gray-200);
-  color: var(--gray-700);
+  color: #fff;
 }
 
 .btn-outline:hover {

@@ -616,6 +616,55 @@
           </div>
         </div>
         <div v-else class="table-wrapper">
+          <div class="lot-import-card">
+            <div class="lot-import-card__head">
+              <div>
+                <h4>Importacao de Lotes (CSV ou Excel)</h4>
+                <p>Envie CSV, XLSX ou XLS. Se for Excel, convertemos automaticamente para CSV antes do envio.</p>
+              </div>
+              <div class="lot-import-card__actions" v-if="authStore.canEdit">
+                <button class="btn btn-sm btn-outline" @click="downloadLotCsvTemplate">Baixar modelo</button>
+                <button class="btn btn-sm btn-primary" :disabled="uploadingLotCsv || !!activeLotImportRunning" @click="openLotCsvPicker">
+                  {{ uploadingLotCsv ? 'Enviando...' : 'Importar Arquivo' }}
+                </button>
+                <input ref="lotCsvInputRef" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display: none" @change="handleLotCsvSelected" />
+              </div>
+            </div>
+
+            <div class="lot-import-help">
+              <p><strong>Formato recomendado:</strong> use o modelo e mantenha os nomes das colunas em português.</p>
+              <p><strong>Valores aceitos:</strong> status = DISPONIVEL, RESERVADO ou VENDIDO | topografia = PLANO, ACLIVE ou DECLIVE.</p>
+              <p><strong>Campos obrigatórios:</strong> apenas <code>codigo</code>. Campos como <code>tags</code> e <code>observações</code> são opcionais.</p>
+              <p><strong>Observação:</strong> a coluna <code>codigo</code> precisa bater com o codigo do lote criado na Planta Interativa e nao pode ter acentuação.</p>
+            </div>
+
+            <div v-if="activeLotImport" class="lot-import-status">
+              <div class="lot-import-status__row">
+                <span>
+                  <strong>Status:</strong>
+                  {{ lotImportStatusLabel(activeLotImport.status) }}
+                </span>
+                <span>
+                  <strong>Arquivo:</strong>
+                  {{ activeLotImport.fileName }}
+                </span>
+              </div>
+              <div class="lot-import-status__row">
+                <span><strong>Total:</strong> {{ activeLotImport.totalRows || 0 }}</span>
+                <span><strong>Sucesso:</strong> {{ activeLotImport.successRows || 0 }}</span>
+                <span><strong>Erros:</strong> {{ activeLotImport.errorRows || 0 }}</span>
+                <span><strong>Processadas:</strong> {{ activeLotImport.processedRows || 0 }}</span>
+              </div>
+              <div class="progress-bar" style="margin-top: 8px;">
+                <div class="progress-bar-fill" :style="{ width: `${lotImportProgress}%` }"></div>
+              </div>
+              <p v-if="activeLotImport.message" class="lot-import-status__message">{{ activeLotImport.message }}</p>
+              <div v-if="activeLotImport.errorRows > 0" style="margin-top: 10px;">
+                <button class="btn btn-xs btn-outline" @click="downloadLotImportErrorsCsv">Baixar erros (CSV)</button>
+              </div>
+            </div>
+          </div>
+
           <div style="padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
             <span>ℹ️</span>
             Todos os pontos criados na Planta Interativa aparecem nesta lista para que você adicione fotos, preços e dados do contrato.
@@ -1394,7 +1443,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 interface Media {
   id: string;
@@ -1451,6 +1500,10 @@ const mapElements = ref<any[]>([])
 const lots = ref<any[]>([])
 const lotsMeta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 50, totalPages: 0, currentPage: 1 })
 const media = ref<Media[]>([])
+const lotCsvInputRef = ref<HTMLInputElement | null>(null)
+const uploadingLotCsv = ref(false)
+const activeLotImport = ref<any>(null)
+let lotImportPollTimer: ReturnType<typeof setInterval> | null = null
 
 const lotStats = computed(() => {
   const total = lots.value.length
@@ -1458,6 +1511,18 @@ const lotStats = computed(() => {
   const reserved = lots.value.filter((l: any) => l.status === 'RESERVED').length
   const sold = lots.value.filter((l: any) => l.status === 'SOLD').length
   return { total, available, reserved, sold }
+})
+
+const activeLotImportRunning = computed(() => {
+  const status = String(activeLotImport.value?.status || '')
+  return status === 'PENDING' || status === 'PROCESSING'
+})
+
+const lotImportProgress = computed(() => {
+  const total = Number(activeLotImport.value?.totalRows || 0)
+  const processed = Number(activeLotImport.value?.processedRows || 0)
+  if (!total) return 0
+  return Math.min(100, Math.round((processed / total) * 100))
 })
 const activeSection = ref('configuracoes')
 type BannerDevice = 'desktop' | 'tablet' | 'mobile'
@@ -2733,6 +2798,164 @@ const formatCurrencyToBrasilia = (val: number | string) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
 }
 
+const lotImportStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    PENDING: 'Na fila',
+    PROCESSING: 'Processando',
+    COMPLETED: 'Concluida',
+    COMPLETED_WITH_ERRORS: 'Concluida com erros',
+    FAILED: 'Falhou',
+  }
+  return labels[status] || status || '—'
+}
+
+const stopLotImportPolling = () => {
+  if (!lotImportPollTimer) return
+  clearInterval(lotImportPollTimer)
+  lotImportPollTimer = null
+}
+
+const startLotImportPolling = (importId: string) => {
+  stopLotImportPolling()
+
+  const poll = async () => {
+    try {
+      const status = await fetchApi(`/projects/${projectId}/lots/imports/${importId}`)
+      activeLotImport.value = status
+
+      if (status?.terminal) {
+        stopLotImportPolling()
+        await loadLotsPaginated(lotsMeta.value.currentPage)
+        if (status.status === 'COMPLETED') {
+          toastSuccess('Importacao finalizada com sucesso!')
+        } else if (status.status === 'COMPLETED_WITH_ERRORS') {
+          toastFromError(new Error('Importacao finalizada com erros. Baixe o relatorio para revisar.'))
+        } else if (status.status === 'FAILED') {
+          toastFromError(new Error(status.message || 'A importacao falhou.'))
+        }
+      }
+    } catch (e) {
+      stopLotImportPolling()
+      toastFromError(e, 'Erro ao acompanhar importacao')
+    }
+  }
+
+  poll()
+  lotImportPollTimer = setInterval(poll, 2000)
+}
+
+const openLotCsvPicker = () => {
+  lotCsvInputRef.value?.click()
+}
+
+const isExcelFile = (file: File) => {
+  const name = file.name.toLowerCase()
+  const type = String(file.type || '').toLowerCase()
+  return (
+    name.endsWith('.xlsx') ||
+    name.endsWith('.xls') ||
+    type.includes('spreadsheetml') ||
+    type.includes('application/vnd.ms-excel')
+  )
+}
+
+const convertExcelToCsvFile = async (file: File) => {
+  const XLSX = await import('xlsx')
+  const buffer = await file.arrayBuffer()
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const firstSheetName = workbook.SheetNames[0]
+  if (!firstSheetName) {
+    throw new Error('Nao foi possivel ler a planilha. Verifique se ha uma aba com dados.')
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName]
+  if (!worksheet) {
+    throw new Error('Nao foi possivel ler a aba principal da planilha.')
+  }
+
+  const csv = XLSX.utils.sheet_to_csv(worksheet, {
+    FS: ';',
+    RS: '\n',
+    blankrows: false,
+  })
+
+  const safeName = file.name.replace(/\.(xlsx|xls)$/i, '') || 'importacao-lotes'
+  return new File([csv], `${safeName}.csv`, { type: 'text/csv;charset=utf-8;' })
+}
+
+const handleLotCsvSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  uploadingLotCsv.value = true
+  try {
+    let uploadFile: File = file
+    if (isExcelFile(file)) {
+      uploadFile = await convertExcelToCsvFile(file)
+    }
+
+    const formData = new FormData()
+    formData.append('file', uploadFile, uploadFile.name)
+    const job = await uploadApi(`/projects/${projectId}/lots/imports`, formData)
+    activeLotImport.value = job
+    startLotImportPolling(job.id)
+    toastSuccess('Arquivo enviado. A importacao foi iniciada em segundo plano.')
+  } catch (e) {
+    toastFromError(e, 'Erro ao iniciar importacao')
+  } finally {
+    uploadingLotCsv.value = false
+    input.value = ''
+  }
+}
+
+const downloadLotCsvTemplate = () => {
+  const lines = [
+    'codigo;status;quadra;lote;area_m2;valor_total;valor_m2;frente;fundo;lateral_esquerda;lateral_direita;topografia;tags;observacoes',
+    'Q1-L01;DISPONIVEL;Q1;01;300;120000;400;12;25;25;25;PLANO;"esquina;sol da manha";"Lote de esquina"',
+    'Q1-L02;RESERVADO;Q1;02;280;98000;350;10;28;28;28;ACLIVE;"vista livre";""',
+  ]
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `modelo-importacao-lotes-${projectId}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+const downloadLotImportErrorsCsv = async () => {
+  if (!activeLotImport.value?.id) return
+  try {
+    const errors = await fetchApi(`/projects/${projectId}/lots/imports/${activeLotImport.value.id}/errors?limit=5000`)
+    const header = ['line', 'code', 'message']
+    const rows = (errors || []).map((item: any) => [
+      String(item.line ?? ''),
+      String(item.code ?? ''),
+      String(item.message ?? '').replace(/\n/g, ' '),
+    ])
+
+    const csv = [header, ...rows]
+      .map((row: string[]) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `importacao-lotes-erros-${activeLotImport.value.id}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    toastFromError(e, 'Erro ao baixar relatorio de erros')
+  }
+}
+
 const loadLotsPaginated = async (page = 1) => {
   try {
     const res = await fetchApi(`/projects/${projectId}/lots?page=${page}&limit=50`)
@@ -2747,17 +2970,22 @@ const loadProject = async () => {
   loading.value = true
   error.value = ''
   try {
-    const [p, els, resLots, md] = await Promise.all([
+    const [p, els, resLots, md, latestImport] = await Promise.all([
       fetchApi(`/projects/${projectId}`),
       fetchApi(`/projects/${projectId}/map-elements`),
       fetchApi(`/projects/${projectId}/lots?page=1&limit=50`),
       fetchApi(`/projects/${projectId}/media`),
+      fetchApi(`/projects/${projectId}/lots/imports/latest`).catch(() => null),
     ])
     project.value = p
     mapElements.value = els
     lots.value = resLots.data
     lotsMeta.value = resLots.meta
     media.value = md
+    activeLotImport.value = latestImport
+    if (latestImport && !latestImport.terminal) {
+      startLotImportPolling(latestImport.id)
+    }
     loadPaymentConfig()
     editForm.value = {
       name: p.name,
@@ -2931,6 +3159,10 @@ const deleteMedia = async (id: string) => {
   }
 }
 
+onBeforeUnmount(() => {
+  stopLotImportPolling()
+})
+
 onMounted(async () => {
   await loadProject()
   await loadSchedulingConfig()
@@ -2947,6 +3179,80 @@ onMounted(async () => {
   gap: 32px;
   align-items: flex-start;
   min-height: calc(100vh - 200px);
+}
+
+.lot-import-card {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: 10px;
+  background: var(--glass-bg-heavy);
+}
+
+.lot-import-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.lot-import-card__head h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--color-surface-100);
+}
+
+.lot-import-card__head p {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-surface-400);
+}
+
+.lot-import-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lot-import-help {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px dashed var(--glass-border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lot-import-help p {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--color-surface-300);
+}
+
+.lot-import-help p + p {
+  margin-top: 6px;
+}
+
+.lot-import-status {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lot-import-status__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.76rem;
+  color: var(--color-surface-300);
+  margin-bottom: 4px;
+}
+
+.lot-import-status__message {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--color-surface-400);
 }
 
 .project-sidebar {
@@ -3286,6 +3592,7 @@ onMounted(async () => {
 .ig-hint { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin-top: 2px; }
 
 .range-slider-v4 {
+  appearance: none;
   -webkit-appearance: none;
   width: 100%;
   height: 6px;
