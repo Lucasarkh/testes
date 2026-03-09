@@ -480,13 +480,13 @@
                       <span>Reserva Online Garantida</span>
                     </div>
                     <p>Reserve este lote agora mesmo e garanta sua unidade.</p>
-                    <p class="reserve-small">Reserva sujeita a analise de credito da loteadora responsavel pelo empreendimento.</p>
                     <button @click="() => { bookingMode = true; tracking.trackClick('Botão: Abrir Reserva Online', 'CONVERSION'); }" class="cta-reserve-v4">
                       Reservar Lote
                     </button>
-                    <div class="reserve-small">
+                    <div class="reserve-fee">
                       Taxa de reserva: {{ formatCurrencyToBrasilia(reservationFeeValue) }}
                     </div>
+                    <p class="reserve-disclaimer">*Sujeito a analise de credito da loteadora responsavel pelo empreendimento.</p>
                   </div>
 
                   <div v-else class="booking-form-v4">
@@ -1948,7 +1948,8 @@ async function submitReservation() {
 .h-reserve-v4 { display: flex; align-items: center; gap: 8px; color: var(--v4-primary); font-weight: 600; font-size: 15px; margin-bottom: 8px; }
 .booking-intro p { font-size: 14px; color: #4b5563; margin-bottom: 16px; line-height: 1.4; }
 .cta-reserve-v4 { width: 100%; padding: 12px; background: var(--v4-primary); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; }
-.reserve-small { font-size: 12px; color: var(--v4-text-muted); text-align: center; margin-top: 8px; }
+.reserve-fee { font-size: 12px; color: var(--v4-text-muted); text-align: center; margin-top: 8px; }
+.reserve-disclaimer { font-size: 11px; color: var(--v4-text-muted); text-align: center; margin-top: 6px; line-height: 1.3; }
 .f-field { margin-bottom: 12px; }
 .f-field input { width: 100%; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--v4-border); background: #f5f5f7; font-size: 16px; transition: all 0.2s; }
 .f-field input:focus { border-color: var(--v4-primary); outline: none; background: white; }
@@ -2494,11 +2495,19 @@ async function submitReservation() {
   background: var(--v4-primary-hover);
 }
 
-.reserve-small {
+.reserve-fee {
   text-align: center;
   font-size: 12px;
   color: var(--v4-text-muted);
   margin-top: 8px;
+}
+
+.reserve-disclaimer {
+  text-align: center;
+  font-size: 11px;
+  color: var(--v4-text-muted);
+  margin-top: 6px;
+  line-height: 1.3;
 }
 
 .booking-header {
