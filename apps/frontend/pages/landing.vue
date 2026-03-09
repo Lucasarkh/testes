@@ -747,7 +747,7 @@ const scrollToForm = () => {
             <div class="lp-feat-tag">Para o time de marketing</div>
             <h3 class="lp-feat-title">Leads qualificados no WhatsApp, com contexto</h3>
             <p class="lp-feat-desc">
-              Quando o cliente clica em um lote, ele informa o interesse. O sistema envia uma notificação para o corretor responsável com o lote exato, a quadra e o contato: nada de perguntar "qual lote você tinha visto?".
+              Quando o cliente submete ao formulário, o sistema envia uma notificação para o corretor responsável com o lote exato, a quadra e o contato: nada de perguntar "qual lote você tinha visto?".
             </p>
             <ul class="lp-feat-list">
               <li><span class="lp-check">✓</span> Notificação automática por e-mail ou WhatsApp</li>
