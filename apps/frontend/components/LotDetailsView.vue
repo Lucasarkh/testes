@@ -1087,17 +1087,44 @@ const statusLabel = computed(() => {
 })
 
 const salesMotionConfig = computed(() => {
-  const cfg = project.value?.salesMotionConfig || {}
+  const root = project.value?.salesMotionConfig || {}
+  const cfg = root?.lot && typeof root.lot === 'object' ? root.lot : root
+  const rawTemplates = cfg?.templates
+
+  const defaultTemplates = [
+    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este lote hoje', enabled: true },
+    { id: 'recentReservation', text: 'Lote {{recentLot}} foi reservado recentemente', enabled: true },
+    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
+    { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
+  ]
+
+  const templates = Array.isArray(rawTemplates)
+    ? rawTemplates
+        .map((tpl: any, idx: number) => {
+          if (typeof tpl === 'string') {
+            return { id: `legacy_${idx + 1}`, text: tpl, enabled: true }
+          }
+          if (!tpl || typeof tpl !== 'object') return null
+          return {
+            id: String(tpl.id || `tpl_${idx + 1}`),
+            text: String(tpl.text || ''),
+            enabled: tpl.enabled !== false,
+          }
+        })
+        .filter((tpl: any) => tpl && tpl.text.trim().length > 0)
+    : rawTemplates && typeof rawTemplates === 'object'
+      ? Object.entries(rawTemplates)
+          .map(([key, value]) => ({ id: String(key), text: String(value || ''), enabled: true }))
+          .filter((tpl) => tpl.text.trim().length > 0)
+      : defaultTemplates
+
   return {
     enabled: !!cfg.enabled,
     intervalSeconds: Math.max(5, Number(cfg.intervalSeconds ?? 14)),
     displaySeconds: Math.max(3, Number(cfg.displaySeconds ?? 6)),
     maxNotices: Math.max(1, Number(cfg.maxNotices ?? 5)),
-    templates: {
-      viewsToday: String(cfg?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje'),
-      recentReservation: String(cfg?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente'),
-      visits24h: String(cfg?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h'),
-    },
+    templates,
   }
 })
 
@@ -1140,40 +1167,63 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectio
   const baseVisits = Math.max(16, Math.min(260, Math.round((allProjectLots.value.length || 15) * 3.1)))
   const views = nextSmoothInt(baseViews, salesMotionLastViews, 3, 40)
   const visits = nextSmoothInt(baseVisits, salesMotionLastVisits, 12, 280)
+  const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.6)), salesMotionLastViews, 2, 24, 0.13)
   const pool = salesMotionLotPool.value
   const randomLot = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : (lot.value?.code || '24')
+  const sectionMap: Record<string, string> = {
+    galeria: 'galeria',
+    localizacao: 'planta',
+    'vista-360': 'vista 360',
+    ficha: 'ficha técnica',
+    simulador: 'simulador',
+    financiamento: 'tabela de pagamento',
+  }
+  const sectionLabel = sectionId ? (sectionMap[sectionId] || 'detalhes do lote') : 'detalhes do lote'
 
   const fillTemplate = (tpl: string) => tpl
     .replace(/{{\s*viewsToday\s*}}/g, String(views))
     .replace(/{{\s*recentLot\s*}}/g, String(randomLot))
     .replace(/{{\s*visits24h\s*}}/g, String(visits))
+    .replace(/{{\s*visitsNow\s*}}/g, String(nowUsers))
+    .replace(/{{\s*sectionLabel\s*}}/g, String(sectionLabel))
+
+  const options = (cfg.templates || [])
+    .filter((tpl: any) => tpl?.enabled !== false)
+    .map((tpl: any) => fillTemplate(String(tpl?.text || '')))
+    .filter(Boolean)
 
   if (reason === 'section' && sectionId) {
-    const sectionMap: Record<string, string> = {
-      galeria: 'galeria',
-      localizacao: 'planta',
-      'vista-360': 'vista 360',
-      ficha: 'ficha técnica',
-      simulador: 'simulador',
-      financiamento: 'tabela de pagamento',
-    }
-    const label = sectionMap[sectionId] || 'detalhes do lote'
-    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.55)), salesMotionLastViews, 2, 24, 0.13)
-    return `${nowUsers} pessoas chegaram na seção de ${label} agora`
+    const contextual = (cfg.templates || [])
+      .filter((tpl: any) => tpl?.enabled !== false)
+      .map((tpl: any) => String(tpl?.text || ''))
+      .filter((text: string) => text.includes('{{sectionLabel}}'))
+      .map((text: string) => fillTemplate(text))
+      .filter(Boolean)
+    const source = contextual.length > 0 ? contextual : options
+    return source[Math.floor(Math.random() * source.length)] || ''
   }
 
   if (reason === 'scroll') {
-    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.6)), salesMotionLastViews, 2, 22, 0.14)
-    return `${nowUsers} visitantes estão navegando nesta página neste momento`
+    const contextual = (cfg.templates || [])
+      .filter((tpl: any) => tpl?.enabled !== false)
+      .map((tpl: any) => String(tpl?.text || ''))
+      .filter((text: string) => text.includes('{{visitsNow}}'))
+      .map((text: string) => fillTemplate(text))
+      .filter(Boolean)
+    const source = contextual.length > 0 ? contextual : options
+    return source[Math.floor(Math.random() * source.length)] || ''
   }
 
-  const options = [
-    fillTemplate(cfg.templates.viewsToday),
-    fillTemplate(cfg.templates.recentReservation),
-    fillTemplate(cfg.templates.visits24h),
-  ].filter(Boolean)
   return options[Math.floor(Math.random() * options.length)] || ''
 }
+
+const salesMotionTemplatesSignature = computed(() =>
+  JSON.stringify((salesMotionConfig.value.templates || []).map((tpl: any) => ({
+    id: tpl.id,
+    text: tpl.text,
+    enabled: tpl.enabled,
+  }))),
+)
 
 const showNextSalesNotice = (reason: 'initial' | 'scroll' | 'section', sectionId?: string) => {
   if (!process.client) return
@@ -1742,9 +1792,7 @@ watch(
     salesMotionConfig.value.intervalSeconds,
     salesMotionConfig.value.displaySeconds,
     salesMotionConfig.value.maxNotices,
-    salesMotionConfig.value.templates.viewsToday,
-    salesMotionConfig.value.templates.recentReservation,
-    salesMotionConfig.value.templates.visits24h,
+    salesMotionTemplatesSignature.value,
   ],
   () => {
     startSalesMotion()

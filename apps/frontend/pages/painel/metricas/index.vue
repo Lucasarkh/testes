@@ -367,29 +367,36 @@ h1 {
 /* Stats Cards */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .stat-card {
   background: var(--glass-bg);
-  padding: 20px;
+  padding: 18px 20px;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.4);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
+  min-height: 122px;
   border: 1px solid var(--glass-border-subtle);
 }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.stat-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .stat-icon.sessions { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
@@ -403,14 +410,15 @@ h1 {
 .stat-label {
   display: block;
   color: var(--color-surface-200);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
+  text-wrap: balance;
 }
 
 .stat-value {
   display: block;
-  font-size: clamp(1.6rem, 2.2vw, 2.1rem);
+  font-size: clamp(1.55rem, 2vw, 2rem);
   font-weight: 700;
   line-height: 1.1;
   color: var(--color-surface-100);
@@ -422,11 +430,24 @@ h1 {
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  justify-content: center;
 }
 
 .text-emerald {
   font-size: clamp(1.3rem, 1.8vw, 1.7rem);
+}
+
+@media (max-width: 1400px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .text-blue { color: #2563eb; }
@@ -661,10 +682,15 @@ h1 {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 10px;
+    gap: 12px;
+    min-height: 0;
   }
   .stat-content {
     align-items: center;
+    gap: 8px;
+  }
+  .stat-label {
+    min-height: 0;
   }
   .topics-grid {
     grid-template-columns: 1fr;

@@ -170,47 +170,157 @@
                 <span>Movimento do Loteamento (efeito stand de vendas)</span>
               </label>
 
-              <label class="flex items-center" style="gap: 8px; margin-bottom: 10px; cursor:pointer;">
-                <input v-model="editForm.salesMotionConfig.enabled" type="checkbox" style="width: 16px; height: 16px;" />
-                <span style="font-size: 0.85rem; font-weight: 600;">Exibir avisos de atividade na página pública</span>
-              </label>
+              <div class="form-group" style="margin-bottom: 14px; padding: 12px; border: 1px solid var(--glass-border-subtle); border-radius: 10px;">
+                <label class="form-label" style="display:flex; align-items:center; gap:8px; margin-bottom: 10px;">
+                  <span><i class="bi bi-building" aria-hidden="true"></i></span>
+                  <span>Mensagens da página do empreendimento</span>
+                </label>
 
-              <div class="grid grid-cols-2 gap-3" style="margin-bottom: 10px;">
-                <div>
-                  <label class="form-label">Intervalo mínimo entre avisos (segundos)</label>
-                  <input v-model.number="editForm.salesMotionConfig.intervalSeconds" type="number" min="5" max="120" class="form-input" />
+                <label class="flex items-center" style="gap: 8px; margin-bottom: 10px; cursor:pointer;">
+                  <input v-model="editForm.salesMotionConfig.enterprise.enabled" type="checkbox" style="width: 16px; height: 16px;" />
+                  <span style="font-size: 0.85rem; font-weight: 600;">Ativar avisos no empreendimento</span>
+                </label>
+
+                <div class="grid grid-cols-3 gap-3" style="margin-bottom: 10px;">
+                  <div>
+                    <label class="form-label">Intervalo mínimo (s)</label>
+                    <input v-model.number="editForm.salesMotionConfig.enterprise.intervalSeconds" type="number" min="5" max="120" class="form-input" />
+                  </div>
+                  <div>
+                    <label class="form-label">Tempo na tela (s)</label>
+                    <input v-model.number="editForm.salesMotionConfig.enterprise.displaySeconds" type="number" min="3" max="20" class="form-input" />
+                  </div>
+                  <div>
+                    <label class="form-label">Máx. avisos/sessão</label>
+                    <input v-model.number="editForm.salesMotionConfig.enterprise.maxNotices" type="number" min="1" max="20" class="form-input" />
+                  </div>
                 </div>
-                <div>
-                  <label class="form-label">Tempo na tela (segundos)</label>
-                  <input v-model.number="editForm.salesMotionConfig.displaySeconds" type="number" min="3" max="20" class="form-input" />
+
+                <div class="form-group" style="margin-bottom: 8px;">
+                  <div class="flex justify-between items-center" style="margin-bottom: 8px;">
+                    <label class="form-label" style="margin-bottom: 0;">Textos configurados</label>
+                    <button type="button" class="btn btn-ghost btn-sm" @click="addSalesMotionTemplate('enterprise')">+ Adicionar texto</button>
+                  </div>
+
+                  <div v-if="!editForm.salesMotionConfig.enterprise.templates.length" class="text-muted" style="font-size: 0.8rem; padding: 10px 12px; border: 1px dashed var(--glass-border-subtle); border-radius: 8px;">
+                    Nenhum texto cadastrado. Adicione um texto para começar.
+                  </div>
+
+                  <div
+                    v-for="(tpl, idx) in editForm.salesMotionConfig.enterprise.templates"
+                    :key="tpl.id || idx"
+                    style="margin-bottom: 8px; padding: 10px; border: 1px solid var(--glass-border-subtle); border-radius: 8px;"
+                  >
+                    <div class="flex justify-between items-center" style="margin-bottom: 6px;">
+                      <label class="flex items-center" style="gap: 8px; margin: 0; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
+                        <input v-model="tpl.enabled" type="checkbox" style="width: 14px; height: 14px;" />
+                        <span>{{ tpl.enabled ? 'Exibir este texto' : 'Oculto' }}</span>
+                      </label>
+                      <button type="button" class="btn btn-danger btn-sm" @click="removeSalesMotionTemplate('enterprise', idx)">Remover</button>
+                    </div>
+                    <textarea
+                      v-model="tpl.text"
+                      class="form-textarea"
+                      rows="2"
+                      placeholder="Ex: {{viewsToday}} pessoas visualizaram este empreendimento hoje"
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="text-muted" style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; font-size: 0.78rem;">
+                  <span style="opacity: 0.9;">Placeholders:</span>
+                  <CommonAppTooltip text="Quantidade estimada de pessoas que visualizaram hoje (valor dinâmico e suavizado)." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{viewsToday}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Código/nome de lote ou unidade usado para simular uma reserva recente." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{recentLot}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Volume estimado de visitas nas últimas 24h para o empreendimento." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visits24h}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Quantidade estimada de usuários navegando agora." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visitsNow}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Nome da seção atual de navegação (ex.: planta, lotes, contato)." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{sectionLabel}}' }}</span>
+                  </CommonAppTooltip>
                 </div>
               </div>
 
-              <small class="text-muted" style="display:block; margin-top: -4px; margin-bottom: 10px;">
-                Os avisos aparecem em momentos estratégicos de navegação. Este campo controla o tempo mínimo entre um aviso e outro.
-              </small>
+              <div class="form-group" style="margin-bottom: 0; padding: 12px; border: 1px solid var(--glass-border-subtle); border-radius: 10px;">
+                <label class="form-label" style="display:flex; align-items:center; gap:8px; margin-bottom: 10px;">
+                  <span><i class="bi bi-pin-map" aria-hidden="true"></i></span>
+                  <span>Mensagens da página do lote</span>
+                </label>
 
-              <div class="form-group" style="margin-bottom: 10px;">
-                <label class="form-label">Quantidade máxima de avisos por sessão</label>
-                <input v-model.number="editForm.salesMotionConfig.maxNotices" type="number" min="1" max="20" class="form-input" />
-              </div>
+                <label class="flex items-center" style="gap: 8px; margin-bottom: 10px; cursor:pointer;">
+                  <input v-model="editForm.salesMotionConfig.lot.enabled" type="checkbox" style="width: 16px; height: 16px;" />
+                  <span style="font-size: 0.85rem; font-weight: 600;">Ativar avisos na página de lote</span>
+                </label>
 
-              <div class="form-group" style="margin-bottom: 8px;">
-                <label class="form-label">Texto: visualizações no lote</label>
-                <input v-model="editForm.salesMotionConfig.templates.viewsToday" class="form-input" placeholder="Ex: {{viewsToday}} pessoas visualizaram este lote hoje" />
-              </div>
-              <div class="form-group" style="margin-bottom: 8px;">
-                <label class="form-label">Texto: reserva recente</label>
-                <input v-model="editForm.salesMotionConfig.templates.recentReservation" class="form-input" placeholder="Ex: Lote {{recentLot}} foi reservado recentemente" />
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Texto: visitas nas últimas 24h</label>
-                <input v-model="editForm.salesMotionConfig.templates.visits24h" class="form-input" placeholder="Ex: {{visits24h}} pessoas visitaram este loteamento nas últimas 24h" />
-              </div>
+                <div class="grid grid-cols-3 gap-3" style="margin-bottom: 10px;">
+                  <div>
+                    <label class="form-label">Intervalo mínimo (s)</label>
+                    <input v-model.number="editForm.salesMotionConfig.lot.intervalSeconds" type="number" min="5" max="120" class="form-input" />
+                  </div>
+                  <div>
+                    <label class="form-label">Tempo na tela (s)</label>
+                    <input v-model.number="editForm.salesMotionConfig.lot.displaySeconds" type="number" min="3" max="20" class="form-input" />
+                  </div>
+                  <div>
+                    <label class="form-label">Máx. avisos/sessão</label>
+                    <input v-model.number="editForm.salesMotionConfig.lot.maxNotices" type="number" min="1" max="20" class="form-input" />
+                  </div>
+                </div>
 
-              <small class="text-muted" style="display:block; margin-top: 8px;" v-pre>
-                Placeholders disponíveis: {{viewsToday}}, {{recentLot}}, {{visits24h}}.
-              </small>
+                <div class="form-group" style="margin-bottom: 8px;">
+                  <div class="flex justify-between items-center" style="margin-bottom: 8px;">
+                    <label class="form-label" style="margin-bottom: 0;">Textos configurados</label>
+                    <button type="button" class="btn btn-ghost btn-sm" @click="addSalesMotionTemplate('lot')">+ Adicionar texto</button>
+                  </div>
+
+                  <div v-if="!editForm.salesMotionConfig.lot.templates.length" class="text-muted" style="font-size: 0.8rem; padding: 10px 12px; border: 1px dashed var(--glass-border-subtle); border-radius: 8px;">
+                    Nenhum texto cadastrado. Adicione um texto para começar.
+                  </div>
+
+                  <div
+                    v-for="(tpl, idx) in editForm.salesMotionConfig.lot.templates"
+                    :key="tpl.id || idx"
+                    style="margin-bottom: 8px; padding: 10px; border: 1px solid var(--glass-border-subtle); border-radius: 8px;"
+                  >
+                    <div class="flex justify-between items-center" style="margin-bottom: 6px;">
+                      <label class="flex items-center" style="gap: 8px; margin: 0; cursor: pointer; font-size: 0.8rem; font-weight: 600;">
+                        <input v-model="tpl.enabled" type="checkbox" style="width: 14px; height: 14px;" />
+                        <span>{{ tpl.enabled ? 'Exibir este texto' : 'Oculto' }}</span>
+                      </label>
+                      <button type="button" class="btn btn-danger btn-sm" @click="removeSalesMotionTemplate('lot', idx)">Remover</button>
+                    </div>
+                    <textarea
+                      v-model="tpl.text"
+                      class="form-textarea"
+                      rows="2"
+                      placeholder="Ex: {{viewsToday}} pessoas visualizaram este lote hoje"
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="text-muted" style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; font-size: 0.78rem;">
+                  <span style="opacity: 0.9;">Placeholders:</span>
+                  <CommonAppTooltip text="Quantidade estimada de visualizações do lote no dia." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{viewsToday}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Código/nome de lote usado para mensagem de reserva recente." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{recentLot}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Volume estimado de visitas do loteamento nas últimas 24h." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visits24h}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Quantidade estimada de usuários navegando na página neste momento." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visitsNow}}' }}</span>
+                  </CommonAppTooltip>
+                  <CommonAppTooltip text="Seção atual da página de lote (ex.: galeria, ficha técnica, simulador)." position="top">
+                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{sectionLabel}}' }}</span>
+                  </CommonAppTooltip>
+                </div>
+              </div>
             </div>
             <div v-if="settingsError" class="alert alert-error">{{ settingsError }}</div>
             <div v-if="settingsSaved" class="alert alert-success">Salvo com sucesso!</div>
@@ -2018,17 +2128,100 @@ const editForm = ref({
   aiConfigId: '',
   paymentConditions: [] as any[],
   salesMotionConfig: {
-    enabled: false,
-    intervalSeconds: 14,
-    displaySeconds: 6,
-    maxNotices: 5,
-    templates: {
-      viewsToday: '{{viewsToday}} pessoas visualizaram este lote hoje',
-      recentReservation: 'Lote {{recentLot}} foi reservado recentemente',
-      visits24h: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h',
+    enterprise: {
+      enabled: false,
+      intervalSeconds: 14,
+      displaySeconds: 6,
+      maxNotices: 5,
+      templates: [
+        { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este empreendimento hoje', enabled: true },
+        { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
+        { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
+        { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
+      ] as Array<{ id: string; text: string; enabled: boolean }>,
+    },
+    lot: {
+      enabled: false,
+      intervalSeconds: 14,
+      displaySeconds: 6,
+      maxNotices: 5,
+      templates: [
+        { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este lote hoje', enabled: true },
+        { id: 'recentReservation', text: 'Lote {{recentLot}} foi reservado recentemente', enabled: true },
+        { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
+        { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
+        { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
+      ] as Array<{ id: string; text: string; enabled: boolean }>,
     },
   }
 })
+
+const salesMotionTemplateDefaults = {
+  enterprise: [
+    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este empreendimento hoje', enabled: true },
+    { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
+    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
+  ],
+  lot: [
+    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este lote hoje', enabled: true },
+    { id: 'recentReservation', text: 'Lote {{recentLot}} foi reservado recentemente', enabled: true },
+    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
+    { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
+  ]
+} as const
+
+const createSalesMotionTemplate = (text = '') => ({
+  id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  text,
+  enabled: true,
+})
+
+const normalizeSalesMotionTemplateList = (
+  source: any,
+  fallback: Array<{ id: string; text: string; enabled: boolean }>
+) => {
+  if (Array.isArray(source)) {
+    const normalized = source
+      .map((tpl: any, idx: number) => {
+        if (typeof tpl === 'string') {
+          return { id: `legacy_${idx + 1}`, text: tpl, enabled: true }
+        }
+        if (!tpl || typeof tpl !== 'object') return null
+        return {
+          id: String(tpl.id || `tpl_${idx + 1}`),
+          text: String(tpl.text || ''),
+          enabled: tpl.enabled !== false,
+        }
+      })
+      .filter((tpl: any) => tpl && tpl.text.trim().length > 0)
+
+    if (normalized.length > 0) return normalized
+  }
+
+  if (source && typeof source === 'object') {
+    const fromObject = Object.entries(source)
+      .map(([key, value]) => ({
+        id: String(key),
+        text: String(value || ''),
+        enabled: true,
+      }))
+      .filter((tpl) => tpl.text.trim().length > 0)
+
+    if (fromObject.length > 0) return fromObject
+  }
+
+  return fallback.map((tpl) => ({ ...tpl }))
+}
+
+const addSalesMotionTemplate = (context: 'enterprise' | 'lot') => {
+  editForm.value.salesMotionConfig[context].templates.push(createSalesMotionTemplate())
+}
+
+const removeSalesMotionTemplate = (context: 'enterprise' | 'lot', idx: number) => {
+  editForm.value.salesMotionConfig[context].templates.splice(idx, 1)
+}
 
 // ── Slug validation for edit ─────────────────────────────
 const editSlugTaken = ref(false)
@@ -3050,6 +3243,22 @@ const loadProject = async () => {
     const salesMotionConfig = p.salesMotionConfig && typeof p.salesMotionConfig === 'object'
       ? p.salesMotionConfig
       : {}
+    const enterpriseConfig = salesMotionConfig?.enterprise && typeof salesMotionConfig.enterprise === 'object'
+      ? salesMotionConfig.enterprise
+      : {}
+    const lotConfig = salesMotionConfig?.lot && typeof salesMotionConfig.lot === 'object'
+      ? salesMotionConfig.lot
+      : {}
+
+    const enterpriseTemplates = normalizeSalesMotionTemplateList(
+      enterpriseConfig?.templates ?? salesMotionConfig?.templates,
+      salesMotionTemplateDefaults.enterprise as any,
+    )
+
+    const lotTemplates = normalizeSalesMotionTemplateList(
+      lotConfig?.templates ?? salesMotionConfig?.templates,
+      salesMotionTemplateDefaults.lot as any,
+    )
 
     editForm.value = {
       name: p.name,
@@ -3071,14 +3280,19 @@ const loadProject = async () => {
       maxInstallments: p.maxInstallments ?? 180,
       paymentConditions: Array.isArray(p.paymentConditions) ? [...p.paymentConditions] : [],
       salesMotionConfig: {
-        enabled: salesMotionConfig.enabled ?? false,
-        intervalSeconds: Number(salesMotionConfig.intervalSeconds ?? 14),
-        displaySeconds: Number(salesMotionConfig.displaySeconds ?? 6),
-        maxNotices: Number(salesMotionConfig.maxNotices ?? 5),
-        templates: {
-          viewsToday: salesMotionConfig?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje',
-          recentReservation: salesMotionConfig?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente',
-          visits24h: salesMotionConfig?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h',
+        enterprise: {
+          enabled: enterpriseConfig.enabled ?? salesMotionConfig.enabled ?? false,
+          intervalSeconds: Number(enterpriseConfig.intervalSeconds ?? salesMotionConfig.intervalSeconds ?? 14),
+          displaySeconds: Number(enterpriseConfig.displaySeconds ?? salesMotionConfig.displaySeconds ?? 6),
+          maxNotices: Number(enterpriseConfig.maxNotices ?? salesMotionConfig.maxNotices ?? 5),
+          templates: enterpriseTemplates,
+        },
+        lot: {
+          enabled: lotConfig.enabled ?? salesMotionConfig.enabled ?? false,
+          intervalSeconds: Number(lotConfig.intervalSeconds ?? salesMotionConfig.intervalSeconds ?? 14),
+          displaySeconds: Number(lotConfig.displaySeconds ?? salesMotionConfig.displaySeconds ?? 6),
+          maxNotices: Number(lotConfig.maxNotices ?? salesMotionConfig.maxNotices ?? 5),
+          templates: lotTemplates,
         },
       }
     }
@@ -3152,14 +3366,31 @@ const saveSettings = async () => {
       monthlyInterestRate: raw.monthlyInterestRate != null ? Number(raw.monthlyInterestRate) : undefined,
       maxInstallments: raw.maxInstallments != null ? Number(raw.maxInstallments) : undefined,
       salesMotionConfig: {
-        enabled: !!raw.salesMotionConfig?.enabled,
-        intervalSeconds: Math.max(5, Number(raw.salesMotionConfig?.intervalSeconds || 14)),
-        displaySeconds: Math.max(3, Number(raw.salesMotionConfig?.displaySeconds || 6)),
-        maxNotices: Math.max(1, Number(raw.salesMotionConfig?.maxNotices || 5)),
-        templates: {
-          viewsToday: String(raw.salesMotionConfig?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje'),
-          recentReservation: String(raw.salesMotionConfig?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente'),
-          visits24h: String(raw.salesMotionConfig?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h'),
+        enterprise: {
+          enabled: !!raw.salesMotionConfig?.enterprise?.enabled,
+          intervalSeconds: Math.max(5, Number(raw.salesMotionConfig?.enterprise?.intervalSeconds || 14)),
+          displaySeconds: Math.max(3, Number(raw.salesMotionConfig?.enterprise?.displaySeconds || 6)),
+          maxNotices: Math.max(1, Number(raw.salesMotionConfig?.enterprise?.maxNotices || 5)),
+          templates: (raw.salesMotionConfig?.enterprise?.templates || [])
+            .map((tpl: any, idx: number) => ({
+              id: String(tpl?.id || `enterprise_${idx + 1}`),
+              text: String(tpl?.text || '').trim(),
+              enabled: tpl?.enabled !== false,
+            }))
+            .filter((tpl: any) => tpl.text.length > 0),
+        },
+        lot: {
+          enabled: !!raw.salesMotionConfig?.lot?.enabled,
+          intervalSeconds: Math.max(5, Number(raw.salesMotionConfig?.lot?.intervalSeconds || 14)),
+          displaySeconds: Math.max(3, Number(raw.salesMotionConfig?.lot?.displaySeconds || 6)),
+          maxNotices: Math.max(1, Number(raw.salesMotionConfig?.lot?.maxNotices || 5)),
+          templates: (raw.salesMotionConfig?.lot?.templates || [])
+            .map((tpl: any, idx: number) => ({
+              id: String(tpl?.id || `lot_${idx + 1}`),
+              text: String(tpl?.text || '').trim(),
+              enabled: tpl?.enabled !== false,
+            }))
+            .filter((tpl: any) => tpl.text.length > 0),
         },
       },
     }

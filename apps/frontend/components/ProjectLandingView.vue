@@ -1189,17 +1189,43 @@ const priceRange = computed(() => {
 })
 
 const salesMotionConfig = computed(() => {
-  const cfg = project.value?.salesMotionConfig || {}
+  const root = project.value?.salesMotionConfig || {}
+  const cfg = root?.enterprise && typeof root.enterprise === 'object' ? root.enterprise : root
+  const rawTemplates = cfg?.templates
+
+  const defaultTemplates = [
+    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este empreendimento hoje', enabled: true },
+    { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
+    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
+  ]
+
+  const templates = Array.isArray(rawTemplates)
+    ? rawTemplates
+        .map((tpl: any, idx: number) => {
+          if (typeof tpl === 'string') {
+            return { id: `legacy_${idx + 1}`, text: tpl, enabled: true }
+          }
+          if (!tpl || typeof tpl !== 'object') return null
+          return {
+            id: String(tpl.id || `tpl_${idx + 1}`),
+            text: String(tpl.text || ''),
+            enabled: tpl.enabled !== false,
+          }
+        })
+        .filter((tpl: any) => tpl && tpl.text.trim().length > 0)
+    : rawTemplates && typeof rawTemplates === 'object'
+      ? Object.entries(rawTemplates)
+          .map(([key, value]) => ({ id: String(key), text: String(value || ''), enabled: true }))
+          .filter((tpl) => tpl.text.trim().length > 0)
+      : defaultTemplates
+
   return {
     enabled: !!cfg.enabled,
     intervalSeconds: Math.max(5, Number(cfg.intervalSeconds ?? 14)),
     displaySeconds: Math.max(3, Number(cfg.displaySeconds ?? 6)),
     maxNotices: Math.max(1, Number(cfg.maxNotices ?? 5)),
-    templates: {
-      viewsToday: String(cfg?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje'),
-      recentReservation: String(cfg?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente'),
-      visits24h: String(cfg?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h'),
-    },
+    templates,
   }
 })
 
@@ -1212,20 +1238,6 @@ const salesMotionSampleData = computed(() => {
     recentLot: lotCode,
     visits24h: baseVisits,
   }
-})
-
-const salesMotionMessages = computed(() => {
-  const data = salesMotionSampleData.value
-  const fillTemplate = (tpl: string) => tpl
-    .replace(/{{\s*viewsToday\s*}}/g, String(data.viewsToday))
-    .replace(/{{\s*recentLot\s*}}/g, String(data.recentLot))
-    .replace(/{{\s*visits24h\s*}}/g, String(data.visits24h))
-
-  return [
-    fillTemplate(salesMotionConfig.value.templates.viewsToday),
-    fillTemplate(salesMotionConfig.value.templates.recentReservation),
-    fillTemplate(salesMotionConfig.value.templates.visits24h),
-  ].filter(Boolean)
 })
 
 const salesMotionLotPool = computed(() => {
@@ -1277,6 +1289,7 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
   const lotPool = salesMotionLotPool.value
   const views = nextSmoothInt(baseData.viewsToday, salesMotionLastViews, 3, 40)
   const visits = nextSmoothInt(baseData.visits24h, salesMotionLastVisits, 12, 260)
+  const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseData.viewsToday * 0.6)), salesMotionLastViews, 2, 22, 0.12)
   const lot = lotPool.length > 0
     ? lotPool[Math.floor(Math.random() * lotPool.length)]
     : baseData.recentLot
@@ -1285,21 +1298,36 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
     .replace(/{{\s*viewsToday\s*}}/g, String(views))
     .replace(/{{\s*recentLot\s*}}/g, String(lot))
     .replace(/{{\s*visits24h\s*}}/g, String(visits))
+    .replace(/{{\s*visitsNow\s*}}/g, String(nowUsers))
+    .replace(/{{\s*sectionLabel\s*}}/g, String(salesMotionSectionLabelByProgress(progress)))
+
+  const options = (config.templates || [])
+    .filter((tpl: any) => tpl?.enabled !== false)
+    .map((tpl: any) => fillTemplate(String(tpl?.text || '')))
+    .filter(Boolean)
 
   if (reason === 'scroll') {
-    const sectionLabel = salesMotionSectionLabelByProgress(progress)
-    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseData.viewsToday * 0.6)), salesMotionLastViews, 2, 22, 0.12)
-    return `${nowUsers} pessoas estão navegando na seção de ${sectionLabel} agora`
-  }
+    const contextual = (config.templates || [])
+      .filter((tpl: any) => tpl?.enabled !== false)
+      .map((tpl: any) => String(tpl?.text || ''))
+      .filter((text: string) => text.includes('{{sectionLabel}}') || text.includes('{{visitsNow}}'))
+      .map((text: string) => fillTemplate(text))
+      .filter(Boolean)
 
-  const options = [
-    fillTemplate(config.templates.visits24h),
-    fillTemplate(config.templates.recentReservation),
-    fillTemplate(config.templates.viewsToday),
-  ].filter(Boolean)
+    const source = contextual.length > 0 ? contextual : options
+    return source[Math.floor(Math.random() * source.length)] || ''
+  }
 
   return options[Math.floor(Math.random() * options.length)] || ''
 }
+
+const salesMotionTemplatesSignature = computed(() =>
+  JSON.stringify((salesMotionConfig.value.templates || []).map((tpl: any) => ({
+    id: tpl.id,
+    text: tpl.text,
+    enabled: tpl.enabled,
+  }))),
+)
 
 const showNextSalesNotice = (reason: 'initial' | 'scroll', progress = 0) => {
   if (!process.client) return
@@ -1498,9 +1526,7 @@ watch(
     salesMotionConfig.value.intervalSeconds,
     salesMotionConfig.value.displaySeconds,
     salesMotionConfig.value.maxNotices,
-    salesMotionConfig.value.templates.viewsToday,
-    salesMotionConfig.value.templates.recentReservation,
-    salesMotionConfig.value.templates.visits24h,
+    salesMotionTemplatesSignature.value,
   ],
   () => {
     startSalesMotion()
