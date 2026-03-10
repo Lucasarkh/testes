@@ -129,6 +129,10 @@ useSeoMeta({
   twitterImage: seoImage,
 })
 
+defineRouteRules({
+  ssr: true,
+})
+
 definePageMeta({
   layout: 'public'
 })

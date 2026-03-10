@@ -10,6 +10,7 @@ export default defineNuxtConfig({
   ssr: false,
   routeRules: {
     '/': { ssr: true },
+    '/:slug/:code': { ssr: true },
     '/preview/**': { ssr: true },
     '/preview-**': { ssr: true },
   },

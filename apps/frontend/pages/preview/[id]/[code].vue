@@ -7,6 +7,10 @@ import LotDetailsView from '~/components/LotDetailsView.vue'
 
 const route = useRoute()
 
+defineRouteRules({
+  ssr: true,
+})
+
 definePageMeta({
   layout: 'public'
 })
