@@ -19,6 +19,7 @@ import {
   AddLeadPaymentDto
 } from './dto/manual-lead.dto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
+import { LeadDistributionService } from '@modules/lead-distribution/lead-distribution.service';
 import OpenAI from 'openai';
 import axios from 'axios';
 
@@ -28,6 +29,7 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly leadDistribution: LeadDistributionService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -296,9 +298,23 @@ export class LeadsService {
       }
     });
 
+    // Auto-distribution: if the lead has no broker, attempt round-robin assignment
+    let finalRealtorLinkId = realtorLinkId || null;
+    if (!finalRealtorLinkId) {
+      const distributedToId = await this.leadDistribution
+        .distributeLeadIfEligible(project.id, tenantId, lead.id)
+        .catch((e) => {
+          this.logger.error('Auto-distribution failed', e.message);
+          return null;
+        });
+      if (distributedToId) {
+        finalRealtorLinkId = distributedToId;
+      }
+    }
+
     // Fire-and-forget: notify panel users about the new lead
     this.notifications
-      .onNewLead(tenantId, project.id, project.name, realtorLinkId ?? null, {
+      .onNewLead(tenantId, project.id, project.name, finalRealtorLinkId, {
         leadId: lead.id,
         leadName: lead.name,
         leadPhone: lead.phone,

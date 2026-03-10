@@ -3,8 +3,8 @@ const configuredSiteUrl = process.env.NUXT_PUBLIC_SITE_URL || process.env.FRONTE
 const siteUrl = configuredSiteUrl.replace(/\/+$/, '')
 const ogImageUrl = `${siteUrl}/img/og-image.png`
 const facebookAppId = process.env.NUXT_PUBLIC_FB_APP_ID
-const defaultTitle = 'Lotio - Estande digital para Loteamentos'
-const defaultDescription = 'Plataforma de experiência visual completa para loteamentos, com recursos interativos e imersivos.'
+const defaultTitle = 'Lotio - Plataforma de inteligência comercial para loteamentos'
+const defaultDescription = 'Acelere as vendas do seu loteamento com a Lotio: Experiência completa para corretores, inteligência de leads e gestão eficiente. Transforme seu loteamento em um sucesso de vendas!'
 
 export default defineNuxtConfig({
   ssr: false, 

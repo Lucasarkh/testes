@@ -149,6 +149,7 @@ enum NotificationType {
   NEW_SCHEDULING   // New visit scheduling
   LEAD_MILESTONE   // Lead count milestone (10, 25, 50, 100...)
   ACCESS_MILESTONE // Access/session count milestone (100, 500, 1000...)
+  LEAD_AUTO_DISTRIBUTED // Lead auto-distributed to a broker
 }
 
 // ─── SUPPORT ENUMS ───────────────────────────────────────
@@ -423,6 +424,8 @@ model Project {
   aiConfigId       String?
   aiConfig         AiConfig?     @relation(fields: [aiConfigId], references: [id], onDelete: SetNull)
   schedulingConfig SchedulingConfig?
+  distributionConfig LeadDistributionConfig?
+  distributionLogs   LeadDistributionLog[]
   schedulings      Scheduling[]
   nearbyItems      NearbyItem[]
   subscriptionItems TenantSubscriptionItem[]
@@ -584,6 +587,7 @@ model Lead {
   payments      LeadPayment[]
   history       LeadHistory[]
   schedulings   Scheduling[]
+  distributionLog LeadDistributionLog?
 
   @@index([tenantId, projectId])
   @@index([tenantId, status])            // Pipeline dashboard: filter by tenant + status
@@ -703,6 +707,7 @@ model RealtorLink {
 
   leads            Lead[]
   trackingSessions TrackingSession[]
+  distributionLogs LeadDistributionLog[]
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -1264,6 +1269,34 @@ model SystemMeta {
   value     String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── LEAD AUTO-DISTRIBUTION ──────────────────────────────
+
+model LeadDistributionConfig {
+  id                String   @id @default(cuid())
+  projectId         String   @unique
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  enabled           Boolean  @default(false)
+  lastAssignedIndex Int      @default(-1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model LeadDistributionLog {
+  id              String       @id @default(cuid())
+  projectId       String
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  leadId          String       @unique
+  lead            Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  realtorLinkId   String
+  realtorLink     RealtorLink  @relation(fields: [realtorLinkId], references: [id], onDelete: Cascade)
+  queuePosition   Int
+  queueSize       Int
+  createdAt       DateTime     @default(now())
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([realtorLinkId])
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────

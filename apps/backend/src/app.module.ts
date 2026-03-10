@@ -34,6 +34,7 @@ import { GoogleModule } from '@infra/google/google.module';
 import { NearbyModule } from '@modules/nearby/nearby.module';
 import { SupportModule } from '@modules/support/support.module';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
+import { LeadDistributionModule } from '@modules/lead-distribution/lead-distribution.module';
 import { AppController } from './app.controller';
 import { TermsGuard } from './common/guards/terms.guard';
 
@@ -86,7 +87,8 @@ import { TermsGuard } from './common/guards/terms.guard';
     NearbyModule,
     BillingModule,
     SupportModule,
-    NotificationsModule
+    NotificationsModule,
+    LeadDistributionModule
   ],
   controllers: [AppController],
   providers: [

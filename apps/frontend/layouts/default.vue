@@ -75,6 +75,11 @@
             <span v-if="!sidebarCollapsed">Leads</span>
           </NuxtLink>
 
+          <NuxtLink to="/painel/distribuicao" class="nav-item" :title="sidebarCollapsed ? 'Distribuição' : undefined">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span v-if="!sidebarCollapsed">Distribuição</span>
+          </NuxtLink>
+
           <NuxtLink to="/painel/agendamentos" class="nav-item" :title="sidebarCollapsed ? 'Agendamentos' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span v-if="!sidebarCollapsed">Agendamentos</span>
