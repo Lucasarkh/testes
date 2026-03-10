@@ -115,27 +115,82 @@
       <!-- Sidebar + Content Layout -->
       <div class="project-layout">
         <aside class="project-sidebar">
-          <nav class="sidebar-nav">
-            <button v-for="s in sidebarSections" :key="s.id" class="sidebar-link" :class="{ active: activeSection === s.id }" @click="setActiveSection(s.id)">
-              <span class="sidebar-icon"><i :class="s.icon" aria-hidden="true"></i></span>
-              <span class="sidebar-label">{{ s.label }}</span>
-            </button>
-          </nav>
-          <div class="sidebar-divider"></div>
           <div class="sidebar-tools">
-            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="sidebar-tool-link">
+            <p class="sidebar-tools-title">Editores</p>
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="sidebar-tool-link sidebar-tool-link--primary">
               <span class="sidebar-icon"><i class="bi bi-map" aria-hidden="true"></i></span>
               <span class="sidebar-label">Planta Interativa</span>
             </NuxtLink>
-            <a v-if="plantMirrorPath" :href="plantMirrorPath" target="_blank" class="sidebar-tool-link">
-              <span class="sidebar-icon"><i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i></span>
-              <span class="sidebar-label">Espelho da Planta</span>
-            </a>
-            <NuxtLink :to="`/painel/projetos/${projectId}/panorama`" class="sidebar-tool-link">
+            <NuxtLink :to="`/painel/projetos/${projectId}/panorama`" class="sidebar-tool-link sidebar-tool-link--primary">
               <span class="sidebar-icon"><i class="bi bi-image-fill" aria-hidden="true"></i></span>
               <span class="sidebar-label">Panorama 360°</span>
             </NuxtLink>
           </div>
+          <div class="sidebar-divider"></div>
+
+          <nav class="sidebar-nav">
+            <div v-for="group in sidebarGroups" :key="group.id" class="sidebar-group">
+              <p class="sidebar-group-title">{{ group.label }}</p>
+              <div class="sidebar-group-content">
+                <template v-if="group.id === 'pagina-publica'">
+                  <div v-for="s in group.items" :key="s.id" class="sidebar-public-row">
+                    <button
+                      class="sidebar-link sidebar-link--public"
+                      :class="{ active: activeSection === s.id }"
+                      @click="setActiveSection(s.id)"
+                    >
+                      <span class="sidebar-icon"><i :class="s.icon" aria-hidden="true"></i></span>
+                      <span class="sidebar-label">{{ s.label }}</span>
+                      <span v-if="isFixedPublicSection(s.id)" class="sidebar-fixed-chip">Fixo</span>
+                    </button>
+
+                    <div v-if="!isFixedPublicSection(s.id)" class="sidebar-public-actions">
+                      <button
+                        class="sidebar-toggle-btn"
+                        type="button"
+                        :disabled="savingPublicSectionOrder || !isPublicSectionConfigured(s.id)"
+                        @click="togglePublicSectionVisibility(s.id)"
+                      >
+                        {{ !isPublicSectionConfigured(s.id) ? 'Configurar' : (isPublicSectionEnabled(s.id) ? 'Ocultar' : 'Mostrar') }}
+                      </button>
+
+                      <button
+                        class="sidebar-order-btn"
+                        type="button"
+                        :disabled="!canMovePublicSection(s.id, 'up') || savingPublicSectionOrder"
+                        @click="movePublicSection(s.id, 'up')"
+                        title="Mover para cima"
+                      >
+                        <i class="bi bi-chevron-up" aria-hidden="true"></i>
+                      </button>
+                      <button
+                        class="sidebar-order-btn"
+                        type="button"
+                        :disabled="!canMovePublicSection(s.id, 'down') || savingPublicSectionOrder"
+                        @click="movePublicSection(s.id, 'down')"
+                        title="Mover para baixo"
+                      >
+                        <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <button
+                    v-for="s in group.items"
+                    :key="s.id"
+                    class="sidebar-link"
+                    :class="{ active: activeSection === s.id }"
+                    @click="setActiveSection(s.id)"
+                  >
+                    <span class="sidebar-icon"><i :class="s.icon" aria-hidden="true"></i></span>
+                    <span class="sidebar-label">{{ s.label }}</span>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </nav>
         </aside>
 
         <main class="project-content">
@@ -220,10 +275,48 @@
                     </div>
                     <textarea
                       v-model="tpl.text"
+                      @input="ensureSalesMotionTemplateRanges(tpl)"
                       class="form-textarea"
                       rows="2"
                       placeholder="Ex: {{viewsToday}} pessoas visualizaram este empreendimento hoje"
                     ></textarea>
+                    <div v-if="salesMotionTemplateTokenList(tpl).length > 0" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--glass-border-subtle);">
+                      <label class="flex items-center" style="gap: 8px; margin: 0 0 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;">
+                        <input v-model="tpl.manualRangeEnabled" type="checkbox" style="width: 14px; height: 14px;" />
+                        <span>Usar faixa manual</span>
+                      </label>
+                      <p class="text-muted" style="margin: 0 0 6px; font-size: 0.72rem;">
+                        {{ tpl.manualRangeEnabled ? 'Manual ativo: o sistema usará os valores entre mínimo e máximo.' : 'Manual inativo: o sistema usa contagem automática (real/estimada pelos dados atuais).' }}
+                      </p>
+                    </div>
+                    <div v-if="tpl.manualRangeEnabled && salesMotionTemplateTokenList(tpl).length > 0" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--glass-border-subtle);">
+                      <p class="text-muted" style="margin: 0 0 6px; font-size: 0.72rem;">Faixa dos números dinâmicos deste texto</p>
+                      <div class="grid grid-cols-3 gap-2">
+                        <div v-for="token in salesMotionTemplateTokenList(tpl)" :key="`enterprise-${tpl.id || idx}-${token}`">
+                          <label class="form-label" style="font-size: 0.7rem; margin-bottom: 4px;">{{ salesMotionTokenLabel(token) }}</label>
+                          <div style="display:flex; gap: 6px;">
+                            <input
+                              class="form-input"
+                              type="number"
+                              :min="0"
+                              :value="salesMotionTemplateRangeValue(tpl, token, 'min')"
+                              @input="setSalesMotionTemplateRangeValue(tpl, token, 'min', ($event.target as HTMLInputElement).value)"
+                              placeholder="mín"
+                              style="height: 32px; font-size: 0.78rem;"
+                            />
+                            <input
+                              class="form-input"
+                              type="number"
+                              :min="0"
+                              :value="salesMotionTemplateRangeValue(tpl, token, 'max')"
+                              @input="setSalesMotionTemplateRangeValue(tpl, token, 'max', ($event.target as HTMLInputElement).value)"
+                              placeholder="máx"
+                              style="height: 32px; font-size: 0.78rem;"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="text-muted" style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; font-size: 0.78rem;">
@@ -296,10 +389,48 @@
                     </div>
                     <textarea
                       v-model="tpl.text"
+                      @input="ensureSalesMotionTemplateRanges(tpl)"
                       class="form-textarea"
                       rows="2"
                       placeholder="Ex: {{viewsToday}} pessoas visualizaram este lote hoje"
                     ></textarea>
+                    <div v-if="salesMotionTemplateTokenList(tpl).length > 0" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--glass-border-subtle);">
+                      <label class="flex items-center" style="gap: 8px; margin: 0 0 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;">
+                        <input v-model="tpl.manualRangeEnabled" type="checkbox" style="width: 14px; height: 14px;" />
+                        <span>Usar faixa manual</span>
+                      </label>
+                      <p class="text-muted" style="margin: 0 0 6px; font-size: 0.72rem;">
+                        {{ tpl.manualRangeEnabled ? 'Manual ativo: o sistema usará os valores entre mínimo e máximo.' : 'Manual inativo: o sistema usa contagem automática (real/estimada pelos dados atuais).' }}
+                      </p>
+                    </div>
+                    <div v-if="tpl.manualRangeEnabled && salesMotionTemplateTokenList(tpl).length > 0" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--glass-border-subtle);">
+                      <p class="text-muted" style="margin: 0 0 6px; font-size: 0.72rem;">Faixa dos números dinâmicos deste texto</p>
+                      <div class="grid grid-cols-3 gap-2">
+                        <div v-for="token in salesMotionTemplateTokenList(tpl)" :key="`lot-${tpl.id || idx}-${token}`">
+                          <label class="form-label" style="font-size: 0.7rem; margin-bottom: 4px;">{{ salesMotionTokenLabel(token) }}</label>
+                          <div style="display:flex; gap: 6px;">
+                            <input
+                              class="form-input"
+                              type="number"
+                              :min="0"
+                              :value="salesMotionTemplateRangeValue(tpl, token, 'min')"
+                              @input="setSalesMotionTemplateRangeValue(tpl, token, 'min', ($event.target as HTMLInputElement).value)"
+                              placeholder="mín"
+                              style="height: 32px; font-size: 0.78rem;"
+                            />
+                            <input
+                              class="form-input"
+                              type="number"
+                              :min="0"
+                              :value="salesMotionTemplateRangeValue(tpl, token, 'max')"
+                              @input="setSalesMotionTemplateRangeValue(tpl, token, 'max', ($event.target as HTMLInputElement).value)"
+                              placeholder="máx"
+                              style="height: 32px; font-size: 0.78rem;"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="text-muted" style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; font-size: 0.78rem;">
@@ -477,7 +608,7 @@
       </section>
 
       <!-- Agendamento de Visitas -->
-      <section v-if="activeSection === 'agendamento'" id="agendamento" class="content-section">
+      <section v-if="activeSection === 'pub-scheduling'" id="agendamento" class="content-section">
         <div class="card" style="max-width: 900px;">
           <div class="flex justify-between items-center" style="margin-bottom: 24px;">
             <div>
@@ -1148,11 +1279,11 @@
 
 
       <!-- Página Pública -->
-      <section v-if="activeSection === 'pagina-publica'" id="pagina-publica" class="content-section pub-page">
+      <section v-if="activeSection.startsWith('pub-')" id="pagina-publica" class="content-section pub-page">
 
         <!-- ── Banner & Vídeo (lado a lado) ── -->
-        <div class="pub-row pub-row--2col">
-          <div class="pub-card">
+        <div v-if="activeSection === 'pub-banner' || activeSection === 'pub-video'" class="pub-row pub-row--2col">
+          <div v-if="activeSection === 'pub-banner'" class="pub-card">
             <h4 class="pub-card__title">Banner</h4>
             <p style="margin: 0 0 12px 0; color: var(--color-surface-500); font-size: 0.75rem;">
               Cada faixa de resolução usa um banner dedicado na página pública.
@@ -1209,7 +1340,7 @@
             </div>
           </div>
 
-          <div class="pub-card">
+          <div v-if="activeSection === 'pub-video'" class="pub-card">
             <h4 class="pub-card__title">Vídeo de Apresentação</h4>
             <div class="form-group" style="margin: 0;">
               <label class="form-label">Link do YouTube</label>
@@ -1230,8 +1361,32 @@
           </div>
         </div>
 
+        <div v-if="activeSection === 'pub-plant'" class="pub-card pub-card--compact">
+          <h4 class="pub-card__title">Planta Interativa</h4>
+          <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
+            A ordem desta seção na página pública pode ser alterada pelo menu lateral. O conteúdo é gerenciado no editor da planta.
+          </p>
+          <div style="display:flex; flex-wrap: wrap; gap: 8px;">
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary btn-sm">
+              Abrir Editor da Planta
+            </NuxtLink>
+          </div>
+        </div>
+
+        <div v-if="activeSection === 'pub-panorama'" class="pub-card pub-card--compact">
+          <h4 class="pub-card__title">Panorama 360°</h4>
+          <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
+            A posição do bloco 360° na página pública segue a ordem definida no menu. O conteúdo é gerenciado no editor de panorama.
+          </p>
+          <div style="display:flex; flex-wrap: wrap; gap: 8px;">
+            <NuxtLink :to="`/painel/projetos/${projectId}/panorama`" class="btn btn-primary btn-sm">
+              Abrir Editor de Panorama
+            </NuxtLink>
+          </div>
+        </div>
+
         <!-- ── Logos de Rodapé ── -->
-        <div class="pub-card pub-card--compact">
+        <div v-if="activeSection === 'pub-logos'" class="pub-card pub-card--compact">
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px;">
             <div>
               <h4 class="pub-card__title" style="margin: 0;">Logos de Rodapé</h4>
@@ -1274,7 +1429,7 @@
         </div>
 
         <!-- ── Preços & Condições ── -->
-        <div class="pub-card pub-card--compact">
+        <div v-if="activeSection === 'pub-pricing'" class="pub-card pub-card--compact">
           <h4 class="pub-card__title">Preços e Condições</h4>
           <div class="pub-row pub-row--3col" style="margin-bottom: 0;">
             <div class="form-group" style="margin:0;">
@@ -1297,8 +1452,40 @@
           </div>
         </div>
 
+        <!-- ── Lotes Disponíveis ── -->
+        <div v-if="activeSection === 'pub-lots'" class="pub-card pub-card--compact">
+          <h4 class="pub-card__title">Lotes Disponíveis</h4>
+          <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
+            Esta seção pública é alimentada pelos lotes cadastrados e status da planta. Aqui você controla o conteúdo que aparece para o cliente.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px;">
+            <div class="stat-chip">
+              <span class="stat-chip-value">{{ lotStats.total }}</span>
+              <span class="stat-chip-label">Total</span>
+            </div>
+            <div class="stat-chip stat-chip-success">
+              <span class="stat-chip-value">{{ lotStats.available }}</span>
+              <span class="stat-chip-label">Disponíveis</span>
+            </div>
+            <div class="stat-chip stat-chip-warning">
+              <span class="stat-chip-value">{{ lotStats.reserved }}</span>
+              <span class="stat-chip-label">Reservados</span>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-wrap: wrap; gap: 8px;">
+            <button class="btn btn-primary btn-sm" @click="setActiveSection('lotes')">
+              Ir para Gestão de Lotes
+            </button>
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-secondary btn-sm">
+              Abrir Planta Interativa
+            </NuxtLink>
+          </div>
+        </div>
+
         <!-- ── Acompanhamento de Obras ── -->
-        <div class="pub-card">
+        <div v-if="activeSection === 'pub-construction'" class="pub-card">
           <h4 class="pub-card__title">Acompanhamento de Obras</h4>
 
           <div v-if="pubInfoForm.constructionStatus.length === 0" class="pub-empty">
@@ -1334,8 +1521,8 @@
         </div>
 
         <!-- ── Localização & Proximidades ── -->
-        <div class="pub-row pub-row--2col">
-          <div class="pub-card">
+        <div v-if="activeSection === 'pub-location' || activeSection === 'pub-nearby'" class="pub-row pub-row--2col">
+          <div v-if="activeSection === 'pub-location'" class="pub-card">
             <h4 class="pub-card__title">Localização</h4>
             <div class="form-group" style="margin-bottom: 16px;">
               <label class="form-label">Endereço</label>
@@ -1353,7 +1540,7 @@
             </div>
           </div>
 
-          <div class="pub-card">
+          <div v-if="activeSection === 'pub-nearby'" class="pub-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <h4 class="pub-card__title" style="margin: 0;">Proximidades</h4>
               <div v-if="hasSavedAddress" class="toggle-switch" title="Exibir na página pública">
@@ -1415,9 +1602,9 @@
         </div>
 
         <!-- ── Infraestrutura & Destaques ── -->
-        <div class="pub-row pub-row--2col">
+        <div v-if="activeSection === 'pub-infra' || activeSection === 'pub-highlights'" class="pub-row pub-row--2col">
           <!-- Infraestrutura -->
-          <div class="pub-card">
+          <div v-if="activeSection === 'pub-infra'" class="pub-card">
             <h4 class="pub-card__title">Infraestrutura</h4>
 
             <div class="pub-sub-section">
@@ -1465,7 +1652,7 @@
           </div>
 
           <!-- Destaques -->
-          <div class="pub-card">
+          <div v-if="activeSection === 'pub-highlights'" class="pub-card">
             <h4 class="pub-card__title">Destaques</h4>
 
             <div class="pub-sub-section">
@@ -1507,7 +1694,7 @@
         </div>
 
         <!-- ── Texto Descritivo ── -->
-        <div class="pub-card">
+        <div v-if="activeSection === 'pub-description'" class="pub-card">
           <h4 class="pub-card__title">Texto Descritivo</h4>
           <div class="pub-sub-section" style="margin-bottom: 12px;">
             <span class="pub-sub-label">Título e subtítulo (opcionais)</span>
@@ -1545,7 +1732,7 @@
         </div>
 
         <!-- ── Galeria de Mídia ── -->
-        <div class="pub-card">
+        <div v-if="activeSection === 'pub-gallery'" class="pub-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <h4 class="pub-card__title" style="margin: 0;">Galeria de Mídia</h4>
             <label v-if="authStore.canEdit" class="btn btn-primary btn-sm" style="cursor: pointer;">
@@ -1578,7 +1765,7 @@
         </div>
 
         <!-- ── Informações Legais ── -->
-        <div class="pub-card">
+        <div v-if="activeSection === 'pub-legal'" class="pub-card">
           <h4 class="pub-card__title">Informações Legais</h4>
           <p style="font-size: 0.75rem; color: var(--color-surface-400); margin: 0 0 12px;">Texto exibido no final da página pública. Ideal para dados de registro, aprovações e licenças.</p>
           <textarea v-model="pubInfoForm.legalNotice" class="form-textarea" rows="4" placeholder="Ex: Loteamento aprovado pela Prefeitura Municipal, através do Decreto n.º..." :disabled="!authStore.canEdit" style="font-size: 0.85rem; line-height: 1.5;"></textarea>
@@ -2172,10 +2359,91 @@ const salesMotionTemplateDefaults = {
   ]
 } as const
 
+type SalesMotionNumericToken = 'viewsToday' | 'visits24h' | 'visitsNow'
+type SalesMotionTemplateRangeKey = 'min' | 'max'
+
+const SALES_MOTION_NUMERIC_TOKENS: SalesMotionNumericToken[] = ['viewsToday', 'visits24h', 'visitsNow']
+
+const SALES_MOTION_RANGE_DEFAULTS: Record<SalesMotionNumericToken, { min: number; max: number }> = {
+  viewsToday: { min: 3, max: 40 },
+  visits24h: { min: 12, max: 280 },
+  visitsNow: { min: 2, max: 24 },
+}
+
+const SALES_MOTION_RANGE_LABELS: Record<SalesMotionNumericToken, string> = {
+  viewsToday: 'viewsToday',
+  visits24h: 'visits24h',
+  visitsNow: 'visitsNow',
+}
+
+const salesMotionTemplateHasToken = (text: string, token: SalesMotionNumericToken) => {
+  const regex = new RegExp(`{{\\s*${token}\\s*}}`, 'i')
+  return regex.test(text)
+}
+
+const salesMotionTemplateTokenList = (tpl: any): SalesMotionNumericToken[] => {
+  const text = String(tpl?.text || '')
+  return SALES_MOTION_NUMERIC_TOKENS.filter((token) => salesMotionTemplateHasToken(text, token))
+}
+
+const normalizeSalesMotionTemplateRanges = (ranges: any, text: string) => {
+  const tokens = SALES_MOTION_NUMERIC_TOKENS.filter((token) => salesMotionTemplateHasToken(text, token))
+  const normalized: Partial<Record<SalesMotionNumericToken, { min: number; max: number }>> = {}
+
+  for (const token of tokens) {
+    const fallback = SALES_MOTION_RANGE_DEFAULTS[token]
+    const rawMin = Number(ranges?.[token]?.min)
+    const rawMax = Number(ranges?.[token]?.max)
+    const min = Number.isFinite(rawMin) ? Math.max(0, Math.round(rawMin)) : fallback.min
+    const maxCandidate = Number.isFinite(rawMax) ? Math.max(0, Math.round(rawMax)) : fallback.max
+    const max = Math.max(min, maxCandidate)
+    normalized[token] = { min, max }
+  }
+
+  return normalized
+}
+
+const ensureSalesMotionTemplateRanges = (tpl: any) => {
+  const text = String(tpl?.text || '')
+  tpl.ranges = normalizeSalesMotionTemplateRanges(tpl?.ranges, text)
+}
+
+const salesMotionTemplateRangeValue = (tpl: any, token: SalesMotionNumericToken, key: SalesMotionTemplateRangeKey) => {
+  const fallback = SALES_MOTION_RANGE_DEFAULTS[token][key]
+  return Number(tpl?.ranges?.[token]?.[key] ?? fallback)
+}
+
+const setSalesMotionTemplateRangeValue = (
+  tpl: any,
+  token: SalesMotionNumericToken,
+  key: SalesMotionTemplateRangeKey,
+  rawValue: string,
+) => {
+  ensureSalesMotionTemplateRanges(tpl)
+  const parsed = Number(rawValue)
+  const next = Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : SALES_MOTION_RANGE_DEFAULTS[token][key]
+  if (!tpl.ranges[token]) {
+    tpl.ranges[token] = { ...SALES_MOTION_RANGE_DEFAULTS[token] }
+  }
+  tpl.ranges[token][key] = next
+  const min = Number(tpl.ranges[token].min)
+  const max = Number(tpl.ranges[token].max)
+  if (min > max) {
+    if (key === 'min') tpl.ranges[token].max = min
+    else tpl.ranges[token].min = max
+  }
+}
+
+const salesMotionTokenLabel = (token: SalesMotionNumericToken) => {
+  return SALES_MOTION_RANGE_LABELS[token] || token
+}
+
 const createSalesMotionTemplate = (text = '') => ({
   id: `tpl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
   text,
   enabled: true,
+  manualRangeEnabled: false,
+  ranges: normalizeSalesMotionTemplateRanges({}, text),
 })
 
 const normalizeSalesMotionTemplateList = (
@@ -2193,6 +2461,8 @@ const normalizeSalesMotionTemplateList = (
           id: String(tpl.id || `tpl_${idx + 1}`),
           text: String(tpl.text || ''),
           enabled: tpl.enabled !== false,
+          manualRangeEnabled: tpl.manualRangeEnabled === true,
+          ranges: normalizeSalesMotionTemplateRanges(tpl.ranges, String(tpl.text || '')),
         }
       })
       .filter((tpl: any) => tpl && tpl.text.trim().length > 0)
@@ -2206,13 +2476,19 @@ const normalizeSalesMotionTemplateList = (
         id: String(key),
         text: String(value || ''),
         enabled: true,
+        manualRangeEnabled: false,
+        ranges: normalizeSalesMotionTemplateRanges({}, String(value || '')),
       }))
       .filter((tpl) => tpl.text.trim().length > 0)
 
     if (fromObject.length > 0) return fromObject
   }
 
-  return fallback.map((tpl) => ({ ...tpl }))
+  return fallback.map((tpl) => ({
+    ...tpl,
+    manualRangeEnabled: false,
+    ranges: normalizeSalesMotionTemplateRanges((tpl as any).ranges, tpl.text),
+  }))
 }
 
 const addSalesMotionTemplate = (context: 'enterprise' | 'lot') => {
@@ -2597,7 +2873,7 @@ const buildPublicInfoPayload = () => {
   }
 
   return {
-    highlightsJson: pubInfoForm.value.highlightsJson,
+    highlightsJson: withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
     highlightsTitle: pubInfoForm.value.highlightsTitle,
     highlightsSubtitle: pubInfoForm.value.highlightsSubtitle,
     traditionalHighlightsTitle: pubInfoForm.value.traditionalHighlightsTitle,
@@ -2980,24 +3256,304 @@ watch(
 // ─────────────────────────────────────────────────────────
 
 // ── Tabs ─────────────────────────────────────────────────
-const sidebarSections = computed(() => {
-  const sections = [
-    { id: 'configuracoes', icon: 'bi bi-gear-fill', label: 'Configurações' },
-    { id: 'lotes', icon: 'bi bi-geo-alt-fill', label: 'Lotes' },
-    { id: 'pagina-publica', icon: 'bi bi-file-earmark-text-fill', label: 'Página Pública' },
-    { id: 'financeiro', icon: 'bi bi-calculator-fill', label: 'Simulação Financeira' },
-    { id: 'agendamento', icon: 'bi bi-calendar-event-fill', label: 'Agendamento' },
-  ]
-  // Only show Pagamentos if there are global payment configs available
-  if (allConfigs.value.length > 0) {
-    sections.push({ id: 'pagamentos', icon: 'bi bi-credit-card-2-front-fill', label: 'Pagamentos & Taxas' })
+type SidebarSectionItem = {
+  id: string
+  icon: string
+  label: string
+}
+
+type SidebarGroup = {
+  id: string
+  label: string
+  items: SidebarSectionItem[]
+}
+
+const PUBLIC_SECTION_ORDER_META_TYPE = '__lotio_public_section_order__'
+const PUBLIC_SECTION_FIXED_TOP = 'pub-banner'
+const PUBLIC_SECTION_FIXED_BOTTOM: string[] = ['pub-logos', 'pub-legal']
+
+const PUBLIC_SECTION_CATALOG: SidebarSectionItem[] = [
+  { id: 'pub-banner', icon: 'bi bi-card-image', label: 'Banner' },
+  { id: 'pub-plant', icon: 'bi bi-map', label: 'Planta Interativa' },
+  { id: 'pub-panorama', icon: 'bi bi-image-fill', label: 'Panorama 360°' },
+  { id: 'pub-video', icon: 'bi bi-youtube', label: 'Vídeo de Apresentação' },
+  { id: 'pub-lots', icon: 'bi bi-grid-3x2-gap-fill', label: 'Lotes Disponíveis' },
+  { id: 'pub-construction', icon: 'bi bi-hammer', label: 'Obras' },
+  { id: 'pub-location', icon: 'bi bi-geo-alt-fill', label: 'Localização' },
+  { id: 'pub-nearby', icon: 'bi bi-signpost-split-fill', label: 'Proximidades' },
+  { id: 'pub-scheduling', icon: 'bi bi-calendar-event-fill', label: 'Agendamento' },
+  { id: 'pub-infra', icon: 'bi bi-cone-striped', label: 'Infraestrutura' },
+  { id: 'pub-highlights', icon: 'bi bi-stars', label: 'Destaques' },
+  { id: 'pub-description', icon: 'bi bi-file-richtext-fill', label: 'Texto Descritivo' },
+  { id: 'pub-gallery', icon: 'bi bi-images', label: 'Galeria de Mídia' },
+  { id: 'pub-logos', icon: 'bi bi-building', label: 'Logos de Rodapé' },
+  { id: 'pub-legal', icon: 'bi bi-shield-check', label: 'Informações Legais' },
+]
+
+const PUBLIC_SECTION_DEFAULT_ORDER = PUBLIC_SECTION_CATALOG.map(section => section.id)
+
+const publicSectionsOrder = ref<string[]>([...PUBLIC_SECTION_DEFAULT_ORDER])
+const publicSectionsDisabled = ref<string[]>([])
+const savingPublicSectionOrder = ref(false)
+
+const publicSectionById = new Map(PUBLIC_SECTION_CATALOG.map(section => [section.id, section]))
+
+const normalizePublicSectionOrder = (orderCandidate: unknown) => {
+  const incoming = Array.isArray(orderCandidate) ? orderCandidate.filter((item): item is string => typeof item === 'string') : []
+  const knownSet = new Set(PUBLIC_SECTION_DEFAULT_ORDER)
+  const seen = new Set<string>()
+  const ordered = incoming.filter((id) => knownSet.has(id) && !seen.has(id) && seen.add(id))
+
+  for (const id of PUBLIC_SECTION_DEFAULT_ORDER) {
+    if (!seen.has(id)) ordered.push(id)
   }
-  // Only show Assistente IA if there are AI configs available
+
+  const fixedBottomSet = new Set(PUBLIC_SECTION_FIXED_BOTTOM)
+  const withoutFixed = ordered.filter(id => id !== PUBLIC_SECTION_FIXED_TOP && !fixedBottomSet.has(id))
+  return [PUBLIC_SECTION_FIXED_TOP, ...withoutFixed, ...PUBLIC_SECTION_FIXED_BOTTOM]
+}
+
+const splitHighlightsAndPublicOrderMeta = (source: unknown) => {
+  const raw = Array.isArray(source) ? source : []
+  let metaOrder: string[] | null = null
+  let metaDisabled: string[] | null = null
+
+  const highlights = raw.filter((item: any) => {
+    if (item && typeof item === 'object' && item.type === PUBLIC_SECTION_ORDER_META_TYPE) {
+      if (metaOrder === null) {
+        metaOrder = normalizePublicSectionOrder(item.order)
+      }
+      if (metaDisabled === null) {
+        metaDisabled = Array.isArray(item.disabled)
+          ? item.disabled.filter((id: unknown): id is string => typeof id === 'string' && publicSectionById.has(id))
+          : []
+      }
+      return false
+    }
+    return true
+  })
+
+  return {
+    highlights,
+    order: metaOrder ?? [...PUBLIC_SECTION_DEFAULT_ORDER],
+    disabled: metaDisabled ?? [],
+  }
+}
+
+const withPublicSectionOrderMeta = (highlights: unknown, order: string[], disabled: string[]) => {
+  const pureHighlights = Array.isArray(highlights)
+    ? highlights.filter((item: any) => !(item && typeof item === 'object' && item.type === PUBLIC_SECTION_ORDER_META_TYPE))
+    : []
+
+  const normalizedDisabled = Array.from(new Set(disabled.filter((id) => publicSectionById.has(id))))
+
+  return [
+    ...pureHighlights,
+    {
+      type: PUBLIC_SECTION_ORDER_META_TYPE,
+      order: normalizePublicSectionOrder(order),
+      disabled: normalizedDisabled,
+    },
+  ]
+}
+
+const publicPageSections = computed<SidebarSectionItem[]>(() => {
+  const normalizedOrder = normalizePublicSectionOrder(publicSectionsOrder.value)
+  return normalizedOrder
+    .map((id) => publicSectionById.get(id))
+    .filter((section): section is SidebarSectionItem => !!section)
+})
+
+const isFixedPublicSection = (sectionId: string) => {
+  return sectionId === PUBLIC_SECTION_FIXED_TOP || PUBLIC_SECTION_FIXED_BOTTOM.includes(sectionId)
+}
+
+const canMovePublicSection = (sectionId: string, direction: 'up' | 'down') => {
+  if (isFixedPublicSection(sectionId)) return false
+  const ordered = normalizePublicSectionOrder(publicSectionsOrder.value)
+  const idx = ordered.indexOf(sectionId)
+  if (idx === -1) return false
+
+  const minIndex = 1
+  const maxIndex = ordered.length - 1 - PUBLIC_SECTION_FIXED_BOTTOM.length
+  if (direction === 'up') return idx > minIndex
+  return idx < maxIndex
+}
+
+const persistPublicSectionOrder = async () => {
+  if (!project.value?.id) return
+  savingPublicSectionOrder.value = true
+  try {
+    const highlightsWithMeta = withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value)
+    project.value = await fetchApi(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ highlightsJson: highlightsWithMeta }),
+    })
+    const parsed = splitHighlightsAndPublicOrderMeta(highlightsWithMeta)
+    pubInfoForm.value.highlightsJson = parsed.highlights as Highlight[]
+    publicSectionsDisabled.value = parsed.disabled
+    toastSuccess('Ordem das seções atualizada')
+  } catch (e) {
+    toastFromError(e, 'Erro ao atualizar ordem das seções')
+  }
+  savingPublicSectionOrder.value = false
+}
+
+const isPublicSectionEnabled = (sectionId: string) => {
+  return !publicSectionsDisabled.value.includes(sectionId)
+}
+
+const hasBannerConfigured = computed(() => {
+  return !!(project.value?.bannerImageUrl || project.value?.bannerImageTabletUrl || project.value?.bannerImageMobileUrl)
+})
+
+const hasPlantConfigured = computed(() => {
+  return !!project.value?.mapData || mapElements.value.length > 0
+})
+
+const hasPanoramaConfigured = computed(() => {
+  return lots.value.some((lot: any) => !!lot?.panoramaUrl)
+})
+
+const hasLotsConfigured = computed(() => {
+  return lots.value.length > 0
+})
+
+const hasConstructionConfigured = computed(() => {
+  return Array.isArray(pubInfoForm.value.constructionStatus) && pubInfoForm.value.constructionStatus.length > 0
+})
+
+const hasLocationConfigured = computed(() => {
+  return !!(pubInfoForm.value.address?.trim() || pubInfoForm.value.googleMapsUrl?.trim())
+})
+
+const hasNearbyConfigured = computed(() => {
+  return Array.isArray(nearbyStatus.value?.items) && nearbyStatus.value.items.length > 0
+})
+
+const hasSchedulingConfigured = computed(() => {
+  return !!schedulingForm.value.enabled
+})
+
+const hasInfrastructureConfigured = computed(() => {
+  return pubInfoForm.value.highlightsJson.some((item: any) => item?.type === 'category' && Array.isArray(item.items) && item.items.length > 0)
+})
+
+const hasHighlightsConfigured = computed(() => {
+  return pubInfoForm.value.highlightsJson.some((item: any) => item?.type === 'highlight' && String(item?.label || '').trim().length > 0)
+})
+
+const hasDescriptionConfigured = computed(() => {
+  const meta = extractLocationMeta(pubInfoForm.value.locationText || '')
+  const hasBody = String(meta.body || '').replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, '').trim().length > 0
+  return !!(meta.title || meta.subtitle || hasBody)
+})
+
+const hasGalleryConfigured = computed(() => {
+  return media.value.length > 0
+})
+
+const hasLogosConfigured = computed(() => {
+  return projectFooterLogos.value.length > 0
+})
+
+const hasLegalConfigured = computed(() => {
+  return !!pubInfoForm.value.legalNotice?.trim()
+})
+
+const isPublicSectionConfigured = (sectionId: string) => {
+  switch (sectionId) {
+    case 'pub-banner': return hasBannerConfigured.value
+    case 'pub-plant': return hasPlantConfigured.value
+    case 'pub-panorama': return hasPanoramaConfigured.value
+    case 'pub-video': return !!pubInfoForm.value.youtubeVideoUrl?.trim()
+    case 'pub-lots': return hasLotsConfigured.value
+    case 'pub-construction': return hasConstructionConfigured.value
+    case 'pub-location': return hasLocationConfigured.value
+    case 'pub-nearby': return hasNearbyConfigured.value
+    case 'pub-scheduling': return hasSchedulingConfigured.value
+    case 'pub-infra': return hasInfrastructureConfigured.value
+    case 'pub-highlights': return hasHighlightsConfigured.value
+    case 'pub-description': return hasDescriptionConfigured.value
+    case 'pub-gallery': return hasGalleryConfigured.value
+    case 'pub-logos': return hasLogosConfigured.value
+    case 'pub-legal': return hasLegalConfigured.value
+    default: return true
+  }
+}
+
+const togglePublicSectionVisibility = async (sectionId: string) => {
+  const current = new Set(publicSectionsDisabled.value)
+  if (current.has(sectionId)) {
+    current.delete(sectionId)
+  } else {
+    current.add(sectionId)
+  }
+  publicSectionsDisabled.value = Array.from(current)
+  await persistPublicSectionOrder()
+}
+
+const movePublicSection = async (sectionId: string, direction: 'up' | 'down') => {
+  if (!canMovePublicSection(sectionId, direction)) return
+
+  const ordered = normalizePublicSectionOrder(publicSectionsOrder.value)
+  const idx = ordered.indexOf(sectionId)
+  const swapWith = direction === 'up' ? idx - 1 : idx + 1
+  ;[ordered[idx], ordered[swapWith]] = [ordered[swapWith], ordered[idx]]
+  publicSectionsOrder.value = ordered
+  await persistPublicSectionOrder()
+}
+
+const configurationSections = computed<SidebarSectionItem[]>(() => {
+  const sections: SidebarSectionItem[] = [
+    { id: 'configuracoes', icon: 'bi bi-gear-fill', label: 'Dados Gerais' },
+    { id: 'pub-pricing', icon: 'bi bi-cash-coin', label: 'Preços e Condições (Topo)' },
+    { id: 'financeiro', icon: 'bi bi-calculator-fill', label: 'Simulação Financeira' },
+  ]
+  if (allConfigs.value.length > 0) {
+    sections.push({ id: 'pagamentos', icon: 'bi bi-credit-card-2-front-fill', label: 'Pagamentos e Taxas' })
+  }
   if (aiConfigs.value.length > 0) {
     sections.push({ id: 'assistente-ia', icon: 'bi bi-robot', label: 'Assistente IA' })
   }
   return sections
 })
+
+const sidebarGroups = computed<SidebarGroup[]>(() => ([
+  {
+    id: 'lotes',
+    label: 'Gestão',
+    items: [
+      { id: 'lotes', icon: 'bi bi-geo-alt-fill', label: 'Lotes' },
+    ],
+  },
+  {
+    id: 'configuracoes',
+    label: 'Configuração',
+    items: configurationSections.value,
+  },
+  {
+    id: 'pagina-publica',
+    label: 'Página Pública',
+    items: publicPageSections.value,
+  },
+]))
+
+const sidebarSections = computed<SidebarSectionItem[]>(() => {
+  return sidebarGroups.value.flatMap(group => group.items)
+})
+
+const normalizeSectionId = (sectionId: string) => {
+  if (sectionId === 'pagina-publica') return 'pub-banner'
+  if (sectionId === 'pub-hero-media') return 'pub-banner'
+  if (sectionId === 'agendamento') return 'pub-scheduling'
+  if (sectionId === 'pub-planta') return 'pub-plant'
+  if (sectionId === 'pub-360') return 'pub-panorama'
+  if (sectionId === 'pub-location-nearby') return 'pub-location'
+  if (sectionId === 'pub-infra-highlights') return 'pub-infra'
+  if (sectionId === 'pub-lot-list') return 'pub-lots'
+  return sectionId
+}
 
 const routeSection = computed(() => {
   const sec = route.query.sec
@@ -3012,9 +3568,10 @@ watch(
   [sidebarSections, routeSection],
   ([sections, sec]) => {
     if (!sec) return
-    const exists = sections.some(s => s.id === sec)
-    if (exists && activeSection.value !== sec) {
-      activeSection.value = sec
+    const normalized = normalizeSectionId(sec)
+    const exists = sections.some(s => s.id === normalized)
+    if (exists && activeSection.value !== normalized) {
+      activeSection.value = normalized
     }
   },
   { immediate: true },
@@ -3298,8 +3855,12 @@ const loadProject = async () => {
     }
     originalSlug.value = p.slug
     loadAiConfigs()
+    const parsedHighlightsAndOrder = splitHighlightsAndPublicOrderMeta(p.highlightsJson)
+    publicSectionsOrder.value = parsedHighlightsAndOrder.order
+    publicSectionsDisabled.value = parsedHighlightsAndOrder.disabled
+
     pubInfoForm.value = {
-      highlightsJson: Array.isArray(p.highlightsJson) ? p.highlightsJson : [],
+      highlightsJson: parsedHighlightsAndOrder.highlights as Highlight[],
       highlightsTitle: p.highlightsTitle || 'Sua família merece o melhor.',
       highlightsSubtitle: p.highlightsSubtitle || 'Qualidade de vida, segurança e infraestrutura completa em um só lugar.',
       traditionalHighlightsTitle: p.traditionalHighlightsTitle || 'Destaques',
@@ -3376,6 +3937,8 @@ const saveSettings = async () => {
               id: String(tpl?.id || `enterprise_${idx + 1}`),
               text: String(tpl?.text || '').trim(),
               enabled: tpl?.enabled !== false,
+              manualRangeEnabled: tpl?.manualRangeEnabled === true,
+              ranges: normalizeSalesMotionTemplateRanges(tpl?.ranges, String(tpl?.text || '')),
             }))
             .filter((tpl: any) => tpl.text.length > 0),
         },
@@ -3389,6 +3952,8 @@ const saveSettings = async () => {
               id: String(tpl?.id || `lot_${idx + 1}`),
               text: String(tpl?.text || '').trim(),
               enabled: tpl?.enabled !== false,
+              manualRangeEnabled: tpl?.manualRangeEnabled === true,
+              ranges: normalizeSalesMotionTemplateRanges(tpl?.ranges, String(tpl?.text || '')),
             }))
             .filter((tpl: any) => tpl.text.length > 0),
         },
@@ -3492,10 +4057,11 @@ onMounted(async () => {
 <style scoped>
 /* ─── Project Layout: Sidebar + Content ──────────────── */
 .project-layout {
-  display: flex;
-  gap: 32px;
+  display: grid;
+  grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
+  gap: 24px;
   align-items: flex-start;
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 180px);
 }
 
 .lot-import-card {
@@ -3574,22 +4140,134 @@ onMounted(async () => {
 
 .project-sidebar {
   position: sticky;
-  top: 24px;
-  flex: 0 0 220px;
+  top: 16px;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  gap: 14px;
+  padding: 14px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border-subtle);
   border-radius: 16px;
   backdrop-filter: blur(12px);
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-group-title {
+  margin: 0;
+  padding: 6px 10px 6px 12px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-surface-200);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0.02));
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-left: 3px solid rgba(16, 185, 129, 0.55);
+  border-radius: 8px;
+}
+
+.sidebar-group-content {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
+}
+
+.sidebar-public-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.sidebar-link--public {
+  min-width: 0;
+  width: 100%;
+  padding-right: 10px;
+}
+
+.sidebar-link--public .sidebar-label {
+  white-space: normal;
+  overflow: visible;
+  line-height: 1.2;
+}
+
+.sidebar-fixed-chip {
+  margin-left: 6px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--color-surface-400);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+.sidebar-public-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.sidebar-toggle-btn {
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--color-primary-300, #6ee7b7);
+  border-radius: 999px;
+  padding: 2px 8px;
+  height: 21px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sidebar-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sidebar-order-btn {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--glass-border-subtle);
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-300);
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  transition: all 0.15s ease;
+}
+
+.sidebar-order-btn:hover:not(:disabled) {
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-400, #34d399);
+}
+
+.sidebar-order-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .sidebar-link {
@@ -3617,7 +4295,7 @@ onMounted(async () => {
 }
 
 .sidebar-link.active {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(16, 185, 129, 0.14);
   color: var(--color-primary-400, #34d399);
   font-weight: 700;
 }
@@ -3644,7 +4322,21 @@ onMounted(async () => {
 .sidebar-tools {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+}
+
+.sidebar-tools-title {
+  margin: 0;
+  padding: 6px 10px 6px 12px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-surface-100);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.16), rgba(16, 185, 129, 0.04));
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  border-left: 3px solid rgba(16, 185, 129, 0.6);
+  border-radius: 8px;
 }
 
 .sidebar-tool-link {
@@ -3653,24 +4345,55 @@ onMounted(async () => {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 10px;
-  color: var(--color-surface-300);
+  color: var(--color-surface-200);
   text-decoration: none;
   font-size: 0.8125rem;
   font-weight: 600;
   transition: all 0.2s;
-  background: var(--glass-bg-heavy);
-  border: 1px solid var(--glass-border-subtle);
+  background: rgba(8, 22, 18, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.sidebar-tool-link--primary {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.2));
+  color: var(--color-surface-100);
+  font-weight: 650;
 }
 
 .sidebar-tool-link:hover {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(15, 23, 42, 0.26));
+  color: #d1fae5;
+}
+
+.sidebar-tool-link.active {
   border-color: var(--color-primary-500);
   color: var(--color-primary-400, #34d399);
-  transform: translateX(2px);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.2));
+}
+
+.sidebar-tool-link .sidebar-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(148, 163, 184, 0.12);
+  color: rgba(226, 232, 240, 0.95);
+}
+
+.sidebar-tool-link:hover .sidebar-icon,
+.sidebar-tool-link.active .sidebar-icon {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
 }
 
 .project-content {
   flex: 1;
   min-width: 0;
+  width: 100%;
 }
 
 .content-section {
@@ -3684,21 +4407,37 @@ onMounted(async () => {
 
 @media (max-width: 1024px) {
   .project-layout {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
   .project-sidebar {
     position: static;
-    flex: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 6px;
+    max-height: none;
+    overflow: visible;
+    gap: 10px;
     padding: 12px;
     border-radius: 12px;
   }
   .sidebar-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .sidebar-group-title {
+    padding: 5px 8px 5px 10px;
+    font-size: 0.64rem;
+  }
+  .sidebar-tools-title {
+    padding: 5px 8px 5px 10px;
+    font-size: 0.64rem;
+  }
+  .sidebar-group-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 4px;
+  }
+  .sidebar-public-row {
+    display: block;
+  }
+  .sidebar-public-actions {
+    display: none;
   }
   .sidebar-link {
     padding: 6px 10px;
@@ -3708,7 +4447,8 @@ onMounted(async () => {
     display: none;
   }
   .sidebar-tools {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 4px;
   }
   .sidebar-tool-link {

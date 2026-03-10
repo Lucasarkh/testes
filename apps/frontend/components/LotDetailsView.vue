@@ -1110,12 +1110,14 @@ const salesMotionConfig = computed(() => {
             id: String(tpl.id || `tpl_${idx + 1}`),
             text: String(tpl.text || ''),
             enabled: tpl.enabled !== false,
+            manualRangeEnabled: tpl.manualRangeEnabled === true,
+            ranges: tpl.ranges && typeof tpl.ranges === 'object' ? tpl.ranges : undefined,
           }
         })
         .filter((tpl: any) => tpl && tpl.text.trim().length > 0)
     : rawTemplates && typeof rawTemplates === 'object'
       ? Object.entries(rawTemplates)
-          .map(([key, value]) => ({ id: String(key), text: String(value || ''), enabled: true }))
+            .map(([key, value]) => ({ id: String(key), text: String(value || ''), enabled: true, manualRangeEnabled: false, ranges: undefined }))
           .filter((tpl) => tpl.text.trim().length > 0)
       : defaultTemplates
 
@@ -1127,6 +1129,35 @@ const salesMotionConfig = computed(() => {
     templates,
   }
 })
+
+type SalesMotionNumericToken = 'viewsToday' | 'visits24h' | 'visitsNow'
+
+const salesMotionRangeFallback: Record<SalesMotionNumericToken, { min: number; max: number }> = {
+  viewsToday: { min: 3, max: 40 },
+  visits24h: { min: 12, max: 280 },
+  visitsNow: { min: 2, max: 24 },
+}
+
+const resolveSalesMotionRange = (
+  tpl: any,
+  token: SalesMotionNumericToken,
+  automatic: { min: number; max: number },
+) => {
+  if (tpl?.manualRangeEnabled !== true) {
+    return {
+      min: Math.max(0, Math.round(automatic.min)),
+      max: Math.max(Math.max(0, Math.round(automatic.min)), Math.round(automatic.max)),
+    }
+  }
+
+  const fallback = salesMotionRangeFallback[token]
+  const rawMin = Number(tpl?.ranges?.[token]?.min)
+  const rawMax = Number(tpl?.ranges?.[token]?.max)
+  const min = Number.isFinite(rawMin) ? Math.max(0, Math.round(rawMin)) : fallback.min
+  const maxCandidate = Number.isFinite(rawMax) ? Math.max(0, Math.round(rawMax)) : fallback.max
+  const max = Math.max(min, maxCandidate)
+  return { min, max }
+}
 
 const salesMotionLotPool = computed(() => {
   const values = (allProjectLots.value || []).map((l: any) => l?.code || l?.name).filter(Boolean)
@@ -1165,11 +1196,7 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectio
   const cfg = salesMotionConfig.value
   const baseViews = Math.max(4, Math.min(34, Math.round((allProjectAvailableLots.value.length || 8) * 0.9)))
   const baseVisits = Math.max(16, Math.min(260, Math.round((allProjectLots.value.length || 15) * 3.1)))
-  const views = nextSmoothInt(baseViews, salesMotionLastViews, 3, 40)
-  const visits = nextSmoothInt(baseVisits, salesMotionLastVisits, 12, 280)
-  const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.6)), salesMotionLastViews, 2, 24, 0.13)
   const pool = salesMotionLotPool.value
-  const randomLot = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : (lot.value?.code || '24')
   const sectionMap: Record<string, string> = {
     galeria: 'galeria',
     localizacao: 'planta',
@@ -1180,24 +1207,47 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectio
   }
   const sectionLabel = sectionId ? (sectionMap[sectionId] || 'detalhes do lote') : 'detalhes do lote'
 
-  const fillTemplate = (tpl: string) => tpl
-    .replace(/{{\s*viewsToday\s*}}/g, String(views))
-    .replace(/{{\s*recentLot\s*}}/g, String(randomLot))
-    .replace(/{{\s*visits24h\s*}}/g, String(visits))
-    .replace(/{{\s*visitsNow\s*}}/g, String(nowUsers))
-    .replace(/{{\s*sectionLabel\s*}}/g, String(sectionLabel))
+  const fillTemplate = (tpl: any) => {
+    const text = String(tpl?.text || '')
+    const automaticViewsRange = {
+      min: Math.max(1, Math.round(baseViews * 0.7)),
+      max: Math.max(2, Math.round(baseViews * 1.3)),
+    }
+    const automaticVisitsRange = {
+      min: Math.max(1, Math.round(baseVisits * 0.75)),
+      max: Math.max(2, Math.round(baseVisits * 1.25)),
+    }
+    const automaticNowRange = {
+      min: Math.max(1, Math.round(Math.max(2, baseViews * 0.6) * 0.7)),
+      max: Math.max(2, Math.round(Math.max(2, baseViews * 0.6) * 1.25)),
+    }
+
+    const viewsRange = resolveSalesMotionRange(tpl, 'viewsToday', automaticViewsRange)
+    const visitsRange = resolveSalesMotionRange(tpl, 'visits24h', automaticVisitsRange)
+    const nowRange = resolveSalesMotionRange(tpl, 'visitsNow', automaticNowRange)
+    const views = nextSmoothInt(baseViews, salesMotionLastViews, viewsRange.min, viewsRange.max)
+    const visits = nextSmoothInt(baseVisits, salesMotionLastVisits, visitsRange.min, visitsRange.max)
+    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.6)), salesMotionLastViews, nowRange.min, nowRange.max, 0.13)
+    const randomLot = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : (lot.value?.code || '24')
+
+    return text
+      .replace(/{{\s*viewsToday\s*}}/g, String(views))
+      .replace(/{{\s*recentLot\s*}}/g, String(randomLot))
+      .replace(/{{\s*visits24h\s*}}/g, String(visits))
+      .replace(/{{\s*visitsNow\s*}}/g, String(nowUsers))
+      .replace(/{{\s*sectionLabel\s*}}/g, String(sectionLabel))
+  }
 
   const options = (cfg.templates || [])
     .filter((tpl: any) => tpl?.enabled !== false)
-    .map((tpl: any) => fillTemplate(String(tpl?.text || '')))
+    .map((tpl: any) => fillTemplate(tpl))
     .filter(Boolean)
 
   if (reason === 'section' && sectionId) {
     const contextual = (cfg.templates || [])
       .filter((tpl: any) => tpl?.enabled !== false)
-      .map((tpl: any) => String(tpl?.text || ''))
-      .filter((text: string) => text.includes('{{sectionLabel}}'))
-      .map((text: string) => fillTemplate(text))
+      .filter((tpl: any) => String(tpl?.text || '').includes('{{sectionLabel}}'))
+      .map((tpl: any) => fillTemplate(tpl))
       .filter(Boolean)
     const source = contextual.length > 0 ? contextual : options
     return source[Math.floor(Math.random() * source.length)] || ''
@@ -1206,9 +1256,8 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectio
   if (reason === 'scroll') {
     const contextual = (cfg.templates || [])
       .filter((tpl: any) => tpl?.enabled !== false)
-      .map((tpl: any) => String(tpl?.text || ''))
-      .filter((text: string) => text.includes('{{visitsNow}}'))
-      .map((text: string) => fillTemplate(text))
+      .filter((tpl: any) => String(tpl?.text || '').includes('{{visitsNow}}'))
+      .map((tpl: any) => fillTemplate(tpl))
       .filter(Boolean)
     const source = contextual.length > 0 ? contextual : options
     return source[Math.floor(Math.random() * source.length)] || ''
@@ -1222,6 +1271,8 @@ const salesMotionTemplatesSignature = computed(() =>
     id: tpl.id,
     text: tpl.text,
     enabled: tpl.enabled,
+    manualRangeEnabled: tpl.manualRangeEnabled,
+    ranges: tpl.ranges,
   }))),
 )
 

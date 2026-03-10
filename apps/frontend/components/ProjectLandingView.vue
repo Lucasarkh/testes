@@ -24,8 +24,8 @@
         :has-lots="(project?.lotSummary?.available ?? 0) > 0"
         :has-gallery="!!project.projectMedias?.length"
         :has-location="!!project.googleMapsUrl || !!project.address"
-        :has-nearby="hasNearbyData"
-        :has-scheduling="schedulingConfig?.enabled"
+        :has-nearby="hasNearbyData && isPublicSectionEnabled('pub-nearby')"
+        :has-scheduling="schedulingConfig?.enabled && isPublicSectionEnabled('pub-scheduling')"
       />
 
       <!-- Hero section -->
@@ -101,19 +101,22 @@
         </div>
       </Transition>
 
-      <!-- Highlights & Info -->
-      <section v-if="hasInfo" class="v4-section" id="info">
+      <!-- Texto Descritivo -->
+      <section v-if="showDescriptionBlock" class="v4-section" id="info" :style="publicSectionStyle('pub-description')">
         <div class="v4-container">
           <div v-if="hasLocationHeader" class="v4-section-header center v4-description-header">
             <h2 v-if="locationTitle" class="v4-section-title">{{ locationTitle }}</h2>
             <p v-if="locationSubtitle" class="v4-section-subtitle">{{ locationSubtitle }}</p>
           </div>
 
-          <!-- Text content if exists -->
           <div v-if="hasMeaningfulLocationText" class="v4-rich-content" v-html="formattedLocationText" style="margin-bottom: 80px;"></div>
+        </div>
+      </section>
 
-          <!-- Sophisticated Infrastructure Grid (Based on image) -->
-          <div v-if="infrastructureCategories.length" class="v4-infra-split">
+      <!-- Infraestrutura -->
+      <section v-if="showInfrastructureBlock && infrastructureCategories.length" class="v4-section" id="infraestrutura" :style="publicSectionStyle('pub-infra')">
+        <div class="v4-container">
+          <div class="v4-infra-split">
             <div class="v4-infra-left">
               <h2 class="v4-infra-hero-text" v-html="project.highlightsTitle || 'Sua família<br>merece o melhor.'"></h2>
               <p class="v4-infra-sub-text">{{ project.highlightsSubtitle || 'Qualidade de vida, segurança e infraestrutura completa em um só lugar.' }}</p>
@@ -136,7 +139,7 @@
 
       <!-- Planta Interativa — section shows as soon as we know the project has a plant map;
            the actual hotspot data is fetched lazily when this section enters the viewport -->
-      <section v-if="project?.plantMap" class="v4-section v4-section-alt" id="planta">
+      <section v-if="project?.plantMap && isPublicSectionEnabled('pub-plant')" class="v4-section v4-section-alt" id="planta" :style="publicSectionStyle('pub-plant')">
         <div class="v4-container">
           <div class="v4-section-header center">
             <h2 class="v4-section-title">Planta Interativa</h2>
@@ -178,7 +181,7 @@
       </section>
 
       <!-- Panorama 360° -->
-      <section v-if="panoramas.length" class="v4-section" id="panorama">
+      <section v-if="panoramas.length && isPublicSectionEnabled('pub-panorama')" class="v4-section" id="panorama" :style="publicSectionStyle('pub-panorama')">
         <div class="v4-container">
           <div class="v4-section-header center">
             <h2 class="v4-section-title">Vista 360°</h2>
@@ -216,7 +219,7 @@
       </section>
 
       <!-- Video Presentation -->
-      <section v-if="project.youtubeVideoUrl" class="v4-section v4-section-alt" id="video-apresentacao">
+      <section v-if="project.youtubeVideoUrl && isPublicSectionEnabled('pub-video')" class="v4-section v4-section-alt" id="video-apresentacao" :style="publicSectionStyle('pub-video')">
         <div class="v4-container">
           <div class="v4-section-header center">
             <h2 class="v4-section-title">Apresentação</h2>
@@ -239,7 +242,7 @@
 
       
       <!-- New Traditional Highlights "Destaques" -->
-      <section v-if="hasTraditionalInfo" class="v4-section" id="info">
+      <section v-if="hasTraditionalInfo && isPublicSectionEnabled('pub-highlights')" class="v4-section" id="destaques" :style="publicSectionStyle('pub-highlights')">
         <div v-if="traditionalHighlights.length" class="v4-container">
           <div class="v4-destaques-grid-v2">
             <div class="v4-section-header center" style="margin-bottom: 56px;">
@@ -261,7 +264,7 @@
       </section>
 
       <!-- Available Lots Grid -->
-      <section v-if="(project?.lotSummary?.available ?? 0) > 0" class="v4-section v4-section-alt" id="lotes">
+      <section v-if="(project?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots')" class="v4-section v4-section-alt" id="lotes" :style="publicSectionStyle('pub-lots')">
         <div class="v4-container">
           <div class="v4-section-header">
             <h2 class="v4-section-title">Lotes Disponíveis</h2>
@@ -317,7 +320,7 @@
       </section>
 
       <!-- Construction Progress -->
-      <section v-if="project.constructionStatus && project.constructionStatus.length" class="v4-section" id="obras">
+      <section v-if="project.constructionStatus && project.constructionStatus.length && isPublicSectionEnabled('pub-construction')" class="v4-section" id="obras" :style="publicSectionStyle('pub-construction')">
         <div class="v4-container">
           <div class="v4-section-header center">
             <h2 class="v4-section-title">Acompanhamento de Obras</h2>
@@ -339,7 +342,7 @@
       </section>
 
       <!-- Media gallery -->
-      <section v-if="project.projectMedias?.length" class="v4-section v4-section-alt" id="galeria">
+      <section v-if="project.projectMedias?.length && isPublicSectionEnabled('pub-gallery')" class="v4-section v4-section-alt" id="galeria" :style="publicSectionStyle('pub-gallery')">
         <div class="v4-container">
           <div class="v4-section-header">
             <h2 class="v4-section-title">Galeria de Fotos</h2>
@@ -357,8 +360,8 @@
                 v-if="m.type === 'PHOTO'"
                 :src="m.url"
                 :alt="m.caption || 'Foto'"
-                :loading="i < 4 ? 'eager' : 'lazy'"
-                :fetchpriority="i < 2 ? 'high' : 'auto'"
+                :loading="Number(i) < 4 ? 'eager' : 'lazy'"
+                :fetchpriority="Number(i) < 2 ? 'high' : 'auto'"
                 decoding="async"
               />
               <video v-else :src="m.url" preload="metadata" />
@@ -378,7 +381,7 @@
       </section>
 
       <!-- Endereço e Mapa -->
-      <section v-if="project.googleMapsUrl || project.address" class="v4-section" id="localizacao">
+      <section v-if="(project.googleMapsUrl || project.address) && isPublicSectionEnabled('pub-location')" class="v4-section" id="localizacao" :style="publicSectionStyle('pub-location')">
         <div class="v4-container">
           <div class="v4-section-header center">
             <h2 class="v4-section-title">Nossa Localização</h2>
@@ -400,10 +403,17 @@
       </section>
 
       <!-- Proximidades -->
-      <LandingNearbyPlaces v-if="projectSlug" :project-slug="projectSlug" @update:visible="hasNearbyData = $event" />
+      <div v-if="projectSlug && isPublicSectionEnabled('pub-nearby')" :style="publicSectionStyle('pub-nearby')">
+        <LandingNearbyPlaces :project-slug="projectSlug" @update:visible="hasNearbyData = $event" />
+      </div>
 
       <!-- Agendamento Section -->
-      <section v-if="project && schedulingConfig?.enabled" class="v4-section" id="agendamento" style="background: #1d1d1f; color: white;">
+      <section
+        v-if="project && schedulingConfig?.enabled && isPublicSectionEnabled('pub-scheduling')"
+        class="v4-section"
+        id="agendamento"
+        :style="{ ...publicSectionStyle('pub-scheduling'), background: '#1d1d1f', color: 'white' }"
+      >
         <div class="v4-container">
           <div class="v4-schedule-row">
             <div class="v4-schedule-info">
@@ -449,7 +459,7 @@
       </div>
 
       <!-- Lead form -->
-      <section class="v4-section" id="contato" style="background: #fbfbfd; padding: 120px 0;">
+      <section v-if="isPublicSectionEnabled('pub-contact')" class="v4-section" id="contato" :style="{ ...publicSectionStyle('pub-contact'), background: '#fbfbfd', padding: '120px 0' }">
         <div class="v4-container">
           <div class="v4-conversion-card-new">
             <div class="v4-conversion-content">
@@ -526,7 +536,7 @@
       </section>
 
       <!-- Legal Notice -->
-      <section v-if="project.legalNotice" class="v4-legal-notice">
+      <section v-if="project.legalNotice && isPublicSectionEnabled('pub-legal')" class="v4-legal-notice">
         <div class="v4-container">
           <div class="v4-legal-inner">
             <div class="v4-legal-icon"><i class="bi bi-clipboard-check" aria-hidden="true"></i></div>
@@ -540,7 +550,7 @@
         <div class="v4-container">
           <div class="v4-footer-inner">
             <!-- Logos: Realização e Propriedade -->
-            <div v-if="project.logos?.length" class="v4-footer-realizacao">
+            <div v-if="project.logos?.length && isPublicSectionEnabled('pub-logos')" class="v4-footer-realizacao">
               <span class="v4-footer-realizacao-label">Realização e Propriedade:</span>
               <div class="v4-footer-logos">
                 <img
@@ -776,7 +786,7 @@ const googleMapsEmbedUrl = computed(() => {
       // /maps/place/NAME/@lat,lng → use place query embed
       const placeMatch = parsed.pathname.match(/\/maps\/place\/([^/@]+)/)
       if (placeMatch) {
-        return `https://www.google.com/maps/embed/v1/place?key=&q=${encodeURIComponent(placeMatch[1])}`
+        return `https://www.google.com/maps/embed/v1/place?key=&q=${encodeURIComponent(placeMatch[1] || '')}`
           .replace('key=&', '') // works without key for simple embeds when using /maps/embed?pb method
       }
       // If it has a 'pb' or 'data' param, convert to embed URL
@@ -1015,6 +1025,60 @@ const highlights = computed(() => {
   return Array.isArray(raw) ? raw : []
 })
 
+const PUBLIC_SECTION_ORDER_META_TYPE = '__lotio_public_section_order__'
+const LANDING_REORDERABLE_SECTIONS = [
+  'pub-banner',
+  'pub-plant',
+  'pub-panorama',
+  'pub-video',
+  'pub-lots',
+  'pub-construction',
+  'pub-location',
+  'pub-nearby',
+  'pub-scheduling',
+  'pub-infra',
+  'pub-highlights',
+  'pub-description',
+  'pub-gallery',
+  'pub-contact',
+]
+
+const normalizeLandingSectionOrder = (candidate: unknown) => {
+  const incoming = Array.isArray(candidate) ? candidate.filter((item): item is string => typeof item === 'string') : []
+  const knownSet = new Set(LANDING_REORDERABLE_SECTIONS)
+  const seen = new Set<string>()
+  const ordered = incoming.filter((id) => knownSet.has(id) && !seen.has(id) && seen.add(id))
+
+  for (const id of LANDING_REORDERABLE_SECTIONS) {
+    if (!seen.has(id)) ordered.push(id)
+  }
+
+  return ordered
+}
+
+const publicSectionOrder = computed(() => {
+  const meta = highlights.value.find((item: any) => item?.type === PUBLIC_SECTION_ORDER_META_TYPE)
+  return normalizeLandingSectionOrder(meta?.order)
+})
+
+const disabledPublicSections = computed(() => {
+  const meta = highlights.value.find((item: any) => item?.type === PUBLIC_SECTION_ORDER_META_TYPE)
+  if (!Array.isArray(meta?.disabled)) return new Set<string>()
+  return new Set(meta.disabled.filter((id: unknown): id is string => typeof id === 'string'))
+})
+
+const isPublicSectionEnabled = (sectionId: string) => {
+  return !disabledPublicSections.value.has(sectionId)
+}
+
+const publicSectionOrderIndex = computed(() => {
+  return new Map(publicSectionOrder.value.map((id, idx) => [id, idx + 1]))
+})
+
+const publicSectionStyle = (sectionId: string) => {
+  return { order: String(publicSectionOrderIndex.value.get(sectionId) ?? 999) }
+}
+
 const infrastructureCategories = computed(() => {
   return highlights.value.filter(h => h.type === 'category')
 })
@@ -1053,8 +1117,16 @@ const hasMeaningfulLocationText = computed(() => {
   return text.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, '').trim().length > 0
 })
 
+const showDescriptionBlock = computed(() => {
+  return isPublicSectionEnabled('pub-description') && (hasMeaningfulLocationText.value || hasLocationHeader.value)
+})
+
+const showInfrastructureBlock = computed(() => {
+  return isPublicSectionEnabled('pub-infra') && infrastructureCategories.value.length > 0
+})
+
 const hasInfo = computed(() => {
-  return !!(infrastructureCategories.value.length > 0 || hasMeaningfulLocationText.value || hasLocationHeader.value)
+  return !!(showDescriptionBlock.value || showInfrastructureBlock.value)
 })
 
 const hasTraditionalInfo = computed(() => {
@@ -1211,12 +1283,14 @@ const salesMotionConfig = computed(() => {
             id: String(tpl.id || `tpl_${idx + 1}`),
             text: String(tpl.text || ''),
             enabled: tpl.enabled !== false,
+            manualRangeEnabled: tpl.manualRangeEnabled === true,
+            ranges: tpl.ranges && typeof tpl.ranges === 'object' ? tpl.ranges : undefined,
           }
         })
         .filter((tpl: any) => tpl && tpl.text.trim().length > 0)
     : rawTemplates && typeof rawTemplates === 'object'
       ? Object.entries(rawTemplates)
-          .map(([key, value]) => ({ id: String(key), text: String(value || ''), enabled: true }))
+            .map(([key, value]) => ({ id: String(key), text: String(value || ''), enabled: true, manualRangeEnabled: false, ranges: undefined }))
           .filter((tpl) => tpl.text.trim().length > 0)
       : defaultTemplates
 
@@ -1228,6 +1302,35 @@ const salesMotionConfig = computed(() => {
     templates,
   }
 })
+
+type SalesMotionNumericToken = 'viewsToday' | 'visits24h' | 'visitsNow'
+
+const salesMotionRangeFallback: Record<SalesMotionNumericToken, { min: number; max: number }> = {
+  viewsToday: { min: 3, max: 40 },
+  visits24h: { min: 12, max: 260 },
+  visitsNow: { min: 2, max: 22 },
+}
+
+const resolveSalesMotionRange = (
+  tpl: any,
+  token: SalesMotionNumericToken,
+  automatic: { min: number; max: number },
+) => {
+  if (tpl?.manualRangeEnabled !== true) {
+    return {
+      min: Math.max(0, Math.round(automatic.min)),
+      max: Math.max(Math.max(0, Math.round(automatic.min)), Math.round(automatic.max)),
+    }
+  }
+
+  const fallback = salesMotionRangeFallback[token]
+  const rawMin = Number(tpl?.ranges?.[token]?.min)
+  const rawMax = Number(tpl?.ranges?.[token]?.max)
+  const min = Number.isFinite(rawMin) ? Math.max(0, Math.round(rawMin)) : fallback.min
+  const maxCandidate = Number.isFinite(rawMax) ? Math.max(0, Math.round(rawMax)) : fallback.max
+  const max = Math.max(min, maxCandidate)
+  return { min, max }
+}
 
 const salesMotionSampleData = computed(() => {
   const lotCode = unifiedAvailableLots.value[0]?.code || project.value?.teaserLots?.[0]?.code || '24'
@@ -1287,31 +1390,52 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
   const config = salesMotionConfig.value
   const baseData = salesMotionSampleData.value
   const lotPool = salesMotionLotPool.value
-  const views = nextSmoothInt(baseData.viewsToday, salesMotionLastViews, 3, 40)
-  const visits = nextSmoothInt(baseData.visits24h, salesMotionLastVisits, 12, 260)
-  const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseData.viewsToday * 0.6)), salesMotionLastViews, 2, 22, 0.12)
-  const lot = lotPool.length > 0
-    ? lotPool[Math.floor(Math.random() * lotPool.length)]
-    : baseData.recentLot
+  const fillTemplate = (tpl: any) => {
+    const text = String(tpl?.text || '')
+    const automaticViewsRange = {
+      min: Math.max(1, Math.round(baseData.viewsToday * 0.7)),
+      max: Math.max(2, Math.round(baseData.viewsToday * 1.3)),
+    }
+    const automaticVisitsRange = {
+      min: Math.max(1, Math.round(baseData.visits24h * 0.75)),
+      max: Math.max(2, Math.round(baseData.visits24h * 1.25)),
+    }
+    const automaticNowRange = {
+      min: Math.max(1, Math.round(Math.max(2, baseData.viewsToday * 0.6) * 0.7)),
+      max: Math.max(2, Math.round(Math.max(2, baseData.viewsToday * 0.6) * 1.25)),
+    }
 
-  const fillTemplate = (tpl: string) => tpl
-    .replace(/{{\s*viewsToday\s*}}/g, String(views))
-    .replace(/{{\s*recentLot\s*}}/g, String(lot))
-    .replace(/{{\s*visits24h\s*}}/g, String(visits))
-    .replace(/{{\s*visitsNow\s*}}/g, String(nowUsers))
-    .replace(/{{\s*sectionLabel\s*}}/g, String(salesMotionSectionLabelByProgress(progress)))
+    const viewsRange = resolveSalesMotionRange(tpl, 'viewsToday', automaticViewsRange)
+    const visitsRange = resolveSalesMotionRange(tpl, 'visits24h', automaticVisitsRange)
+    const nowRange = resolveSalesMotionRange(tpl, 'visitsNow', automaticNowRange)
+    const views = nextSmoothInt(baseData.viewsToday, salesMotionLastViews, viewsRange.min, viewsRange.max)
+    const visits = nextSmoothInt(baseData.visits24h, salesMotionLastVisits, visitsRange.min, visitsRange.max)
+    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseData.viewsToday * 0.6)), salesMotionLastViews, nowRange.min, nowRange.max, 0.12)
+    const lot = lotPool.length > 0
+      ? lotPool[Math.floor(Math.random() * lotPool.length)]
+      : baseData.recentLot
+
+    return text
+      .replace(/{{\s*viewsToday\s*}}/g, String(views))
+      .replace(/{{\s*recentLot\s*}}/g, String(lot))
+      .replace(/{{\s*visits24h\s*}}/g, String(visits))
+      .replace(/{{\s*visitsNow\s*}}/g, String(nowUsers))
+      .replace(/{{\s*sectionLabel\s*}}/g, String(salesMotionSectionLabelByProgress(progress)))
+  }
 
   const options = (config.templates || [])
     .filter((tpl: any) => tpl?.enabled !== false)
-    .map((tpl: any) => fillTemplate(String(tpl?.text || '')))
+    .map((tpl: any) => fillTemplate(tpl))
     .filter(Boolean)
 
   if (reason === 'scroll') {
     const contextual = (config.templates || [])
       .filter((tpl: any) => tpl?.enabled !== false)
-      .map((tpl: any) => String(tpl?.text || ''))
-      .filter((text: string) => text.includes('{{sectionLabel}}') || text.includes('{{visitsNow}}'))
-      .map((text: string) => fillTemplate(text))
+      .filter((tpl: any) => {
+        const text = String(tpl?.text || '')
+        return text.includes('{{sectionLabel}}') || text.includes('{{visitsNow}}')
+      })
+      .map((tpl: any) => fillTemplate(tpl))
       .filter(Boolean)
 
     const source = contextual.length > 0 ? contextual : options
@@ -1326,6 +1450,8 @@ const salesMotionTemplatesSignature = computed(() =>
     id: tpl.id,
     text: tpl.text,
     enabled: tpl.enabled,
+    manualRangeEnabled: tpl.manualRangeEnabled,
+    ranges: tpl.ranges,
   }))),
 )
 
@@ -1396,6 +1522,7 @@ const handleSalesMotionNavigation = () => {
 }
 
 const hasHeroBanner = computed(() => {
+  if (!isPublicSectionEnabled('pub-banner')) return false
   return !!(
     project.value?.bannerImageUrl
     || project.value?.bannerImageTabletUrl
@@ -1497,7 +1624,8 @@ onMounted(async () => {
             return
           }
           const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
+            const firstEntry = entries[0]
+            if (firstEntry?.isIntersecting) {
               loadPlantMap()
               observer.disconnect()
             }
@@ -1625,6 +1753,8 @@ function openLightbox(idx: number) {
 
 /* Base Layout */
 .pub-page {
+  display: flex;
+  flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: var(--v4-text);
   background: var(--v4-bg);
@@ -2678,7 +2808,7 @@ function openLightbox(idx: number) {
   color: var(--v4-text);
   max-width: 800px;
   margin: 0 auto 60px;
-  text-align: left;
+  text-align: center;
 }
 .v4-rich-content :deep(p) { margin-bottom: 1.2rem; }
 .v4-rich-content :deep(strong), .v4-rich-content :deep(b) { color: var(--v4-text); font-weight: 700; }
@@ -3190,6 +3320,7 @@ function openLightbox(idx: number) {
 
 /* Legal Notice */
 .v4-legal-notice {
+  order: 4900;
   padding: 40px 0;
   background: var(--v4-bg-alt);
   border-top: 1px solid var(--v4-border);
@@ -3219,7 +3350,7 @@ function openLightbox(idx: number) {
 }
 
 /* Footer */
-.v4-footer { padding: 60px 0; border-top: 1px solid var(--v4-border); background: var(--v4-bg-alt); }
+.v4-footer { order: 5000; padding: 60px 0; border-top: 1px solid var(--v4-border); background: var(--v4-bg-alt); }
 .v4-footer-inner { display: flex; flex-direction: column; gap: 28px; }
 
 .v4-footer-realizacao { display: flex; flex-direction: column; gap: 12px; }
