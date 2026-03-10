@@ -25,4 +25,10 @@ export class CreateProjectDto {
   @ApiPropertyOptional({ example: 24, description: 'Tempo de expiração da reserva em horas' })
   @IsOptional()
   reservationExpiryHours?: number;
+
+  @ApiPropertyOptional({
+    description: 'Configuração de movimento do loteamento exibida na página pública'
+  })
+  @IsOptional()
+  salesMotionConfig?: any;
 }

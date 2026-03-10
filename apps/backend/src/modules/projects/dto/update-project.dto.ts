@@ -197,6 +197,12 @@ export class UpdateProjectDto {
   @IsString()
   legalNotice?: string;
 
+  @ApiPropertyOptional({
+    description: 'Configuração de movimento do loteamento exibida na página pública'
+  })
+  @IsOptional()
+  salesMotionConfig?: any;
+
   @ApiPropertyOptional({ description: 'Ativar/desativar seção de proximidades' })
   @IsOptional()
   @IsBoolean()

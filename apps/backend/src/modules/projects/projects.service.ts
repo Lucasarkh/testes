@@ -631,6 +631,7 @@ export class ProjectsService {
         ...(dto.aiEnabled !== undefined && { aiEnabled: dto.aiEnabled }),
         ...(dto.aiConfigId !== undefined && { aiConfigId: dto.aiConfigId || null }),
         ...(dto.legalNotice !== undefined && { legalNotice: dto.legalNotice }),
+        ...(dto.salesMotionConfig !== undefined && { salesMotionConfig: dto.salesMotionConfig }),
         ...(dto.nearbyEnabled !== undefined && { nearbyEnabled: dto.nearbyEnabled })
       },
       include: {

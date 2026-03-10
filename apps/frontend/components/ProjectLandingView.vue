@@ -94,6 +94,13 @@
         </div>
       </div>
 
+      <Transition name="v4-sales-motion-fade">
+        <div v-if="currentSalesNotice" class="v4-sales-motion-toast" aria-live="polite" aria-atomic="true">
+          <span class="v4-sales-motion-dot"></span>
+          <span>{{ currentSalesNotice }}</span>
+        </div>
+      </Transition>
+
       <!-- Highlights & Info -->
       <section v-if="hasInfo" class="v4-section" id="info">
         <div class="v4-container">
@@ -810,6 +817,14 @@ const panoramas = ref<Panorama[]>([])
 const schedulingConfig = ref<any>(null)
 const hasNearbyData = ref(false)
 const { getPublicPanoramas } = usePublicPanorama()
+const currentSalesNotice = ref('')
+const salesMotionHideTimerId = ref<number | null>(null)
+const salesMotionInitialTimerId = ref<number | null>(null)
+const salesMotionShownCount = ref(0)
+const salesMotionLastShownAt = ref(0)
+const salesMotionLastViews = ref(0)
+const salesMotionLastVisits = ref(0)
+const salesMotionReachedMilestones = ref<number[]>([])
 
 const leadForm = ref({ name: '', email: '', phone: '', mapElementId: '', message: '' })
 const { maskPhone, validateEmail, validatePhone, unmask } = useMasks()
@@ -1173,6 +1188,185 @@ const priceRange = computed(() => {
   return (min && min > 0) ? formatCurrencyToBrasilia(Number(min)) : null
 })
 
+const salesMotionConfig = computed(() => {
+  const cfg = project.value?.salesMotionConfig || {}
+  return {
+    enabled: !!cfg.enabled,
+    intervalSeconds: Math.max(5, Number(cfg.intervalSeconds ?? 14)),
+    displaySeconds: Math.max(3, Number(cfg.displaySeconds ?? 6)),
+    maxNotices: Math.max(1, Number(cfg.maxNotices ?? 5)),
+    templates: {
+      viewsToday: String(cfg?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje'),
+      recentReservation: String(cfg?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente'),
+      visits24h: String(cfg?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h'),
+    },
+  }
+})
+
+const salesMotionSampleData = computed(() => {
+  const lotCode = unifiedAvailableLots.value[0]?.code || project.value?.teaserLots?.[0]?.code || '24'
+  const baseViews = Math.max(3, Math.min(28, Math.round((availableLots.value || 1) * 1.2)))
+  const baseVisits = Math.max(12, Math.min(220, Math.round((totalLots.value || 10) * 2.8)))
+  return {
+    viewsToday: baseViews,
+    recentLot: lotCode,
+    visits24h: baseVisits,
+  }
+})
+
+const salesMotionMessages = computed(() => {
+  const data = salesMotionSampleData.value
+  const fillTemplate = (tpl: string) => tpl
+    .replace(/{{\s*viewsToday\s*}}/g, String(data.viewsToday))
+    .replace(/{{\s*recentLot\s*}}/g, String(data.recentLot))
+    .replace(/{{\s*visits24h\s*}}/g, String(data.visits24h))
+
+  return [
+    fillTemplate(salesMotionConfig.value.templates.viewsToday),
+    fillTemplate(salesMotionConfig.value.templates.recentReservation),
+    fillTemplate(salesMotionConfig.value.templates.visits24h),
+  ].filter(Boolean)
+})
+
+const salesMotionLotPool = computed(() => {
+  const values = [
+    ...(unifiedAvailableLots.value || []).map((l: any) => l?.code || l?.name),
+    ...((project.value?.teaserLots || []) as any[]).map((l: any) => l?.code || l?.name),
+  ]
+  return Array.from(new Set(values.filter(Boolean)))
+})
+
+const salesMotionSectionLabelByProgress = (progress: number) => {
+  if (progress >= 80) return 'contato'
+  if (progress >= 60) return 'lotes'
+  if (progress >= 40) return 'detalhes do projeto'
+  return 'planta'
+}
+
+const nextSmoothInt = (
+  base: number,
+  lastRef: { value: number },
+  min: number,
+  max: number,
+  varianceRatio = 0.08,
+) => {
+  const safeBase = Math.max(min, Math.min(max, Math.round(base)))
+  const prev = lastRef.value || safeBase
+  const step = Math.max(1, Math.round(safeBase * varianceRatio))
+  const raw = prev + Math.round((Math.random() * (step * 2)) - step)
+  const clamped = Math.max(min, Math.min(max, raw))
+  lastRef.value = clamped
+  return clamped
+}
+
+const clearSalesMotionTimers = () => {
+  if (!process.client) return
+  if (salesMotionInitialTimerId.value !== null) {
+    window.clearTimeout(salesMotionInitialTimerId.value)
+    salesMotionInitialTimerId.value = null
+  }
+  if (salesMotionHideTimerId.value !== null) {
+    window.clearTimeout(salesMotionHideTimerId.value)
+    salesMotionHideTimerId.value = null
+  }
+}
+
+const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
+  const config = salesMotionConfig.value
+  const baseData = salesMotionSampleData.value
+  const lotPool = salesMotionLotPool.value
+  const views = nextSmoothInt(baseData.viewsToday, salesMotionLastViews, 3, 40)
+  const visits = nextSmoothInt(baseData.visits24h, salesMotionLastVisits, 12, 260)
+  const lot = lotPool.length > 0
+    ? lotPool[Math.floor(Math.random() * lotPool.length)]
+    : baseData.recentLot
+
+  const fillTemplate = (tpl: string) => tpl
+    .replace(/{{\s*viewsToday\s*}}/g, String(views))
+    .replace(/{{\s*recentLot\s*}}/g, String(lot))
+    .replace(/{{\s*visits24h\s*}}/g, String(visits))
+
+  if (reason === 'scroll') {
+    const sectionLabel = salesMotionSectionLabelByProgress(progress)
+    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseData.viewsToday * 0.6)), salesMotionLastViews, 2, 22, 0.12)
+    return `${nowUsers} pessoas estão navegando na seção de ${sectionLabel} agora`
+  }
+
+  const options = [
+    fillTemplate(config.templates.visits24h),
+    fillTemplate(config.templates.recentReservation),
+    fillTemplate(config.templates.viewsToday),
+  ].filter(Boolean)
+
+  return options[Math.floor(Math.random() * options.length)] || ''
+}
+
+const showNextSalesNotice = (reason: 'initial' | 'scroll', progress = 0) => {
+  if (!process.client) return
+  const config = salesMotionConfig.value
+  const minGapMs = Math.max(2000, config.intervalSeconds * 1000)
+  if (!config.enabled) return
+  if (salesMotionShownCount.value >= config.maxNotices) {
+    clearSalesMotionTimers()
+    currentSalesNotice.value = ''
+    return
+  }
+
+  const now = Date.now()
+  if (currentSalesNotice.value) return
+  if (now - salesMotionLastShownAt.value < minGapMs) return
+
+  const message = buildSalesMotionNotice(reason, progress)
+  if (!message) return
+
+  currentSalesNotice.value = message
+  salesMotionShownCount.value += 1
+  salesMotionLastShownAt.value = now
+
+  if (salesMotionHideTimerId.value !== null) {
+    window.clearTimeout(salesMotionHideTimerId.value)
+  }
+  salesMotionHideTimerId.value = window.setTimeout(() => {
+    currentSalesNotice.value = ''
+  }, config.displaySeconds * 1000)
+}
+
+const startSalesMotion = () => {
+  if (!process.client) return
+  clearSalesMotionTimers()
+  currentSalesNotice.value = ''
+  salesMotionShownCount.value = 0
+  salesMotionLastShownAt.value = 0
+  salesMotionReachedMilestones.value = []
+  salesMotionLastViews.value = 0
+  salesMotionLastVisits.value = 0
+
+  const config = salesMotionConfig.value
+  if (!config.enabled) return
+
+  salesMotionInitialTimerId.value = window.setTimeout(() => {
+    showNextSalesNotice('initial', 0)
+  }, 1800)
+}
+
+const handleSalesMotionNavigation = () => {
+  if (!process.client) return
+  if (!salesMotionConfig.value.enabled) return
+  if (salesMotionShownCount.value >= salesMotionConfig.value.maxNotices) return
+
+  const doc = document.documentElement
+  const scrollTop = window.scrollY || doc.scrollTop || 0
+  const maxScrollable = Math.max(1, (doc.scrollHeight || 0) - window.innerHeight)
+  const progress = Math.round((scrollTop / maxScrollable) * 100)
+  const milestones = [18, 42, 68, 86]
+
+  const nextMilestone = milestones.find((m) => progress >= m && !salesMotionReachedMilestones.value.includes(m))
+  if (!nextMilestone) return
+
+  salesMotionReachedMilestones.value = [...salesMotionReachedMilestones.value, nextMilestone]
+  showNextSalesNotice('scroll', progress)
+}
+
 const hasHeroBanner = computed(() => {
   return !!(
     project.value?.bannerImageUrl
@@ -1230,6 +1424,7 @@ onMounted(async () => {
   detectTouchMobile()
   window.addEventListener('resize', detectTouchMobile)
   window.addEventListener('keydown', handleModalKeyDown)
+  window.addEventListener('scroll', handleSalesMotionNavigation, { passive: true })
 
   try {
     const baseUrl = isPreview.value ? `/p/preview/${previewId.value}` : `/p/${projectSlug.value}`
@@ -1294,11 +1489,29 @@ onMounted(async () => {
     error.value = e.message || 'Projeto não encontrado'
   }
   loading.value = false
+  startSalesMotion()
 })
 
+watch(
+  () => [
+    salesMotionConfig.value.enabled,
+    salesMotionConfig.value.intervalSeconds,
+    salesMotionConfig.value.displaySeconds,
+    salesMotionConfig.value.maxNotices,
+    salesMotionConfig.value.templates.viewsToday,
+    salesMotionConfig.value.templates.recentReservation,
+    salesMotionConfig.value.templates.visits24h,
+  ],
+  () => {
+    startSalesMotion()
+  },
+)
+
 onUnmounted(() => {
+  clearSalesMotionTimers()
   window.removeEventListener('resize', detectTouchMobile)
   window.removeEventListener('keydown', handleModalKeyDown)
+  window.removeEventListener('scroll', handleSalesMotionNavigation)
   document.body.style.overflow = ''
 })
 
@@ -1523,6 +1736,47 @@ function openLightbox(idx: number) {
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 113, 227, 0); }
 }
 
+.v4-sales-motion-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 22px;
+  z-index: 200;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(10, 15, 13, 0.86);
+  color: #eafff3;
+  font-size: 0.84rem;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(10px);
+}
+
+.v4-sales-motion-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15);
+}
+
+.v4-sales-motion-fade-enter-active,
+.v4-sales-motion-fade-leave-active {
+  transition: all 0.22s ease;
+}
+
+.v4-sales-motion-fade-enter-from,
+.v4-sales-motion-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+}
+
 /* Floating Search CTA */
 .v4-floating-cta {
   position: fixed;
@@ -1533,6 +1787,15 @@ function openLightbox(idx: number) {
 }
 
 @media (max-width: 768px) {
+  .v4-sales-motion-toast {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(92vw, 420px);
+    bottom: 164px;
+    max-width: none;
+    font-size: 0.8rem;
+  }
+
   .v4-floating-cta {
     bottom: 100px; 
     right: 16px;

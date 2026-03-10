@@ -163,6 +163,55 @@
               <input v-model="editForm.customDomain" class="form-input" placeholder="ex: vendas.meu-loteamento.com" />
               <small class="text-muted">Informe o domínio completo ou subdomínio que aponta para cá.</small>
             </div>
+
+            <div class="form-group" style="margin-top: 12px; padding-top: 18px; border-top: 1px dashed var(--glass-border-subtle);">
+              <label class="form-label" style="display:flex; align-items:center; gap:8px; margin-bottom: 10px;">
+                <span><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
+                <span>Movimento do Loteamento (efeito stand de vendas)</span>
+              </label>
+
+              <label class="flex items-center" style="gap: 8px; margin-bottom: 10px; cursor:pointer;">
+                <input v-model="editForm.salesMotionConfig.enabled" type="checkbox" style="width: 16px; height: 16px;" />
+                <span style="font-size: 0.85rem; font-weight: 600;">Exibir avisos de atividade na página pública</span>
+              </label>
+
+              <div class="grid grid-cols-2 gap-3" style="margin-bottom: 10px;">
+                <div>
+                  <label class="form-label">Intervalo mínimo entre avisos (segundos)</label>
+                  <input v-model.number="editForm.salesMotionConfig.intervalSeconds" type="number" min="5" max="120" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Tempo na tela (segundos)</label>
+                  <input v-model.number="editForm.salesMotionConfig.displaySeconds" type="number" min="3" max="20" class="form-input" />
+                </div>
+              </div>
+
+              <small class="text-muted" style="display:block; margin-top: -4px; margin-bottom: 10px;">
+                Os avisos aparecem em momentos estratégicos de navegação. Este campo controla o tempo mínimo entre um aviso e outro.
+              </small>
+
+              <div class="form-group" style="margin-bottom: 10px;">
+                <label class="form-label">Quantidade máxima de avisos por sessão</label>
+                <input v-model.number="editForm.salesMotionConfig.maxNotices" type="number" min="1" max="20" class="form-input" />
+              </div>
+
+              <div class="form-group" style="margin-bottom: 8px;">
+                <label class="form-label">Texto: visualizações no lote</label>
+                <input v-model="editForm.salesMotionConfig.templates.viewsToday" class="form-input" placeholder="Ex: {{viewsToday}} pessoas visualizaram este lote hoje" />
+              </div>
+              <div class="form-group" style="margin-bottom: 8px;">
+                <label class="form-label">Texto: reserva recente</label>
+                <input v-model="editForm.salesMotionConfig.templates.recentReservation" class="form-input" placeholder="Ex: Lote {{recentLot}} foi reservado recentemente" />
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Texto: visitas nas últimas 24h</label>
+                <input v-model="editForm.salesMotionConfig.templates.visits24h" class="form-input" placeholder="Ex: {{visits24h}} pessoas visitaram este loteamento nas últimas 24h" />
+              </div>
+
+              <small class="text-muted" style="display:block; margin-top: 8px;" v-pre>
+                Placeholders disponíveis: {{viewsToday}}, {{recentLot}}, {{visits24h}}.
+              </small>
+            </div>
             <div v-if="settingsError" class="alert alert-error">{{ settingsError }}</div>
             <div v-if="settingsSaved" class="alert alert-success">Salvo com sucesso!</div>
             <button type="submit" class="btn btn-primary" :disabled="savingSettings || editSlugTaken">{{ savingSettings ? 'Salvando...' : 'Salvar' }}</button>
@@ -1967,7 +2016,18 @@ const editForm = ref({
   financingDisclaimer: 'Simulação baseada nas regras vigentes. Sujeito à aprovação de crédito e alteração de taxas.',
   aiEnabled: false,
   aiConfigId: '',
-  paymentConditions: [] as any[]
+  paymentConditions: [] as any[],
+  salesMotionConfig: {
+    enabled: false,
+    intervalSeconds: 14,
+    displaySeconds: 6,
+    maxNotices: 5,
+    templates: {
+      viewsToday: '{{viewsToday}} pessoas visualizaram este lote hoje',
+      recentReservation: 'Lote {{recentLot}} foi reservado recentemente',
+      visits24h: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h',
+    },
+  }
 })
 
 // ── Slug validation for edit ─────────────────────────────
@@ -2987,6 +3047,10 @@ const loadProject = async () => {
       startLotImportPolling(latestImport.id)
     }
     loadPaymentConfig()
+    const salesMotionConfig = p.salesMotionConfig && typeof p.salesMotionConfig === 'object'
+      ? p.salesMotionConfig
+      : {}
+
     editForm.value = {
       name: p.name,
       slug: p.slug,
@@ -3005,7 +3069,18 @@ const loadProject = async () => {
       aiEnabled: p.aiEnabled ?? false,
       aiConfigId: p.aiConfigId || '',
       maxInstallments: p.maxInstallments ?? 180,
-      paymentConditions: Array.isArray(p.paymentConditions) ? [...p.paymentConditions] : []
+      paymentConditions: Array.isArray(p.paymentConditions) ? [...p.paymentConditions] : [],
+      salesMotionConfig: {
+        enabled: salesMotionConfig.enabled ?? false,
+        intervalSeconds: Number(salesMotionConfig.intervalSeconds ?? 14),
+        displaySeconds: Number(salesMotionConfig.displaySeconds ?? 6),
+        maxNotices: Number(salesMotionConfig.maxNotices ?? 5),
+        templates: {
+          viewsToday: salesMotionConfig?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje',
+          recentReservation: salesMotionConfig?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente',
+          visits24h: salesMotionConfig?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h',
+        },
+      }
     }
     originalSlug.value = p.slug
     loadAiConfigs()
@@ -3076,6 +3151,17 @@ const saveSettings = async () => {
       minDownPaymentValue: raw.minDownPaymentValue != null ? Number(raw.minDownPaymentValue) : undefined,
       monthlyInterestRate: raw.monthlyInterestRate != null ? Number(raw.monthlyInterestRate) : undefined,
       maxInstallments: raw.maxInstallments != null ? Number(raw.maxInstallments) : undefined,
+      salesMotionConfig: {
+        enabled: !!raw.salesMotionConfig?.enabled,
+        intervalSeconds: Math.max(5, Number(raw.salesMotionConfig?.intervalSeconds || 14)),
+        displaySeconds: Math.max(3, Number(raw.salesMotionConfig?.displaySeconds || 6)),
+        maxNotices: Math.max(1, Number(raw.salesMotionConfig?.maxNotices || 5)),
+        templates: {
+          viewsToday: String(raw.salesMotionConfig?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje'),
+          recentReservation: String(raw.salesMotionConfig?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente'),
+          visits24h: String(raw.salesMotionConfig?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h'),
+        },
+      },
     }
     project.value = await fetchApi(`/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify(settingsPayload) })
     settingsSaved.value = true

@@ -395,6 +395,7 @@ model Project {
   youtubeVideoUrl  String?
   constructionStatus Json?
   legalNotice     String?       @db.Text
+  salesMotionConfig Json?
   reservationFeeType    ReservationFeeType @default(FIXED)
   reservationFeeValue   Decimal            @default(500) @db.Decimal(12, 2)
   reservationExpiryHours Int               @default(24)

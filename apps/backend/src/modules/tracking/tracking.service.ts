@@ -443,6 +443,32 @@ export class TrackingService {
     };
   }
 
+  private getLeadWhere(
+    query: TrackingReportQueryDto,
+    context: { realtorLinkId?: string; agencyId?: string } = {}
+  ) {
+    const { tenantId, projectId, startDate, endDate } = query;
+
+    // Use Brasilia timezone boundaries (UTC-3) for consistent filtering
+    const start = startDate ? new Date(`${startDate}T03:00:00.000Z`) : null;
+    const end = endDate ? new Date(new Date(`${endDate}T03:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000 - 1) : null;
+
+    return {
+      tenantId,
+      ...(projectId && projectId !== 'all' ? { projectId } : {}),
+      ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
+      ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } }),
+      ...(start || end
+        ? {
+            createdAt: {
+              ...(start ? { gte: start } : {}),
+              ...(end ? { lte: end } : {})
+            }
+          }
+        : {})
+    };
+  }
+
   // Restore individual report methods for the controller
   async getMostAccessedLots(
     query: TrackingReportQueryDto,
@@ -523,6 +549,7 @@ export class TrackingService {
     const context = await this.getRealtorContextFromUser(user);
     const whereSession = this.getSessionWhere(query, context);
     const whereEvent = this.getEventWhere(query, context);
+    const whereLead = this.getLeadWhere(query, context);
 
     const [
       totalSessions,
@@ -549,16 +576,12 @@ export class TrackingService {
       this.prisma.trackingEvent.count({
         where: { ...whereEvent, type: 'CLICK', category: 'LOT' }
       }),
-      this.prisma.trackingEvent.count({
-        where: { ...whereEvent, category: 'REALTOR_LINK' }
+      // Realtor accesses should represent attributed sessions, not repeated referral events.
+      this.prisma.trackingSession.count({
+        where: { ...whereSession, realtorLinkId: { not: null } }
       }),
       this.prisma.lead.count({
-        where: {
-          tenantId: whereSession.tenantId,
-          ...(whereSession.projectId && { projectId: whereSession.projectId }),
-          ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-          ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
-        } as any
+        where: whereLead as any
       }),
       this.prisma.trackingSession.groupBy({
         by: ['utmSource'],
@@ -1329,6 +1352,7 @@ export class TrackingService {
   ) {
     const context = await this.getRealtorContextFromUser(user);
     const whereSession = this.getSessionWhere(query, context);
+    const whereLead = this.getLeadWhere(query, context);
 
     const realtorLinks = await this.prisma.realtorLink.findMany({
       where: {
@@ -1349,10 +1373,9 @@ export class TrackingService {
         }),
         this.prisma.lead.count({
           where: {
-            tenantId: query.tenantId!,
-            realtorLinkId: rl.id,
-            ...(whereSession.projectId && { projectId: whereSession.projectId })
-          }
+            ...whereLead,
+            realtorLinkId: rl.id
+          } as any
         })
       ]);
 
@@ -1372,10 +1395,9 @@ export class TrackingService {
           }) : Promise.resolve(0),
           c.utmCampaign ? this.prisma.lead.count({
             where: {
-              tenantId: query.tenantId!,
+              ...whereLead,
               realtorLinkId: rl.id,
               session: { utmCampaign: c.utmCampaign },
-              ...(whereSession.projectId && { projectId: whereSession.projectId })
             }
           }) : Promise.resolve(0)
         ]);
@@ -1396,12 +1418,14 @@ export class TrackingService {
 
     brokers.sort((a, b) => b.leads - a.leads);
 
+    const activeBrokers = brokers.filter((b) => b.sessions > 0 || b.leads > 0);
+
     const totalSessions = brokers.reduce((a, b) => a + b.sessions, 0);
     const totalLeads = brokers.reduce((a, b) => a + b.leads, 0);
 
     return {
       summary: {
-        totalBrokers: brokers.length,
+        totalBrokers: activeBrokers.length,
         totalSessions,
         totalLeads,
         avgConversionRate: totalSessions > 0 ? parseFloat(((totalLeads / totalSessions) * 100).toFixed(1)) : 0

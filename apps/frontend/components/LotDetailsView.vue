@@ -31,6 +31,13 @@
         </div>
       </header>
 
+      <Transition name="v4-sales-motion-fade">
+        <div v-if="currentSalesNotice" class="v4-sales-motion-toast" aria-live="polite" aria-atomic="true">
+          <span class="v4-sales-motion-dot"></span>
+          <span>{{ currentSalesNotice }}</span>
+        </div>
+      </Transition>
+
       <div class="layout-v4-main">
         <!-- Persistent Side Navigation Guide -->
         <aside class="side-navigation-guide">
@@ -710,7 +717,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
 import { getTodayInBrasilia, getYearInBrasilia } from '~/utils/date'
@@ -759,6 +766,15 @@ const corretor = ref<any>(null)
 const plantMap = ref<PlantMap | null>(null)
 const publicLotCandidates = ref<any[]>([])
 const { getPublicPlantMap } = usePublicPlantMap()
+const currentSalesNotice = ref('')
+const salesMotionHideTimerId = ref<number | null>(null)
+const salesMotionInitialTimerId = ref<number | null>(null)
+const salesMotionShownCount = ref(0)
+const salesMotionLastShownAt = ref(0)
+const salesMotionLastViews = ref(0)
+const salesMotionLastVisits = ref(0)
+const salesMotionSeenSections = ref<string[]>([])
+const salesMotionReachedMilestones = ref<number[]>([])
 
 const normalizeLotIdentifier = (value?: string | null) =>
   String(value ?? '')
@@ -1069,6 +1085,160 @@ const statusLabel = computed(() => {
   }
   return map[details.value?.status || 'AVAILABLE'] || 'Disponível'
 })
+
+const salesMotionConfig = computed(() => {
+  const cfg = project.value?.salesMotionConfig || {}
+  return {
+    enabled: !!cfg.enabled,
+    intervalSeconds: Math.max(5, Number(cfg.intervalSeconds ?? 14)),
+    displaySeconds: Math.max(3, Number(cfg.displaySeconds ?? 6)),
+    maxNotices: Math.max(1, Number(cfg.maxNotices ?? 5)),
+    templates: {
+      viewsToday: String(cfg?.templates?.viewsToday || '{{viewsToday}} pessoas visualizaram este lote hoje'),
+      recentReservation: String(cfg?.templates?.recentReservation || 'Lote {{recentLot}} foi reservado recentemente'),
+      visits24h: String(cfg?.templates?.visits24h || '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h'),
+    },
+  }
+})
+
+const salesMotionLotPool = computed(() => {
+  const values = (allProjectLots.value || []).map((l: any) => l?.code || l?.name).filter(Boolean)
+  return Array.from(new Set(values))
+})
+
+const nextSmoothInt = (
+  base: number,
+  lastRef: { value: number },
+  min: number,
+  max: number,
+  varianceRatio = 0.09,
+) => {
+  const safeBase = Math.max(min, Math.min(max, Math.round(base)))
+  const prev = lastRef.value || safeBase
+  const step = Math.max(1, Math.round(safeBase * varianceRatio))
+  const raw = prev + Math.round((Math.random() * (step * 2)) - step)
+  const clamped = Math.max(min, Math.min(max, raw))
+  lastRef.value = clamped
+  return clamped
+}
+
+const clearSalesMotionTimers = () => {
+  if (!process.client) return
+  if (salesMotionInitialTimerId.value !== null) {
+    window.clearTimeout(salesMotionInitialTimerId.value)
+    salesMotionInitialTimerId.value = null
+  }
+  if (salesMotionHideTimerId.value !== null) {
+    window.clearTimeout(salesMotionHideTimerId.value)
+    salesMotionHideTimerId.value = null
+  }
+}
+
+const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectionId?: string) => {
+  const cfg = salesMotionConfig.value
+  const baseViews = Math.max(4, Math.min(34, Math.round((allProjectAvailableLots.value.length || 8) * 0.9)))
+  const baseVisits = Math.max(16, Math.min(260, Math.round((allProjectLots.value.length || 15) * 3.1)))
+  const views = nextSmoothInt(baseViews, salesMotionLastViews, 3, 40)
+  const visits = nextSmoothInt(baseVisits, salesMotionLastVisits, 12, 280)
+  const pool = salesMotionLotPool.value
+  const randomLot = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : (lot.value?.code || '24')
+
+  const fillTemplate = (tpl: string) => tpl
+    .replace(/{{\s*viewsToday\s*}}/g, String(views))
+    .replace(/{{\s*recentLot\s*}}/g, String(randomLot))
+    .replace(/{{\s*visits24h\s*}}/g, String(visits))
+
+  if (reason === 'section' && sectionId) {
+    const sectionMap: Record<string, string> = {
+      galeria: 'galeria',
+      localizacao: 'planta',
+      'vista-360': 'vista 360',
+      ficha: 'ficha técnica',
+      simulador: 'simulador',
+      financiamento: 'tabela de pagamento',
+    }
+    const label = sectionMap[sectionId] || 'detalhes do lote'
+    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.55)), salesMotionLastViews, 2, 24, 0.13)
+    return `${nowUsers} pessoas chegaram na seção de ${label} agora`
+  }
+
+  if (reason === 'scroll') {
+    const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.6)), salesMotionLastViews, 2, 22, 0.14)
+    return `${nowUsers} visitantes estão navegando nesta página neste momento`
+  }
+
+  const options = [
+    fillTemplate(cfg.templates.viewsToday),
+    fillTemplate(cfg.templates.recentReservation),
+    fillTemplate(cfg.templates.visits24h),
+  ].filter(Boolean)
+  return options[Math.floor(Math.random() * options.length)] || ''
+}
+
+const showNextSalesNotice = (reason: 'initial' | 'scroll' | 'section', sectionId?: string) => {
+  if (!process.client) return
+  const cfg = salesMotionConfig.value
+  const minGapMs = Math.max(2000, cfg.intervalSeconds * 1000)
+  if (!cfg.enabled) return
+  if (salesMotionShownCount.value >= cfg.maxNotices) {
+    clearSalesMotionTimers()
+    currentSalesNotice.value = ''
+    return
+  }
+
+  const now = Date.now()
+  if (currentSalesNotice.value) return
+  if (now - salesMotionLastShownAt.value < minGapMs) return
+
+  const message = buildSalesMotionNotice(reason, sectionId)
+  if (!message) return
+
+  currentSalesNotice.value = message
+  salesMotionShownCount.value += 1
+  salesMotionLastShownAt.value = now
+
+  if (salesMotionHideTimerId.value !== null) {
+    window.clearTimeout(salesMotionHideTimerId.value)
+  }
+  salesMotionHideTimerId.value = window.setTimeout(() => {
+    currentSalesNotice.value = ''
+  }, cfg.displaySeconds * 1000)
+}
+
+const startSalesMotion = () => {
+  if (!process.client) return
+  clearSalesMotionTimers()
+  currentSalesNotice.value = ''
+  salesMotionShownCount.value = 0
+  salesMotionLastShownAt.value = 0
+  salesMotionLastViews.value = 0
+  salesMotionLastVisits.value = 0
+  salesMotionSeenSections.value = []
+  salesMotionReachedMilestones.value = []
+
+  if (!salesMotionConfig.value.enabled) return
+
+  salesMotionInitialTimerId.value = window.setTimeout(() => {
+    showNextSalesNotice('initial')
+  }, 1900)
+}
+
+const handleSalesMotionByProgress = () => {
+  if (!process.client) return
+  if (!salesMotionConfig.value.enabled) return
+  if (salesMotionShownCount.value >= salesMotionConfig.value.maxNotices) return
+
+  const doc = document.documentElement
+  const scrollTop = window.scrollY || doc.scrollTop || 0
+  const maxScrollable = Math.max(1, (doc.scrollHeight || 0) - window.innerHeight)
+  const progress = Math.round((scrollTop / maxScrollable) * 100)
+  const milestones = [20, 45, 70, 88]
+  const nextMilestone = milestones.find((m) => progress >= m && !salesMotionReachedMilestones.value.includes(m))
+  if (!nextMilestone) return
+
+  salesMotionReachedMilestones.value = [...salesMotionReachedMilestones.value, nextMilestone]
+  showNextSalesNotice('scroll')
+}
 
 const slopeLabel = (s: string) => {
   const map: Record<string, string> = { 
@@ -1466,7 +1636,16 @@ const handleScroll = () => {
       }
     }
   }
+  handleSalesMotionByProgress()
 }
+
+watch(activeSection, (section) => {
+  if (!salesMotionConfig.value.enabled) return
+  if (section === 'hero') return
+  if (salesMotionSeenSections.value.includes(section)) return
+  salesMotionSeenSections.value = [...salesMotionSeenSections.value, section]
+  showNextSalesNotice('section', section)
+})
 
 function openLightbox(idx: number) {
   lightboxIdx.value = idx
@@ -1549,6 +1728,7 @@ onMounted(async () => {
   }
   
   loading.value = false
+  startSalesMotion()
 
   // After load, validate lot exists
   if (!loading.value && project.value && !lot.value) {
@@ -1556,7 +1736,23 @@ onMounted(async () => {
   }
 })
 
+watch(
+  () => [
+    salesMotionConfig.value.enabled,
+    salesMotionConfig.value.intervalSeconds,
+    salesMotionConfig.value.displaySeconds,
+    salesMotionConfig.value.maxNotices,
+    salesMotionConfig.value.templates.viewsToday,
+    salesMotionConfig.value.templates.recentReservation,
+    salesMotionConfig.value.templates.visits24h,
+  ],
+  () => {
+    startSalesMotion()
+  },
+)
+
 onUnmounted(() => {
+  clearSalesMotionTimers()
   window.removeEventListener('resize', detectTouchMobile)
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('keydown', handleModalKeyDown)
@@ -2329,6 +2525,48 @@ async function submitReservation() {
   z-index: 1000;
 }
 
+.v4-sales-motion-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 1001;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92vw, 680px);
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.v4-sales-motion-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.18);
+  flex: 0 0 auto;
+}
+
+.v4-sales-motion-fade-enter-active,
+.v4-sales-motion-fade-leave-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.v4-sales-motion-fade-enter-from,
+.v4-sales-motion-fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 12px);
+}
+
 .v4-cta-btn-animated {
   display: block;
   text-decoration: none;
@@ -2374,6 +2612,15 @@ async function submitReservation() {
 
 @media (max-width: 768px) {
   .v4-sticky-nav { display: flex; }
+
+  .v4-sales-motion-toast {
+    bottom: 132px;
+    max-width: calc(100vw - 24px);
+    padding: 10px 12px;
+    font-size: 12px;
+    border-radius: 14px;
+    text-align: center;
+  }
 
   .other-assets-v4 { margin-bottom: 32px; padding-bottom: 0; } 
   .hero-v4, .section-v4 { padding: 20px; border-radius: 20px; }
