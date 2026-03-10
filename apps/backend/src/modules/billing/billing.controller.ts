@@ -18,6 +18,7 @@ import { BillingService } from './billing.service';
 import {
   UpsertPricingTableDto,
   AssignPricingTableDto,
+  SetTenantTrialDto,
   SetBillingAnchorDto,
   CreateCustomerDto,
   SavePaymentMethodDto,
@@ -116,6 +117,21 @@ export class BillingAdminController {
   @ApiOperation({ summary: 'Force re-sync subscription for a tenant' })
   syncSubscription(@Param('tenantId') tenantId: string) {
     return this.billingService.syncTenantSubscription(tenantId);
+  }
+
+  @Put('tenants/:tenantId/trial')
+  @ApiOperation({ summary: 'Define/reativa período de teste (meses) para uma tenant' })
+  setTenantTrial(
+    @Param('tenantId') tenantId: string,
+    @Body() dto: SetTenantTrialDto,
+  ) {
+    return this.billingService.setTenantTrialPeriod(tenantId, dto.trialMonths);
+  }
+
+  @Post('tenants/:tenantId/trial/interrupt')
+  @ApiOperation({ summary: 'Interrompe imediatamente o período de teste da tenant' })
+  interruptTenantTrial(@Param('tenantId') tenantId: string) {
+    return this.billingService.interruptTenantTrial(tenantId);
   }
 }
 

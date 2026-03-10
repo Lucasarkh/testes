@@ -25,7 +25,6 @@
           <!-- Category & Status -->
           <div class="hs-popover__top">
             <span class="hs-popover__badge" :style="{ background: badgeColor + '15', color: badgeColor }">
-              <span class="hs-popover__badge-icon">{{ typeIcon }}</span>
               {{ typeLabel }}
             </span>
             

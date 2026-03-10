@@ -84,6 +84,14 @@ export class SetBillingAnchorDto {
   billingDay: number;
 }
 
+export class SetTenantTrialDto {
+  @ApiProperty({ description: 'Duração do período de teste em meses (1-24)', example: 3 })
+  @IsInt()
+  @Min(1)
+  @Max(24)
+  trialMonths: number;
+}
+
 // ─── Customer Setup ──────────────────────────────────────
 
 export class CreateCustomerDto {
@@ -160,11 +168,14 @@ export class SubscriptionStatusDto {
   canCreateProject: boolean;
   nextProjectPriceCents: number | null;
   trialStartedAt: Date | null;
+  trialMonths: number;
+  trialInterruptedAt: Date | null;
   trialEndDate: Date | null;
   trialActive: boolean;
   trialExpired: boolean;
   isOnFreeTier: boolean;
   requiresSubscription: boolean;
+  billingInteractionAllowed: boolean;
 }
 
 export class ProjectLimitsDto {

@@ -51,6 +51,55 @@ export class BillingService {
     }
   }
 
+  private addMonths(date: Date, months: number): Date {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+  }
+
+  private getTrialState(tenant: {
+    trialStartedAt: Date | null;
+    trialMonths?: number | null;
+    trialInterruptedAt?: Date | null;
+  }) {
+    const trialMonths = Math.max(1, tenant.trialMonths ?? 1);
+    const trialStartedAt = tenant.trialStartedAt;
+    const trialEndDate = trialStartedAt
+      ? this.addMonths(new Date(trialStartedAt), trialMonths)
+      : null;
+    const interrupted = !!tenant.trialInterruptedAt;
+    const trialActive = !!trialStartedAt && !interrupted && !!trialEndDate && trialEndDate.getTime() > Date.now();
+    const trialExpired = !!trialStartedAt && !trialActive;
+
+    return {
+      trialMonths,
+      trialStartedAt,
+      trialInterruptedAt: tenant.trialInterruptedAt ?? null,
+      trialEndDate,
+      trialActive,
+      trialExpired,
+    };
+  }
+
+  private async assertBillingInteractionsAllowed(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        trialStartedAt: true,
+        trialMonths: true,
+        trialInterruptedAt: true,
+      },
+    });
+
+    const trial = this.getTrialState(tenant);
+    if (trial.trialActive) {
+      throw new ForbiddenException(
+        'Cobrança indisponível durante o período de teste. Aguarde o término ou interrompa o teste com o SYSADMIN.',
+      );
+    }
+  }
+
   // ─── CUSTOMER MANAGEMENT ────────────────────────────────
 
   async ensureStripeCustomer(tenantId: string, dto?: CreateCustomerDto): Promise<string> {
@@ -89,6 +138,7 @@ export class BillingService {
   // ─── PAYMENT METHODS ───────────────────────────────────
 
   async savePaymentMethod(tenantId: string, dto: SavePaymentMethodDto) {
+    await this.assertBillingInteractionsAllowed(tenantId);
     const customerId = await this.ensureStripeCustomer(tenantId);
 
     await this.stripe.paymentMethods.attach(dto.paymentMethodId, {
@@ -109,6 +159,8 @@ export class BillingService {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
     });
+
+    if (this.getTrialState(tenant).trialActive) return [];
 
     if (!tenant.stripeCustomerId) return [];
 
@@ -325,11 +377,8 @@ export class BillingService {
     const freeProjects = tenant.freeProjects || 0;
     const additionalDiscount = tenant.discountPercent || 0;
 
-    // Trial: 30 days from first login. During trial, at least 1 project is free.
-    // After trial, no projects are free — all require a paid subscription.
-    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
-    const trialActive = !!tenant.trialStartedAt
-      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const trial = this.getTrialState(tenant);
+    const trialActive = trial.trialActive;
     const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
 
     if (N === 0) {
@@ -586,20 +635,14 @@ export class BillingService {
     const freeProjects = tenant.freeProjects || 0;
     const additionalDiscount = tenant.discountPercent || 0;
 
-    // Trial: 30 days from first login. After trial, free tier no longer applies.
-    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
-    const trialActive = !!tenant.trialStartedAt
-      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const trial = this.getTrialState(tenant);
+    const trialActive = trial.trialActive;
     const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
 
     // maxProjects = max(effectiveFreeProjects, subscription.maxProjects)
     // This is the hard cap the user paid for.
     const subMaxProjects = tenant.subscription?.maxProjects || 0;
     const maxProjects = Math.max(effectiveFreeProjects, subMaxProjects);
-
-    const hasActiveSubscription = !!tenant.subscription?.stripeSubscriptionId
-      && tenant.subscription.status !== 'canceled'
-      && tenant.subscription.status !== 'incomplete_expired';
 
     // User can create if: not blocked AND under the paid limit
     const canCreateProject = tenant.billingStatus !== BillingStatus.INADIMPLENTE
@@ -667,10 +710,8 @@ export class BillingService {
     const freeProjects = tenant.freeProjects || 0;
     const activeProjects = tenant._count.projects;
 
-    // Trial: 30 days from first login. After trial, free tier no longer applies.
-    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
-    const trialActive = !!tenant.trialStartedAt
-      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const trial = this.getTrialState(tenant);
+    const trialActive = trial.trialActive;
     const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
 
     // Hard limit: max(effectiveFreeProjects, subscription.maxProjects)
@@ -749,11 +790,8 @@ export class BillingService {
     const baseTier = tiers[0]; // tier 1 = base price, 0% discount
     const basePriceCents = baseTier?.priceCents || 0;
 
-    // During active trial, the tenant is effectively on the free plan (at least 1 project)
-    // even if they haven't created a project yet.
-    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
-    const trialActive = !!tenant.trialStartedAt
-      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
+    const trial = this.getTrialState(tenant);
+    const trialActive = trial.trialActive;
     const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
 
     // Use the subscription's maxProjects (what the user PAID for) to determine the current plan.
@@ -796,6 +834,98 @@ export class BillingService {
       paidPlanLevel,
       billingStatus: tenant.billingStatus,
       plans,
+    };
+  }
+
+  async setTenantTrialPeriod(tenantId: string, trialMonths: number) {
+    if (!Number.isInteger(trialMonths) || trialMonths < 1 || trialMonths > 24) {
+      throw new BadRequestException('trialMonths deve ser um inteiro entre 1 e 24.');
+    }
+
+    const existingSub = await this.prisma.tenantSubscription.findUnique({ where: { tenantId } });
+    if (existingSub?.stripeSubscriptionId && this.stripe) {
+      try {
+        await this.stripe.subscriptions.cancel(existingSub.stripeSubscriptionId);
+      } catch (err) {
+        this.logger.warn(`Failed to cancel Stripe subscription for tenant ${tenantId}: ${err.message}`);
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          trialStartedAt: new Date(),
+          trialMonths,
+          trialInterruptedAt: null,
+          billingStatus: BillingStatus.OK,
+          gracePeriodEnd: null,
+        },
+      });
+
+      await tx.tenantSubscription.upsert({
+        where: { tenantId },
+        create: {
+          tenantId,
+          status: 'trialing',
+          stripeSubscriptionId: null,
+          maxProjects: 0,
+          currentPeriodStart: null,
+          currentPeriodEnd: null,
+        },
+        update: {
+          status: 'trialing',
+          stripeSubscriptionId: null,
+          maxProjects: 0,
+          currentPeriodStart: null,
+          currentPeriodEnd: null,
+          cancelAtPeriodEnd: false,
+        },
+      });
+    });
+
+    await this.syncTenantSubscription(tenantId);
+    const status = await this.getSubscriptionStatus(tenantId);
+
+    return {
+      message: `Período de teste configurado para ${trialMonths} mes(es). Cobrança desativada durante o teste.`,
+      trialMonths,
+      trialStartedAt: status.trialStartedAt,
+      trialEndDate: status.trialEndDate,
+      trialActive: status.trialActive,
+    };
+  }
+
+  async interruptTenantTrial(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        trialStartedAt: true,
+        trialMonths: true,
+        trialInterruptedAt: true,
+      },
+    });
+
+    const trial = this.getTrialState(tenant);
+    if (!trial.trialActive) {
+      throw new BadRequestException('A tenant não está em período de teste ativo.');
+    }
+
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        trialInterruptedAt: new Date(),
+      },
+    });
+
+    await this.syncTenantSubscription(tenantId);
+    const status = await this.getSubscriptionStatus(tenantId);
+
+    return {
+      message: 'Período de teste interrompido. Fluxos de cobrança podem ser habilitados imediatamente.',
+      trialActive: status.trialActive,
+      trialEndDate: status.trialEndDate,
     };
   }
 
@@ -908,6 +1038,7 @@ export class BillingService {
     successUrl?: string,
     cancelUrl?: string,
   ) {
+    await this.assertBillingInteractionsAllowed(tenantId);
     const customerId = await this.ensureStripeCustomer(tenantId);
     const baseDomain = this.config.get<string>('FRONTEND_URL') || 'http://localhost:3000';
 
@@ -935,6 +1066,8 @@ export class BillingService {
     cancelUrl?: string,
     _attempt = 0,
   ) {
+    await this.assertBillingInteractionsAllowed(tenantId);
+
     if (!projectCount || projectCount < 1 || !Number.isInteger(projectCount)) {
       throw new BadRequestException('projectCount deve ser um número inteiro positivo.');
     }
@@ -1014,6 +1147,8 @@ export class BillingService {
   }
 
   async createPortalSession(tenantId: string) {
+    await this.assertBillingInteractionsAllowed(tenantId);
+
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
     });
@@ -1434,16 +1569,14 @@ export class BillingService {
     const hasActivePaidSub = !!tenant.subscription?.stripeSubscriptionId
       && tenant.subscription.status !== 'canceled'
       && tenant.subscription.status !== 'incomplete_expired';
-    const trialDurationMs = 30 * 24 * 60 * 60 * 1000;
-    const trialActive = !!tenant.trialStartedAt
-      && (Date.now() - new Date(tenant.trialStartedAt).getTime()) < trialDurationMs;
-    const trialEndDate = tenant.trialStartedAt
-      ? new Date(new Date(tenant.trialStartedAt).getTime() + trialDurationMs)
-      : null;
+    const trial = this.getTrialState(tenant);
+    const trialActive = trial.trialActive;
+    const trialEndDate = trial.trialEndDate;
     const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
     const isOnFreeTier = trialActive && activeProjectCount <= effectiveFreeProjects && !hasActivePaidSub;
-    const trialExpired = !!tenant.trialStartedAt && !trialActive;
+    const trialExpired = trial.trialExpired;
     const requiresSubscription = activeProjectCount >= effectiveFreeProjects && !hasActivePaidSub;
+    const billingInteractionAllowed = !trialActive;
 
     // Volume pricing: find the tier for current project count
     const basePriceCents = tiers[0]?.priceCents || 0;
@@ -1530,11 +1663,14 @@ export class BillingService {
       canCreateProject,
       nextProjectPriceCents,
       trialStartedAt: tenant.trialStartedAt,
+      trialMonths: trial.trialMonths,
+      trialInterruptedAt: trial.trialInterruptedAt,
       trialEndDate,
       trialActive,
       trialExpired,
       isOnFreeTier,
       requiresSubscription,
+      billingInteractionAllowed,
     };
   }
 
@@ -1584,6 +1720,12 @@ export class BillingService {
   // ─── ADMIN: LIST INVOICES ──────────────────────────────
 
   async listInvoices(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { trialStartedAt: true, trialMonths: true, trialInterruptedAt: true },
+    });
+    if (this.getTrialState(tenant).trialActive) return [];
+
     return this.prisma.billingInvoice.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },

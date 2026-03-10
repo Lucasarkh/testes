@@ -232,7 +232,9 @@ model Tenant {
   pricingTable      ProjectPricingTable? @relation("TenantPricingTable", fields: [pricingTableId], references: [id], onDelete: SetNull)
   discountPercent   Float          @default(0)   // 0-100 tenant-specific discount
   freeProjects      Int            @default(1)   // Number of free projects included
-  trialStartedAt    DateTime?                     // When free-tier trial started (set on first login)
+  trialStartedAt    DateTime?                     // Trial start timestamp (managed by SYSADMIN)
+  trialMonths       Int            @default(1)   // Trial duration in months (managed by SYSADMIN)
+  trialInterruptedAt DateTime?                   // Manual interruption timestamp (managed by SYSADMIN)
 
   users         User[]
   projects      Project[]

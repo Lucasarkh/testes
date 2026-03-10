@@ -20,16 +20,22 @@ const activeTab = ref<'planos' | 'faturas' | 'metodos'>('planos')
 async function fetchAll() {
   loading.value = true
   try {
-    const [s, p, pm, inv] = await Promise.all([
-      get('/billing/status').catch(() => null),
+    const s = await get('/billing/status').catch(() => null)
+    const trialActive = !!s?.trialActive
+
+    const [p, pm, inv] = await Promise.all([
       get('/billing/plans').catch(() => null),
-      get('/billing/payment-methods').catch(() => []),
-      get('/billing/invoices').catch(() => []),
+      trialActive ? Promise.resolve([]) : get('/billing/payment-methods').catch(() => []),
+      trialActive ? Promise.resolve([]) : get('/billing/invoices').catch(() => []),
     ])
     status.value = s
     plans.value = p
     paymentMethods.value = pm || []
     invoices.value = inv || []
+
+    if (trialActive && activeTab.value !== 'planos') {
+      activeTab.value = 'planos'
+    }
   } catch (e: any) {
     toast.error(e.message)
   } finally {
@@ -38,6 +44,10 @@ async function fetchAll() {
 }
 
 async function openPortal() {
+  if (status.value?.trialActive) {
+    toast.error('A cobrança fica oculta durante o período de teste.')
+    return
+  }
   try {
     const res = await post('/billing/portal')
     if (res?.url) window.location.href = res.url
@@ -47,6 +57,10 @@ async function openPortal() {
 }
 
 async function openCheckout() {
+  if (status.value?.trialActive) {
+    toast.error('A cobrança fica oculta durante o período de teste.')
+    return
+  }
   try {
     const res = await post('/billing/checkout')
     if (res?.url) window.location.href = res.url
@@ -56,6 +70,10 @@ async function openCheckout() {
 }
 
 async function subscribeToPlan(projectCount: number) {
+  if (status.value?.trialActive) {
+    toast.error('A cobrança fica oculta durante o período de teste.')
+    return
+  }
   try {
     const res = await post('/billing/subscribe', { projectCount })
     if (res?.url) window.location.href = res.url
@@ -108,6 +126,16 @@ const trialDaysLeft = computed(() => {
   if (!endDate) return 0
   const diff = new Date(endDate).getTime() - Date.now()
   return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)))
+})
+
+const trialMonthsLabel = computed(() => {
+  const months = Number(status.value?.trialMonths || 1)
+  return `${months} ${months === 1 ? 'mês' : 'meses'}`
+})
+
+const freeProjectsLabel = computed(() => {
+  const free = Number(status.value?.freeProjects || 1)
+  return `${free} ${free === 1 ? 'Projeto' : 'Projetos'}`
 })
 
 const lastTierQty = ref<Record<number, number>>({})
@@ -167,7 +195,7 @@ onMounted(async () => {
         <h1 class="page-title">Minha Assinatura</h1>
         <p class="page-subtitle">Escolha o plano ideal e gerencie sua assinatura.</p>
       </div>
-      <button class="btn btn-primary" @click="openPortal">
+      <button v-if="!status?.trialActive" class="btn btn-primary" @click="openPortal">
         <i class="bi bi-credit-card-2-front-fill" aria-hidden="true"></i> Gerenciar Pagamento
       </button>
     </div>
@@ -181,7 +209,7 @@ onMounted(async () => {
       <div v-if="status.isOnFreeTier" class="alert alert-free mb-6">
         <span><i class="bi bi-stars" aria-hidden="true"></i></span>
         <div>
-          <strong>Seu primeiro mês é gratuito!</strong>
+          <strong>Seu período de teste está ativo ({{ trialMonthsLabel }})!</strong>
           <p class="mb-0">
             Aproveite para configurar seu loteamento. Restam <strong>{{ trialDaysLeft }}</strong> dia{{ trialDaysLeft !== 1 ? 's' : '' }} de teste.
             Para adicionar mais projetos, escolha um plano abaixo.
@@ -223,7 +251,7 @@ onMounted(async () => {
           <div class="summary-label">Plano Atual</div>
           <div class="summary-value primary">
             <template v-if="status.isOnFreeTier">
-              1 Projeto <span class="summary-trial-badge">teste</span>
+              {{ freeProjectsLabel }} <span class="summary-trial-badge">em teste</span>
             </template>
             <template v-else>
               {{ status.activeProjectCount }} {{ status.activeProjectCount === 1 ? 'Projeto' : 'Projetos' }}
@@ -267,8 +295,8 @@ onMounted(async () => {
       <!-- Tabs -->
       <div class="tabs mb-6">
         <button :class="['tab', { active: activeTab === 'planos' }]" @click="activeTab = 'planos'">Planos</button>
-        <button :class="['tab', { active: activeTab === 'faturas' }]" @click="activeTab = 'faturas'">Faturas</button>
-        <button :class="['tab', { active: activeTab === 'metodos' }]" @click="activeTab = 'metodos'">Métodos de Pagamento</button>
+        <button v-if="!status.trialActive" :class="['tab', { active: activeTab === 'faturas' }]" @click="activeTab = 'faturas'">Faturas</button>
+        <button v-if="!status.trialActive" :class="['tab', { active: activeTab === 'metodos' }]" @click="activeTab = 'metodos'">Métodos de Pagamento</button>
       </div>
 
       <!-- Tab: Plans (Volume Pricing) -->
@@ -377,6 +405,9 @@ onMounted(async () => {
                 <template v-else-if="plan.isCurrent">
                   <span class="plan-hint-current">&#10003; Seu plano atual</span>
                 </template>
+                <template v-else-if="status.trialActive">
+                  <span class="plan-hint-current">Cobrança liberada após o teste</span>
+                </template>
                 <template v-else-if="plan.projectCount > (plans.paidPlanLevel || 0)">
                   <button class="btn btn-sm btn-primary w-full" @click="subscribeToPlan(plan.isLastTier ? getLastTierQty(plan) : plan.projectCount)">
                     Fazer upgrade
@@ -427,7 +458,7 @@ onMounted(async () => {
       </div>
 
       <!-- Tab: Invoices -->
-      <div v-if="activeTab === 'faturas'">
+      <div v-if="activeTab === 'faturas' && !status.trialActive">
         <div class="table-wrapper" v-if="invoices.length > 0">
           <table>
             <thead>
@@ -463,7 +494,7 @@ onMounted(async () => {
       </div>
 
       <!-- Tab: Payment Methods -->
-      <div v-if="activeTab === 'metodos'">
+      <div v-if="activeTab === 'metodos' && !status.trialActive">
         <div class="payment-methods-grid" v-if="paymentMethods.length > 0">
           <div v-for="pm in paymentMethods" :key="pm.id" class="pm-card">
             <div class="pm-brand">

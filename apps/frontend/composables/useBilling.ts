@@ -42,11 +42,14 @@ export interface SubscriptionStatus {
   canCreateProject: boolean;
   nextProjectPriceCents: number | null;
   trialStartedAt: string | null;
+  trialMonths: number;
+  trialInterruptedAt: string | null;
   trialEndDate: string | null;
   trialActive: boolean;
   trialExpired: boolean;
   isOnFreeTier: boolean;
   requiresSubscription: boolean;
+  billingInteractionAllowed: boolean;
 }
 
 export interface ProjectLimits {

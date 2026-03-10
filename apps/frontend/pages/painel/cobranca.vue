@@ -17,6 +17,7 @@ const showPricingTableModal = ref(false)
 const showAssignModal = ref(false)
 const showAnchorModal = ref(false)
 const showLimitsModal = ref(false)
+const showTrialModal = ref(false)
 const saving = ref(false)
 
 // ─── Pricing Table form (volume pricing) ──────────────
@@ -37,6 +38,11 @@ const assignForm = ref({
 
 // ─── Billing Anchor ──────────────────────────────────
 const billingDay = ref<number | null>(null)
+
+// ─── Trial Control ──────────────────────────────────
+const trialForm = ref({
+  trialMonths: 1,
+})
 
 // ─── Tenant Limits (read-only view) ──────────────────
 const tenantLimits = ref<any>(null)
@@ -224,6 +230,42 @@ async function saveAnchor() {
   }
 }
 
+function openTrialModal(tenant: any) {
+  selectedTenant.value = tenant
+  trialForm.value = {
+    trialMonths: Number(tenant?.trialMonths || 1),
+  }
+  showTrialModal.value = true
+}
+
+async function saveTrial() {
+  if (!selectedTenant.value) return
+  saving.value = true
+  try {
+    await put(`/billing/admin/tenants/${selectedTenant.value.id}/trial`, {
+      trialMonths: Number(trialForm.value.trialMonths),
+    })
+    toast.success(`Período de teste atualizado para ${selectedTenant.value.name}`)
+    showTrialModal.value = false
+    await fetchData()
+  } catch (e: any) {
+    toast.error(e.message || 'Erro ao configurar período de teste')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function interruptTrial(tenant: any) {
+  if (!confirm(`Interromper o período de teste de ${tenant.name} agora?`)) return
+  try {
+    await post(`/billing/admin/tenants/${tenant.id}/trial/interrupt`)
+    toast.success(`Período de teste interrompido para ${tenant.name}`)
+    await fetchData()
+  } catch (e: any) {
+    toast.error(e.message || 'Erro ao interromper período de teste')
+  }
+}
+
 // ─── Fix Payment Methods (for existing subscriptions) ─
 async function fixPaymentMethods(tenant: any) {
   try {
@@ -242,6 +284,39 @@ function formatCents(cents: number) {
 function formatDate(d: string) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('pt-BR')
+}
+
+function addMonths(dateStr: string, months: number) {
+  const dt = new Date(dateStr)
+  dt.setMonth(dt.getMonth() + Math.max(1, Number(months || 1)))
+  return dt
+}
+
+function getTrialMeta(tenant: any) {
+  const startedAt = tenant?.trialStartedAt
+  if (!startedAt) {
+    return {
+      configured: false,
+      active: false,
+      endDate: null as Date | null,
+    }
+  }
+
+  const interrupted = !!tenant?.trialInterruptedAt
+  const endDate = addMonths(startedAt, tenant?.trialMonths || 1)
+  const active = !interrupted && endDate.getTime() > Date.now()
+
+  return {
+    configured: true,
+    active,
+    endDate,
+  }
+}
+
+function formatTrialEndDate(tenant: any) {
+  const meta = getTrialMeta(tenant)
+  if (!meta.endDate) return '—'
+  return meta.endDate.toLocaleDateString('pt-BR')
 }
 
 function getTenantPricingTableName(tenant: any) {
@@ -398,6 +473,7 @@ onMounted(fetchData)
                 <th>Loteadora</th>
                 <th>Tabela de Preço</th>
                 <th>Desc. Adicional / Grátis</th>
+                <th>Período de Teste</th>
                 <th>Status</th>
                 <th>Stripe</th>
                 <th>Ações</th>
@@ -427,6 +503,23 @@ onMounted(fetchData)
                   </div>
                 </td>
                 <td>
+                  <div class="flex gap-2 flex-wrap" style="align-items: center;">
+                    <span v-if="getTrialMeta(t).active" class="badge badge-success">
+                      Ativo ({{ t.trialMonths || 1 }}m)
+                    </span>
+                    <span v-else-if="t.trialInterruptedAt" class="badge badge-warning">
+                      Interrompido
+                    </span>
+                    <span v-else-if="t.trialStartedAt" class="badge badge-outline">
+                      Encerrado
+                    </span>
+                    <span v-else class="text-sm" style="color: var(--color-surface-400);">Não iniciado</span>
+                    <div v-if="t.trialStartedAt" class="text-xs" style="color: var(--color-surface-500); width: 100%;">
+                      Fim previsto: {{ formatTrialEndDate(t) }}
+                    </div>
+                  </div>
+                </td>
+                <td>
                   <span class="badge" :class="billingStatusLabel[t.billingStatus]?.cls || 'badge-outline'">
                     {{ billingStatusLabel[t.billingStatus]?.label || t.billingStatus || 'OK' }}
                   </span>
@@ -446,6 +539,18 @@ onMounted(fetchData)
                     <button class="btn btn-sm btn-outline" @click="openAnchorModal(t)" title="Definir vencimento">
                       <i class="bi bi-calendar-event-fill" aria-hidden="true"></i> Vencimento
                     </button>
+                    <button class="btn btn-sm btn-outline" @click="openTrialModal(t)" title="Definir período de teste">
+                      <i class="bi bi-hourglass-split" aria-hidden="true"></i> Teste
+                    </button>
+                    <button
+                      v-if="getTrialMeta(t).active"
+                      class="btn btn-sm btn-ghost"
+                      style="color: #f59e0b;"
+                      @click="interruptTrial(t)"
+                      title="Interromper período de teste imediatamente"
+                    >
+                      <i class="bi bi-stop-circle-fill" aria-hidden="true"></i> Interromper
+                    </button>
                     <button class="btn btn-sm btn-accent" @click="syncSubscription(t)" title="Sincronizar assinatura no Stripe">
                       <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Sync
                     </button>
@@ -456,7 +561,7 @@ onMounted(fetchData)
                 </td>
               </tr>
               <tr v-if="tenants.length === 0">
-                <td colspan="6" class="text-center py-4" style="color: var(--color-surface-400);">
+                <td colspan="7" class="text-center py-4" style="color: var(--color-surface-400);">
                   Nenhuma loteadora cadastrada.
                 </td>
               </tr>
@@ -735,6 +840,46 @@ onMounted(fetchData)
           <button type="button" class="btn btn-ghost" @click="showAnchorModal = false">Cancelar</button>
           <button class="btn btn-primary" :disabled="saving || !billingDay" @click="saveAnchor">
             {{ saving ? 'Salvando...' : 'Salvar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Trial Modal ────────────────────────────────── -->
+    <div v-if="showTrialModal" class="modal-overlay">
+      <div class="modal" style="max-width: 430px;" @click.stop>
+        <div class="modal-header">
+          <h3>Período de Teste — {{ selectedTenant?.name }}</h3>
+          <button class="modal-close" @click="showTrialModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="text-sm mb-4" style="color: var(--color-surface-400);">
+            Defina por quantos meses a loteadora ficará em teste. Durante esse período,
+            o sistema não deve exibir nem vincular cobranças para esse cliente.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Duração do Teste (meses)</label>
+            <input
+              v-model.number="trialForm.trialMonths"
+              type="number"
+              min="1"
+              max="24"
+              step="1"
+              class="form-input"
+              placeholder="Ex: 3"
+              required
+            />
+          </div>
+
+          <div class="text-sm mt-3" style="color: var(--color-surface-500);">
+            Esta ação reinicia o período de teste a partir de agora e desativa cobrança enquanto durar.
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" @click="showTrialModal = false">Cancelar</button>
+          <button class="btn btn-primary" :disabled="saving || !trialForm.trialMonths" @click="saveTrial">
+            {{ saving ? 'Salvando...' : 'Salvar Período de Teste' }}
           </button>
         </div>
       </div>

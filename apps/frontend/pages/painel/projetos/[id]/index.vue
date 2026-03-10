@@ -229,19 +229,19 @@
                 <div class="text-muted" style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; font-size: 0.78rem;">
                   <span style="opacity: 0.9;">Placeholders:</span>
                   <CommonAppTooltip text="Quantidade estimada de pessoas que visualizaram hoje (valor dinâmico e suavizado)." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{viewsToday}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{viewsToday}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Código/nome de lote ou unidade usado para simular uma reserva recente." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{recentLot}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{recentLot}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Volume estimado de visitas nas últimas 24h para o empreendimento." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visits24h}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{visits24h}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Quantidade estimada de usuários navegando agora." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visitsNow}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{visitsNow}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Nome da seção atual de navegação (ex.: planta, lotes, contato)." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{sectionLabel}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{sectionLabel}}</span>
                   </CommonAppTooltip>
                 </div>
               </div>
@@ -305,19 +305,19 @@
                 <div class="text-muted" style="display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; font-size: 0.78rem;">
                   <span style="opacity: 0.9;">Placeholders:</span>
                   <CommonAppTooltip text="Quantidade estimada de visualizações do lote no dia." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{viewsToday}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{viewsToday}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Código/nome de lote usado para mensagem de reserva recente." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{recentLot}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{recentLot}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Volume estimado de visitas do loteamento nas últimas 24h." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visits24h}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{visits24h}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Quantidade estimada de usuários navegando na página neste momento." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{visitsNow}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{visitsNow}}</span>
                   </CommonAppTooltip>
                   <CommonAppTooltip text="Seção atual da página de lote (ex.: galeria, ficha técnica, simulador)." position="top">
-                    <span style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{ '{{sectionLabel}}' }}</span>
+                    <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{sectionLabel}}</span>
                   </CommonAppTooltip>
                 </div>
               </div>

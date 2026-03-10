@@ -150,6 +150,12 @@ export class TenantsService {
       stripeCustomerId: t.stripeCustomerId || null,
       billingEmail: t.billingEmail || null,
       gracePeriodEnd: t.gracePeriodEnd || null,
+      pricingTableId: t.pricingTableId || null,
+      discountPercent: t.discountPercent || 0,
+      freeProjects: t.freeProjects || 0,
+      trialStartedAt: t.trialStartedAt || null,
+      trialMonths: t.trialMonths || 1,
+      trialInterruptedAt: t.trialInterruptedAt || null,
       createdAt: t.createdAt,
       metrics: {
         brokers: t._count.users,
