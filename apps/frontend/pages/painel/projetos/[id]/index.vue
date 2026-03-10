@@ -126,8 +126,6 @@
               <span class="sidebar-label">Panorama 360°</span>
             </NuxtLink>
           </div>
-          <div class="sidebar-divider"></div>
-
           <nav class="sidebar-nav">
             <div v-for="group in sidebarGroups" :key="group.id" class="sidebar-group">
               <p class="sidebar-group-title">{{ group.label }}</p>
@@ -196,9 +194,16 @@
         <main class="project-content">
 
       <!-- Configurações do Projeto -->
-      <section v-if="activeSection === 'configuracoes'" id="configuracoes" class="content-section">
-        <div class="card" style="max-width: 600px;">
+      <section v-if="activeSection === 'configuracoes' || activeSection === 'movimento-loteamento'" id="configuracoes" class="content-section">
+        <div
+          class="card"
+          :style="{
+            maxWidth: activeSection === 'movimento-loteamento' ? '1200px' : '600px',
+            width: '100%'
+          }"
+        >
           <form @submit.prevent="saveSettings">
+            <template v-if="activeSection === 'configuracoes'">
             <div class="form-group">
               <label class="form-label">Nome</label>
               <input v-model="editForm.name" class="form-input" required />
@@ -218,12 +223,25 @@
               <input v-model="editForm.customDomain" class="form-input" placeholder="ex: vendas.meu-loteamento.com" />
               <small class="text-muted">Informe o domínio completo ou subdomínio que aponta para cá.</small>
             </div>
+            </template>
 
-            <div class="form-group" style="margin-top: 12px; padding-top: 18px; border-top: 1px dashed var(--glass-border-subtle);">
+            <div v-if="activeSection === 'movimento-loteamento'" class="form-group">
               <label class="form-label" style="display:flex; align-items:center; gap:8px; margin-bottom: 10px;">
                 <span><i class="bi bi-broadcast-pin" aria-hidden="true"></i></span>
                 <span>Movimento do Loteamento (efeito stand de vendas)</span>
               </label>
+
+              <label class="flex items-center" style="gap: 8px; margin-bottom: 12px; cursor:pointer;">
+                <input v-model="salesMotionMasterEnabled" type="checkbox" style="width: 16px; height: 16px;" />
+                <span style="font-size: 0.86rem; font-weight: 700;">Ativar movimento do loteamento</span>
+              </label>
+
+              <p class="text-muted" style="font-size: 0.78rem; margin-bottom: 12px;">
+                {{ salesMotionMasterEnabled ? 'Ativo: mensagens de movimento podem aparecer no empreendimento e na página de lote.' : 'Desativado: nenhuma mensagem de movimento será exibida nas páginas públicas.' }}
+              </p>
+
+              <div :style="{ opacity: salesMotionMasterEnabled ? 1 : 0.55, pointerEvents: salesMotionMasterEnabled ? 'auto' : 'none' }">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; align-items: start;">
 
               <div class="form-group" style="margin-bottom: 14px; padding: 12px; border: 1px solid var(--glass-border-subtle); border-radius: 10px;">
                 <label class="form-label" style="display:flex; align-items:center; gap:8px; margin-bottom: 10px;">
@@ -271,7 +289,7 @@
                         <input v-model="tpl.enabled" type="checkbox" style="width: 14px; height: 14px;" />
                         <span>{{ tpl.enabled ? 'Exibir este texto' : 'Oculto' }}</span>
                       </label>
-                      <button type="button" class="btn btn-danger btn-sm" @click="removeSalesMotionTemplate('enterprise', idx)">Remover</button>
+                      <button type="button" class="btn btn-danger btn-sm" @click="removeSalesMotionTemplate('enterprise', Number(idx))">Remover</button>
                     </div>
                     <textarea
                       v-model="tpl.text"
@@ -385,7 +403,7 @@
                         <input v-model="tpl.enabled" type="checkbox" style="width: 14px; height: 14px;" />
                         <span>{{ tpl.enabled ? 'Exibir este texto' : 'Oculto' }}</span>
                       </label>
-                      <button type="button" class="btn btn-danger btn-sm" @click="removeSalesMotionTemplate('lot', idx)">Remover</button>
+                      <button type="button" class="btn btn-danger btn-sm" @click="removeSalesMotionTemplate('lot', Number(idx))">Remover</button>
                     </div>
                     <textarea
                       v-model="tpl.text"
@@ -451,6 +469,8 @@
                     <span v-pre style="cursor: help; padding: 2px 8px; border: 1px dashed var(--glass-border-subtle); border-radius: 999px;">{{sectionLabel}}</span>
                   </CommonAppTooltip>
                 </div>
+              </div>
+              </div>
               </div>
             </div>
             <div v-if="settingsError" class="alert alert-error">{{ settingsError }}</div>
@@ -2295,7 +2315,7 @@ const removeBreak = (idx: number) => {
   schedulingForm.value.breaks.splice(idx, 1)
 }
 
-const editForm = ref({
+const editForm = ref<any>({
   name: '',
   slug: '',
   description: '',
@@ -2325,7 +2345,7 @@ const editForm = ref({
         { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
         { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
         { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
-      ] as Array<{ id: string; text: string; enabled: boolean }>,
+      ] as any[],
     },
     lot: {
       enabled: false,
@@ -2338,7 +2358,7 @@ const editForm = ref({
         { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
         { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
         { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
-      ] as Array<{ id: string; text: string; enabled: boolean }>,
+      ] as any[],
     },
   }
 })
@@ -2449,7 +2469,7 @@ const createSalesMotionTemplate = (text = '') => ({
 const normalizeSalesMotionTemplateList = (
   source: any,
   fallback: Array<{ id: string; text: string; enabled: boolean }>
-) => {
+): any[] => {
   if (Array.isArray(source)) {
     const normalized = source
       .map((tpl: any, idx: number) => {
@@ -2495,9 +2515,20 @@ const addSalesMotionTemplate = (context: 'enterprise' | 'lot') => {
   editForm.value.salesMotionConfig[context].templates.push(createSalesMotionTemplate())
 }
 
-const removeSalesMotionTemplate = (context: 'enterprise' | 'lot', idx: number) => {
-  editForm.value.salesMotionConfig[context].templates.splice(idx, 1)
+const removeSalesMotionTemplate = (context: 'enterprise' | 'lot', idx: number | string) => {
+  editForm.value.salesMotionConfig[context].templates.splice(Number(idx), 1)
 }
+
+const salesMotionMasterEnabled = computed({
+  get: () => {
+    const cfg = editForm.value.salesMotionConfig
+    return !!(cfg.enterprise.enabled || cfg.lot.enabled)
+  },
+  set: (enabled: boolean) => {
+    editForm.value.salesMotionConfig.enterprise.enabled = enabled
+    editForm.value.salesMotionConfig.lot.enabled = enabled
+  },
+})
 
 // ── Slug validation for edit ─────────────────────────────
 const editSlugTaken = ref(false)
@@ -2607,7 +2638,7 @@ const updateFromEditor = () => {
   }
 };
 
-const stripHtml = (value: string) => value.replace(/<[^>]*>/g, '').trim()
+const stripHtml = (value?: string) => (value || '').replace(/<[^>]*>/g, '').trim()
 
 const extractLocationMeta = (raw: string) => {
   const source = raw || ''
@@ -3499,7 +3530,11 @@ const movePublicSection = async (sectionId: string, direction: 'up' | 'down') =>
   const ordered = normalizePublicSectionOrder(publicSectionsOrder.value)
   const idx = ordered.indexOf(sectionId)
   const swapWith = direction === 'up' ? idx - 1 : idx + 1
-  ;[ordered[idx], ordered[swapWith]] = [ordered[swapWith], ordered[idx]]
+  const current = ordered[idx]
+  const target = ordered[swapWith]
+  if (!current || !target) return
+  ordered[idx] = target
+  ordered[swapWith] = current
   publicSectionsOrder.value = ordered
   await persistPublicSectionOrder()
 }
@@ -3507,6 +3542,7 @@ const movePublicSection = async (sectionId: string, direction: 'up' | 'down') =>
 const configurationSections = computed<SidebarSectionItem[]>(() => {
   const sections: SidebarSectionItem[] = [
     { id: 'configuracoes', icon: 'bi bi-gear-fill', label: 'Dados Gerais' },
+    { id: 'movimento-loteamento', icon: 'bi bi-broadcast-pin', label: 'Movimento do Loteamento' },
     { id: 'pub-pricing', icon: 'bi bi-cash-coin', label: 'Preços e Condições (Topo)' },
     { id: 'financeiro', icon: 'bi bi-calculator-fill', label: 'Simulação Financeira' },
   ]
@@ -4168,16 +4204,13 @@ onMounted(async () => {
 
 .sidebar-group-title {
   margin: 0;
-  padding: 6px 10px 6px 12px;
+  padding: 2px 2px 8px;
   font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-surface-200);
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0.02));
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-left: 3px solid rgba(16, 185, 129, 0.55);
-  border-radius: 8px;
+  color: var(--color-surface-400);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .sidebar-group-content {
@@ -4313,12 +4346,6 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 
-.sidebar-divider {
-  height: 1px;
-  background: var(--glass-border-subtle);
-  margin: 4px 0;
-}
-
 .sidebar-tools {
   display: flex;
   flex-direction: column;
@@ -4327,16 +4354,13 @@ onMounted(async () => {
 
 .sidebar-tools-title {
   margin: 0;
-  padding: 6px 10px 6px 12px;
+  padding: 2px 2px 8px;
   font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-surface-100);
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.16), rgba(16, 185, 129, 0.04));
-  border: 1px solid rgba(16, 185, 129, 0.24);
-  border-left: 3px solid rgba(16, 185, 129, 0.6);
-  border-radius: 8px;
+  color: var(--color-surface-300);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .sidebar-tool-link {
@@ -4345,49 +4369,47 @@ onMounted(async () => {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 10px;
-  color: var(--color-surface-200);
+  color: var(--color-surface-400);
   text-decoration: none;
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 500;
   transition: all 0.2s;
-  background: rgba(8, 22, 18, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: none;
+  border: none;
 }
 
 .sidebar-tool-link--primary {
-  border-color: rgba(148, 163, 184, 0.22);
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.2));
-  color: var(--color-surface-100);
-  font-weight: 650;
+  border: none;
+  background: none;
+  color: inherit;
+  font-weight: inherit;
 }
 
 .sidebar-tool-link:hover {
-  border-color: rgba(16, 185, 129, 0.5);
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), rgba(15, 23, 42, 0.26));
-  color: #d1fae5;
+  background: var(--glass-bg-heavy);
+  color: var(--color-surface-200);
 }
 
 .sidebar-tool-link.active {
-  border-color: var(--color-primary-500);
+  border: none;
   color: var(--color-primary-400, #34d399);
-  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.2));
+  background: rgba(16, 185, 129, 0.14);
+  font-weight: 700;
 }
 
 .sidebar-tool-link .sidebar-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(148, 163, 184, 0.12);
-  color: rgba(226, 232, 240, 0.95);
+  width: 20px;
+  height: auto;
+  border-radius: 0;
+  display: inline-block;
+  background: none;
+  color: inherit;
 }
 
 .sidebar-tool-link:hover .sidebar-icon,
 .sidebar-tool-link.active .sidebar-icon {
-  background: rgba(16, 185, 129, 0.2);
-  color: #6ee7b7;
+  background: none;
+  color: inherit;
 }
 
 .project-content {
@@ -4421,11 +4443,11 @@ onMounted(async () => {
     gap: 10px;
   }
   .sidebar-group-title {
-    padding: 5px 8px 5px 10px;
+    padding: 2px 2px 6px;
     font-size: 0.64rem;
   }
   .sidebar-tools-title {
-    padding: 5px 8px 5px 10px;
+    padding: 2px 2px 6px;
     font-size: 0.64rem;
   }
   .sidebar-group-content {
@@ -4442,9 +4464,6 @@ onMounted(async () => {
   .sidebar-link {
     padding: 6px 10px;
     font-size: 0.75rem;
-  }
-  .sidebar-divider {
-    display: none;
   }
   .sidebar-tools {
     display: grid;
