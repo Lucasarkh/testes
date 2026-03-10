@@ -21,15 +21,15 @@
       <div class="grid grid-cols-3">
         <div class="stat-card">
           <div class="stat-value">{{ realtorLink._count.leads }}</div>
-          <div class="stat-label">Total de Leads</div>
+          <CommonAppTooltip text="Total de leads captados através do seu link de divulgação." position="bottom"><div class="stat-label">Total de Leads</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ activeCampaigns.length }}</div>
-          <div class="stat-label">Campanhas Ativas</div>
+          <CommonAppTooltip text="Número de campanhas de marketing atualmente ativas e vinculadas a você." position="bottom"><div class="stat-label">Campanhas Ativas</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ recentLeads.length }}</div>
-          <div class="stat-label">Leads Recentes</div>
+          <CommonAppTooltip text="Leads captados recentemente através dos seus links." position="bottom"><div class="stat-label">Leads Recentes</div></CommonAppTooltip>
         </div>
       </div>
 

@@ -29,22 +29,22 @@
         <div class="stat-card stat-card--accent">
           <div class="stat-icon-wrap stat-icon--blue"><i class="pi pi-users"></i></div>
           <div class="stat-value">{{ stats.totalRealtors || 0 }}</div>
-          <div class="stat-label">Corretores ativos</div>
+          <CommonAppTooltip text="Número de corretores vinculados e ativos na sua equipe." position="bottom"><div class="stat-label">Corretores ativos</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-icon-wrap stat-icon--green"><i class="pi pi-target"></i></div>
           <div class="stat-value stat-value--success">{{ stats.totalLeads || 0 }}</div>
-          <div class="stat-label">Leads acumulados</div>
+          <CommonAppTooltip text="Total de leads gerados por toda a equipe desde o início." position="bottom"><div class="stat-label">Leads acumulados</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-icon-wrap stat-icon--amber"><i class="pi pi-calendar"></i></div>
           <div class="stat-value">{{ stats.totalSchedulings || 0 }}</div>
-          <div class="stat-label">Visitas ao stand</div>
+          <CommonAppTooltip text="Total de agendamentos de visitas ao stand de vendas registrados." position="bottom"><div class="stat-label">Visitas ao stand</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-icon-wrap stat-icon--purple"><i class="pi pi-chart-bar"></i></div>
           <div class="stat-value">{{ stats.totalSessions || 0 }}</div>
-          <div class="stat-label">Acessos (30 dias)</div>
+          <CommonAppTooltip text="Total de sessões (visitas ao site) nos últimos 30 dias geradas pela equipe." position="bottom"><div class="stat-label">Acessos (30 dias)</div></CommonAppTooltip>
         </div>
       </div>
 

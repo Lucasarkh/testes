@@ -21,19 +21,19 @@
       <div class="grid grid-cols-4">
         <div class="stat-card">
           <div class="stat-value">{{ stats.projects }}</div>
-          <div class="stat-label">Projetos</div>
+          <CommonAppTooltip text="Total de empreendimentos cadastrados na plataforma." position="bottom"><div class="stat-label">Projetos</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ stats.publishedProjects }}</div>
-          <div class="stat-label">Publicados</div>
+          <CommonAppTooltip text="Projetos que estão publicados e visíveis para o público." position="bottom"><div class="stat-label">Publicados</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ stats.totalLots }}</div>
-          <div class="stat-label">Elementos no Mapa</div>
+          <CommonAppTooltip text="Total de lotes e elementos desenhados nos mapas de todos os projetos." position="bottom"><div class="stat-label">Elementos no Mapa</div></CommonAppTooltip>
         </div>
         <div class="stat-card">
           <div class="stat-value">{{ stats.totalLeads }}</div>
-          <div class="stat-label">Leads</div>
+          <CommonAppTooltip text="Total de leads (contatos de interessados) captados em todos os projetos." position="bottom"><div class="stat-label">Leads</div></CommonAppTooltip>
         </div>
       </div>
 

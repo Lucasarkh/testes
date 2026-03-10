@@ -15,17 +15,17 @@
       <div class="stat-card stat-card--highlight">
         <div class="stat-icon-wrap stat-icon--blue"><i class="pi pi-users"></i></div>
         <div class="stat-value">{{ summary.totalRealtors }}</div>
-        <div class="stat-label">Corretores na equipe</div>
+        <CommonAppTooltip text="Total de corretores vinculados à sua equipe na plataforma." position="bottom"><div class="stat-label">Corretores na equipe</div></CommonAppTooltip>
       </div>
       <div class="stat-card">
         <div class="stat-icon-wrap stat-icon--green"><i class="pi pi-target"></i></div>
         <div class="stat-value">{{ summary.totalLeads }}</div>
-        <div class="stat-label">Leads totais</div>
+        <CommonAppTooltip text="Soma de todos os leads gerados pela equipe." position="bottom"><div class="stat-label">Leads totais</div></CommonAppTooltip>
       </div>
       <div class="stat-card">
         <div class="stat-icon-wrap stat-icon--purple"><i class="pi pi-eye"></i></div>
         <div class="stat-value">{{ summary.totalSessions }}</div>
-        <div class="stat-label">Acessos totais</div>
+        <CommonAppTooltip text="Total de sessões (visitas) geradas por todos os corretores da equipe." position="bottom"><div class="stat-label">Acessos totais</div></CommonAppTooltip>
       </div>
     </div>
 
@@ -50,9 +50,9 @@
           <thead>
             <tr>
               <th>Corretor</th>
-              <th class="text-center-col">Leads</th>
-              <th class="text-center-col">Acessos</th>
-              <th class="text-center-col">Conversão</th>
+              <th class="text-center-col"><CommonAppTooltip text="Total de leads gerados pelo corretor." position="bottom">Leads</CommonAppTooltip></th>
+              <th class="text-center-col"><CommonAppTooltip text="Total de visitas geradas através do link do corretor." position="bottom">Acessos</CommonAppTooltip></th>
+              <th class="text-center-col"><CommonAppTooltip text="Taxa de conversão: percentual de acessos que resultaram em leads." position="bottom">Conversão</CommonAppTooltip></th>
               <th class="text-center-col">Link</th>
             </tr>
           </thead>

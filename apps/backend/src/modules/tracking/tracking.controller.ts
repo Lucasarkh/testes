@@ -69,6 +69,61 @@ export class TrackingController {
     return this.trackingService.getDashboardStats(tenantId, user);
   }
 
+  @Get('metrics/lots')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getLotMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getLotMetrics(query, user);
+  }
+
+  @Get('metrics/trends')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getTrendMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getTrendMetrics(query, user);
+  }
+
+  @Get('metrics/brokers')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getBrokerMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getBrokerMetrics(query, user);
+  }
+
+  @Get('metrics/enterprise')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getEnterpriseMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getEnterpriseMetrics(query, user);
+  }
+
+  @Get('metrics/traffic')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getTrafficMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getTrafficMetrics(query, user);
+  }
+
   @Get('metrics')
   @UseGuards(AuthGuard('jwt'), TenantGuard)
   async getMetrics(
