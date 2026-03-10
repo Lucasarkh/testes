@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { BulkMapElementsDto, MapElementDto } from './dto/map-element.dto';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,6 +7,12 @@ import { LotStatus, SlopeType } from '@prisma/client';
 @Injectable()
 export class MapElementsService {
   constructor(private prisma: PrismaService) {}
+
+  private ensureProjectEditable(project: { slug: string | null }) {
+    if ((project.slug || '').toLowerCase().startsWith('archived-')) {
+      throw new ForbiddenException('Projeto arquivado não pode ser editado.');
+    }
+  }
 
   private parseNumber(value: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
@@ -86,6 +92,7 @@ export class MapElementsService {
       where: { id: projectId, tenantId }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
+    this.ensureProjectEditable(project);
 
     // We'll use a transaction for safety
     return this.prisma.$transaction(
@@ -250,6 +257,7 @@ export class MapElementsService {
       where: { id: projectId, tenantId }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
+    this.ensureProjectEditable(project);
 
     return this.prisma.mapElement.create({
       data: {
@@ -272,6 +280,13 @@ export class MapElementsService {
     });
     if (!el) throw new NotFoundException('Elemento não encontrado.');
 
+    const project = await this.prisma.project.findFirst({
+      where: { id: el.projectId, tenantId },
+      select: { slug: true }
+    });
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
+    this.ensureProjectEditable(project);
+
     return this.prisma.mapElement.update({
       where: { id },
       data: {
@@ -291,6 +306,13 @@ export class MapElementsService {
       where: { id, tenantId }
     });
     if (!el) throw new NotFoundException('Elemento não encontrado.');
+
+    const project = await this.prisma.project.findFirst({
+      where: { id: el.projectId, tenantId },
+      select: { slug: true }
+    });
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
+    this.ensureProjectEditable(project);
 
     await this.prisma.mapElement.delete({ where: { id } });
     return { message: 'Elemento removido.' };

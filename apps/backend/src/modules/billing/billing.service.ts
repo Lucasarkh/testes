@@ -24,6 +24,18 @@ export class BillingService {
   private readonly stripe: Stripe;
   private readonly GRACE_PERIOD_DAYS = 15;
 
+  private activeProjectWhere(tenantId: string) {
+    return {
+      tenantId,
+      NOT: {
+        slug: {
+          startsWith: 'archived-',
+          mode: 'insensitive' as const
+        }
+      }
+    };
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService
@@ -386,6 +398,7 @@ export class BillingService {
           include: { tiers: { orderBy: { projectNumber: 'asc' } } }
         },
         projects: {
+          where: this.activeProjectWhere(tenantId),
           orderBy: { createdAt: 'asc' },
           select: { id: true, name: true, slug: true }
         }
@@ -680,18 +693,22 @@ export class BillingService {
   // ─── PROJECT LIMITS ────────────────────────────────────
 
   async getProjectLimits(tenantId: string): Promise<ProjectLimitsDto> {
-    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+    const [tenant, activeProjectCount] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
       include: {
         pricingTable: {
           include: { tiers: { orderBy: { projectNumber: 'asc' } } }
         },
-        subscription: true,
-        _count: { select: { projects: true } }
+        subscription: true
       }
-    });
+      }),
+      this.prisma.project.count({
+        where: this.activeProjectWhere(tenantId)
+      })
+    ]);
 
-    const N = tenant._count.projects;
+    const N = activeProjectCount;
     const tiers = tenant.pricingTable?.tiers || [];
     const freeProjects = tenant.freeProjects || 0;
     const additionalDiscount = tenant.discountPercent || 0;
@@ -746,13 +763,17 @@ export class BillingService {
   }
 
   async validateProjectCreation(tenantId: string): Promise<void> {
-    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+    const [tenant, activeProjects] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
       include: {
-        subscription: true,
-        _count: { select: { projects: true } }
+        subscription: true
       }
-    });
+      }),
+      this.prisma.project.count({
+        where: this.activeProjectWhere(tenantId)
+      })
+    ]);
 
     if (tenant.billingStatus === BillingStatus.INADIMPLENTE) {
       throw new ForbiddenException(
@@ -772,8 +793,6 @@ export class BillingService {
     }
 
     const freeProjects = tenant.freeProjects || 0;
-    const activeProjects = tenant._count.projects;
-
     const trial = this.getTrialState(tenant);
     const trialActive = trial.trialActive;
     const effectiveFreeProjects = trialActive ? Math.max(freeProjects, 1) : 0;
@@ -836,15 +855,19 @@ export class BillingService {
    * discountPercent is derived from (basePriceCents - tierN.priceCents) / basePriceCents.
    */
   async getAvailablePlans(tenantId: string, _attempt = 0) {
-    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+    const [tenant, realProjectCount] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
       include: {
         pricingTable: {
           include: { tiers: { orderBy: { projectNumber: 'asc' } } }
-        },
-        _count: { select: { projects: true } }
+        }
       }
-    });
+      }),
+      this.prisma.project.count({
+        where: this.activeProjectWhere(tenantId)
+      })
+    ]);
 
     if (!tenant.pricingTable) {
       if (_attempt > 0) {
@@ -852,7 +875,7 @@ export class BillingService {
         return {
           pricingTable: null,
           basePriceCents: 0,
-          activeProjectCount: tenant._count.projects,
+          activeProjectCount: realProjectCount,
           paidPlanLevel: 0,
           billingStatus: tenant.billingStatus,
           plans: []
@@ -863,7 +886,6 @@ export class BillingService {
     }
 
     const tiers = tenant.pricingTable.tiers;
-    const realProjectCount = tenant._count.projects;
     const freeProjects = tenant.freeProjects || 0;
     const baseTier = tiers[0]; // tier 1 = base price, 0% discount
     const basePriceCents = baseTier?.priceCents || 0;
@@ -1747,22 +1769,24 @@ export class BillingService {
   async getSubscriptionStatus(
     tenantId: string
   ): Promise<SubscriptionStatusDto> {
-    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+    const [tenant, activeProjectCount] = await Promise.all([
+      this.prisma.tenant.findUniqueOrThrow({
       where: { id: tenantId },
       include: {
         subscription: { include: { items: { include: { project: true } } } },
         pricingTable: {
           include: { tiers: { orderBy: { projectNumber: 'asc' } } }
-        },
-        _count: { select: { projects: true } }
+        }
       }
-    });
+      }),
+      this.prisma.project.count({
+        where: this.activeProjectWhere(tenantId)
+      })
+    ]);
 
     const tiers = tenant.pricingTable?.tiers || [];
     const additionalDiscount = tenant.discountPercent || 0;
     const freeProjects = tenant.freeProjects || 0;
-    const activeProjectCount = tenant._count.projects;
-
     // Trial detection (computed early so it's available for project-level isFree)
     const hasActivePaidSub =
       !!tenant.subscription?.stripeSubscriptionId &&

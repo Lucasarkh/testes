@@ -5,12 +5,18 @@ const auth = useAuthStore()
 const { projects, selectedProjectId, startDate, endDate, fetchProjects, buildQueryString } = useMetricsFilters()
 
 const metrics = ref<any>(null)
+const brokerMetrics = ref<any>(null)
 const loadingMetrics = ref(false)
 
 async function fetchMetrics() {
   loadingMetrics.value = true
   try {
-    metrics.value = await fetchApi(`/tracking/metrics?${buildQueryString()}`)
+    const [metricsRes, brokersRes] = await Promise.all([
+      fetchApi(`/tracking/metrics?${buildQueryString()}`),
+      fetchApi(`/tracking/metrics/brokers?${buildQueryString()}`)
+    ])
+    metrics.value = metricsRes
+    brokerMetrics.value = brokersRes
   } catch {
     toast.error('Erro ao carregar métricas')
   } finally {
@@ -91,7 +97,9 @@ const topicCards = computed(() => [
     route: '/painel/metricas/corretores',
     icon: 'users',
     color: 'orange',
-    highlight: metrics.value?.topRealtors?.length ? `${metrics.value.topRealtors.length} corretores ativos` : null
+    highlight: brokerMetrics.value?.summary?.totalBrokers !== undefined
+      ? `${brokerMetrics.value.summary.totalBrokers} corretores ativos`
+      : null
   },
   {
     title: 'Empreendimentos',
@@ -100,6 +108,14 @@ const topicCards = computed(() => [
     icon: 'building',
     color: 'purple',
     highlight: metrics.value?.topProjects?.length ? `${metrics.value.topProjects.length} projetos` : null
+  },
+  {
+    title: 'Performance por Imobiliárias',
+    subtitle: 'Ranking de imobiliárias por sessões, leads e conversão',
+    route: '/painel/metricas/imobiliarias',
+    icon: 'office',
+    color: 'slate',
+    highlight: null
   },
   {
     title: 'Origens de Tráfego',
@@ -254,6 +270,8 @@ const topicCards = computed(() => [
             <svg v-if="card.icon === 'building'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22V12h6v10"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
             <!-- Globe -->
             <svg v-if="card.icon === 'globe'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <!-- Office -->
+            <svg v-if="card.icon === 'office'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20v-8h10v8"/><path d="M7 8h.01"/><path d="M12 8h.01"/><path d="M17 8h.01"/></svg>
           </div>
           <div class="topic-content">
             <h3>{{ card.title }}</h3>
@@ -594,6 +612,7 @@ h1 {
 .topic-card.topic-orange:hover { border-color: rgba(249, 115, 22, 0.5); }
 .topic-card.topic-purple:hover { border-color: rgba(139, 92, 246, 0.5); }
 .topic-card.topic-indigo:hover { border-color: rgba(79, 70, 229, 0.5); }
+.topic-card.topic-slate:hover { border-color: rgba(71, 85, 105, 0.55); }
 
 .topic-icon {
   width: 56px;
@@ -610,6 +629,7 @@ h1 {
 .topic-icon.users { background: rgba(249, 115, 22, 0.12); color: #f97316; }
 .topic-icon.building { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
 .topic-icon.globe { background: rgba(79, 70, 229, 0.12); color: #6366f1; }
+.topic-icon.office { background: rgba(100, 116, 139, 0.14); color: #94a3b8; }
 
 .topic-content {
   flex: 1;

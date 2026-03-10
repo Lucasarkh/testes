@@ -121,8 +121,9 @@ export class AgenciesService {
   }
 
   async deleteAgency(id: string, tenantId: string) {
-    return this.prisma.agency.deleteMany({
-      where: { id, tenantId }
+    return this.prisma.agency.updateMany({
+      where: { id, tenantId, isActive: true },
+      data: { isActive: false }
     });
   }
 

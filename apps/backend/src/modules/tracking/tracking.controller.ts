@@ -106,6 +106,17 @@ export class TrackingController {
     return this.trackingService.getBrokerMetrics(query, user);
   }
 
+  @Get('metrics/agencies')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getAgencyMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getAgencyMetrics(query, user);
+  }
+
   @Get('metrics/enterprise')
   @UseGuards(AuthGuard('jwt'), TenantGuard)
   async getEnterpriseMetrics(

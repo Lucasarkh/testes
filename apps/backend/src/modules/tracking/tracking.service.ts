@@ -1597,7 +1597,13 @@ export class TrackingService {
         name: true,
         code: true,
         photoUrl: true,
-        userId: true
+        userId: true,
+        user: {
+          select: {
+            id: true,
+            isActive: true
+          }
+        }
       }
     });
 
@@ -1679,14 +1685,14 @@ export class TrackingService {
 
     brokers.sort((a, b) => b.leads - a.leads);
 
-    const activeBrokers = brokers.filter((b) => b.sessions > 0 || b.leads > 0);
+    const activeBrokers = realtorLinks.filter((rl) => rl.user?.isActive).length;
 
     const totalSessions = brokers.reduce((a, b) => a + b.sessions, 0);
     const totalLeads = brokers.reduce((a, b) => a + b.leads, 0);
 
     return {
       summary: {
-        totalBrokers: activeBrokers.length,
+        totalBrokers: activeBrokers,
         totalSessions,
         totalLeads,
         avgConversionRate:
@@ -1695,6 +1701,101 @@ export class TrackingService {
             : 0
       },
       brokers
+    };
+  }
+
+  async getAgencyMetrics(
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const whereSession = this.getSessionWhere(query, context);
+    const whereLead = this.getLeadWhere(query, context);
+
+    const agencies = await this.prisma.agency.findMany({
+      where: {
+        tenantId: query.tenantId!,
+        ...(context.agencyId && { id: context.agencyId })
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        _count: {
+          select: {
+            realtorLinks: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    const agenciesWithMetrics = await Promise.all(
+      agencies.map(async (agency) => {
+        const [sessions, leads, activeRealtors] = await Promise.all([
+          this.prisma.trackingSession.count({
+            where: {
+              ...whereSession,
+              realtorLink: { agencyId: agency.id }
+            } as any
+          }),
+          this.prisma.lead.count({
+            where: {
+              ...whereLead,
+              realtorLink: { agencyId: agency.id }
+            } as any
+          }),
+          this.prisma.realtorLink.count({
+            where: {
+              tenantId: query.tenantId!,
+              agencyId: agency.id,
+              enabled: true
+            }
+          })
+        ]);
+
+        return {
+          id: agency.id,
+          name: agency.name,
+          email: agency.email,
+          sessions,
+          leads,
+          activeRealtors,
+          conversionRate:
+            sessions > 0
+              ? parseFloat(((leads / sessions) * 100).toFixed(1))
+              : 0
+        };
+      })
+    );
+
+    agenciesWithMetrics.sort((a, b) => b.leads - a.leads);
+
+    const totalSessions = agenciesWithMetrics.reduce(
+      (acc, agency) => acc + agency.sessions,
+      0
+    );
+    const totalLeads = agenciesWithMetrics.reduce(
+      (acc, agency) => acc + agency.leads,
+      0
+    );
+    const totalRealtors = agenciesWithMetrics.reduce(
+      (acc, agency) => acc + agency.activeRealtors,
+      0
+    );
+
+    return {
+      summary: {
+        totalAgencies: agenciesWithMetrics.length,
+        totalSessions,
+        totalLeads,
+        totalRealtors,
+        avgConversionRate:
+          totalSessions > 0
+            ? parseFloat(((totalLeads / totalSessions) * 100).toFixed(1))
+            : 0
+      },
+      agencies: agenciesWithMetrics
     };
   }
 

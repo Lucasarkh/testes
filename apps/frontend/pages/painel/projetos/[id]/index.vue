@@ -101,7 +101,7 @@
             </button>
             
             <button 
-              v-if="authStore.canEdit" 
+              v-if="authStore.canEdit && !isArchivedProject" 
               class="btn btn-sm btn-danger" 
               style="border-radius: 9999px; padding-left: 16px; padding-right: 16px; height: 38px;"
               @click="confirmDelete"
@@ -112,8 +112,12 @@
         </div>
       </div>
 
+      <div v-if="isArchivedProject" class="alert alert-warning archived-project-warning">
+        Projeto arquivado em modo somente leitura. Publique o projeto para liberar edições.
+      </div>
+
       <!-- Sidebar + Content Layout -->
-      <div class="project-layout">
+      <div class="project-layout" :class="{ 'archived-readonly': isArchivedProject }">
         <aside class="project-sidebar">
           <div class="sidebar-tools">
             <p class="sidebar-tools-title">Editores</p>
@@ -1862,6 +1866,11 @@ const projectId = route.params.id as string
 const loading = ref(true)
 const error = ref('')
 const project = ref<any>(null)
+const isArchivedProject = computed(() => {
+  const slug = String(project.value?.slug || '').toLowerCase()
+  const name = String(project.value?.name || '').toLowerCase()
+  return slug.startsWith('archived-') || name.startsWith('[arquivado]')
+})
 const mapElements = ref<any[]>([])
 const lots = ref<any[]>([])
 const lotsMeta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 50, totalPages: 0, currentPage: 1 })
@@ -3935,6 +3944,10 @@ const togglePublish = async () => {
 }
 
 const saveSettings = async () => {
+  if (isArchivedProject.value) {
+    toastFromError(new Error('Projeto arquivado está em modo somente leitura.'))
+    return
+  }
   if (editSlugTaken.value) {
     settingsError.value = 'Este slug já está em uso por outro projeto!'
     return
@@ -4098,6 +4111,38 @@ onMounted(async () => {
   gap: 24px;
   align-items: flex-start;
   min-height: calc(100vh - 180px);
+}
+
+.archived-project-warning {
+  margin: -12px 0 16px;
+}
+
+.project-layout.archived-readonly {
+  opacity: 0.78;
+}
+
+/* Archived mode: keep navigation available, disable only mutations */
+.project-layout.archived-readonly .project-content :is(
+  input,
+  textarea,
+  select,
+  button,
+  .btn,
+  .toggle-switch label,
+  [contenteditable="true"]
+) {
+  pointer-events: none !important;
+  user-select: none;
+}
+
+.project-layout.archived-readonly .project-content :is(input, textarea, select) {
+  opacity: 0.72;
+}
+
+.project-layout.archived-readonly .sidebar-public-actions,
+.project-layout.archived-readonly .sidebar-public-actions button {
+  pointer-events: none !important;
+  opacity: 0.5;
 }
 
 .lot-import-card {

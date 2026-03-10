@@ -189,8 +189,22 @@ export class UserService {
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
-    return this.prisma.user.delete({
-      where: { id }
+    const deletedSuffix = `.deleted.${Date.now()}`;
+    const nextEmail = user.email.includes('.deleted.')
+      ? user.email
+      : `${user.email}${deletedSuffix}`;
+    const randomizedPassword = await bcrypt.hash(`deleted:${id}:${Date.now()}`, 10);
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        isActive: false,
+        refreshToken: null,
+        email: nextEmail,
+        passwordHash: randomizedPassword,
+        name: user.name.startsWith('[Removido]') ? user.name : `[Removido] ${user.name}`
+      },
+      select: USER_SELECT
     });
   }
 }

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   Inject,
+  ForbiddenException,
   Logger
 } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
@@ -17,6 +18,24 @@ import { BillingService } from '@modules/billing/billing.service';
 @Injectable()
 export class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
+
+  private isArchivedProject(project: { slug: string | null }): boolean {
+    return (project.slug || '').toLowerCase().startsWith('archived-');
+  }
+
+  private toSlug(value: string): string {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .replace(/-{2,}/g, '-');
+  }
+
+  private removeArchivedPrefix(name: string): string {
+    return name.replace(/^\[Arquivado\]\s*/i, '').trim();
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -624,6 +643,9 @@ export class ProjectsService {
       where: user?.role === UserRole.SYSADMIN ? { id } : { id, tenantId }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
+    if (this.isArchivedProject(project)) {
+      throw new ForbiddenException('Projeto arquivado não pode ser editado.');
+    }
 
     if (dto.slug) {
       const existing = await this.prisma.project.findFirst({
@@ -804,6 +826,36 @@ export class ProjectsService {
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
+    if (this.isArchivedProject(project)) {
+      const restoredName = this.removeArchivedPrefix(project.name) || project.name;
+      let nextSlugBase = this.toSlug(restoredName) || `projeto-${id.slice(0, 8)}`;
+      let nextSlug = nextSlugBase;
+      let suffix = 2;
+
+      while (
+        await this.prisma.project.findFirst({
+          where: {
+            slug: nextSlug,
+            NOT: { id }
+          },
+          select: { id: true }
+        })
+      ) {
+        nextSlug = `${nextSlugBase}-${suffix}`;
+        suffix++;
+      }
+
+      return this.prisma.project.update({
+        where: { id },
+        data: {
+          status: ProjectStatus.PUBLISHED,
+          name: restoredName,
+          slug: nextSlug
+        },
+        include: { tenant: { select: { slug: true, name: true } } }
+      });
+    }
+
     return this.prisma.project.update({
       where: { id },
       data: { status: ProjectStatus.PUBLISHED },
@@ -816,6 +868,9 @@ export class ProjectsService {
       where: { id, tenantId }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
+    if (this.isArchivedProject(project)) {
+      throw new ForbiddenException('Projeto arquivado não pode ser alterado.');
+    }
 
     return this.prisma.project.update({
       where: { id },
@@ -830,7 +885,20 @@ export class ProjectsService {
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
-    await this.prisma.project.delete({ where: { id } });
+    const archivedSlug = `archived-${id}-${Date.now()}`;
+    const archivedName = project.name.startsWith('[Arquivado]')
+      ? project.name
+      : `[Arquivado] ${project.name}`;
+
+    await this.prisma.project.update({
+      where: { id },
+      data: {
+        status: ProjectStatus.DRAFT,
+        customDomain: null,
+        slug: archivedSlug,
+        name: archivedName
+      }
+    });
 
     // Sync billing subscription after project deletion
     try {
@@ -841,7 +909,7 @@ export class ProjectsService {
       );
     }
 
-    return { message: 'Projeto removido com sucesso.' };
+    return { message: 'Projeto arquivado com sucesso.' };
   }
 
   private _normalizeLegacyLotLookup(value?: string | null) {
