@@ -85,6 +85,26 @@
                       <span v-if="details?.block" style="color: var(--v4-text-muted); font-weight: 500; margin-right: 8px;">{{ details.block }}</span>
                       <span>{{ details?.lotNumber || lot?.name || lot?.code }}</span>
                     </h1>
+
+                    <div class="lot-share-actions-v4">
+                      <button
+                        type="button"
+                        class="lot-share-btn-v4"
+                        @click="shareCurrentLot"
+                      >
+                        <i class="bi bi-share-fill" aria-hidden="true"></i>
+                        <span>Compartilhar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        class="lot-share-btn-v4 lot-share-btn-v4--whatsapp"
+                        @click="shareCurrentLotWhatsapp"
+                      >
+                        <i class="bi bi-whatsapp" aria-hidden="true"></i>
+                        <span>WhatsApp</span>
+                      </button>
+                    </div>
                     
                     <div v-if="details?.tags?.length" class="lot-seals-v4">
                       <span v-for="tag in details?.tags" :key="tag" class="seal-pill">
@@ -1085,6 +1105,94 @@ const statusLabel = computed(() => {
   }
   return map[details.value?.status || 'AVAILABLE'] || 'Disponível'
 })
+
+const lotSeoTitle = computed(() => {
+  const lotLabel = details.value?.lotNumber || lot.value?.code || lot.value?.name || lotCode.value || 'Lote'
+  const projectName = project.value?.name || 'Empreendimento'
+  return `Saiba mais sobre o lote ${lotLabel} do ${projectName}`
+})
+
+const lotSeoDescription = computed(() => {
+  const lotLabel = details.value?.lotNumber || lot.value?.code || lot.value?.name || lotCode.value || 'selecionado'
+  const projectName = project.value?.name || 'empreendimento'
+  return `Saiba mais sobre o lote ${lotLabel} do ${projectName}. Veja detalhes, valor e condicoes de pagamento.`
+})
+
+const lotShareMessage = computed(() => {
+  const lotLabel = details.value?.lotNumber || lot.value?.code || lot.value?.name || lotCode.value || 'selecionado'
+  const projectName = project.value?.name || 'empreendimento'
+  return `Saiba mais sobre o lote ${lotLabel} do ${projectName}`
+})
+
+const lotSeoImage = computed(() => {
+  const origin = globalThis?.location?.origin || ''
+  return (
+    project.value?.logos?.[0]?.url
+    || details.value?.medias?.[0]?.url
+    || panoramaImageUrl.value
+    || project.value?.bannerImageUrl
+    || project.value?.bannerImageTabletUrl
+    || project.value?.bannerImageMobileUrl
+    || `${origin}/img/og-image.png`
+  )
+})
+
+const lotSeoUrl = computed(() => {
+  const origin = globalThis?.location?.origin || ''
+  const pathname = globalThis?.location?.pathname || '/'
+  return `${origin}${pathname}`
+})
+
+const whatsappShareUrl = computed(() => {
+  const message = `${lotShareMessage.value} ${lotSeoUrl.value}`.trim()
+  return `https://wa.me/?text=${encodeURIComponent(message)}`
+})
+
+const shareCurrentLot = async () => {
+  const url = lotSeoUrl.value
+  const title = lotSeoTitle.value
+  const text = lotShareMessage.value
+
+  if (navigator?.share) {
+    try {
+      await navigator.share({ title, text, url })
+      return
+    } catch {
+      // Fallback para clipboard.
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(url)
+    toastSuccess('Link do lote copiado!')
+  } catch {
+    toastSuccess(url)
+  }
+}
+
+const shareCurrentLotWhatsapp = () => {
+  if (!whatsappShareUrl.value) return
+  window.open(whatsappShareUrl.value, '_blank', 'noopener,noreferrer')
+}
+
+useHead(() => ({
+  title: lotSeoTitle.value,
+  meta: [
+    { name: 'description', content: lotSeoDescription.value },
+    { property: 'og:type', content: 'article' },
+    { property: 'og:title', content: lotSeoTitle.value },
+    { property: 'og:description', content: lotSeoDescription.value },
+    { property: 'og:url', content: lotSeoUrl.value },
+    { property: 'og:image', content: lotSeoImage.value },
+    { property: 'og:image:alt', content: lotShareMessage.value },
+    { property: 'og:site_name', content: project.value?.name || 'Lotio' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: lotSeoTitle.value },
+    { name: 'twitter:description', content: lotSeoDescription.value },
+    { name: 'twitter:image', content: lotSeoImage.value },
+    { name: 'twitter:image:alt', content: lotShareMessage.value }
+  ]
+}))
 
 const salesMotionConfig = computed(() => {
   const root = project.value?.salesMotionConfig || {}
@@ -2196,6 +2304,51 @@ async function submitReservation() {
 .hero-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; margin-bottom: 32px; }
 .lot-code-title { font-size: 56px; font-weight: 700; margin: 0; color: var(--v4-text); line-height: 1.1; letter-spacing: -0.03em; }
 
+.lot-share-actions-v4 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.lot-share-btn-v4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d6dde8;
+  background: #fff;
+  color: #1d1d1f;
+  border-radius: 999px;
+  height: 36px;
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lot-share-btn-v4 i {
+  font-size: 13px;
+}
+
+.lot-share-btn-v4:hover {
+  transform: translateY(-1px);
+  border-color: #b7c2d4;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.lot-share-btn-v4--whatsapp {
+  border-color: #21c064;
+  background: #ebfff3;
+  color: #087d39;
+}
+
+.lot-share-btn-v4--whatsapp:hover {
+  border-color: #17a853;
+  box-shadow: 0 8px 16px rgba(23, 168, 83, 0.2);
+}
+
 .hero-price-box { 
   display: flex; 
   flex-direction: column; 
@@ -2785,6 +2938,8 @@ async function submitReservation() {
   .hero-v4, .section-v4 { padding: 20px; border-radius: 20px; }
   .hero-header-row { flex-direction: column; align-items: flex-start; gap: 24px; margin-bottom: 32px; }
   .lot-code-title { font-size: 32px; }
+  .lot-share-actions-v4 { width: 100%; gap: 8px; }
+  .lot-share-btn-v4 { height: 34px; padding: 0 12px; font-size: 12px; }
   .hero-price-box { width: 100%; align-items: flex-start; text-align: left; padding: 20px; }
   .hp-value { font-size: 26px; }
 

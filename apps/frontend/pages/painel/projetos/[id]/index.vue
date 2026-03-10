@@ -227,6 +227,53 @@
               <input v-model="editForm.customDomain" class="form-input" placeholder="ex: vendas.meu-loteamento.com" />
               <small class="text-muted">Informe o domínio completo ou subdomínio que aponta para cá.</small>
             </div>
+
+            <div class="form-group" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--glass-border-subtle);">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px;">
+                <div>
+                  <label class="form-label" style="margin: 0;">Logo do Projeto (Open Graph)</label>
+                  <p style="margin: 4px 0 0; color: var(--color-surface-500); font-size: 0.75rem;">
+                    Este logo é usado na imagem de compartilhamento do empreendimento e dos lotes.
+                  </p>
+                </div>
+
+                <label v-if="authStore.canEdit" class="btn btn-primary btn-sm" style="cursor: pointer;">
+                  {{ uploadingFooterLogo ? 'Enviando...' : '+ Enviar Logo' }}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style="display:none"
+                    @change="uploadFooterLogo"
+                    :disabled="uploadingFooterLogo"
+                  />
+                </label>
+              </div>
+
+              <div v-if="projectFooterLogos.length" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div
+                  v-for="(logo, idx) in projectFooterLogos"
+                  :key="logo.id"
+                  style="position: relative; width: 120px; height: 78px; border-radius: 8px; border: 1px solid var(--glass-border-subtle); background: var(--glass-bg-heavy); overflow: hidden; display: flex; align-items: center; justify-content: center;"
+                >
+                  <img :src="logo.url" :alt="logo.label || project?.name || 'Logo'" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 8px;" />
+                  <span v-if="idx === 0" class="badge badge-success" style="position: absolute; left: 6px; bottom: 6px; font-size: 0.6rem;">OG principal</span>
+                  <button
+                    v-if="authStore.canEdit"
+                    type="button"
+                    class="pub-remove-btn"
+                    style="position: absolute; top: 6px; right: 6px;"
+                    :disabled="deletingFooterLogoId === logo.id"
+                    @click="deleteFooterLogo(logo.id)"
+                  >
+                    {{ deletingFooterLogoId === logo.id ? '...' : '✕' }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-else class="pub-empty" style="margin-top: 6px;">
+                Nenhum logo enviado ainda.
+              </div>
+            </div>
             </template>
 
             <div v-if="activeSection === 'movimento-loteamento'" class="form-group">
@@ -1008,6 +1055,8 @@
                 <td v-if="authStore.canEdit">
                   <div class="flex gap-2">
                      <button class="btn btn-sm btn-dark" style="background: var(--glass-bg-heavy); color: #fff; border: none;" @click="openEditLot(l)">Editar Dados</button>
+                     <button class="btn btn-sm btn-outline" @click="shareLot(l)">Compartilhar</button>
+                     <button class="btn btn-sm btn-outline" @click="openLotQrModal(l)">QR Code</button>
                      <button v-if="l.status === 'RESERVED'" class="btn btn-sm btn-warning" @click="openReservationModal(l)">Ver Reserva</button>
                      <a v-if="publicUrl && l.mapElement" :href="`/${project.slug}/${l.mapElement.code}`" target="_blank" class="btn btn-sm btn-outline">Ver Página</a>
                   </div>
@@ -1066,6 +1115,30 @@
               </div>
             </div>
             <div v-else class="text-center py-4 text-muted">Nenhum dado de reserva encontrado.</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="lotQrModal" class="modal-overlay">
+        <div class="modal" style="max-width: 480px;">
+          <div class="modal-header" style="margin-bottom: 12px;">
+            <h3>QR Code do Lote {{ lotQrModal.code }}</h3>
+            <button class="modal-close" @click="lotQrModal = null">✕</button>
+          </div>
+          <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <img :src="lotQrModal.qrCodeUrl" alt="QR Code do lote" style="width: min(320px, 85vw); border-radius: 10px; border: 1px solid var(--glass-border-subtle); background: #fff;" />
+            <div style="font-size: 0.82rem; color: var(--color-surface-400); text-align: center;">
+              {{ lotQrModal.shareText }}
+            </div>
+            <a :href="lotQrModal.publicPageUrl" target="_blank" style="font-size: 0.82rem; color: var(--color-primary-400); word-break: break-all; text-align: center;">
+              {{ lotQrModal.publicPageUrl }}
+            </a>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px;">
+              <button class="btn btn-sm btn-outline" @click="copyLink(lotQrModal.publicPageUrl)">Copiar Link</button>
+              <button class="btn btn-sm btn-outline" @click="downloadLotQr(lotQrModal)">Baixar QR</button>
+              <button class="btn btn-sm btn-outline" @click="printLotQr(lotQrModal)">Imprimir QR</button>
+              <a class="btn btn-sm btn-primary" :href="lotQrModal.publicPageUrl" target="_blank">Abrir Página</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1619,6 +1692,7 @@
                       <a :href="item.routeUrl" target="_blank" rel="noopener" class="pub-nearby-item__link">Rota ↗</a>
                     </div>
                   </div>
+
                 </div>
               </div>
             </template>
@@ -1908,6 +1982,12 @@ const settingsError = ref('')
 const settingsSaved = ref(false)
 
 const editingLot = ref<any>(null)
+const lotQrModal = ref<null | {
+  code: string
+  publicPageUrl: string
+  qrCodeUrl: string
+  shareText: string
+}>(null)
 
 // Reservation modal state
 const viewingReservation = ref<any>(null)
@@ -2253,6 +2333,135 @@ const locationOrigin = computed(() => {
 })
 
 const publicUrl = computed(() => project.value ? `/${project.value.slug}` : null)
+
+const lotPublicPageUrl = (lot: any) => {
+  const backendUrl = String(lot?.publicPageUrl || '').trim()
+  if (backendUrl) return backendUrl
+
+  const code = lot?.mapElement?.code || lot?.mapElement?.name || lot?.lotNumber || lot?.id
+  const slug = project.value?.slug
+  if (!code || !slug) return ''
+
+  const origin = window?.location?.origin || ''
+  return `${origin}/${slug}/${encodeURIComponent(String(code))}`
+}
+
+const lotQrCodeUrl = (lot: any) => {
+  const backendQr = String(lot?.qrCodeUrl || '').trim()
+  if (backendQr) return backendQr
+
+  const publicPageUrl = lotPublicPageUrl(lot)
+  if (!publicPageUrl) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=768x768&data=${encodeURIComponent(publicPageUrl)}`
+}
+
+const lotShareText = (lot: any) => {
+  const fromBackend = String(lot?.shareText || '').trim()
+  if (fromBackend) return fromBackend
+
+  const lotLabel = lot?.lotNumber || lot?.mapElement?.code || lot?.mapElement?.name || lot?.id
+  const projectName = project.value?.name || 'este empreendimento'
+  return `Saiba mais sobre o lote ${lotLabel} do ${projectName}`
+}
+
+const shareLot = async (lot: any) => {
+  const url = lotPublicPageUrl(lot)
+  if (!url) {
+    toastFromError(new Error('Nao foi possivel gerar o link publico deste lote.'))
+    return
+  }
+
+  const lotLabel = lot?.lotNumber || lot?.mapElement?.code || lot?.mapElement?.name || lot?.id
+  const title = `${project.value?.name || 'Empreendimento'} - Lote ${lotLabel}`
+  const text = lotShareText(lot)
+
+  if (navigator?.share) {
+    try {
+      await navigator.share({ title, text, url })
+      return
+    } catch {
+      // Fallback para copiar em caso de cancelamento/erro.
+    }
+  }
+
+  copyLink(url)
+}
+
+const openLotQrModal = (lot: any) => {
+  const publicPageUrl = lotPublicPageUrl(lot)
+  const qrCodeUrl = lotQrCodeUrl(lot)
+  if (!publicPageUrl || !qrCodeUrl) {
+    toastFromError(new Error('Nao foi possivel gerar o QR code deste lote.'))
+    return
+  }
+
+  const code = String(lot?.lotNumber || lot?.mapElement?.code || lot?.mapElement?.name || lot?.id || '')
+  lotQrModal.value = {
+    code,
+    publicPageUrl,
+    qrCodeUrl,
+    shareText: lotShareText(lot)
+  }
+}
+
+const downloadLotQr = (payload: { code: string; qrCodeUrl: string }) => {
+  const a = document.createElement('a')
+  a.href = payload.qrCodeUrl
+  a.download = `qr-lote-${payload.code || 'sem-codigo'}.png`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
+const printLotQr = (payload: {
+  code: string
+  qrCodeUrl: string
+  publicPageUrl: string
+  shareText: string
+}) => {
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=720')
+  if (!win) {
+    toastFromError(new Error('Nao foi possivel abrir a janela de impressao.'))
+    return
+  }
+
+  const safeCode = String(payload.code || 'sem-codigo')
+  const safeShareText = String(payload.shareText || '')
+  const safePublicUrl = String(payload.publicPageUrl || '')
+  const safeQrCode = String(payload.qrCodeUrl || '')
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>QR do Lote ${safeCode}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+          .wrap { max-width: 560px; margin: 0 auto; text-align: center; }
+          h1 { font-size: 24px; margin-bottom: 10px; }
+          p { margin: 6px 0; }
+          .qr { margin: 20px auto; width: 320px; height: 320px; border: 1px solid #d1d5db; border-radius: 12px; padding: 12px; box-sizing: border-box; }
+          .qr img { width: 100%; height: 100%; object-fit: contain; }
+          .url { font-size: 12px; color: #374151; word-break: break-all; }
+          @media print { body { margin: 0; } .wrap { margin-top: 12mm; } }
+        </style>
+      </head>
+      <body>
+        <div class="wrap">
+          <h1>Lote ${safeCode}</h1>
+          <p>${safeShareText}</p>
+          <div class="qr"><img src="${safeQrCode}" alt="QR Code do lote ${safeCode}" /></div>
+          <p class="url">${safePublicUrl}</p>
+        </div>
+        <script>
+          window.onload = function () {
+            window.print();
+          };
+        <\/script>
+      </body>
+    </html>
+  `)
+  win.document.close()
+}
 const plantMirrorPath = computed(() => {
   if (!project.value) return null
   if (project.value.status === 'PUBLISHED') return `/${project.value.slug}/espelho-planta`

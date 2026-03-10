@@ -1670,11 +1670,32 @@ onMounted(async () => {
         schedulingConfig.value = s.value
       }
       // Initialize tracking handled by middleware
+      const title = `Loteamento ${p.value.name} - ${p.value.tenant?.name || 'Lotio'}`
+      const description = p.value.description
+        || `Conheca o empreendimento ${p.value.name} e veja os lotes disponiveis.`
+      const ogImage =
+        p.value?.logos?.[0]?.url
+        || p.value?.bannerImageUrl
+        || p.value?.bannerImageTabletUrl
+        || p.value?.bannerImageMobileUrl
+        || `${window?.location?.origin || ''}/img/og-image.png`
+      const canonicalUrl = `${window?.location?.origin || ''}${window?.location?.pathname || '/'}`
+
       useHead({
-        title: `Loteamento ${p.value.name} — ${p.value.tenant?.name}`,
+        title,
         meta: [
-          { name: 'description', content: p.value.description || '' },
-          { name: 'theme-color', content: '#ffffff' }
+          { name: 'description', content: description },
+          { name: 'theme-color', content: '#ffffff' },
+          { property: 'og:type', content: 'website' },
+          { property: 'og:title', content: title },
+          { property: 'og:description', content: description },
+          { property: 'og:url', content: canonicalUrl },
+          { property: 'og:image', content: ogImage },
+          { property: 'og:site_name', content: p.value.name || 'Lotio' },
+          { name: 'twitter:card', content: 'summary_large_image' },
+          { name: 'twitter:title', content: title },
+          { name: 'twitter:description', content: description },
+          { name: 'twitter:image', content: ogImage }
         ]
       })
       // Fetch plant map lazily — only when the #planta section enters the viewport.
