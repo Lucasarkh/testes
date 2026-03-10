@@ -77,7 +77,7 @@
         :title="showBeacons ? 'Esconder pontos' : 'Mostrar pontos'"
         @click="showBeacons = !showBeacons"
       >
-        <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+        <i :class="showBeacons ? 'bi bi-eye-fill' : 'bi bi-eye-slash-fill'" aria-hidden="true"></i>
       </button>
       <button class="plant-map-viewer__btn" aria-label="Zoom in" @click="zoomIn">＋</button>
       <button class="plant-map-viewer__btn" aria-label="Zoom out" @click="zoomOut">－</button>

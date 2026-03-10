@@ -25,7 +25,7 @@
           font-weight="700"
           fill="#fbbf24"
           style="user-select: none; paint-order: stroke; stroke: rgba(0,0,0,0.8); stroke-width: 4px;"
-        >Se põe</text>
+        >Sol se põe</text>
       </g>
       <!-- Sunrise point (At angle) -->
       <g :transform="`translate(${x2}, ${y2})`">
@@ -36,7 +36,7 @@
           font-weight="700"
           fill="#fbbf24"
           style="user-select: none; paint-order: stroke; stroke: rgba(0,0,0,0.8); stroke-width: 4px;"
-        >Nasce</text>
+        >Sol nasce</text>
       </g>
     </template>
   </g>
