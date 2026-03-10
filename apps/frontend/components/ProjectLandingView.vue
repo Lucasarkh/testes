@@ -1305,10 +1305,52 @@ const salesMotionConfig = computed(() => {
 
 type SalesMotionNumericToken = 'viewsToday' | 'visits24h' | 'visitsNow'
 
+type SalesMotionSessionState = {
+  values?: Partial<Record<SalesMotionNumericToken, number>>
+  recentLot?: string
+  updatedAt?: number
+}
+
 const salesMotionRangeFallback: Record<SalesMotionNumericToken, { min: number; max: number }> = {
   viewsToday: { min: 3, max: 40 },
   visits24h: { min: 12, max: 260 },
   visitsNow: { min: 2, max: 22 },
+}
+
+const salesMotionSessionStorageKey = computed(() => {
+  const projectKey = String(project.value?.id || projectSlug.value || previewId.value || 'unknown')
+  return `lotio:sales-motion:landing:${projectKey}`
+})
+
+const readSalesMotionSessionState = (): SalesMotionSessionState => {
+  if (!process.client) return {}
+  try {
+    const raw = window.sessionStorage.getItem(salesMotionSessionStorageKey.value)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const writeSalesMotionSessionState = (patch: Partial<SalesMotionSessionState>) => {
+  if (!process.client) return
+  try {
+    const current = readSalesMotionSessionState()
+    const merged: SalesMotionSessionState = {
+      ...current,
+      ...patch,
+      values: {
+        ...(current.values || {}),
+        ...(patch.values || {}),
+      },
+      updatedAt: Date.now(),
+    }
+    window.sessionStorage.setItem(salesMotionSessionStorageKey.value, JSON.stringify(merged))
+  } catch {
+    // Ignore session persistence failures
+  }
 }
 
 const resolveSalesMotionRange = (
@@ -1390,6 +1432,25 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
   const config = salesMotionConfig.value
   const baseData = salesMotionSampleData.value
   const lotPool = salesMotionLotPool.value
+  const sessionState = readSalesMotionSessionState()
+  const isLotSpecificTemplate = (tpl: any) => {
+    const text = String(tpl?.text || '').toLowerCase()
+    return (
+      text.includes('este lote')
+      || text.includes('neste lote')
+      || text.includes('pagina de lote')
+      || text.includes('página de lote')
+      || text.includes('detalhes do lote')
+      || text.startsWith('lote {{recentlot}}')
+    )
+  }
+
+  const activeTemplates = (config.templates || [])
+    .filter((tpl: any) => tpl?.enabled !== false)
+
+  const enterpriseOnlyTemplates = activeTemplates.filter((tpl: any) => !isLotSpecificTemplate(tpl))
+  const sourceTemplates = enterpriseOnlyTemplates.length > 0 ? enterpriseOnlyTemplates : activeTemplates
+
   const fillTemplate = (tpl: any) => {
     const text = String(tpl?.text || '')
     const automaticViewsRange = {
@@ -1411,9 +1472,20 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
     const views = nextSmoothInt(baseData.viewsToday, salesMotionLastViews, viewsRange.min, viewsRange.max)
     const visits = nextSmoothInt(baseData.visits24h, salesMotionLastVisits, visitsRange.min, visitsRange.max)
     const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseData.viewsToday * 0.6)), salesMotionLastViews, nowRange.min, nowRange.max, 0.12)
-    const lot = lotPool.length > 0
-      ? lotPool[Math.floor(Math.random() * lotPool.length)]
-      : baseData.recentLot
+    const lotFromSession = String(sessionState.recentLot || '').trim()
+    const hasLotFromSession = lotFromSession && lotPool.includes(lotFromSession)
+    const lot = hasLotFromSession
+      ? lotFromSession
+      : (lotPool.length > 0 ? lotPool[0] : baseData.recentLot)
+
+    writeSalesMotionSessionState({
+      recentLot: lot,
+      values: {
+        viewsToday: views,
+        visits24h: visits,
+        visitsNow: nowUsers,
+      },
+    })
 
     return text
       .replace(/{{\s*viewsToday\s*}}/g, String(views))
@@ -1423,14 +1495,12 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll', progress = 0) => {
       .replace(/{{\s*sectionLabel\s*}}/g, String(salesMotionSectionLabelByProgress(progress)))
   }
 
-  const options = (config.templates || [])
-    .filter((tpl: any) => tpl?.enabled !== false)
+  const options = sourceTemplates
     .map((tpl: any) => fillTemplate(tpl))
     .filter(Boolean)
 
   if (reason === 'scroll') {
-    const contextual = (config.templates || [])
-      .filter((tpl: any) => tpl?.enabled !== false)
+    const contextual = sourceTemplates
       .filter((tpl: any) => {
         const text = String(tpl?.text || '')
         return text.includes('{{sectionLabel}}') || text.includes('{{visitsNow}}')
@@ -1492,8 +1562,11 @@ const startSalesMotion = () => {
   salesMotionShownCount.value = 0
   salesMotionLastShownAt.value = 0
   salesMotionReachedMilestones.value = []
-  salesMotionLastViews.value = 0
-  salesMotionLastVisits.value = 0
+  const sessionState = readSalesMotionSessionState()
+  const sessionViews = Number(sessionState.values?.viewsToday)
+  const sessionVisits = Number(sessionState.values?.visits24h)
+  salesMotionLastViews.value = Number.isFinite(sessionViews) ? sessionViews : 0
+  salesMotionLastVisits.value = Number.isFinite(sessionVisits) ? sessionVisits : 0
 
   const config = salesMotionConfig.value
   if (!config.enabled) return

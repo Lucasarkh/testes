@@ -1132,10 +1132,53 @@ const salesMotionConfig = computed(() => {
 
 type SalesMotionNumericToken = 'viewsToday' | 'visits24h' | 'visitsNow'
 
+type SalesMotionSessionState = {
+  values?: Partial<Record<SalesMotionNumericToken, number>>
+  recentLot?: string
+  updatedAt?: number
+}
+
 const salesMotionRangeFallback: Record<SalesMotionNumericToken, { min: number; max: number }> = {
   viewsToday: { min: 3, max: 40 },
   visits24h: { min: 12, max: 280 },
   visitsNow: { min: 2, max: 24 },
+}
+
+const salesMotionSessionStorageKey = computed(() => {
+  const projectKey = String(project.value?.id || projectSlug.value || previewId.value || 'unknown')
+  const lotKey = String(lot.value?.id || lot.value?.code || lotCode.value || 'unknown')
+  return `lotio:sales-motion:lot:${projectKey}:${lotKey}`
+})
+
+const readSalesMotionSessionState = (): SalesMotionSessionState => {
+  if (!process.client) return {}
+  try {
+    const raw = window.sessionStorage.getItem(salesMotionSessionStorageKey.value)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const writeSalesMotionSessionState = (patch: Partial<SalesMotionSessionState>) => {
+  if (!process.client) return
+  try {
+    const current = readSalesMotionSessionState()
+    const merged: SalesMotionSessionState = {
+      ...current,
+      ...patch,
+      values: {
+        ...(current.values || {}),
+        ...(patch.values || {}),
+      },
+      updatedAt: Date.now(),
+    }
+    window.sessionStorage.setItem(salesMotionSessionStorageKey.value, JSON.stringify(merged))
+  } catch {
+    // Ignore session persistence failures
+  }
 }
 
 const resolveSalesMotionRange = (
@@ -1197,6 +1240,7 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectio
   const baseViews = Math.max(4, Math.min(34, Math.round((allProjectAvailableLots.value.length || 8) * 0.9)))
   const baseVisits = Math.max(16, Math.min(260, Math.round((allProjectLots.value.length || 15) * 3.1)))
   const pool = salesMotionLotPool.value
+  const sessionState = readSalesMotionSessionState()
   const sectionMap: Record<string, string> = {
     galeria: 'galeria',
     localizacao: 'planta',
@@ -1228,7 +1272,20 @@ const buildSalesMotionNotice = (reason: 'initial' | 'scroll' | 'section', sectio
     const views = nextSmoothInt(baseViews, salesMotionLastViews, viewsRange.min, viewsRange.max)
     const visits = nextSmoothInt(baseVisits, salesMotionLastVisits, visitsRange.min, visitsRange.max)
     const nowUsers = nextSmoothInt(Math.max(2, Math.round(baseViews * 0.6)), salesMotionLastViews, nowRange.min, nowRange.max, 0.13)
-    const randomLot = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : (lot.value?.code || '24')
+    const lotFromSession = String(sessionState.recentLot || '').trim()
+    const hasLotFromSession = lotFromSession && pool.includes(lotFromSession)
+    const randomLot = hasLotFromSession
+      ? lotFromSession
+      : (pool.length > 0 ? pool[0] : (lot.value?.code || '24'))
+
+    writeSalesMotionSessionState({
+      recentLot: randomLot,
+      values: {
+        viewsToday: views,
+        visits24h: visits,
+        visitsNow: nowUsers,
+      },
+    })
 
     return text
       .replace(/{{\s*viewsToday\s*}}/g, String(views))
@@ -1312,8 +1369,11 @@ const startSalesMotion = () => {
   currentSalesNotice.value = ''
   salesMotionShownCount.value = 0
   salesMotionLastShownAt.value = 0
-  salesMotionLastViews.value = 0
-  salesMotionLastVisits.value = 0
+  const sessionState = readSalesMotionSessionState()
+  const sessionViews = Number(sessionState.values?.viewsToday)
+  const sessionVisits = Number(sessionState.values?.visits24h)
+  salesMotionLastViews.value = Number.isFinite(sessionViews) ? sessionViews : 0
+  salesMotionLastVisits.value = Number.isFinite(sessionVisits) ? sessionVisits : 0
   salesMotionSeenSections.value = []
   salesMotionReachedMilestones.value = []
 
