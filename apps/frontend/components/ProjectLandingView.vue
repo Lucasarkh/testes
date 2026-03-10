@@ -1674,7 +1674,7 @@ onMounted(async () => {
       const description = p.value.description
         || `Conheca o empreendimento ${p.value.name} e veja os lotes disponiveis.`
       const ogImage =
-        p.value?.logos?.[0]?.url
+        p.value?.ogLogoUrl
         || p.value?.bannerImageUrl
         || p.value?.bannerImageTabletUrl
         || p.value?.bannerImageMobileUrl

@@ -61,6 +61,35 @@ export class UploadController {
     return this.uploadService.removeBannerImage(tenantId, projectId, device);
   }
 
+  // ── Project Open Graph logo ────────────────────────────
+
+  @Post('og-logo')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } }
+    }
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  uploadOgLogo(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    return this.uploadService.uploadOgLogo(tenantId, projectId, file);
+  }
+
+  @Delete('og-logo')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  removeOgLogo(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string
+  ) {
+    return this.uploadService.removeOgLogo(tenantId, projectId);
+  }
+
   // ── Project footer logos (Realizacao e Propriedade) ───
 
   @Get('footer-logos')

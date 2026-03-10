@@ -375,6 +375,7 @@ model Project {
   bannerImageUrl  String?
   bannerImageTabletUrl String?
   bannerImageMobileUrl String?
+  ogLogoUrl       String?
   mapData         Json?
   highlightsJson  Json?
   highlightsTitle String?       @default("Sua família merece o melhor.")

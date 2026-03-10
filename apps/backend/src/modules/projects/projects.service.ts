@@ -692,6 +692,9 @@ export class ProjectsService {
         ...(dto.bannerImageMobileUrl !== undefined && {
           bannerImageMobileUrl: dto.bannerImageMobileUrl
         }),
+        ...(dto.ogLogoUrl !== undefined && {
+          ogLogoUrl: dto.ogLogoUrl
+        }),
         ...(dto.status && { status: dto.status }),
         ...(dto.mapData !== undefined && { mapData: dto.mapData }),
         ...(dto.highlightsJson !== undefined && {

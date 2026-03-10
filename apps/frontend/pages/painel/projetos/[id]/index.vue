@@ -233,39 +233,37 @@
                 <div>
                   <label class="form-label" style="margin: 0;">Logo do Projeto (Open Graph)</label>
                   <p style="margin: 4px 0 0; color: var(--color-surface-500); font-size: 0.75rem;">
-                    Este logo é usado na imagem de compartilhamento do empreendimento e dos lotes.
+                    Este logo é exclusivo para compartilhamento (Open Graph). Nao afeta os logos de rodape.
                   </p>
                 </div>
 
                 <label v-if="authStore.canEdit" class="btn btn-primary btn-sm" style="cursor: pointer;">
-                  {{ uploadingFooterLogo ? 'Enviando...' : '+ Enviar Logo' }}
+                  {{ uploadingOgLogo ? 'Enviando...' : '+ Enviar Logo' }}
                   <input
                     type="file"
                     accept="image/*"
                     style="display:none"
-                    @change="uploadFooterLogo"
-                    :disabled="uploadingFooterLogo"
+                    @change="uploadProjectOgLogo"
+                    :disabled="uploadingOgLogo"
                   />
                 </label>
               </div>
 
-              <div v-if="projectFooterLogos.length" style="display: flex; flex-wrap: wrap; gap: 10px;">
+              <div v-if="projectOgLogoUrl" style="display: flex; flex-wrap: wrap; gap: 10px;">
                 <div
-                  v-for="(logo, idx) in projectFooterLogos"
-                  :key="logo.id"
                   style="position: relative; width: 120px; height: 78px; border-radius: 8px; border: 1px solid var(--glass-border-subtle); background: var(--glass-bg-heavy); overflow: hidden; display: flex; align-items: center; justify-content: center;"
                 >
-                  <img :src="logo.url" :alt="logo.label || project?.name || 'Logo'" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 8px;" />
-                  <span v-if="idx === 0" class="badge badge-success" style="position: absolute; left: 6px; bottom: 6px; font-size: 0.6rem;">OG principal</span>
+                  <img :src="projectOgLogoUrl" :alt="project?.name || 'Logo Open Graph'" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 8px;" />
+                  <span class="badge badge-success" style="position: absolute; left: 6px; bottom: 6px; font-size: 0.6rem;">Logo OG</span>
                   <button
                     v-if="authStore.canEdit"
                     type="button"
                     class="pub-remove-btn"
                     style="position: absolute; top: 6px; right: 6px;"
-                    :disabled="deletingFooterLogoId === logo.id"
-                    @click="deleteFooterLogo(logo.id)"
+                    :disabled="removingOgLogo"
+                    @click="removeProjectOgLogo"
                   >
-                    {{ deletingFooterLogoId === logo.id ? '...' : '✕' }}
+                    {{ removingOgLogo ? '...' : '✕' }}
                   </button>
                 </div>
               </div>
@@ -2942,6 +2940,9 @@ const pubInfoForm = ref({
   legalNotice: ''
 })
 const projectFooterLogos = ref<Array<{ id: string; url: string; label?: string | null; sortOrder?: number }>>([])
+const projectOgLogoUrl = ref<string | null>(null)
+const uploadingOgLogo = ref(false)
+const removingOgLogo = ref(false)
 const uploadingFooterLogo = ref(false)
 const deletingFooterLogoId = ref<string | null>(null)
 const savingPublicVideo = ref(false)
@@ -3240,6 +3241,42 @@ const savePublicLegalBlock = async () => {
     'Informações legais salvas!',
     'Erro ao salvar informações legais',
   )
+}
+
+const uploadProjectOgLogo = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  uploadingOgLogo.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const updatedProject = await uploadApi(`/projects/${projectId}/og-logo`, fd)
+    projectOgLogoUrl.value = updatedProject?.ogLogoUrl || null
+    if (project.value) project.value.ogLogoUrl = projectOgLogoUrl.value
+    toastSuccess('Logo Open Graph enviado!')
+  } catch (err) {
+    toastFromError(err, 'Erro ao enviar logo Open Graph')
+  } finally {
+    ;(e.target as HTMLInputElement).value = ''
+    uploadingOgLogo.value = false
+  }
+}
+
+const removeProjectOgLogo = async () => {
+  removingOgLogo.value = true
+  try {
+    const updatedProject = await fetchApi(`/projects/${projectId}/og-logo`, {
+      method: 'DELETE'
+    })
+    projectOgLogoUrl.value = updatedProject?.ogLogoUrl || null
+    if (project.value) project.value.ogLogoUrl = projectOgLogoUrl.value
+    toastSuccess('Logo Open Graph removido!')
+  } catch (err) {
+    toastFromError(err, 'Erro ao remover logo Open Graph')
+  } finally {
+    removingOgLogo.value = false
+  }
 }
 
 const uploadFooterLogo = async (e: Event) => {
@@ -4132,6 +4169,7 @@ const loadProject = async () => {
       legalNotice: p.legalNotice || ''
     }
     projectFooterLogos.value = Array.isArray(p.logos) ? p.logos : []
+    projectOgLogoUrl.value = p.ogLogoUrl || null
     initialEditorContent.value = extractLocationMeta(p.locationText || '').body || '<p></p>'
     // Load nearby status
     loadNearbyStatus()

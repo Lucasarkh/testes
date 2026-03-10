@@ -81,6 +81,73 @@ export class UploadService {
     return this.updateProjectBannerField(projectId, bannerField, null);
   }
 
+  // ── Project Open Graph logo ────────────────────────────
+
+  async uploadOgLogo(
+    tenantId: string,
+    projectId: string,
+    file: Express.Multer.File
+  ) {
+    this.validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
+
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, tenantId }
+    });
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
+
+    const previousUrl = (project as any).ogLogoUrl as
+      | string
+      | null
+      | undefined;
+    if (previousUrl) {
+      const oldKey = this.s3.keyFromUrl(previousUrl);
+      if (oldKey) await this.s3.delete(oldKey).catch(() => {});
+    }
+
+    const key = this.s3.buildKey(
+      tenantId,
+      `projects/${projectId}/og-logo`,
+      file.originalname
+    );
+    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+
+    await this.prisma.$executeRaw(
+      Prisma.sql`UPDATE "Project" SET "ogLogoUrl" = ${url}, "updatedAt" = NOW() WHERE "id" = ${projectId}`
+    );
+
+    const refreshed = await this.prisma.project.findUnique({
+      where: { id: projectId }
+    });
+    if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
+    return refreshed;
+  }
+
+  async removeOgLogo(tenantId: string, projectId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, tenantId }
+    });
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
+
+    const previousUrl = (project as any).ogLogoUrl as
+      | string
+      | null
+      | undefined;
+    if (previousUrl) {
+      const oldKey = this.s3.keyFromUrl(previousUrl);
+      if (oldKey) await this.s3.delete(oldKey).catch(() => {});
+    }
+
+    await this.prisma.$executeRaw(
+      Prisma.sql`UPDATE "Project" SET "ogLogoUrl" = NULL, "updatedAt" = NOW() WHERE "id" = ${projectId}`
+    );
+
+    const refreshed = await this.prisma.project.findUnique({
+      where: { id: projectId }
+    });
+    if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
+    return refreshed;
+  }
+
   // ── Project footer logos (Realizacao e Propriedade) ───
 
   async listFooterLogos(tenantId: string, projectId: string) {
@@ -212,6 +279,7 @@ export class UploadService {
     // Restrict folders to known areas
     const allowedFolders = [
       'banner',
+      'og-logo',
       'media',
       'plant-map',
       'panorama',

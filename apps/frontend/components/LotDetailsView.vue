@@ -1127,7 +1127,7 @@ const lotShareMessage = computed(() => {
 const lotSeoImage = computed(() => {
   const origin = globalThis?.location?.origin || ''
   return (
-    project.value?.logos?.[0]?.url
+    project.value?.ogLogoUrl
     || details.value?.medias?.[0]?.url
     || panoramaImageUrl.value
     || project.value?.bannerImageUrl
