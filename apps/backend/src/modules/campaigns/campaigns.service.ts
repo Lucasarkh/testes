@@ -235,7 +235,10 @@ export class CampaignsService {
     const totalSessions = sessions.length;
     const totalLeads = leads.length;
     const totalWonLeads = leads.filter((l) => l.status === 'WON').length;
-    const totalSpent = investments.reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const totalSpent = investments.reduce(
+      (acc, curr) => acc + Number(curr.amount),
+      0
+    );
     const totalRevenue = leads
       .filter((l) => l.status === 'WON')
       .reduce(

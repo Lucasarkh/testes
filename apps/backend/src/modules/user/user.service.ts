@@ -35,7 +35,11 @@ export class UserService {
     return tenantId ? { tenantId } : { tenantId: null };
   }
 
-  async create(tenantId: string | undefined, dto: CreateUserDto, currentUser?: { role?: UserRole }) {
+  async create(
+    tenantId: string | undefined,
+    dto: CreateUserDto,
+    currentUser?: { role?: UserRole }
+  ) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() }
     });
@@ -69,7 +73,9 @@ export class UserService {
 
     // Tenant-scoped managers cannot create SYSADMIN users.
     if (dto.role === UserRole.SYSADMIN) {
-      throw new BadRequestException('Usuário SYSADMIN só pode ser criado no contexto global da Lotio.');
+      throw new BadRequestException(
+        'Usuário SYSADMIN só pode ser criado no contexto global da Lotio.'
+      );
     }
 
     const user = await this.prisma.user.create({
@@ -86,7 +92,10 @@ export class UserService {
     // Send correct welcome email based on role (non-blocking)
     try {
       if (user.role === UserRole.CORRETOR) {
-        await this.emailQueueService.queueWelcomeRealtorEmail(user.email, user.name);
+        await this.emailQueueService.queueWelcomeRealtorEmail(
+          user.email,
+          user.name
+        );
       } else if (user.role === UserRole.LOTEADORA && tenantId) {
         await this.emailQueueService.queueWelcomeTenantEmail(
           user.email,
@@ -95,7 +104,10 @@ export class UserService {
         );
       }
     } catch (error: any) {
-      this.logger.error(`Failed to queue welcome email for ${user.email}:`, error.message);
+      this.logger.error(
+        `Failed to queue welcome email for ${user.email}:`,
+        error.message
+      );
     }
 
     return user;
@@ -148,11 +160,15 @@ export class UserService {
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
     if (!tenantId && dto.role && dto.role !== UserRole.SYSADMIN) {
-      throw new BadRequestException('No contexto global, usuários internos devem permanecer com papel SYSADMIN.');
+      throw new BadRequestException(
+        'No contexto global, usuários internos devem permanecer com papel SYSADMIN.'
+      );
     }
 
     if (tenantId && dto.role === UserRole.SYSADMIN) {
-      throw new BadRequestException('Não é permitido promover usuário de tenant para SYSADMIN por este endpoint.');
+      throw new BadRequestException(
+        'Não é permitido promover usuário de tenant para SYSADMIN por este endpoint.'
+      );
     }
 
     const data: any = {};

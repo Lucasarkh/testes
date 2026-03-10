@@ -7,7 +7,7 @@ import {
   IsNumber,
   ValidateNested,
   Min,
-  Max,
+  Max
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -27,7 +27,9 @@ export class PricingTierDto {
 }
 
 export class UpsertPricingTableDto {
-  @ApiPropertyOptional({ description: 'ID (para update). Omitir para criar nova.' })
+  @ApiPropertyOptional({
+    description: 'ID (para update). Omitir para criar nova.'
+  })
   @IsOptional()
   @IsString()
   id?: string;
@@ -60,14 +62,20 @@ export class AssignPricingTableDto {
   @IsString()
   pricingTableId: string;
 
-  @ApiPropertyOptional({ description: 'Desconto em % para este tenant (0-100)', default: 0 })
+  @ApiPropertyOptional({
+    description: 'Desconto em % para este tenant (0-100)',
+    default: 0
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(100)
   discountPercent?: number;
 
-  @ApiPropertyOptional({ description: 'Número de projetos gratuitos', default: 1 })
+  @ApiPropertyOptional({
+    description: 'Número de projetos gratuitos',
+    default: 1
+  })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -77,7 +85,10 @@ export class AssignPricingTableDto {
 // ─── Billing Anchor ──────────────────────────────────────
 
 export class SetBillingAnchorDto {
-  @ApiProperty({ description: 'Dia do mês para vencimento (1-28)', example: 10 })
+  @ApiProperty({
+    description: 'Dia do mês para vencimento (1-28)',
+    example: 10
+  })
   @IsInt()
   @Min(1)
   @Max(28)
@@ -85,7 +96,10 @@ export class SetBillingAnchorDto {
 }
 
 export class SetTenantTrialDto {
-  @ApiProperty({ description: 'Duração do período de teste em meses (1-24)', example: 3 })
+  @ApiProperty({
+    description: 'Duração do período de teste em meses (1-24)',
+    example: 3
+  })
   @IsInt()
   @Min(1)
   @Max(24)

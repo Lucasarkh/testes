@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-} from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import {
   UserRole,
@@ -11,7 +7,7 @@ import {
   GeometryType,
   LotStatus,
   SlopeType,
-  LeadStatus,
+  LeadStatus
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -37,7 +33,7 @@ export class SeedRunnerService implements OnApplicationBootstrap {
    */
   private async runIfNeeded() {
     const existing = await this.prisma.systemMeta.findUnique({
-      where: { key: SEED_KEY },
+      where: { key: SEED_KEY }
     });
 
     if (existing) {
@@ -51,8 +47,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
     await this.prisma.systemMeta.create({
       data: {
         key: SEED_KEY,
-        value: new Date().toISOString(),
-      },
+        value: new Date().toISOString()
+      }
     });
 
     this.logger.log('Initial seed completed and marked ✅');
@@ -70,16 +66,16 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Sistema Admin',
         email: 'admin@sistema.com',
         passwordHash,
-        role: UserRole.SYSADMIN,
-      },
+        role: UserRole.SYSADMIN
+      }
     });
 
     // ─── Tenant 1 ────────────────────────────────────────
     const tenant1 = await this.prisma.tenant.create({
       data: {
         name: 'Loteadora Vista Verde',
-        slug: 'vista-verde',
-      },
+        slug: 'vista-verde'
+      }
     });
 
     await this.prisma.user.create({
@@ -88,8 +84,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Carlos Admin',
         email: 'admin@vistaverde.com',
         passwordHash,
-        role: UserRole.LOTEADORA,
-      },
+        role: UserRole.LOTEADORA
+      }
     });
 
     await this.prisma.user.create({
@@ -98,8 +94,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Ana Editora',
         email: 'editor@vistaverde.com',
         passwordHash,
-        role: UserRole.LOTEADORA,
-      },
+        role: UserRole.LOTEADORA
+      }
     });
 
     // ─── Project 1 ───────────────────────────────────────
@@ -109,8 +105,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Residencial Parque dos Ipês',
         slug: 'parque-dos-ipes',
         description: 'Loteamento residencial com 120 lotes, área verde e lago.',
-        status: ProjectStatus.PUBLISHED,
-      },
+        status: ProjectStatus.PUBLISHED
+      }
     });
 
     // ─── Lots ────────────────────────────────────────────
@@ -127,13 +123,26 @@ export class SeedRunnerService implements OnApplicationBootstrap {
             { x: 100, y: 100 },
             { x: 200, y: 100 },
             { x: 200, y: 180 },
-            { x: 100, y: 180 },
+            { x: 100, y: 180 }
           ],
-          transform: { x: 0, y: 0, rotation: 0, skewX: 0, skewY: 0, scaleX: 1, scaleY: 1 },
+          transform: {
+            x: 0,
+            y: 0,
+            rotation: 0,
+            skewX: 0,
+            skewY: 0,
+            scaleX: 1,
+            scaleY: 1
+          }
         },
-        styleJson: { fill: '#22c55e', stroke: '#15803d', opacity: 0.7, zIndex: 10 },
-        metaJson: { quadra: 'A' },
-      },
+        styleJson: {
+          fill: '#22c55e',
+          stroke: '#15803d',
+          opacity: 0.7,
+          zIndex: 10
+        },
+        metaJson: { quadra: 'A' }
+      }
     });
 
     const lot2 = await this.prisma.mapElement.create({
@@ -149,13 +158,26 @@ export class SeedRunnerService implements OnApplicationBootstrap {
             { x: 200, y: 100 },
             { x: 300, y: 100 },
             { x: 300, y: 180 },
-            { x: 200, y: 180 },
+            { x: 200, y: 180 }
           ],
-          transform: { x: 0, y: 0, rotation: 0, skewX: 0, skewY: 0, scaleX: 1, scaleY: 1 },
+          transform: {
+            x: 0,
+            y: 0,
+            rotation: 0,
+            skewX: 0,
+            skewY: 0,
+            scaleX: 1,
+            scaleY: 1
+          }
         },
-        styleJson: { fill: '#eab308', stroke: '#a16207', opacity: 0.7, zIndex: 10 },
-        metaJson: { quadra: 'A' },
-      },
+        styleJson: {
+          fill: '#eab308',
+          stroke: '#a16207',
+          opacity: 0.7,
+          zIndex: 10
+        },
+        metaJson: { quadra: 'A' }
+      }
     });
 
     const lot3 = await this.prisma.mapElement.create({
@@ -171,13 +193,26 @@ export class SeedRunnerService implements OnApplicationBootstrap {
             { x: 400, y: 100 },
             { x: 500, y: 100 },
             { x: 500, y: 180 },
-            { x: 400, y: 180 },
+            { x: 400, y: 180 }
           ],
-          transform: { x: 0, y: 0, rotation: 0, skewX: 0, skewY: 0, scaleX: 1, scaleY: 1 },
+          transform: {
+            x: 0,
+            y: 0,
+            rotation: 0,
+            skewX: 0,
+            skewY: 0,
+            scaleX: 1,
+            scaleY: 1
+          }
         },
-        styleJson: { fill: '#ef4444', stroke: '#b91c1c', opacity: 0.7, zIndex: 10 },
-        metaJson: { quadra: 'B' },
-      },
+        styleJson: {
+          fill: '#ef4444',
+          stroke: '#b91c1c',
+          opacity: 0.7,
+          zIndex: 10
+        },
+        metaJson: { quadra: 'B' }
+      }
     });
 
     // ─── Lot Details ─────────────────────────────────────
@@ -193,8 +228,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         depth: 25,
         slope: SlopeType.FLAT,
         conditionsJson: { entrada: '20%', parcelas: 120, juros: '0.99% a.m.' },
-        notes: 'Lote de esquina com excelente localização.',
-      },
+        notes: 'Lote de esquina com excelente localização.'
+      }
     });
 
     await this.prisma.lotDetails.create({
@@ -208,8 +243,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         frontage: 10,
         depth: 28,
         slope: SlopeType.FLAT,
-        conditionsJson: { entrada: '15%', parcelas: 120, juros: '0.99% a.m.' },
-      },
+        conditionsJson: { entrada: '15%', parcelas: 120, juros: '0.99% a.m.' }
+      }
     });
 
     await this.prisma.lotDetails.create({
@@ -222,8 +257,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         areaM2: 250,
         frontage: 10,
         depth: 25,
-        slope: SlopeType.UPHILL,
-      },
+        slope: SlopeType.UPHILL
+      }
     });
 
     // ─── Road ────────────────────────────────────────────
@@ -237,13 +272,18 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         geometryJson: {
           points: [
             { x: 50, y: 200 },
-            { x: 550, y: 200 },
+            { x: 550, y: 200 }
           ],
-          width: 30,
+          width: 30
         },
-        styleJson: { fill: '#9ca3af', stroke: '#6b7280', opacity: 1, zIndex: 5 },
-        metaJson: { largura: '12m', sentido: 'duplo' },
-      },
+        styleJson: {
+          fill: '#9ca3af',
+          stroke: '#6b7280',
+          opacity: 1,
+          zIndex: 5
+        },
+        metaJson: { largura: '12m', sentido: 'duplo' }
+      }
     });
 
     // ─── Roundabout ──────────────────────────────────────
@@ -255,8 +295,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Rotatória Central',
         geometryType: GeometryType.CIRCLE,
         geometryJson: { cx: 300, cy: 300, r: 40 },
-        styleJson: { fill: '#d1d5db', stroke: '#9ca3af', opacity: 1, zIndex: 5 },
-      },
+        styleJson: { fill: '#d1d5db', stroke: '#9ca3af', opacity: 1, zIndex: 5 }
+      }
     });
 
     // ─── Green Area ──────────────────────────────────────
@@ -272,12 +312,25 @@ export class SeedRunnerService implements OnApplicationBootstrap {
             { x: 250, y: 350 },
             { x: 350, y: 350 },
             { x: 350, y: 450 },
-            { x: 250, y: 450 },
+            { x: 250, y: 450 }
           ],
-          transform: { x: 0, y: 0, rotation: 0, skewX: 0, skewY: 0, scaleX: 1, scaleY: 1 },
+          transform: {
+            x: 0,
+            y: 0,
+            rotation: 0,
+            skewX: 0,
+            skewY: 0,
+            scaleX: 1,
+            scaleY: 1
+          }
         },
-        styleJson: { fill: '#86efac', stroke: '#22c55e', opacity: 0.8, zIndex: 3 },
-      },
+        styleJson: {
+          fill: '#86efac',
+          stroke: '#22c55e',
+          opacity: 0.8,
+          zIndex: 3
+        }
+      }
     });
 
     // ─── Lake ────────────────────────────────────────────
@@ -289,8 +342,13 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Lago Ornamental',
         geometryType: GeometryType.CIRCLE,
         geometryJson: { cx: 500, cy: 400, r: 60 },
-        styleJson: { fill: '#7dd3fc', stroke: '#0ea5e9', opacity: 0.8, zIndex: 3 },
-      },
+        styleJson: {
+          fill: '#7dd3fc',
+          stroke: '#0ea5e9',
+          opacity: 0.8,
+          zIndex: 3
+        }
+      }
     });
 
     // ─── Leads ───────────────────────────────────────────
@@ -302,10 +360,11 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Maria Silva',
         email: 'maria@email.com',
         phone: '(11) 99999-0001',
-        message: 'Tenho interesse no lote QA-L01. Podem me enviar mais informações?',
+        message:
+          'Tenho interesse no lote QA-L01. Podem me enviar mais informações?',
         source: 'site',
-        status: LeadStatus.NEW,
-      },
+        status: LeadStatus.NEW
+      }
     });
 
     await this.prisma.lead.create({
@@ -319,16 +378,16 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         message: 'Gostaria de agendar uma visita ao loteamento.',
         source: 'whatsapp',
         status: LeadStatus.CONTACTED,
-        lastContactAt: new Date(),
-      },
+        lastContactAt: new Date()
+      }
     });
 
     // ─── Tenant 2 ────────────────────────────────────────
     const tenant2 = await this.prisma.tenant.create({
       data: {
         name: 'Loteadora Sol Nascente',
-        slug: 'sol-nascente',
-      },
+        slug: 'sol-nascente'
+      }
     });
 
     await this.prisma.user.create({
@@ -337,8 +396,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Roberto Admin',
         email: 'admin@solnascente.com',
         passwordHash,
-        role: UserRole.LOTEADORA,
-      },
+        role: UserRole.LOTEADORA
+      }
     });
 
     await this.prisma.project.create({
@@ -347,8 +406,8 @@ export class SeedRunnerService implements OnApplicationBootstrap {
         name: 'Eco Ville',
         slug: 'eco-ville',
         description: 'Loteamento ecológico com 80 lotes.',
-        status: ProjectStatus.DRAFT,
-      },
+        status: ProjectStatus.DRAFT
+      }
     });
 
     this.logger.log('📋 Test accounts created:');

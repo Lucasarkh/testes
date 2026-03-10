@@ -6,6 +6,6 @@ import { PublicNearbyController } from './public-nearby.controller';
 @Module({
   controllers: [NearbyController, PublicNearbyController],
   providers: [NearbyService],
-  exports: [NearbyService],
+  exports: [NearbyService]
 })
 export class NearbyModule {}

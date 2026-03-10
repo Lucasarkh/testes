@@ -8,7 +8,7 @@ import {
   IsNotEmpty,
   IsEmail,
   Min,
-  Matches,
+  Matches
 } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import {

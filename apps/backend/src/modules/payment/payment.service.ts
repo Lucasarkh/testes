@@ -2,7 +2,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  BadRequestException,
+  BadRequestException
 } from '@nestjs/common';
 import { PrismaService } from '@infra/db/prisma.service';
 import { EncryptionService } from '@common/encryption/ecryption.service';
@@ -14,7 +14,7 @@ import { PagSeguroAdapter } from './adapters/pagseguro.adapter';
 import {
   CreatePaymentDto,
   IPaymentGateway,
-  WebhookPaymentStatus,
+  WebhookPaymentStatus
 } from './interfaces/payment-gateway.interface';
 import { PaymentProvider } from '@prisma/client';
 import { NotificationsService } from '@modules/notifications/notifications.service';
@@ -31,7 +31,7 @@ export class PaymentService {
     private readonly pagarMe: PagarMeAdapter,
     private readonly pagSeguro: PagSeguroAdapter,
     private readonly notifications: NotificationsService,
-    private readonly encryption: EncryptionService,
+    private readonly encryption: EncryptionService
   ) {}
 
   private getGateway(provider: PaymentProvider): IPaymentGateway {
@@ -54,7 +54,7 @@ export class PaymentService {
   async startReservationPayment(
     leadId: string,
     amount: number,
-    options?: { baseUrl?: string; metadata?: Record<string, any> },
+    options?: { baseUrl?: string; metadata?: Record<string, any> }
   ) {
     const lead = await this.prisma.lead.findUnique({
       where: { id: leadId },
@@ -66,10 +66,10 @@ export class PaymentService {
           include: {
             paymentGateways: {
               where: { isActive: true }
-            },
-          },
-        },
-      },
+            }
+          }
+        }
+      }
     });
 
     if (!lead || !lead.project) {
@@ -79,7 +79,9 @@ export class PaymentService {
     // 0. Check Lot availability
     if (lead.mapElement?.lotDetails) {
       if (lead.mapElement.lotDetails.status !== 'AVAILABLE') {
-        throw new BadRequestException('Este lote não está disponível para reserva.');
+        throw new BadRequestException(
+          'Este lote não está disponível para reserva.'
+        );
       }
     }
 
@@ -87,15 +89,17 @@ export class PaymentService {
 
     if (!gateways || gateways.length === 0) {
       throw new BadRequestException(
-        'Payment gateway not configured for this project',
+        'Payment gateway not configured for this project'
       );
     }
 
     // PIX_DIRECT is a manual flow — skip it when looking for a gateway that creates a session automatically
-    const activeGatewayConfig = gateways.find((g: any) => g.provider !== 'PIX_DIRECT');
+    const activeGatewayConfig = gateways.find(
+      (g: any) => g.provider !== 'PIX_DIRECT'
+    );
     if (!activeGatewayConfig) {
       throw new BadRequestException(
-        'Nenhum gateway de pagamento automático configurado. Configure Stripe, Asaas, Mercado Pago, Pagar.me ou PagSeguro.',
+        'Nenhum gateway de pagamento automático configurado. Configure Stripe, Asaas, Mercado Pago, Pagar.me ou PagSeguro.'
       );
     }
 
@@ -103,11 +107,11 @@ export class PaymentService {
     const gateway = this.getGateway(provider);
 
     // Decrypt the gateway credentials for in-memory use only.
-    const keysJson = this.encryption.decryptJson(rawKeysJson as string | null);
+    const keysJson = this.encryption.decryptJson(rawKeysJson);
     if (!keysJson) {
       throw new BadRequestException(
         'Não foi possível decriptografar as credenciais do gateway. ' +
-        'Por favor, reconfigure o gateway de pagamento no painel.',
+          'Por favor, reconfigure o gateway de pagamento no painel.'
       );
     }
 
@@ -119,16 +123,20 @@ export class PaymentService {
         status: 'PENDING',
         amount,
         dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h to pay
-        provider,
-      },
+        provider
+      }
     });
 
-    const siteUrl = options?.baseUrl || `https://${lead.project.customDomain || 'demo.lotio.com.br'}`;
+    const siteUrl =
+      options?.baseUrl ||
+      `https://${lead.project.customDomain || 'demo.lotio.com.br'}`;
     const successUrl = `${siteUrl}/obrigado?paymentId=${leadPayment.id}`;
     const cancelUrl = `${siteUrl}/pagamento?leadId=${leadId}`;
 
     // Improve description with Lot information
-    const lotInfo = lead.mapElement ? ` - Lote ${lead.mapElement.code || lead.mapElement.name}` : '';
+    const lotInfo = lead.mapElement
+      ? ` - Lote ${lead.mapElement.code || lead.mapElement.name}`
+      : '';
     const description = `Reserva${lotInfo} - [${lead.project.name || 'Loteamento'}]`;
 
     const sessionData: CreatePaymentDto = {
@@ -145,14 +153,14 @@ export class PaymentService {
         leadId,
         paymentId: leadPayment.id,
         projectId: lead.projectId,
-        ...options?.metadata,
-      },
+        ...options?.metadata
+      }
     };
 
     try {
       const { externalId, paymentUrl } = await gateway.createSession(
         keysJson,
-        sessionData,
+        sessionData
       );
 
       // Update lead payment with gateway details
@@ -160,19 +168,19 @@ export class PaymentService {
         where: { id: leadPayment.id },
         data: {
           externalId,
-          paymentUrl,
-        },
+          paymentUrl
+        }
       });
 
       // Update lead status
       await this.prisma.lead.update({
         where: { id: leadId },
-        data: { status: 'WAITING_PAYMENT' },
+        data: { status: 'WAITING_PAYMENT' }
       });
 
       return {
         paymentId: leadPayment.id,
-        checkoutUrl: paymentUrl,
+        checkoutUrl: paymentUrl
       };
     } catch (error) {
       this.logger.error(`Error creating payment session: ${error.message}`);
@@ -184,7 +192,7 @@ export class PaymentService {
     projectId: string,
     payload: any,
     provider: PaymentProvider,
-    signature?: string,
+    signature?: string
   ) {
     const config = await this.prisma.paymentConfig.findFirst({
       where: {
@@ -192,29 +200,27 @@ export class PaymentService {
         projects: {
           some: { id: projectId }
         }
-      },
+      }
     });
 
     if (!config || !config.isActive) {
-      this.logger.warn(`Webhook received for inactive or non-existent project config for project: ${projectId}`);
+      this.logger.warn(
+        `Webhook received for inactive or non-existent project config for project: ${projectId}`
+      );
       return { received: true };
     }
 
     const gateway = this.getGateway(provider);
 
     // Decrypt gateway credentials before passing to adapter.
-    const keysJson = this.encryption.decryptJson(config.keysJson as string | null);
+    const keysJson = this.encryption.decryptJson(config.keysJson);
     if (!keysJson) {
       this.logger.warn(`Failed to decrypt keysJson for project: ${projectId}`);
       return { received: true }; // graceful — do not crash on bad config
     }
 
     try {
-      const result = await gateway.handleWebhook(
-        keysJson,
-        payload,
-        signature,
-      );
+      const result = await gateway.handleWebhook(keysJson, payload, signature);
 
       if (result.status === WebhookPaymentStatus.PAID) {
         await this.handleSuccessfulPayment(result.externalId, provider);
@@ -229,10 +235,15 @@ export class PaymentService {
     }
   }
 
-  private async handleSuccessfulPayment(externalId: string, provider: PaymentProvider) {
+  private async handleSuccessfulPayment(
+    externalId: string,
+    provider: PaymentProvider
+  ) {
     const payment = await this.prisma.leadPayment.findFirst({
       where: { externalId, provider },
-      include: { lead: { include: { mapElement: { include: { lotDetails: true } } } } },
+      include: {
+        lead: { include: { mapElement: { include: { lotDetails: true } } } }
+      }
     });
 
     if (!payment) return;
@@ -245,24 +256,24 @@ export class PaymentService {
         where: { id: payment.id },
         data: {
           status: 'PAID',
-          paidDate: new Date(),
-        },
+          paidDate: new Date()
+        }
       });
 
       // 2. Mark Lead as RESERVATION
       await tx.lead.update({
         where: { id: payment.leadId },
-        data: { 
+        data: {
           status: 'RESERVATION',
-          reservedAt: new Date(), // Set reservation time when payment is confirmed
-        },
+          reservedAt: new Date() // Set reservation time when payment is confirmed
+        }
       });
 
       // 3. Update Lot status to RESERVED if applicable
       if (payment.lead.mapElementId && payment.lead.mapElement?.lotDetails) {
         // Double-check availability inside transaction to prevent race conditions
         const currentLot = await tx.lotDetails.findUnique({
-          where: { id: payment.lead.mapElement.lotDetails.id },
+          where: { id: payment.lead.mapElement.lotDetails.id }
         });
 
         if (currentLot && currentLot.status === 'AVAILABLE') {
@@ -278,26 +289,28 @@ export class PaymentService {
           if (!otherActiveLead) {
             await tx.lotDetails.update({
               where: { id: currentLot.id },
-              data: { status: 'RESERVED' },
+              data: { status: 'RESERVED' }
             });
           } else {
-             this.logger.error(
-                `CONFLITO: Lote ${payment.lead.mapElementId} pago pelo lead ${payment.leadId}, mas já está reservado por outro lead (${otherActiveLead.id}).`
-             );
-             // In this case, we might need a manual intervention or a refund logic, but for now we block the update to lot status.
+            this.logger.error(
+              `CONFLITO: Lote ${payment.lead.mapElementId} pago pelo lead ${payment.leadId}, mas já está reservado por outro lead (${otherActiveLead.id}).`
+            );
+            // In this case, we might need a manual intervention or a refund logic, but for now we block the update to lot status.
           }
         } else if (currentLot?.status === 'RESERVED') {
-            // Check if it's already reserved for THIS lead
-             const activeLead = await tx.lead.findFirst({
-                where: {
-                    mapElementId: payment.lead.mapElementId,
-                    status: { in: ['RESERVATION', 'WON'] },
-                    id: { not: payment.leadId }
-                }
-            });
-            if (activeLead) {
-                 this.logger.error(`CONFLITO: Lote ${payment.lead.mapElementId} pago, mas já ocupado.`);
+          // Check if it's already reserved for THIS lead
+          const activeLead = await tx.lead.findFirst({
+            where: {
+              mapElementId: payment.lead.mapElementId,
+              status: { in: ['RESERVATION', 'WON'] },
+              id: { not: payment.leadId }
             }
+          });
+          if (activeLead) {
+            this.logger.error(
+              `CONFLITO: Lote ${payment.lead.mapElementId} pago, mas já ocupado.`
+            );
+          }
         }
       }
 
@@ -308,21 +321,29 @@ export class PaymentService {
           fromStatus: payment.lead.status,
           toStatus: 'RESERVATION',
           notes: `Pagamento de reserva confirmado via ${provider}`,
-          createdBy: 'SYSTEM_GATEWAY',
-        },
+          createdBy: 'SYSTEM_GATEWAY'
+        }
       });
     });
 
     this.notifications
       .onLeadReservationConfirmed(payment.leadId, provider)
-      .catch((e) => this.logger.error('Notification onLeadReservationConfirmed (gateway)', e.message));
+      .catch((e) =>
+        this.logger.error(
+          'Notification onLeadReservationConfirmed (gateway)',
+          e.message
+        )
+      );
   }
 
-  private async handleFailedPayment(externalId: string, provider: PaymentProvider) {
+  private async handleFailedPayment(
+    externalId: string,
+    provider: PaymentProvider
+  ) {
     // Logic for failed payment
     const payment = await this.prisma.leadPayment.findFirst({
       where: { externalId, provider },
-      include: { lead: true },
+      include: { lead: true }
     });
 
     if (payment) {
@@ -330,13 +351,13 @@ export class PaymentService {
         // 1. Update Payment status
         await tx.leadPayment.update({
           where: { id: payment.id },
-          data: { status: 'OVERDUE' },
+          data: { status: 'OVERDUE' }
         });
 
         // 2. Update Lead status
         await tx.lead.update({
           where: { id: payment.leadId },
-          data: { status: 'ABANDONED' },
+          data: { status: 'ABANDONED' }
         });
 
         // 3. Add History
@@ -346,8 +367,8 @@ export class PaymentService {
             fromStatus: payment.lead.status,
             toStatus: 'ABANDONED',
             notes: `Pagamento de reserva falhou ou expirou via ${provider}`,
-            createdBy: 'SYSTEM_GATEWAY',
-          },
+            createdBy: 'SYSTEM_GATEWAY'
+          }
         });
       });
     }
@@ -355,7 +376,7 @@ export class PaymentService {
 
   async markAsAbandoned(leadId: string) {
     const lead = await this.prisma.lead.findUnique({
-      where: { id: leadId },
+      where: { id: leadId }
     });
 
     if (!lead || lead.status === 'WON' || lead.status === 'RESERVATION') {
@@ -365,7 +386,7 @@ export class PaymentService {
     await this.prisma.$transaction(async (tx) => {
       await tx.lead.update({
         where: { id: leadId },
-        data: { status: 'ABANDONED' },
+        data: { status: 'ABANDONED' }
       });
 
       await tx.leadHistory.create({
@@ -374,8 +395,8 @@ export class PaymentService {
           fromStatus: lead.status,
           toStatus: 'ABANDONED',
           notes: 'Lead retornou da tela de checkout e cancelou o processo',
-          createdBy: 'CUSTOMER',
-        },
+          createdBy: 'CUSTOMER'
+        }
       });
     });
 

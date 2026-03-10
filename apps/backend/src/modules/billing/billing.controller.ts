@@ -10,7 +10,7 @@ import {
   Headers,
   UseGuards,
   HttpCode,
-  HttpStatus,
+  HttpStatus
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
@@ -22,7 +22,7 @@ import {
   SetBillingAnchorDto,
   CreateCustomerDto,
   SavePaymentMethodDto,
-  CreateCheckoutDto,
+  CreateCheckoutDto
 } from './dto';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Public } from '@/common/decorators/public.decorator';
@@ -66,7 +66,7 @@ export class BillingAdminController {
   @ApiOperation({ summary: 'Assign a pricing table to a tenant' })
   assignPricingTable(
     @Param('tenantId') tenantId: string,
-    @Body() dto: AssignPricingTableDto,
+    @Body() dto: AssignPricingTableDto
   ) {
     return this.billingService.assignPricingTable(tenantId, dto);
   }
@@ -81,7 +81,7 @@ export class BillingAdminController {
   @ApiOperation({ summary: 'Set custom billing date for a tenant' })
   setBillingAnchor(
     @Param('tenantId') tenantId: string,
-    @Body() dto: SetBillingAnchorDto,
+    @Body() dto: SetBillingAnchorDto
   ) {
     return this.billingService.setBillingAnchor(tenantId, dto.billingDay);
   }
@@ -90,7 +90,7 @@ export class BillingAdminController {
   @ApiOperation({ summary: 'Create/ensure Stripe customer for tenant' })
   ensureCustomer(
     @Param('tenantId') tenantId: string,
-    @Body() dto: CreateCustomerDto,
+    @Body() dto: CreateCustomerDto
   ) {
     return this.billingService.ensureStripeCustomer(tenantId, dto);
   }
@@ -120,16 +120,20 @@ export class BillingAdminController {
   }
 
   @Put('tenants/:tenantId/trial')
-  @ApiOperation({ summary: 'Define/reativa período de teste (meses) para uma tenant' })
+  @ApiOperation({
+    summary: 'Define/reativa período de teste (meses) para uma tenant'
+  })
   setTenantTrial(
     @Param('tenantId') tenantId: string,
-    @Body() dto: SetTenantTrialDto,
+    @Body() dto: SetTenantTrialDto
   ) {
     return this.billingService.setTenantTrialPeriod(tenantId, dto.trialMonths);
   }
 
   @Post('tenants/:tenantId/trial/interrupt')
-  @ApiOperation({ summary: 'Interrompe imediatamente o período de teste da tenant' })
+  @ApiOperation({
+    summary: 'Interrompe imediatamente o período de teste da tenant'
+  })
   interruptTenantTrial(@Param('tenantId') tenantId: string) {
     return this.billingService.interruptTenantTrial(tenantId);
   }
@@ -176,23 +180,17 @@ export class BillingController {
 
   @Post('payment-methods')
   @ApiOperation({ summary: 'Save a new payment method' })
-  saveMethod(
-    @TenantId() tenantId: string,
-    @Body() dto: SavePaymentMethodDto,
-  ) {
+  saveMethod(@TenantId() tenantId: string, @Body() dto: SavePaymentMethodDto) {
     return this.billingService.savePaymentMethod(tenantId, dto);
   }
 
   @Post('checkout')
   @ApiOperation({ summary: 'Create checkout session to add payment method' })
-  createCheckout(
-    @TenantId() tenantId: string,
-    @Body() dto: CreateCheckoutDto,
-  ) {
+  createCheckout(@TenantId() tenantId: string, @Body() dto: CreateCheckoutDto) {
     return this.billingService.createCheckoutSession(
       tenantId,
       dto.successUrl,
-      dto.cancelUrl,
+      dto.cancelUrl
     );
   }
 
@@ -200,13 +198,14 @@ export class BillingController {
   @ApiOperation({ summary: 'Create subscription checkout (charges the user)' })
   createSubscriptionCheckout(
     @TenantId() tenantId: string,
-    @Body() body: { projectCount: number; successUrl?: string; cancelUrl?: string },
+    @Body()
+    body: { projectCount: number; successUrl?: string; cancelUrl?: string }
   ) {
     return this.billingService.createSubscriptionCheckout(
       tenantId,
       body.projectCount,
       body.successUrl,
-      body.cancelUrl,
+      body.cancelUrl
     );
   }
 
@@ -236,11 +235,13 @@ export class BillingWebhookController {
   @ApiOperation({ summary: 'Stripe webhook endpoint' })
   async handleStripeWebhook(
     @Req() req: any,
-    @Headers('stripe-signature') signature: string,
+    @Headers('stripe-signature') signature: string
   ) {
     const rawBody = req.rawBody as Buffer;
     if (!rawBody) {
-      throw new Error('Raw body not available. Ensure raw body parsing is enabled.');
+      throw new Error(
+        'Raw body not available. Ensure raw body parsing is enabled.'
+      );
     }
     return this.billingService.handleWebhook(rawBody, signature);
   }

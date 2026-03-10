@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@/infra/db/prisma.service';
-import { GoogleMapsService, NearbyPlace } from '@/infra/google/google-maps.service';
+import {
+  GoogleMapsService,
+  NearbyPlace
+} from '@/infra/google/google-maps.service';
 
 const CATEGORY_LABELS: Record<string, string> = {
   school: 'Escolas',
@@ -11,7 +14,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   park: 'Parques',
   restaurant: 'Restaurantes',
   gym: 'Academias',
-  shopping_mall: 'Shopping Centers',
+  shopping_mall: 'Shopping Centers'
 };
 
 export interface NearbyPublicResponse {
@@ -37,7 +40,7 @@ export class NearbyService {
   constructor(
     private prisma: PrismaService,
     private googleMaps: GoogleMapsService,
-    private config: ConfigService,
+    private config: ConfigService
   ) {}
 
   /**
@@ -54,16 +57,19 @@ export class NearbyService {
         nearbyStatus: true,
         nearbyItems: {
           where: { visible: true },
-          orderBy: { distanceMeters: 'asc' },
-        },
-      },
+          orderBy: { distanceMeters: 'asc' }
+        }
+      }
     });
 
     if (!project || !project.nearbyEnabled || project.nearbyStatus !== 'ok') {
       return { enabled: false, center: null, radiusMeters: 0, items: [] };
     }
 
-    const radiusMeters = parseInt(this.config.get('NEARBY_RADIUS_METERS') || '3000', 10);
+    const radiusMeters = parseInt(
+      this.config.get('NEARBY_RADIUS_METERS') || '3000',
+      10
+    );
 
     return {
       enabled: true,
@@ -80,8 +86,8 @@ export class NearbyService {
         drivingLabel: item.drivingLabel,
         walkingLabel: item.walkingLabel,
         shortAddress: item.shortAddress,
-        routeUrl: item.routeUrl,
-      })),
+        routeUrl: item.routeUrl
+      }))
     };
   }
 
@@ -91,7 +97,13 @@ export class NearbyService {
   async generateNearby(projectId: string): Promise<void> {
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
-      select: { id: true, address: true, latitude: true, longitude: true, googleMapsUrl: true },
+      select: {
+        id: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+        googleMapsUrl: true
+      }
     });
 
     if (!project) {
@@ -105,8 +117,8 @@ export class NearbyService {
         data: {
           nearbyStatus: 'error',
           nearbyErrorMessage: 'Endereço não informado',
-          nearbyGeneratedAt: new Date(),
-        },
+          nearbyGeneratedAt: new Date()
+        }
       });
       return;
     }
@@ -115,32 +127,36 @@ export class NearbyService {
       // Step 1: Resolve center coordinates (geocode with fallback)
       this.logger.log(`Resolving coordinates for project ${projectId}`);
 
-      const geocodeResp = await this.googleMaps.geocodeDetailed(project.address);
+      const geocodeResp = await this.googleMaps.geocodeDetailed(
+        project.address
+      );
       let geo = geocodeResp.result;
 
       if (!geo && project.latitude && project.longitude) {
         this.logger.warn(
-          `Geocode failed (${geocodeResp.status}); falling back to stored project coordinates for ${projectId}`,
+          `Geocode failed (${geocodeResp.status}); falling back to stored project coordinates for ${projectId}`
         );
         geo = {
           lat: project.latitude,
           lng: project.longitude,
           formattedAddress: project.address,
-          precision: 'APPROXIMATE',
+          precision: 'APPROXIMATE'
         };
       }
 
       if (!geo) {
-        const fromMapUrl = this.parseCoordinatesFromGoogleMapsUrl(project.googleMapsUrl || '');
+        const fromMapUrl = this.parseCoordinatesFromGoogleMapsUrl(
+          project.googleMapsUrl || ''
+        );
         if (fromMapUrl) {
           this.logger.warn(
-            `Geocode failed (${geocodeResp.status}); using coordinates parsed from googleMapsUrl for ${projectId}`,
+            `Geocode failed (${geocodeResp.status}); using coordinates parsed from googleMapsUrl for ${projectId}`
           );
           geo = {
             lat: fromMapUrl.lat,
             lng: fromMapUrl.lng,
             formattedAddress: project.address,
-            precision: 'APPROXIMATE',
+            precision: 'APPROXIMATE'
           };
         }
       }
@@ -160,8 +176,8 @@ export class NearbyService {
             nearbyErrorMessage: geocodeResp.message
               ? `${diagnostic}: ${geocodeResp.message}`.substring(0, 500)
               : diagnostic,
-            nearbyGeneratedAt: new Date(),
-          },
+            nearbyGeneratedAt: new Date()
+          }
         });
         return;
       }
@@ -169,7 +185,7 @@ export class NearbyService {
       // Save lat/lng
       await this.prisma.project.update({
         where: { id: projectId },
-        data: { latitude: geo.lat, longitude: geo.lng },
+        data: { latitude: geo.lat, longitude: geo.lng }
       });
 
       // Step 2: Nearby Search per category
@@ -177,15 +193,27 @@ export class NearbyService {
         this.config.get('NEARBY_CATEGORIES') ||
         'school,supermarket,pharmacy,hospital,park,restaurant,gym,shopping_mall';
       const categories = categoriesStr.split(',').map((c: string) => c.trim());
-      const radiusMeters = parseInt(this.config.get('NEARBY_RADIUS_METERS') || '3000', 10);
-      const maxPerCategory = parseInt(this.config.get('NEARBY_MAX_RESULTS_PER_CATEGORY') || '2', 10);
-      const maxTotal = parseInt(this.config.get('NEARBY_MAX_TOTAL_RESULTS') || '8', 10);
-      const walkingEnabled = this.config.get('NEARBY_WALKING_MODE_ENABLED') !== 'false';
+      const radiusMeters = parseInt(
+        this.config.get('NEARBY_RADIUS_METERS') || '3000',
+        10
+      );
+      const maxPerCategory = parseInt(
+        this.config.get('NEARBY_MAX_RESULTS_PER_CATEGORY') || '2',
+        10
+      );
+      const maxTotal = parseInt(
+        this.config.get('NEARBY_MAX_TOTAL_RESULTS') || '8',
+        10
+      );
+      const walkingEnabled =
+        this.config.get('NEARBY_WALKING_MODE_ENABLED') !== 'false';
 
       // Over-fetch from API: request 2x per category (capped at 20) so that
       // any places filtered out by distance-matrix still leave enough results.
       const apiFetchCount = Math.min(maxPerCategory * 2, 20);
-      this.logger.log(`Searching nearby places in ${categories.length} categories (fetching up to ${apiFetchCount} per category)`);
+      this.logger.log(
+        `Searching nearby places in ${categories.length} categories (fetching up to ${apiFetchCount} per category)`
+      );
 
       const allPlaces: NearbyPlace[] = [];
       for (const category of categories) {
@@ -194,7 +222,7 @@ export class NearbyService {
           geo.lng,
           category,
           radiusMeters,
-          apiFetchCount,
+          apiFetchCount
         );
         this.logger.log(`  ${category}: ${places.length} results from API`);
         allPlaces.push(...places);
@@ -208,8 +236,8 @@ export class NearbyService {
           data: {
             nearbyStatus: 'ok',
             nearbyErrorMessage: null,
-            nearbyGeneratedAt: new Date(),
-          },
+            nearbyGeneratedAt: new Date()
+          }
         });
         return;
       }
@@ -220,17 +248,23 @@ export class NearbyService {
         geo.lat,
         geo.lng,
         allPlaces.map((p) => ({ lat: p.lat, lng: p.lng })),
-        'driving',
+        'driving'
       );
 
       // Optionally compute walking distances
-      let walkingDistances: (ReturnType<typeof this.googleMaps.distanceMatrix> extends Promise<infer T> ? T : never) | null = null;
+      let walkingDistances:
+        | (ReturnType<typeof this.googleMaps.distanceMatrix> extends Promise<
+            infer T
+          >
+            ? T
+            : never)
+        | null = null;
       if (walkingEnabled) {
         walkingDistances = await this.googleMaps.distanceMatrix(
           geo.lat,
           geo.lng,
           allPlaces.map((p) => ({ lat: p.lat, lng: p.lng })),
-          'walking',
+          'walking'
         );
       }
 
@@ -260,7 +294,7 @@ export class NearbyService {
             distanceLabel: driving.distanceText,
             drivingLabel: driving.durationText,
             walkingLabel: walking?.durationText ?? null,
-            routeUrl: `https://www.google.com/maps/dir/?api=1&origin=${geo.lat},${geo.lng}&destination=${place.lat},${place.lng}`,
+            routeUrl: `https://www.google.com/maps/dir/?api=1&origin=${geo.lat},${geo.lng}&destination=${place.lat},${place.lng}`
           };
         })
         .filter((p): p is EnrichedPlace => p !== null)
@@ -279,7 +313,9 @@ export class NearbyService {
       }
 
       // Step 5: Persist
-      this.logger.log(`Persisting ${selected.length} nearby items for project ${projectId}`);
+      this.logger.log(
+        `Persisting ${selected.length} nearby items for project ${projectId}`
+      );
 
       await this.prisma.$transaction(async (tx) => {
         await tx.nearbyItem.deleteMany({ where: { projectId } });
@@ -300,8 +336,8 @@ export class NearbyService {
               distanceLabel: item.distanceLabel,
               drivingLabel: item.drivingLabel,
               walkingLabel: item.walkingLabel,
-              routeUrl: item.routeUrl,
-            },
+              routeUrl: item.routeUrl
+            }
           });
         }
 
@@ -310,21 +346,24 @@ export class NearbyService {
           data: {
             nearbyStatus: 'ok',
             nearbyErrorMessage: null,
-            nearbyGeneratedAt: new Date(),
-          },
+            nearbyGeneratedAt: new Date()
+          }
         });
       });
 
       this.logger.log(`Nearby generation completed for project ${projectId}`);
     } catch (err: any) {
-      this.logger.error(`Nearby generation failed for project ${projectId}: ${err.message}`);
+      this.logger.error(
+        `Nearby generation failed for project ${projectId}: ${err.message}`
+      );
       await this.prisma.project.update({
         where: { id: projectId },
         data: {
           nearbyStatus: 'error',
-          nearbyErrorMessage: err.message?.substring(0, 500) || 'Erro desconhecido',
-          nearbyGeneratedAt: new Date(),
-        },
+          nearbyErrorMessage:
+            err.message?.substring(0, 500) || 'Erro desconhecido',
+          nearbyGeneratedAt: new Date()
+        }
       });
     }
   }
@@ -352,10 +391,10 @@ export class NearbyService {
             drivingLabel: true,
             walkingLabel: true,
             routeUrl: true,
-            visible: true,
-          },
-        },
-      },
+            visible: true
+          }
+        }
+      }
     });
 
     return {
@@ -374,8 +413,8 @@ export class NearbyService {
         drivingLabel: item.drivingLabel,
         walkingLabel: item.walkingLabel,
         routeUrl: item.routeUrl,
-        visible: item.visible,
-      })),
+        visible: item.visible
+      }))
     };
   }
 
@@ -386,7 +425,7 @@ export class NearbyService {
     return this.prisma.project.update({
       where: { id: projectId },
       data: { nearbyEnabled: enabled },
-      select: { nearbyEnabled: true },
+      select: { nearbyEnabled: true }
     });
   }
 
@@ -397,12 +436,12 @@ export class NearbyService {
     return this.prisma.nearbyItem.update({
       where: { id: itemId },
       data: { visible },
-      select: { id: true, visible: true },
+      select: { id: true, visible: true }
     });
   }
 
   private parseCoordinatesFromGoogleMapsUrl(
-    url: string,
+    url: string
   ): { lat: number; lng: number } | null {
     if (!url) return null;
 
@@ -411,7 +450,7 @@ export class NearbyService {
     if (embedMatch) {
       return {
         lng: parseFloat(embedMatch[1]),
-        lat: parseFloat(embedMatch[2]),
+        lat: parseFloat(embedMatch[2])
       };
     }
 
@@ -420,7 +459,7 @@ export class NearbyService {
     if (altEmbedMatch) {
       return {
         lat: parseFloat(altEmbedMatch[1]),
-        lng: parseFloat(altEmbedMatch[2]),
+        lng: parseFloat(altEmbedMatch[2])
       };
     }
 
@@ -429,7 +468,7 @@ export class NearbyService {
     if (atMatch) {
       return {
         lat: parseFloat(atMatch[1]),
-        lng: parseFloat(atMatch[2]),
+        lng: parseFloat(atMatch[2])
       };
     }
 

@@ -22,12 +22,16 @@ export class CreateProjectDto {
   @IsString()
   customDomain?: string;
 
-  @ApiPropertyOptional({ example: 24, description: 'Tempo de expiração da reserva em horas' })
+  @ApiPropertyOptional({
+    example: 24,
+    description: 'Tempo de expiração da reserva em horas'
+  })
   @IsOptional()
   reservationExpiryHours?: number;
 
   @ApiPropertyOptional({
-    description: 'Configuração de movimento do loteamento exibida na página pública'
+    description:
+      'Configuração de movimento do loteamento exibida na página pública'
   })
   @IsOptional()
   salesMotionConfig?: any;

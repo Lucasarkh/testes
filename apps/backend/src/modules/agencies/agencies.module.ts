@@ -7,6 +7,6 @@ import { DbModule } from '@/infra/db/db.module';
   imports: [DbModule],
   controllers: [AgenciesController],
   providers: [AgenciesService],
-  exports: [AgenciesService],
+  exports: [AgenciesService]
 })
 export class AgenciesModule {}

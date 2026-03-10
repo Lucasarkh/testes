@@ -55,7 +55,7 @@ export class GoogleMapsService {
       return {
         result: null,
         status: 'MISSING_API_KEY',
-        message: 'GOOGLE_MAPS_API_KEY não configurada no ambiente.',
+        message: 'GOOGLE_MAPS_API_KEY não configurada no ambiente.'
       };
     }
 
@@ -67,17 +67,19 @@ export class GoogleMapsService {
             params: {
               address,
               key: this.apiKey,
-              language: 'pt-BR',
-            },
-          },
+              language: 'pt-BR'
+            }
+          }
         );
 
         if (resp.data.status !== 'OK' || !resp.data.results?.length) {
-          this.logger.warn(`Geocode failed for "${address}": ${resp.data.status}`);
+          this.logger.warn(
+            `Geocode failed for "${address}": ${resp.data.status}`
+          );
           return {
             result: null,
             status: String(resp.data.status || 'UNKNOWN'),
-            message: resp.data.error_message || undefined,
+            message: resp.data.error_message || undefined
           };
         }
 
@@ -87,13 +89,18 @@ export class GoogleMapsService {
             lat: result.geometry.location.lat,
             lng: result.geometry.location.lng,
             formattedAddress: result.formatted_address,
-            precision: result.geometry.location_type || 'APPROXIMATE',
+            precision: result.geometry.location_type || 'APPROXIMATE'
           },
-          status: 'OK',
+          status: 'OK'
         };
       } catch (err: any) {
-        if (attempt === 0 && (err.response?.status === 429 || err.response?.status >= 500)) {
-          this.logger.warn(`Geocode attempt ${attempt + 1} failed, retrying...`);
+        if (
+          attempt === 0 &&
+          (err.response?.status === 429 || err.response?.status >= 500)
+        ) {
+          this.logger.warn(
+            `Geocode attempt ${attempt + 1} failed, retrying...`
+          );
           await this.sleep(1000);
           continue;
         }
@@ -102,7 +109,10 @@ export class GoogleMapsService {
         return {
           result: null,
           status: httpStatus ? `HTTP_${httpStatus}` : 'REQUEST_ERROR',
-          message: err.response?.data?.error_message || err.response?.data?.error?.message || err.message,
+          message:
+            err.response?.data?.error_message ||
+            err.response?.data?.error?.message ||
+            err.message
         };
       }
     }
@@ -140,7 +150,7 @@ export class GoogleMapsService {
     'hardware_store',
     'liquor_store',
     'sporting_goods_store',
-    'toy_store',
+    'toy_store'
   ]);
 
   /**
@@ -151,7 +161,7 @@ export class GoogleMapsService {
     'hospital',
     'school',
     'park',
-    'gym',
+    'gym'
   ]);
 
   /**
@@ -159,10 +169,11 @@ export class GoogleMapsService {
    * these regexes it is almost certainly a misclassification.
    */
   private static readonly SUSPICIOUS_NAME_PATTERNS: Record<string, RegExp> = {
-    hospital: /ateli[eê]|bordado|artesanato|sal[aã]o|barbearia|costura|enxoval|cabeleireiro|tattoo|tatuagem|pet\s?shop|veteri/i,
-    school:   /ateli[eê]|bordado|sal[aã]o|barbearia|tattoo|tatuagem|pet\s?shop/i,
-    park:     /ateli[eê]|bordado|sal[aã]o|loja|store/i,
-    gym:      /ateli[eê]|bordado|sal[aã]o|barbearia|tattoo|pet\s?shop/i,
+    hospital:
+      /ateli[eê]|bordado|artesanato|sal[aã]o|barbearia|costura|enxoval|cabeleireiro|tattoo|tatuagem|pet\s?shop|veteri/i,
+    school: /ateli[eê]|bordado|sal[aã]o|barbearia|tattoo|tatuagem|pet\s?shop/i,
+    park: /ateli[eê]|bordado|sal[aã]o|loja|store/i,
+    gym: /ateli[eê]|bordado|sal[aã]o|barbearia|tattoo|pet\s?shop/i
   };
 
   async nearbySearch(
@@ -170,7 +181,7 @@ export class GoogleMapsService {
     lng: number,
     category: string,
     radiusMeters: number,
-    maxResults: number,
+    maxResults: number
   ): Promise<NearbyPlace[]> {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -181,21 +192,21 @@ export class GoogleMapsService {
             locationRestriction: {
               circle: {
                 center: { latitude: lat, longitude: lng },
-                radius: radiusMeters,
-              },
+                radius: radiusMeters
+              }
             },
             maxResultCount: Math.min(maxResults, 20),
             rankPreference: 'DISTANCE',
-            languageCode: 'pt-BR',
+            languageCode: 'pt-BR'
           },
           {
             headers: {
               'Content-Type': 'application/json',
               'X-Goog-Api-Key': this.apiKey,
               'X-Goog-FieldMask':
-                'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.primaryType,places.types',
-            },
-          },
+                'places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.primaryType,places.types'
+            }
+          }
         );
 
         const places = resp.data.places || [];
@@ -205,10 +216,11 @@ export class GoogleMapsService {
           const types: string[] = Array.isArray(p.types) ? p.types : [];
 
           // 1. Check name-based suspicious patterns
-          const suspiciousRe = GoogleMapsService.SUSPICIOUS_NAME_PATTERNS[category];
+          const suspiciousRe =
+            GoogleMapsService.SUSPICIOUS_NAME_PATTERNS[category];
           if (suspiciousRe && suspiciousRe.test(name)) {
             this.logger.warn(
-              `Filtering out "${name}" — name matches suspicious pattern for ${category}`,
+              `Filtering out "${name}" — name matches suspicious pattern for ${category}`
             );
             return false;
           }
@@ -216,11 +228,11 @@ export class GoogleMapsService {
           // 2. Check contaminating types (e.g. a "store" showing as hospital)
           if (GoogleMapsService.NON_RETAIL_CATEGORIES.has(category)) {
             const hasRetailType = types.some((t) =>
-              GoogleMapsService.RETAIL_TYPES.has(t),
+              GoogleMapsService.RETAIL_TYPES.has(t)
             );
             if (hasRetailType) {
               this.logger.warn(
-                `Filtering out "${name}" (types=${types.join(',')}) — has retail type, incompatible with ${category}`,
+                `Filtering out "${name}" (types=${types.join(',')}) — has retail type, incompatible with ${category}`
               );
               return false;
             }
@@ -229,7 +241,7 @@ export class GoogleMapsService {
           // 3. Basic type match (safety net)
           if (p.primaryType !== category && !types.includes(category)) {
             this.logger.warn(
-              `Filtering out "${name}" (primaryType=${p.primaryType}) — doesn't match ${category}`,
+              `Filtering out "${name}" (primaryType=${p.primaryType}) — doesn't match ${category}`
             );
             return false;
           }
@@ -238,7 +250,7 @@ export class GoogleMapsService {
         });
 
         this.logger.log(
-          `nearbySearch(${category}): ${places.length} raw → ${filtered.length} after filter`,
+          `nearbySearch(${category}): ${places.length} raw → ${filtered.length} after filter`
         );
 
         return filtered.map((p: any) => ({
@@ -247,11 +259,16 @@ export class GoogleMapsService {
           vicinity: p.shortFormattedAddress || p.formattedAddress || '',
           lat: p.location?.latitude ?? 0,
           lng: p.location?.longitude ?? 0,
-          category,
+          category
         }));
       } catch (err: any) {
-        if (attempt === 0 && (err.response?.status === 429 || err.response?.status >= 500)) {
-          this.logger.warn(`NearbySearch attempt ${attempt + 1} failed for ${category}, retrying...`);
+        if (
+          attempt === 0 &&
+          (err.response?.status === 429 || err.response?.status >= 500)
+        ) {
+          this.logger.warn(
+            `NearbySearch attempt ${attempt + 1} failed for ${category}, retrying...`
+          );
           await this.sleep(1000);
           continue;
         }
@@ -269,7 +286,7 @@ export class GoogleMapsService {
     originLat: number,
     originLng: number,
     destinations: { lat: number; lng: number }[],
-    mode: 'driving' | 'walking' = 'driving',
+    mode: 'driving' | 'walking' = 'driving'
   ): Promise<(DistanceResult | null)[]> {
     if (!destinations.length) return [];
 
@@ -282,19 +299,19 @@ export class GoogleMapsService {
             {
               waypoint: {
                 location: {
-                  latLng: { latitude: originLat, longitude: originLng },
-                },
-              },
-            },
+                  latLng: { latitude: originLat, longitude: originLng }
+                }
+              }
+            }
           ],
           destinations: destinations.map((d) => ({
             waypoint: {
               location: {
-                latLng: { latitude: d.lat, longitude: d.lng },
-              },
-            },
+                latLng: { latitude: d.lat, longitude: d.lng }
+              }
+            }
           })),
-          travelMode,
+          travelMode
         };
 
         // TRAFFIC_AWARE only valid for DRIVE
@@ -310,13 +327,15 @@ export class GoogleMapsService {
               'Content-Type': 'application/json',
               'X-Goog-Api-Key': this.apiKey,
               'X-Goog-FieldMask':
-                'originIndex,destinationIndex,duration,distanceMeters,status,condition',
-            },
-          },
+                'originIndex,destinationIndex,duration,distanceMeters,status,condition'
+            }
+          }
         );
 
         // Response is an array of RouteMatrixElement
-        const elements: any[] = Array.isArray(resp.data) ? resp.data : [resp.data];
+        const elements: any[] = Array.isArray(resp.data)
+          ? resp.data
+          : [resp.data];
 
         const results: (DistanceResult | null)[] = destinations.map(() => null);
 
@@ -330,14 +349,19 @@ export class GoogleMapsService {
             distanceMeters: meters,
             distanceText: this.formatDistance(meters),
             durationSeconds: seconds,
-            durationText: this.formatDuration(seconds),
+            durationText: this.formatDuration(seconds)
           };
         }
 
         return results;
       } catch (err: any) {
-        if (attempt === 0 && (err.response?.status === 429 || err.response?.status >= 500)) {
-          this.logger.warn(`DistanceMatrix attempt ${attempt + 1} failed, retrying...`);
+        if (
+          attempt === 0 &&
+          (err.response?.status === 429 || err.response?.status >= 500)
+        ) {
+          this.logger.warn(
+            `DistanceMatrix attempt ${attempt + 1} failed, retrying...`
+          );
           await this.sleep(1000);
           continue;
         }

@@ -76,24 +76,27 @@ function validateForm(): boolean {
   const keys = form.value.keysJson || {}
   const provider = form.value.provider
 
+  // Skip key validation if we are EDITING and the field is empty (masked)
+  const isEditing = !!editingConfig.value
+
   if (provider === 'STRIPE') {
-    if (!keys.secretKey || typeof keys.secretKey !== 'string' || !keys.secretKey.trim()) {
+    if (!isEditing && (!keys.secretKey || typeof keys.secretKey !== 'string' || !keys.secretKey.trim())) {
       formErrors.value.push('Secret Key do Stripe é obrigatória.')
     }
   } else if (provider === 'ASAAS') {
-    if (!keys.apiKey || typeof keys.apiKey !== 'string' || !keys.apiKey.trim()) {
+    if (!isEditing && (!keys.apiKey || typeof keys.apiKey !== 'string' || !keys.apiKey.trim())) {
       formErrors.value.push('API Key do Asaas é obrigatória.')
     }
   } else if (provider === 'MERCADO_PAGO') {
-    if (!keys.accessToken || typeof keys.accessToken !== 'string' || !keys.accessToken.trim()) {
+    if (!isEditing && (!keys.accessToken || typeof keys.accessToken !== 'string' || !keys.accessToken.trim())) {
       formErrors.value.push('Access Token do Mercado Pago é obrigatório.')
     }
   } else if (provider === 'PAGAR_ME') {
-    if (!keys.secretKey || typeof keys.secretKey !== 'string' || !keys.secretKey.trim()) {
+    if (!isEditing && (!keys.secretKey || typeof keys.secretKey !== 'string' || !keys.secretKey.trim())) {
       formErrors.value.push('Secret Key do Pagar.me é obrigatória.')
     }
   } else if (provider === 'PAGSEGURO') {
-    if (!keys.token || typeof keys.token !== 'string' || !keys.token.trim()) {
+    if (!isEditing && (!keys.token || typeof keys.token !== 'string' || !keys.token.trim())) {
       formErrors.value.push('Token de Acesso do PagSeguro é obrigatório.')
     }
   }
@@ -109,7 +112,18 @@ async function saveConfig() {
   try {
     const payload = { ...form.value }
 
+    // If we're editing, we only want to send the keys that actually have NEW content.
+    // However, since Backend now merges, we just need to ensure we're not sending empty strings 
+    // for fields that were previously masked.
     if (editingConfig.value) {
+      const filteredKeys = { ...payload.keysJson }
+      Object.keys(filteredKeys).forEach(key => {
+        if (!filteredKeys[key]) {
+          delete filteredKeys[key]
+        }
+      })
+      payload.keysJson = filteredKeys
+      
       await patch(`/admin/payment-config/${editingConfig.value.id}`, payload)
       toast.success('Configuração atualizada')
     } else {

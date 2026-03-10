@@ -3,7 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
-  Logger,
+  Logger
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '@prisma/client';
@@ -29,13 +29,13 @@ export class BillingGuard implements CanActivate {
 
   constructor(
     private readonly reflector: Reflector,
-    private readonly billingService: BillingService,
+    private readonly billingService: BillingService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
-      context.getClass(),
+      context.getClass()
     ]);
     if (isPublic) return true;
 
@@ -55,13 +55,16 @@ export class BillingGuard implements CanActivate {
 
     if (!access.allowed) {
       throw new ForbiddenException(
-        access.reason || 'Acesso bloqueado por questões de cobrança.',
+        access.reason || 'Acesso bloqueado por questões de cobrança.'
       );
     }
 
     // If in grace period, attach warning header so frontend can display alert
     if (access.warning) {
-      response.setHeader('X-Billing-Warning', access.reason || 'Pagamento pendente');
+      response.setHeader(
+        'X-Billing-Warning',
+        access.reason || 'Pagamento pendente'
+      );
       response.setHeader('X-Billing-Status', 'GRACE_PERIOD');
     }
 

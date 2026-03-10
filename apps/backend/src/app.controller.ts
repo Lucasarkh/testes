@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   Get,
   Inject,
-  Query,
+  Query
 } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -15,7 +15,7 @@ import Redis from 'ioredis';
 export class AppController {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis
   ) {}
 
   @Get('health')
@@ -43,7 +43,7 @@ export class AppController {
     return {
       status: allHealthy ? 'ok' : 'degraded',
       uptime: process.uptime(),
-      checks,
+      checks
     };
   }
 
@@ -58,7 +58,8 @@ export class AppController {
     const allowedBaseDomains = this.getAllowedBaseDomains();
     const isMainDomainOrSubdomain = allowedBaseDomains.some(
       (baseDomain) =>
-        normalizedDomain === baseDomain || normalizedDomain.endsWith(`.${baseDomain}`),
+        normalizedDomain === baseDomain ||
+        normalizedDomain.endsWith(`.${baseDomain}`)
     );
 
     let allowed = isMainDomainOrSubdomain;
@@ -69,7 +70,7 @@ export class AppController {
       // does not route to any project (which would load the marketing home page).
       const project = await this.prisma.project.findUnique({
         where: { customDomain: normalizedDomain },
-        select: { id: true, tenant: { select: { isActive: true } } },
+        select: { id: true, tenant: { select: { isActive: true } } }
       });
 
       allowed = Boolean(project?.id) && Boolean(project?.tenant?.isActive);
@@ -113,7 +114,9 @@ export class AppController {
   }
 
   private getAllowedBaseDomains(): string[] {
-    const configured = (process.env.MAIN_DOMAIN || 'lotio.com.br').toLowerCase();
+    const configured = (
+      process.env.MAIN_DOMAIN || 'lotio.com.br'
+    ).toLowerCase();
     const sanitizedConfigured = configured.replace(/\.$/, '');
     const withoutWww = sanitizedConfigured.startsWith('www.')
       ? sanitizedConfigured.slice(4)
@@ -124,11 +127,10 @@ export class AppController {
       withoutWww,
       `www.${withoutWww}`,
       'lotio.com.br',
-      'www.lotio.com.br',
+      'www.lotio.com.br'
     ]);
 
     domains.delete('');
     return Array.from(domains);
   }
-
 }

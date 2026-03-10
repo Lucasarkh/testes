@@ -22,7 +22,7 @@ export class ProjectsService {
     private prisma: PrismaService,
     @Inject('REDIS_SERVICE') private redis: any,
     private nearbyService: NearbyService,
-    private billingService: BillingService,
+    private billingService: BillingService
   ) {}
 
   async create(tenantId: string, dto: CreateProjectDto, user?: User) {
@@ -37,12 +37,12 @@ export class ProjectsService {
 
     // Only sysadmin can set customDomain on creation
     if (dto.customDomain && user?.role !== UserRole.SYSADMIN) {
-        delete dto.customDomain;
+      delete dto.customDomain;
     }
 
     if (dto.customDomain) {
       const existingDomain = await this.prisma.project.findUnique({
-          where: { customDomain: dto.customDomain }
+        where: { customDomain: dto.customDomain }
       });
       if (existingDomain) throw new ConflictException('Domínio já em uso.');
     }
@@ -62,7 +62,9 @@ export class ProjectsService {
     try {
       await this.billingService.onProjectCreated(tenantId, project.id);
     } catch (err) {
-      this.logger.warn(`Failed to sync billing after project creation: ${err.message}`);
+      this.logger.warn(
+        `Failed to sync billing after project creation: ${err.message}`
+      );
     }
 
     return project;
@@ -108,7 +110,10 @@ export class ProjectsService {
       where: { id, tenantId },
       include: {
         tenant: { select: { slug: true, name: true } },
-        logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
+        logos: {
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, url: true, label: true, sortOrder: true }
+        },
         aiConfig: true,
         _count: {
           select: { mapElements: true, leads: true, projectMedias: true }
@@ -138,8 +143,21 @@ export class ProjectsService {
     const project = await this.prisma.project.findFirst({
       where: { slug: projectSlug, status: ProjectStatus.PUBLISHED },
       include: {
-        tenant: { select: { id: true, name: true, slug: true, creci: true, phone: true, publicEmail: true, website: true } },
-        logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            creci: true,
+            phone: true,
+            publicEmail: true,
+            website: true
+          }
+        },
+        logos: {
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, url: true, label: true, sortOrder: true }
+        },
         // mapElements deliberately excluded — replaced by lotSummary + teaserLots
         projectMedias: {
           where: { lotDetailsId: null },
@@ -168,55 +186,76 @@ export class ProjectsService {
       const raw = (project as any).mapData;
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       const allLots: any[] = data.lots
-        ? (Array.isArray(data.lots)
-            ? data.lots.map(([, l]: [any, any]) => l)
-            : Object.values(data.lots))
+        ? Array.isArray(data.lots)
+          ? data.lots.map(([, l]: [any, any]) => l)
+          : Object.values(data.lots)
         : [];
       const PPM = Number(data.pixelsPerMeter) || 10;
 
       const available = allLots.filter((l: any) => l.status === 'available');
-      const lotDetailsOverrides = await this._loadLegacyLotDetailsOverrides(project.id);
-      const prices = available.map((l: any) => Number(l.price)).filter((p: number) => p > 0);
-      const areas  = available
-        .map((l: any) => Number(l.area) > 0 ? Number(l.area) / (PPM * PPM) : 0)
+      const lotDetailsOverrides = await this._loadLegacyLotDetailsOverrides(
+        project.id
+      );
+      const prices = available
+        .map((l: any) => Number(l.price))
+        .filter((p: number) => p > 0);
+      const areas = available
+        .map((l: any) =>
+          Number(l.area) > 0 ? Number(l.area) / (PPM * PPM) : 0
+        )
         .filter((a: number) => a > 0);
 
       lotSummary = {
-        total:     allLots.length,
+        total: allLots.length,
         available: available.length,
-        reserved:  allLots.filter((l: any) => l.status === 'reserved').length,
-        sold:      allLots.filter((l: any) => l.status === 'sold').length,
-        minPrice:  prices.length ? prices.reduce((a, b) => Math.min(a, b), Infinity) : null,
-        minArea:   areas.length  ? areas.reduce((a, b)  => Math.min(a, b), Infinity) : null,
+        reserved: allLots.filter((l: any) => l.status === 'reserved').length,
+        sold: allLots.filter((l: any) => l.status === 'sold').length,
+        minPrice: prices.length
+          ? prices.reduce((a, b) => Math.min(a, b), Infinity)
+          : null,
+        minArea: areas.length
+          ? areas.reduce((a, b) => Math.min(a, b), Infinity)
+          : null
       };
 
       teaserLots = available.slice(0, 6).map((l: any) => {
         const override = this._findLegacyLotOverride(lotDetailsOverrides, l);
         return {
-          id:   l.id,
+          id: l.id,
           name: l.label,
           code: l.code,
           lotDetails: {
-            areaM2:    override?.areaM2 ?? (Number(l.area) > 0 ? parseFloat((Number(l.area) / (PPM * PPM)).toFixed(2)) : 0),
-            frontage:  override?.frontage ?? (Number(l.frontage) > 0 ? parseFloat((Number(l.frontage) / PPM).toFixed(2)) : 0),
-            depth:     override?.depth ?? (l.manualBack ?? l.depth ?? null),
-            sideLeft:  override?.sideLeft ?? (l.sideLeft ?? null),
-            sideRight: override?.sideRight ?? (l.sideRight ?? null),
-            sideMetricsJson: override?.sideMetricsJson ?? (l.sideMetrics ?? []),
-            slope:     override?.slope ?? ((l.slope || 'FLAT').toString().toUpperCase()),
-            notes:     override?.notes ?? (l.notes || ''),
-            price:     override?.price ?? l.price,
+            areaM2:
+              override?.areaM2 ??
+              (Number(l.area) > 0
+                ? parseFloat((Number(l.area) / (PPM * PPM)).toFixed(2))
+                : 0),
+            frontage:
+              override?.frontage ??
+              (Number(l.frontage) > 0
+                ? parseFloat((Number(l.frontage) / PPM).toFixed(2))
+                : 0),
+            depth: override?.depth ?? l.manualBack ?? l.depth ?? null,
+            sideLeft: override?.sideLeft ?? l.sideLeft ?? null,
+            sideRight: override?.sideRight ?? l.sideRight ?? null,
+            sideMetricsJson: override?.sideMetricsJson ?? l.sideMetrics ?? [],
+            slope:
+              override?.slope ?? (l.slope || 'FLAT').toString().toUpperCase(),
+            notes: override?.notes ?? (l.notes || ''),
+            price: override?.price ?? l.price,
             pricePerM2: override?.pricePerM2 ?? l.pricePerM2,
-            tags:      (override?.tags?.length ? override.tags : (l.tags || [])),
-            block:     override?.block ?? l.block,
+            tags: override?.tags?.length ? override.tags : l.tags || [],
+            block: override?.block ?? l.block,
             lotNumber: override?.lotNumber ?? l.lotNumber,
-            conditionsJson: override?.conditionsJson ?? (l.conditionsJson || null),
-            paymentConditions: override?.paymentConditions ?? (l.paymentConditions || null),
+            conditionsJson:
+              override?.conditionsJson ?? (l.conditionsJson || null),
+            paymentConditions:
+              override?.paymentConditions ?? (l.paymentConditions || null),
             panoramaUrl: override?.panoramaUrl ?? (l.panoramaUrl || null),
             medias: override?.medias || [],
-            status:    override?.status ?? 'AVAILABLE',
-          },
-        }
+            status: override?.status ?? 'AVAILABLE'
+          }
+        };
       });
     } else {
       // ── New mapElements path — 3 lightweight parallel queries instead of 1 huge join ──
@@ -224,16 +263,22 @@ export class ProjectsService {
         this.prisma.lotDetails.groupBy({
           by: ['status'] as any,
           where: { projectId: project.id },
-          _count: { id: true },
+          _count: { id: true }
         }),
         this.prisma.lotDetails.aggregate({
           where: { projectId: project.id, status: 'AVAILABLE' },
-          _min: { price: true, areaM2: true },
+          _min: { price: true, areaM2: true }
         }),
         this.prisma.mapElement.findMany({
-          where: { projectId: project.id, type: 'LOT', lotDetails: { status: 'AVAILABLE' } },
+          where: {
+            projectId: project.id,
+            type: 'LOT',
+            lotDetails: { status: 'AVAILABLE' }
+          },
           select: {
-            id: true, name: true, code: true,
+            id: true,
+            name: true,
+            code: true,
             lotDetails: {
               select: {
                 id: true,
@@ -255,29 +300,35 @@ export class ProjectsService {
                 paymentConditions: true,
                 panoramaUrl: true,
                 medias: {
-                  select: { id: true, type: true, url: true, caption: true, createdAt: true },
+                  select: {
+                    id: true,
+                    type: true,
+                    url: true,
+                    caption: true,
+                    createdAt: true
+                  },
                   orderBy: { createdAt: 'desc' }
                 }
               }
             }
           },
           take: 6,
-          orderBy: { code: 'asc' },
-        }),
+          orderBy: { code: 'asc' }
+        })
       ]);
 
       const byStatus: Record<string, number> = {};
       for (const row of countsByStatus as any[]) {
-        byStatus[row.status] = (row._count as any).id ?? 0;
+        byStatus[row.status] = row._count.id ?? 0;
       }
 
       lotSummary = {
-        total:     (Object.values(byStatus) as number[]).reduce((s, n) => s + n, 0),
+        total: Object.values(byStatus).reduce((s, n) => s + n, 0),
         available: byStatus['AVAILABLE'] ?? 0,
-        reserved:  byStatus['RESERVED']  ?? 0,
-        sold:      byStatus['SOLD']       ?? 0,
-        minPrice:  (minAgg as any)._min?.price  ?? null,
-        minArea:   (minAgg as any)._min?.areaM2 ?? null,
+        reserved: byStatus['RESERVED'] ?? 0,
+        sold: byStatus['SOLD'] ?? 0,
+        minPrice: (minAgg as any)._min?.price ?? null,
+        minArea: (minAgg as any)._min?.areaM2 ?? null
       };
       teaserLots = teaser;
     }
@@ -296,7 +347,7 @@ export class ProjectsService {
     search?: string,
     tags?: string[],
     matchMode: 'any' | 'exact' = 'any',
-    codes?: string[],
+    codes?: string[]
   ) {
     const project = await this.prisma.project.findFirst({
       where: { slug: projectSlug, status: ProjectStatus.PUBLISHED },
@@ -313,9 +364,9 @@ export class ProjectsService {
       const PPM = Number(data.pixelsPerMeter) || 10;
 
       let lots: any[] = data.lots
-        ? (Array.isArray(data.lots)
-            ? data.lots.map(([, l]: [any, any]) => l)
-            : Object.values(data.lots))
+        ? Array.isArray(data.lots)
+          ? data.lots.map(([, l]: [any, any]) => l)
+          : Object.values(data.lots)
         : [];
 
       // If we're searching for specific codes, include all lots.
@@ -328,23 +379,29 @@ export class ProjectsService {
 
       if (search) {
         const q = search.toLowerCase();
-        lots = lots.filter((l: any) =>
-          (l.code || '').toLowerCase().includes(q) ||
-          (l.label || '').toLowerCase().includes(q));
+        lots = lots.filter(
+          (l: any) =>
+            (l.code || '').toLowerCase().includes(q) ||
+            (l.label || '').toLowerCase().includes(q)
+        );
       }
 
       if (tags?.length) {
         lots = lots.filter((l: any) => {
           const lt: string[] = l.tags || [];
           return matchMode === 'exact'
-            ? tags.every(t => lt.includes(t))
-            : tags.some(t => lt.includes(t));
+            ? tags.every((t) => lt.includes(t))
+            : tags.some((t) => lt.includes(t));
         });
       }
 
       const total = lots.length;
-      const availableTags = Array.from(new Set(lots.flatMap((l: any) => l.tags || []))).sort();
-      const lotDetailsOverrides = await this._loadLegacyLotDetailsOverrides(project.id);
+      const availableTags = Array.from(
+        new Set(lots.flatMap((l: any) => l.tags || []))
+      ).sort();
+      const lotDetailsOverrides = await this._loadLegacyLotDetailsOverrides(
+        project.id
+      );
       const paged = lots.slice(skip, skip + limit).map((l: any) => {
         const override = this._findLegacyLotOverride(lotDetailsOverrides, l);
         return {
@@ -352,29 +409,47 @@ export class ProjectsService {
           name: l.label,
           code: l.code,
           lotDetails: {
-            areaM2:     override?.areaM2 ?? (Number(l.area) > 0 ? parseFloat((Number(l.area) / (PPM * PPM)).toFixed(2)) : 0),
-            frontage:   override?.frontage ?? (Number(l.frontage) > 0 ? parseFloat((Number(l.frontage) / PPM).toFixed(2)) : 0),
-            depth:      override?.depth ?? (l.manualBack ?? l.depth ?? null),
-            sideLeft:   override?.sideLeft ?? (l.sideLeft ?? null),
-            sideRight:  override?.sideRight ?? (l.sideRight ?? null),
-            sideMetricsJson: override?.sideMetricsJson ?? (l.sideMetrics ?? []),
-            slope:      override?.slope ?? ((l.slope || 'FLAT').toString().toUpperCase()),
-            notes:      override?.notes ?? (l.notes || ''),
-            price:      override?.price ?? l.price,
+            areaM2:
+              override?.areaM2 ??
+              (Number(l.area) > 0
+                ? parseFloat((Number(l.area) / (PPM * PPM)).toFixed(2))
+                : 0),
+            frontage:
+              override?.frontage ??
+              (Number(l.frontage) > 0
+                ? parseFloat((Number(l.frontage) / PPM).toFixed(2))
+                : 0),
+            depth: override?.depth ?? l.manualBack ?? l.depth ?? null,
+            sideLeft: override?.sideLeft ?? l.sideLeft ?? null,
+            sideRight: override?.sideRight ?? l.sideRight ?? null,
+            sideMetricsJson: override?.sideMetricsJson ?? l.sideMetrics ?? [],
+            slope:
+              override?.slope ?? (l.slope || 'FLAT').toString().toUpperCase(),
+            notes: override?.notes ?? (l.notes || ''),
+            price: override?.price ?? l.price,
             pricePerM2: override?.pricePerM2 ?? l.pricePerM2,
-            tags:       (override?.tags?.length ? override.tags : (l.tags || [])),
-            block:      override?.block ?? l.block,
-            lotNumber:  override?.lotNumber ?? l.lotNumber,
-            conditionsJson: override?.conditionsJson ?? (l.conditionsJson || null),
-            paymentConditions: override?.paymentConditions ?? (l.paymentConditions || null),
+            tags: override?.tags?.length ? override.tags : l.tags || [],
+            block: override?.block ?? l.block,
+            lotNumber: override?.lotNumber ?? l.lotNumber,
+            conditionsJson:
+              override?.conditionsJson ?? (l.conditionsJson || null),
+            paymentConditions:
+              override?.paymentConditions ?? (l.paymentConditions || null),
             panoramaUrl: override?.panoramaUrl ?? (l.panoramaUrl || null),
-            medias:     override?.medias || [],
-            status:     override?.status ?? 'AVAILABLE',
-          },
-        }
+            medias: override?.medias || [],
+            status: override?.status ?? 'AVAILABLE'
+          }
+        };
       });
 
-      return { data: paged, total, page, limit, totalPages: Math.ceil(total / limit), availableTags };
+      return {
+        data: paged,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        availableTags
+      };
     }
 
     // ── New mapElements path ──────────────────────────────────────────────────
@@ -384,16 +459,18 @@ export class ProjectsService {
     }
 
     if (tags?.length) {
-      Object.assign(lotDetailsFilter, matchMode === 'exact'
-        ? { tags: { hasEvery: tags } }
-        : { tags: { hasSome: tags } }
+      Object.assign(
+        lotDetailsFilter,
+        matchMode === 'exact'
+          ? { tags: { hasEvery: tags } }
+          : { tags: { hasSome: tags } }
       );
     }
 
     const elementFilter: any = {
       projectId: project.id,
       type: 'LOT',
-      lotDetails: lotDetailsFilter,
+      lotDetails: lotDetailsFilter
     };
 
     if (codes?.length) {
@@ -401,7 +478,7 @@ export class ProjectsService {
     } else if (search) {
       elementFilter.OR = [
         { code: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } }
       ];
     }
 
@@ -410,7 +487,9 @@ export class ProjectsService {
       this.prisma.mapElement.findMany({
         where: elementFilter,
         select: {
-          id: true, name: true, code: true,
+          id: true,
+          name: true,
+          code: true,
           lotDetails: {
             select: {
               id: true,
@@ -432,7 +511,13 @@ export class ProjectsService {
               paymentConditions: true,
               panoramaUrl: true,
               medias: {
-                select: { id: true, type: true, url: true, caption: true, createdAt: true },
+                select: {
+                  id: true,
+                  type: true,
+                  url: true,
+                  caption: true,
+                  createdAt: true
+                },
                 orderBy: { createdAt: 'desc' }
               }
             }
@@ -440,19 +525,26 @@ export class ProjectsService {
         },
         skip,
         take: limit,
-        orderBy: { code: 'asc' },
+        orderBy: { code: 'asc' }
       }),
       this.prisma.lotDetails.findMany({
         where: { projectId: project.id, status: 'AVAILABLE' },
         select: { tags: true }
-      }),
+      })
     ]);
 
     const availableTags = Array.from(
       new Set((tagRows as any[]).flatMap((r: any) => r.tags || []))
     ).sort() as string[];
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit), availableTags };
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      availableTags
+    };
   }
 
   async findPreview(projectId: string) {
@@ -461,8 +553,21 @@ export class ProjectsService {
         id: projectId
       },
       include: {
-        tenant: { select: { id: true, name: true, slug: true, creci: true, phone: true, publicEmail: true, website: true } },
-        logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            creci: true,
+            phone: true,
+            publicEmail: true,
+            website: true
+          }
+        },
+        logos: {
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, url: true, label: true, sortOrder: true }
+        },
         mapElements: {
           select: {
             id: true,
@@ -504,13 +609,17 @@ export class ProjectsService {
       }
     });
 
-    if (!project)
-      throw new NotFoundException('Projeto não encontrado.');
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     return project;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateProjectDto, user?: User) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateProjectDto,
+    user?: User
+  ) {
     const project = await this.prisma.project.findFirst({
       where: user?.role === UserRole.SYSADMIN ? { id } : { id, tenantId }
     });
@@ -529,7 +638,7 @@ export class ProjectsService {
 
     // Custom domain check: only SysAdmin can edit it
     if (dto.customDomain !== undefined && user?.role !== UserRole.SYSADMIN) {
-        delete dto.customDomain;
+      delete dto.customDomain;
     }
 
     if (dto.customDomain === '') {
@@ -549,7 +658,9 @@ export class ProjectsService {
         ...(dto.name && { name: dto.name }),
         ...(dto.slug && { slug: dto.slug.toLowerCase().replace(/\s+/g, '-') }),
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.customDomain !== undefined && { customDomain: dto.customDomain }),
+        ...(dto.customDomain !== undefined && {
+          customDomain: dto.customDomain
+        }),
         ...(dto.bannerImageUrl !== undefined && {
           bannerImageUrl: dto.bannerImageUrl
         }),
@@ -604,7 +715,7 @@ export class ProjectsService {
           allowIntermediary: dto.allowIntermediary
         }),
         ...(dto.reservationExpiryHours !== undefined && {
-            reservationExpiryHours: dto.reservationExpiryHours
+          reservationExpiryHours: dto.reservationExpiryHours
         }),
         ...(dto.financingDisclaimer !== undefined && {
           financingDisclaimer: dto.financingDisclaimer
@@ -629,14 +740,23 @@ export class ProjectsService {
           reservationFeeValue: dto.reservationFeeValue
         }),
         ...(dto.aiEnabled !== undefined && { aiEnabled: dto.aiEnabled }),
-        ...(dto.aiConfigId !== undefined && { aiConfigId: dto.aiConfigId || null }),
+        ...(dto.aiConfigId !== undefined && {
+          aiConfigId: dto.aiConfigId || null
+        }),
         ...(dto.legalNotice !== undefined && { legalNotice: dto.legalNotice }),
-        ...(dto.salesMotionConfig !== undefined && { salesMotionConfig: dto.salesMotionConfig }),
-        ...(dto.nearbyEnabled !== undefined && { nearbyEnabled: dto.nearbyEnabled })
+        ...(dto.salesMotionConfig !== undefined && {
+          salesMotionConfig: dto.salesMotionConfig
+        }),
+        ...(dto.nearbyEnabled !== undefined && {
+          nearbyEnabled: dto.nearbyEnabled
+        })
       },
       include: {
         tenant: { select: { slug: true, name: true } },
-        logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
+        logos: {
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, url: true, label: true, sortOrder: true }
+        },
         aiConfig: true,
         _count: {
           select: { mapElements: true, leads: true, projectMedias: true }
@@ -656,15 +776,22 @@ export class ProjectsService {
     }
     // BUG-03: also flush the subdomain cache key when the project slug changes,
     // otherwise oldSlug.lotio.com.br keeps resolving stale data for up to 5 minutes.
-    if (dto.slug && dto.slug.toLowerCase().replace(/\s+/g, '-') !== project.slug) {
+    if (
+      dto.slug &&
+      dto.slug.toLowerCase().replace(/\s+/g, '-') !== project.slug
+    ) {
       await this.redis.del(`domain_resolve:subdomain:${project.slug}`);
     }
 
     // Trigger nearby regeneration if address changed
     if (dto.address !== undefined && dto.address !== project.address) {
-      this.logger.log(`Address changed for project ${id}, triggering nearby regeneration`);
+      this.logger.log(
+        `Address changed for project ${id}, triggering nearby regeneration`
+      );
       this.nearbyService.generateNearby(id).catch((err) => {
-        this.logger.error(`Nearby generation failed after address update: ${err.message}`);
+        this.logger.error(
+          `Nearby generation failed after address update: ${err.message}`
+        );
       });
     }
 
@@ -709,7 +836,9 @@ export class ProjectsService {
     try {
       await this.billingService.onProjectDeleted(tenantId, id);
     } catch (err) {
-      this.logger.warn(`Failed to sync billing after project deletion: ${err.message}`);
+      this.logger.warn(
+        `Failed to sync billing after project deletion: ${err.message}`
+      );
     }
 
     return { message: 'Projeto removido com sucesso.' };
@@ -752,29 +881,35 @@ export class ProjectsService {
         paymentConditions: true,
         panoramaUrl: true,
         medias: {
-          select: { id: true, type: true, url: true, caption: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            caption: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: 'desc' }
         },
         mapElement: {
-          select: { id: true, code: true, name: true },
-        },
-      },
-    })
+          select: { id: true, code: true, name: true }
+        }
+      }
+    });
 
-    const lookup = new Map<string, any>()
+    const lookup = new Map<string, any>();
     for (const row of rows) {
       const keys = [
         this._normalizeLegacyLotLookup(row.mapElementId),
         this._normalizeLegacyLotLookup(row.mapElement?.id),
         this._normalizeLegacyLotLookup(row.mapElement?.code),
-        this._normalizeLegacyLotLookup(row.mapElement?.name),
-      ].filter(Boolean)
+        this._normalizeLegacyLotLookup(row.mapElement?.name)
+      ].filter(Boolean);
 
       for (const key of keys) {
-        lookup.set(key, row)
+        lookup.set(key, row);
       }
     }
 
-    return lookup
+    return lookup;
   }
 }

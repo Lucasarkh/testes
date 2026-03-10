@@ -1,8 +1,24 @@
-import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards, Req, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  Patch,
+  Delete,
+  UseGuards,
+  Req,
+  Query
+} from '@nestjs/common';
 import { AgenciesService } from './agencies.service';
 import { CreateAgencyDto, UpdateAgencyDto } from './dto/agency.dto';
 import { CreateInviteDto, AcceptInviteDto } from './dto/invite.dto';
-import { CreateInviteCodeDto, RegisterWithInviteCodeDto, UpdateInviteCodeDto } from './dto/invite-code.dto';
+import {
+  CreateInviteCodeDto,
+  RegisterWithInviteCodeDto,
+  UpdateInviteCodeDto
+} from './dto/invite-code.dto';
 import { JwtAuthGuard } from '@common/guards/jwt-auth.guard';
 import { TenantGuard } from '@common/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -25,8 +41,8 @@ export class AgenciesController {
   @Get()
   @Roles('LOTEADORA')
   findAll(
-    @Req() req, 
-    @Query('page') page?: string, 
+    @Req() req,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string
   ) {
@@ -40,7 +56,11 @@ export class AgenciesController {
   @Post('invite')
   @Roles('LOTEADORA', 'IMOBILIARIA')
   createInvite(@Req() req, @Body() dto: CreateInviteDto) {
-    return this.agenciesService.createInvite(req.user.tenantId, req.user.id, dto);
+    return this.agenciesService.createInvite(
+      req.user.tenantId,
+      req.user.id,
+      dto
+    );
   }
 
   @Post('invite/accept')
@@ -71,7 +91,11 @@ export class AgenciesController {
 
   @Patch('invite-codes/:id')
   @Roles('LOTEADORA')
-  updateInviteCode(@Req() req, @Param('id') id: string, @Body() dto: UpdateInviteCodeDto) {
+  updateInviteCode(
+    @Req() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateInviteCodeDto
+  ) {
     return this.agenciesService.updateInviteCode(id, req.user.tenantId, dto);
   }
 
@@ -91,14 +115,23 @@ export class AgenciesController {
   @Get('invite-codes/public/:code/check-sharing-link')
   @Public()
   @SkipTermsCheck()
-  checkSharingLinkAvailability(@Param('code') code: string, @Query('value') value: string) {
-    return this.agenciesService.checkInviteCodeSharingLinkAvailability(code, value);
+  checkSharingLinkAvailability(
+    @Param('code') code: string,
+    @Query('value') value: string
+  ) {
+    return this.agenciesService.checkInviteCodeSharingLinkAvailability(
+      code,
+      value
+    );
   }
 
   @Post('invite-codes/public/:code/register')
   @Public()
   @SkipTermsCheck()
-  registerWithInviteCode(@Param('code') code: string, @Body() dto: RegisterWithInviteCodeDto) {
+  registerWithInviteCode(
+    @Param('code') code: string,
+    @Body() dto: RegisterWithInviteCodeDto
+  ) {
     return this.agenciesService.registerWithInviteCode(code, dto);
   }
 
@@ -108,7 +141,8 @@ export class AgenciesController {
   @Roles('IMOBILIARIA', 'LOTEADORA', 'SYSADMIN')
   getMetrics(@Req() req, @Query('agencyId') queryAgencyId?: string) {
     const agencyId = queryAgencyId || req.user.agencyId;
-    if (!agencyId) throw new Error('Acesso negado: ID da imobiliária não fornecido');
+    if (!agencyId)
+      throw new Error('Acesso negado: ID da imobiliária não fornecido');
     return this.agenciesService.getAgencyMetrics(agencyId);
   }
 

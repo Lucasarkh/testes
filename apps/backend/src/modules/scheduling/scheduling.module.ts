@@ -8,6 +8,6 @@ import { NotificationsModule } from '@modules/notifications/notifications.module
   imports: [NotificationsModule],
   providers: [SchedulingService],
   controllers: [SchedulingController, PublicSchedulingController],
-  exports: [SchedulingService],
+  exports: [SchedulingService]
 })
 export class SchedulingModule {}

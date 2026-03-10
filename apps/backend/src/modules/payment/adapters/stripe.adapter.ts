@@ -5,7 +5,7 @@ import {
   IPaymentGateway,
   PaymentGatewayResponse,
   PaymentWebhookResult,
-  WebhookPaymentStatus,
+  WebhookPaymentStatus
 } from '../interfaces/payment-gateway.interface';
 
 @Injectable()
@@ -14,16 +14,16 @@ export class StripeAdapter implements IPaymentGateway {
 
   private getStripe(secretKey: string): Stripe {
     return new Stripe(secretKey, {
-      apiVersion: '2025-01-27.acacia' as any, // latest stable or dynamic
+      apiVersion: '2025-01-27.acacia' as any // latest stable or dynamic
     });
   }
 
   async createSession(
     keys: { secretKey: string },
-    data: CreatePaymentDto,
+    data: CreatePaymentDto
   ): Promise<PaymentGatewayResponse> {
     const stripe = this.getStripe(keys.secretKey);
-    
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'boleto', 'pix'], // boleto + pix for Brazilian Stripe accounts
       line_items: [
@@ -31,31 +31,31 @@ export class StripeAdapter implements IPaymentGateway {
           price_data: {
             currency: data.currency.toLowerCase(),
             product_data: {
-              name: data.description,
+              name: data.description
             },
-            unit_amount: Math.round(data.amount * 100), // Stripe expects cents
+            unit_amount: Math.round(data.amount * 100) // Stripe expects cents
           },
-          quantity: 1,
-        },
+          quantity: 1
+        }
       ],
       mode: 'payment',
       success_url: data.successUrl,
       cancel_url: data.cancelUrl,
       client_reference_id: data.orderId,
       customer_email: data.customerEmail,
-      metadata: data.metadata,
+      metadata: data.metadata
     });
 
     return {
       externalId: session.id,
-      paymentUrl: session.url!,
+      paymentUrl: session.url!
     };
   }
 
   async handleWebhook(
     keys: { secretKey: string; webhookSecret?: string },
     payload: any,
-    signature?: string,
+    signature?: string
   ): Promise<PaymentWebhookResult> {
     const stripe = this.getStripe(keys.secretKey);
 
@@ -66,10 +66,12 @@ export class StripeAdapter implements IPaymentGateway {
         event = stripe.webhooks.constructEvent(
           payload,
           signature,
-          keys.webhookSecret,
+          keys.webhookSecret
         );
       } catch (err) {
-        this.logger.error(`Webhook signature verification failed: ${err.message}`);
+        this.logger.error(
+          `Webhook signature verification failed: ${err.message}`
+        );
         throw new Error('Invalid signature');
       }
     } else {
@@ -87,7 +89,7 @@ export class StripeAdapter implements IPaymentGateway {
       case 'checkout.session.completed':
         // session.payment_status === 'paid' → synchronous card payment confirmed
         // session.payment_status === 'unpaid' → boleto/PIX pending, wait for async event
-        if ((event.data.object as Stripe.Checkout.Session).payment_status === 'paid') {
+        if (event.data.object.payment_status === 'paid') {
           status = WebhookPaymentStatus.PAID;
         }
         // else remain PENDING — confirmation comes via async_payment_succeeded
@@ -108,7 +110,7 @@ export class StripeAdapter implements IPaymentGateway {
     return {
       externalId,
       status,
-      rawPayload: event,
+      rawPayload: event
     };
   }
 }

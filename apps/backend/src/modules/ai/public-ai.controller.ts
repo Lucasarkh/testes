@@ -12,10 +12,7 @@ export class PublicAiController {
   @Post('chat')
   @Throttle({ default: { limit: 18, ttl: 60000 } })
   @ApiOperation({ summary: 'Chat público com a IA do projeto' })
-  chat(
-    @Param('projectSlug') projectSlug: string,
-    @Body() dto: ChatDto
-  ) {
+  chat(@Param('projectSlug') projectSlug: string, @Body() dto: ChatDto) {
     return this.aiService.chatPublic(projectSlug, dto);
   }
 }

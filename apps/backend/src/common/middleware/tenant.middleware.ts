@@ -25,7 +25,9 @@ export class TenantMiddleware implements NestMiddleware {
 
     // Prefer X-Forwarded-Host (set by reverse proxies like Caddy) over Host,
     // because Caddy typically rewrites Host to the internal service address.
-    const forwardedHost = (req.headers['x-forwarded-host'] as string | undefined)
+    const forwardedHost = (
+      req.headers['x-forwarded-host'] as string | undefined
+    )
       ?.split(',')[0]
       ?.trim();
     let host = (forwardedHost || req.headers['host'] || '') as string;
@@ -39,19 +41,31 @@ export class TenantMiddleware implements NestMiddleware {
       const origin = req.headers['origin'] as string | undefined;
       const referer = req.headers['referer'] as string | undefined;
       const virtualHost = origin || referer;
-      if (virtualHost && (host === 'localhost' || host === '127.0.0.1' || host.startsWith('localhost:') || host.startsWith('127.0.0.1:'))) {
+      if (
+        virtualHost &&
+        (host === 'localhost' ||
+          host === '127.0.0.1' ||
+          host.startsWith('localhost:') ||
+          host.startsWith('127.0.0.1:'))
+      ) {
         try {
           const originHost = new URL(virtualHost).hostname;
-          if (originHost !== 'localhost' && originHost !== '127.0.0.1' && originHost !== '') {
+          if (
+            originHost !== 'localhost' &&
+            originHost !== '127.0.0.1' &&
+            originHost !== ''
+          ) {
             host = originHost;
           }
-        } catch (e) { /* ignore invalid URL */ }
+        } catch (e) {
+          /* ignore invalid URL */
+        }
       }
     }
 
     // Strip port for comparison (e.g., "localhost:3000" -> "localhost")
     if (host.includes(':')) {
-        host = host.split(':')[0];
+      host = host.split(':')[0];
     }
 
     // Ignorar logs para caminhos de infraestrutura/documentação para reduzir ruído
@@ -61,12 +75,15 @@ export class TenantMiddleware implements NestMiddleware {
       '/api/metrics',
       '/api/health',
       '/api/internal/tls/allow-host',
-      '/',
+      '/'
     ];
-    if (ignoredPaths.some(p => req.path === p) || req.path.startsWith('/docs')) {
-        return next();
+    if (
+      ignoredPaths.some((p) => req.path === p) ||
+      req.path.startsWith('/docs')
+    ) {
+      return next();
     }
-    
+
     // Main domain can be configured via Env. Treat apex/www as equivalent.
     const configuredMainDomain = (process.env.MAIN_DOMAIN || 'lotio.com.br')
       .toLowerCase()
@@ -79,11 +96,10 @@ export class TenantMiddleware implements NestMiddleware {
       ? hostNormalized.slice(4)
       : hostNormalized;
 
-    const isLocalHost = hostNormalized === 'localhost' || hostNormalized === '127.0.0.1';
+    const isLocalHost =
+      hostNormalized === 'localhost' || hostNormalized === '127.0.0.1';
     const isMainDomain =
-      isLocalHost ||
-      hostApex === configuredApex ||
-      hostApex === 'lotio.com.br';
+      isLocalHost || hostApex === configuredApex || hostApex === 'lotio.com.br';
 
     // 1a. Resolve subdomains of the main domain as project slugs
     // e.g. empreendimento.lotio.com.br → resolves project with slug 'empreendimento'
@@ -104,13 +120,23 @@ export class TenantMiddleware implements NestMiddleware {
         } else {
           const project = await this.prisma.project.findUnique({
             where: { slug: subdomain },
-            include: { tenant: { select: { id: true, slug: true, isActive: true } } },
+            include: {
+              tenant: { select: { id: true, slug: true, isActive: true } }
+            }
           });
           // BUG-06: throw 404 instead of silently serving the marketing landing page
-          if (!project) throw new NotFoundException('Projeto não encontrado para este subdomínio.');
-          if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
+          if (!project)
+            throw new NotFoundException(
+              'Projeto não encontrado para este subdomínio.'
+            );
+          if (!project.tenant.isActive)
+            throw new NotFoundException('Tenant inativo.');
 
-          const data = { tenantId: project.tenantId, projectId: project.id, project };
+          const data = {
+            tenantId: project.tenantId,
+            projectId: project.id,
+            project
+          };
           await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
           req.tenantId = data.tenantId;
           req.projectId = data.projectId;
@@ -137,12 +163,19 @@ export class TenantMiddleware implements NestMiddleware {
 
       const project = await this.prisma.project.findUnique({
         where: { customDomain: host },
-        include: { tenant: { select: { id: true, slug: true, isActive: true } } },
+        include: {
+          tenant: { select: { id: true, slug: true, isActive: true } }
+        }
       });
 
       if (project) {
-        if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
-        const data = { tenantId: project.tenantId, projectId: project.id, project };
+        if (!project.tenant.isActive)
+          throw new NotFoundException('Tenant inativo.');
+        const data = {
+          tenantId: project.tenantId,
+          projectId: project.id,
+          project
+        };
         await this.redis.set(cacheKey, data, TenantMiddleware.CACHE_TTL);
         req.tenantId = data.tenantId;
         req.projectId = data.projectId;
@@ -159,13 +192,15 @@ export class TenantMiddleware implements NestMiddleware {
     // Extract slugs from path /api/p/:projectSlug or query params
     const path = req.path; // e.g., /p/nome-do-projeto/details
     const projectSlugMatch = path.match(/\/p\/([^\/]+)/);
-    let projectSlug = projectSlugMatch ? projectSlugMatch[1] : (req.params.projectSlug || req.query.projectSlug);
-    
+    let projectSlug = projectSlugMatch
+      ? projectSlugMatch[1]
+      : req.params.projectSlug || req.query.projectSlug;
+
     // Ignore internal routes that shouldn't be treated as slugs
     if (projectSlug === 'resolve-tenant') {
-       projectSlug = null;
+      projectSlug = null;
     }
-    
+
     const tenantSlug = req.params.tenantSlug || req.query.tenantSlug;
 
     if (projectSlug) {
@@ -174,7 +209,8 @@ export class TenantMiddleware implements NestMiddleware {
         include: { tenant: { select: { id: true, isActive: true } } }
       });
       if (project) {
-        if (!project.tenant.isActive) throw new NotFoundException('Tenant inativo.');
+        if (!project.tenant.isActive)
+          throw new NotFoundException('Tenant inativo.');
         req.tenantId = project.tenantId;
         req.projectId = project.id;
         req.project = project;

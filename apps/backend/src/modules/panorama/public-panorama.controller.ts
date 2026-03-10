@@ -9,7 +9,13 @@ export class PublicPanoramaController {
 
   @Get()
   @ApiOperation({ summary: 'Panoramas públicos do projeto' })
-  findPublic(@Param('projectId') projectId: string, @Query('preview') preview?: string) {
-    return this.panoramaService.findByProjectPublic(projectId, preview === 'true');
+  findPublic(
+    @Param('projectId') projectId: string,
+    @Query('preview') preview?: string
+  ) {
+    return this.panoramaService.findByProjectPublic(
+      projectId,
+      preview === 'true'
+    );
   }
 }

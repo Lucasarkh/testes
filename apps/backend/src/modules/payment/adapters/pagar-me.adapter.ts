@@ -5,7 +5,7 @@ import {
   IPaymentGateway,
   PaymentGatewayResponse,
   PaymentWebhookResult,
-  WebhookPaymentStatus,
+  WebhookPaymentStatus
 } from '../interfaces/payment-gateway.interface';
 
 @Injectable()
@@ -17,13 +17,13 @@ export class PagarMeAdapter implements IPaymentGateway {
     const auth = Buffer.from(`${secretKey}:`).toString('base64');
     return {
       Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     };
   }
 
   async createSession(
     keys: { secretKey: string },
-    data: CreatePaymentDto,
+    data: CreatePaymentDto
   ): Promise<PaymentGatewayResponse> {
     // Pagar.me v5 uses "Orders" to create a checkout/payment
     const response = await axios.post(
@@ -31,15 +31,15 @@ export class PagarMeAdapter implements IPaymentGateway {
       {
         customer: {
           name: data.customerName,
-          email: data.customerEmail,
+          email: data.customerEmail
         },
         items: [
           {
             amount: Math.round(data.amount * 100), // in cents
             description: data.description,
             quantity: 1,
-            code: data.orderId,
-          },
+            code: data.orderId
+          }
         ],
         payments: [
           {
@@ -50,11 +50,11 @@ export class PagarMeAdapter implements IPaymentGateway {
               customer_editable: false,
               accepted_payment_methods: ['credit_card', 'pix', 'boleto'],
               success_url: data.successUrl,
-              skip_checkout_success_page: false,
-            },
-          },
+              skip_checkout_success_page: false
+            }
+          }
         ],
-        metadata: data.metadata,
+        metadata: data.metadata
       },
       { headers: this.getHeaders(keys.secretKey) }
     );
@@ -64,13 +64,13 @@ export class PagarMeAdapter implements IPaymentGateway {
 
     return {
       externalId: response.data.id,
-      paymentUrl: checkoutUrl || '',
+      paymentUrl: checkoutUrl || ''
     };
   }
 
   async handleWebhook(
     keys: { secretKey: string },
-    payload: any,
+    payload: any
   ): Promise<PaymentWebhookResult> {
     // Pagar.me webhooks use 'type' field
     const type = payload.type;
@@ -87,7 +87,7 @@ export class PagarMeAdapter implements IPaymentGateway {
     return {
       externalId: order.id,
       status,
-      rawPayload: payload,
+      rawPayload: payload
     };
   }
 }

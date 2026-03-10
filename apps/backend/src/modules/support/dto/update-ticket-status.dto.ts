@@ -7,7 +7,9 @@ export class UpdateTicketStatusDto {
   @IsEnum(TicketStatus)
   status: TicketStatus;
 
-  @ApiPropertyOptional({ description: 'Optional reply message when changing status' })
+  @ApiPropertyOptional({
+    description: 'Optional reply message when changing status'
+  })
   @IsOptional()
   @IsString()
   @MaxLength(5000)

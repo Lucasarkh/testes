@@ -4,7 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnModuleInit,
+  OnModuleInit
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createReadStream, existsSync, unlink } from 'node:fs';
@@ -17,7 +17,11 @@ import { RabbitMqService } from '@infra/rabbitmq/rabbitmq.service';
 const unlinkAsync = promisify(unlink);
 const LOT_IMPORT_QUEUE = 'lots-csv-import';
 const DEFAULT_CHUNK_SIZE = 1000;
-const TERMINAL_IMPORT_STATUSES = new Set(['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED']);
+const TERMINAL_IMPORT_STATUSES = new Set([
+  'COMPLETED',
+  'COMPLETED_WITH_ERRORS',
+  'FAILED'
+]);
 const HEADER_ALIASES = {
   code: ['code', 'codigo', 'codigolote', 'cod'],
   status: ['status', 'situacao', 'lotstatus'],
@@ -32,10 +36,15 @@ const HEADER_ALIASES = {
   sideRight: ['sideright', 'lateral_direita', 'lateraldireita', 'direita'],
   slope: ['slope', 'topografia', 'inclinacao'],
   tags: ['tags', 'etiquetas'],
-  notes: ['notes', 'observacoes', 'obs', 'descricao'],
+  notes: ['notes', 'observacoes', 'obs', 'descricao']
 } as const;
 
-type ImportStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'COMPLETED_WITH_ERRORS' | 'FAILED';
+type ImportStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'COMPLETED_WITH_ERRORS'
+  | 'FAILED';
 
 interface CsvImportQueueJob {
   importId: string;
@@ -83,7 +92,7 @@ export class LotsImportService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly rabbitMqService: RabbitMqService,
+    private readonly rabbitMqService: RabbitMqService
   ) {}
 
   async onModuleInit() {
@@ -96,7 +105,7 @@ export class LotsImportService implements OnModuleInit {
           throw new Error('Invalid lot import job payload');
         }
         await this.processQueuedImport(payload);
-      },
+      }
     });
 
     this.logger.log('Lot CSV import consumer started');
@@ -124,7 +133,9 @@ export class LotsImportService implements OnModuleInit {
     `;
 
     if (running.length > 0) {
-      throw new ConflictException('Ja existe uma importacao em andamento para este projeto.');
+      throw new ConflictException(
+        'Ja existe uma importacao em andamento para este projeto.'
+      );
     }
 
     const importId = this.createImportId();
@@ -147,9 +158,9 @@ export class LotsImportService implements OnModuleInit {
         importId,
         tenantId,
         projectId,
-        filePath,
+        filePath
       } satisfies CsvImportQueueJob,
-      { withDeadLetter: true },
+      { withDeadLetter: true }
     );
 
     return this.mapJob(created[0]);
@@ -172,7 +183,9 @@ export class LotsImportService implements OnModuleInit {
       throw new NotFoundException('Importacao nao encontrada.');
     }
 
-    const recentErrors = await this.prisma.$queryRaw<Array<Record<string, unknown>>>`
+    const recentErrors = await this.prisma.$queryRaw<
+      Array<Record<string, unknown>>
+    >`
       SELECT id, line, code, message, raw, "createdAt"
       FROM "LotImportError"
       WHERE "importId" = ${importId}
@@ -183,7 +196,7 @@ export class LotsImportService implements OnModuleInit {
     return {
       ...this.mapJob(row),
       recentErrors: recentErrors.map(this.mapError),
-      terminal: TERMINAL_IMPORT_STATUSES.has(String(row.status || '')),
+      terminal: TERMINAL_IMPORT_STATUSES.has(String(row.status || ''))
     };
   }
 
@@ -204,11 +217,16 @@ export class LotsImportService implements OnModuleInit {
 
     return {
       ...this.mapJob(row),
-      terminal: TERMINAL_IMPORT_STATUSES.has(String(row.status || '')),
+      terminal: TERMINAL_IMPORT_STATUSES.has(String(row.status || ''))
     };
   }
 
-  async getImportErrors(tenantId: string, projectId: string, importId: string, limit = 500) {
+  async getImportErrors(
+    tenantId: string,
+    projectId: string,
+    importId: string,
+    limit = 500
+  ) {
     await this.ensureImportOwnership(tenantId, projectId, importId);
 
     const safeLimit = Math.max(1, Math.min(5000, Number(limit) || 500));
@@ -228,7 +246,7 @@ export class LotsImportService implements OnModuleInit {
       totalRows: 0,
       processedRows: 0,
       successRows: 0,
-      errorRows: 0,
+      errorRows: 0
     };
 
     const errorsBuffer: CsvImportError[] = [];
@@ -237,7 +255,7 @@ export class LotsImportService implements OnModuleInit {
       await this.updateImportState(job.importId, {
         status: 'PROCESSING',
         message: 'Processando arquivo CSV em lotes...',
-        startedAtNow: true,
+        startedAtNow: true
       });
 
       if (!existsSync(job.filePath)) {
@@ -250,7 +268,8 @@ export class LotsImportService implements OnModuleInit {
         await this.flushErrors(job.importId, errorsBuffer);
       }
 
-      const finalStatus: ImportStatus = counters.errorRows > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED';
+      const finalStatus: ImportStatus =
+        counters.errorRows > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED';
       const message =
         finalStatus === 'COMPLETED'
           ? 'Importacao concluida com sucesso.'
@@ -260,20 +279,25 @@ export class LotsImportService implements OnModuleInit {
         status: finalStatus,
         counters,
         message,
-        finishedAtNow: true,
+        finishedAtNow: true
       });
     } catch (error: any) {
-      this.logger.error(`Lot import failed (${job.importId})`, error?.stack || String(error));
+      this.logger.error(
+        `Lot import failed (${job.importId})`,
+        error?.stack || String(error)
+      );
 
       if (errorsBuffer.length > 0) {
-        await this.flushErrors(job.importId, errorsBuffer).catch(() => undefined);
+        await this.flushErrors(job.importId, errorsBuffer).catch(
+          () => undefined
+        );
       }
 
       await this.updateImportState(job.importId, {
         status: 'FAILED',
         counters,
         message: error?.message || 'Falha ao processar importacao.',
-        finishedAtNow: true,
+        finishedAtNow: true
       }).catch(() => undefined);
 
       throw error;
@@ -285,7 +309,7 @@ export class LotsImportService implements OnModuleInit {
   private async processCsvFile(
     job: CsvImportQueueJob,
     counters: ImportCounters,
-    errorsBuffer: CsvImportError[],
+    errorsBuffer: CsvImportError[]
   ) {
     const stream = createReadStream(job.filePath, { encoding: 'utf8' });
     const rl = createInterface({ input: stream, crlfDelay: Infinity });
@@ -301,12 +325,18 @@ export class LotsImportService implements OnModuleInit {
 
       if (!headerMap) {
         delimiter = this.detectDelimiter(line);
-        const header = this.parseCsvLine(line, delimiter).map((c) => this.normalizeHeader(c));
+        const header = this.parseCsvLine(line, delimiter).map((c) =>
+          this.normalizeHeader(c)
+        );
         headerMap = new Map(header.map((key, index) => [key, index]));
 
-        const hasCodeColumn = HEADER_ALIASES.code.some((alias) => headerMap?.has(alias));
+        const hasCodeColumn = HEADER_ALIASES.code.some((alias) =>
+          headerMap?.has(alias)
+        );
         if (!hasCodeColumn) {
-          throw new BadRequestException('CSV invalido: cabecalho obrigatorio "codigo" nao encontrado.');
+          throw new BadRequestException(
+            'CSV invalido: cabecalho obrigatorio "codigo" nao encontrado.'
+          );
         }
         continue;
       }
@@ -334,7 +364,7 @@ export class LotsImportService implements OnModuleInit {
 
         await this.updateImportState(job.importId, {
           counters,
-          message: `Processadas ${counters.processedRows} linhas...`,
+          message: `Processadas ${counters.processedRows} linhas...`
         });
       }
     }
@@ -346,7 +376,7 @@ export class LotsImportService implements OnModuleInit {
 
     await this.updateImportState(job.importId, {
       counters,
-      message: `Arquivo lido. ${counters.processedRows} linhas processadas.`,
+      message: `Arquivo lido. ${counters.processedRows} linhas processadas.`
     });
   }
 
@@ -354,13 +384,17 @@ export class LotsImportService implements OnModuleInit {
     job: CsvImportQueueJob,
     rows: CsvRowCandidate[],
     counters: ImportCounters,
-    errorsBuffer: CsvImportError[],
+    errorsBuffer: CsvImportError[]
   ) {
     if (rows.length === 0) return;
 
-    const uniqueCodes = Array.from(new Set(rows.map((row) => this.normalizeCode(row.code))));
+    const uniqueCodes = Array.from(
+      new Set(rows.map((row) => this.normalizeCode(row.code)))
+    );
 
-    const mapElements = await this.prisma.$queryRaw<Array<{ id: string; code: string }>>`
+    const mapElements = await this.prisma.$queryRaw<
+      Array<{ id: string; code: string }>
+    >`
       SELECT id, code
       FROM "MapElement"
       WHERE "tenantId" = ${job.tenantId}
@@ -369,7 +403,9 @@ export class LotsImportService implements OnModuleInit {
         AND UPPER(TRIM(code)) IN (${Prisma.join(uniqueCodes)})
     `;
 
-    const codeToElementId = new Map(mapElements.map((item) => [this.normalizeCode(item.code), item.id]));
+    const codeToElementId = new Map(
+      mapElements.map((item) => [this.normalizeCode(item.code), item.id])
+    );
     const upsertRows: Array<Record<string, unknown>> = [];
 
     for (const row of rows) {
@@ -382,7 +418,7 @@ export class LotsImportService implements OnModuleInit {
           line: row.line,
           code: row.code,
           message: `Codigo nao encontrado: ${this.formatInvalidValue(row.code)}. Use o mesmo codigo do lote criado na Planta Interativa (comparacao sem diferenciar maiusculas/minusculas).`,
-          raw: row.raw,
+          raw: row.raw
         });
         continue;
       }
@@ -404,7 +440,7 @@ export class LotsImportService implements OnModuleInit {
         sideRight: row.sideRight,
         slope: row.slope,
         notes: row.notes,
-        tags: row.tags,
+        tags: row.tags
       });
     }
 
@@ -508,7 +544,7 @@ export class LotsImportService implements OnModuleInit {
         END,
         "updatedAt" = NOW();
       `,
-      payload,
+      payload
     );
   }
 
@@ -522,8 +558,8 @@ export class LotsImportService implements OnModuleInit {
         line: error.line,
         code: error.code ?? null,
         message: error.message,
-        raw: error.raw ?? null,
-      })),
+        raw: error.raw ?? null
+      }))
     );
 
     await this.prisma.$executeRawUnsafe(
@@ -546,7 +582,7 @@ export class LotsImportService implements OnModuleInit {
         raw jsonb
       );
       `,
-      payload,
+      payload
     );
   }
 
@@ -558,7 +594,7 @@ export class LotsImportService implements OnModuleInit {
       counters?: ImportCounters;
       startedAtNow?: boolean;
       finishedAtNow?: boolean;
-    },
+    }
   ) {
     const updates: string[] = [];
     const values: unknown[] = [];
@@ -602,7 +638,7 @@ export class LotsImportService implements OnModuleInit {
       SET ${updates.join(', ')}
       WHERE id = $${values.length}
       `,
-      ...values,
+      ...values
     );
   }
 
@@ -617,11 +653,17 @@ export class LotsImportService implements OnModuleInit {
 
     const count = Number(rows[0]?.count || 0);
     if (count <= 0) {
-      throw new BadRequestException('So e permitido importar CSV quando os lotes ja foram criados no editor.');
+      throw new BadRequestException(
+        'So e permitido importar CSV quando os lotes ja foram criados no editor.'
+      );
     }
   }
 
-  private async ensureImportOwnership(tenantId: string, projectId: string, importId: string) {
+  private async ensureImportOwnership(
+    tenantId: string,
+    projectId: string,
+    importId: string
+  ) {
     const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
       SELECT id
       FROM "LotImportJob"
@@ -683,7 +725,9 @@ export class LotsImportService implements OnModuleInit {
   }
 
   private normalizeCode(value: string) {
-    return String(value || '').trim().toUpperCase();
+    return String(value || '')
+      .trim()
+      .toUpperCase();
   }
 
   private mapRawRow(cols: string[], headerMap: Map<string, number>) {
@@ -696,7 +740,10 @@ export class LotsImportService implements OnModuleInit {
     return row;
   }
 
-  private normalizeCsvRow(raw: Record<string, string>, line: number): { row?: CsvRowCandidate; error?: CsvImportError } {
+  private normalizeCsvRow(
+    raw: Record<string, string>,
+    line: number
+  ): { row?: CsvRowCandidate; error?: CsvImportError } {
     const codeRaw = this.readRawValue(raw, HEADER_ALIASES.code);
     const statusRaw = this.readRawValue(raw, HEADER_ALIASES.status);
     const slopeRaw = this.readRawValue(raw, HEADER_ALIASES.slope);
@@ -706,9 +753,10 @@ export class LotsImportService implements OnModuleInit {
       return {
         error: {
           line,
-          message: 'Coluna obrigatoria "codigo" vazia. Informe o codigo do lote exatamente como na Planta Interativa (ex.: Q1-L01).',
-          raw,
-        },
+          message:
+            'Coluna obrigatoria "codigo" vazia. Informe o codigo do lote exatamente como na Planta Interativa (ex.: Q1-L01).',
+          raw
+        }
       };
     }
 
@@ -718,8 +766,8 @@ export class LotsImportService implements OnModuleInit {
           line,
           code,
           message: `Codigo invalido: ${this.formatInvalidValue(code)}. O codigo nao pode conter acentuacao. Exemplo esperado: Q1-L01.`,
-          raw,
-        },
+          raw
+        }
       };
     }
 
@@ -730,8 +778,8 @@ export class LotsImportService implements OnModuleInit {
           line,
           code,
           message: `Status invalido: ${this.formatInvalidValue(statusRaw)}. Valores aceitos: DISPONIVEL, RESERVADO, VENDIDO (tambem aceita AVAILABLE, RESERVED, SOLD).`,
-          raw,
-        },
+          raw
+        }
       };
     }
 
@@ -742,8 +790,8 @@ export class LotsImportService implements OnModuleInit {
           line,
           code,
           message: `Topografia invalida: ${this.formatInvalidValue(slopeRaw)}. Valores aceitos: PLANO, ACLIVE, DECLIVE (tambem aceita FLAT, UPHILL, DOWNHILL).`,
-          raw,
-        },
+          raw
+        }
       };
     }
 
@@ -755,32 +803,53 @@ export class LotsImportService implements OnModuleInit {
             line,
             code,
             message: `Valor invalido em ${fieldName}: ${this.formatInvalidValue(value)}. Use numero (ex.: 1500,50 ou 1500.50).`,
-            raw,
-          },
+            raw
+          }
         } as const;
       }
       return { value: parsed.value } as const;
     };
 
-    const price = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.price), 'valor_total');
+    const price = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.price),
+      'valor_total'
+    );
     if ('error' in price) return price;
 
-    const pricePerM2 = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.pricePerM2), 'valor_m2');
+    const pricePerM2 = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.pricePerM2),
+      'valor_m2'
+    );
     if ('error' in pricePerM2) return pricePerM2;
 
-    const areaM2 = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.areaM2), 'area_m2');
+    const areaM2 = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.areaM2),
+      'area_m2'
+    );
     if ('error' in areaM2) return areaM2;
 
-    const frontage = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.frontage), 'frente');
+    const frontage = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.frontage),
+      'frente'
+    );
     if ('error' in frontage) return frontage;
 
-    const depth = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.depth), 'fundo');
+    const depth = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.depth),
+      'fundo'
+    );
     if ('error' in depth) return depth;
 
-    const sideLeft = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.sideLeft), 'lateral_esquerda');
+    const sideLeft = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.sideLeft),
+      'lateral_esquerda'
+    );
     if ('error' in sideLeft) return sideLeft;
 
-    const sideRight = parseNumberField(this.readRawValue(raw, HEADER_ALIASES.sideRight), 'lateral_direita');
+    const sideRight = parseNumberField(
+      this.readRawValue(raw, HEADER_ALIASES.sideRight),
+      'lateral_direita'
+    );
     if ('error' in sideRight) return sideRight;
 
     const tags = this.parseTags(this.readRawValue(raw, HEADER_ALIASES.tags));
@@ -790,8 +859,12 @@ export class LotsImportService implements OnModuleInit {
         line,
         code,
         status,
-        block: this.toNullableString(this.readRawValue(raw, HEADER_ALIASES.block)),
-        lotNumber: this.toNullableString(this.readRawValue(raw, HEADER_ALIASES.lotNumber)),
+        block: this.toNullableString(
+          this.readRawValue(raw, HEADER_ALIASES.block)
+        ),
+        lotNumber: this.toNullableString(
+          this.readRawValue(raw, HEADER_ALIASES.lotNumber)
+        ),
         price: price.value,
         pricePerM2: pricePerM2.value,
         areaM2: areaM2.value,
@@ -800,14 +873,19 @@ export class LotsImportService implements OnModuleInit {
         sideLeft: sideLeft.value,
         sideRight: sideRight.value,
         slope,
-        notes: this.toNullableString(this.readRawValue(raw, HEADER_ALIASES.notes)),
+        notes: this.toNullableString(
+          this.readRawValue(raw, HEADER_ALIASES.notes)
+        ),
         tags,
-        raw,
-      },
+        raw
+      }
     };
   }
 
-  private readRawValue(raw: Record<string, string>, aliases: readonly string[]) {
+  private readRawValue(
+    raw: Record<string, string>,
+    aliases: readonly string[]
+  ) {
     for (const key of aliases) {
       const value = raw[key];
       if (value !== undefined) {
@@ -817,7 +895,10 @@ export class LotsImportService implements OnModuleInit {
     return '';
   }
 
-  private parseNumber(value: string): { value: number | null; invalid: boolean } {
+  private parseNumber(value: string): {
+    value: number | null;
+    invalid: boolean;
+  } {
     const clean = String(value || '').trim();
     if (!clean) return { value: null, invalid: false };
 
@@ -835,8 +916,10 @@ export class LotsImportService implements OnModuleInit {
     const normalized = this.normalizeEnumValue(value);
     if (!normalized) return null;
 
-    if (normalized === 'AVAILABLE' || normalized === 'DISPONIVEL') return 'AVAILABLE';
-    if (normalized === 'RESERVED' || normalized === 'RESERVADO') return 'RESERVED';
+    if (normalized === 'AVAILABLE' || normalized === 'DISPONIVEL')
+      return 'AVAILABLE';
+    if (normalized === 'RESERVED' || normalized === 'RESERVADO')
+      return 'RESERVED';
     if (normalized === 'SOLD' || normalized === 'VENDIDO') return 'SOLD';
     return null;
   }
@@ -846,8 +929,18 @@ export class LotsImportService implements OnModuleInit {
     if (!normalized) return null;
 
     if (normalized === 'FLAT' || normalized === 'PLANO') return 'FLAT';
-    if (normalized === 'UPHILL' || normalized === 'UP' || normalized === 'ACLIVE') return 'UPHILL';
-    if (normalized === 'DOWNHILL' || normalized === 'DOWN' || normalized === 'DECLIVE') return 'DOWNHILL';
+    if (
+      normalized === 'UPHILL' ||
+      normalized === 'UP' ||
+      normalized === 'ACLIVE'
+    )
+      return 'UPHILL';
+    if (
+      normalized === 'DOWNHILL' ||
+      normalized === 'DOWN' ||
+      normalized === 'DECLIVE'
+    )
+      return 'DOWNHILL';
     return null;
   }
 
@@ -868,7 +961,9 @@ export class LotsImportService implements OnModuleInit {
 
   private hasDiacritics(value: string) {
     const clean = String(value || '');
-    const withoutDiacritics = clean.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const withoutDiacritics = clean
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
     return clean !== withoutDiacritics;
   }
 
@@ -905,7 +1000,7 @@ export class LotsImportService implements OnModuleInit {
       startedAt: row.startedAt || null,
       finishedAt: row.finishedAt || null,
       createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      updatedAt: row.updatedAt
     };
   }
 
@@ -915,7 +1010,7 @@ export class LotsImportService implements OnModuleInit {
     code: row.code ? String(row.code) : null,
     message: String(row.message),
     raw: row.raw ?? null,
-    createdAt: row.createdAt,
+    createdAt: row.createdAt
   });
 
   private isValidQueueJob(payload: unknown): payload is CsvImportQueueJob {
@@ -936,7 +1031,9 @@ export class LotsImportService implements OnModuleInit {
     try {
       await unlinkAsync(filePath);
     } catch (error) {
-      this.logger.warn(`Could not remove temp file ${filePath}: ${String(error)}`);
+      this.logger.warn(
+        `Could not remove temp file ${filePath}: ${String(error)}`
+      );
     }
   }
 

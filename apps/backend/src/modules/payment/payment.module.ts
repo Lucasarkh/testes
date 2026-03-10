@@ -20,8 +20,8 @@ import { NotificationsModule } from '@modules/notifications/notifications.module
     MercadoPagoAdapter,
     AsaasAdapter,
     PagarMeAdapter,
-    PagSeguroAdapter,
+    PagSeguroAdapter
   ],
-  exports: [PaymentService],
+  exports: [PaymentService]
 })
 export class PaymentModule {}

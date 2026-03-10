@@ -2,7 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  BadRequestException,
+  BadRequestException
 } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { UserRole, TicketStatus } from '@prisma/client';
@@ -17,7 +17,7 @@ export class SupportService {
   async createTicket(
     userId: string,
     tenantId: string | null,
-    dto: CreateTicketDto,
+    dto: CreateTicketDto
   ) {
     const ticket = await this.prisma.supportTicket.create({
       data: {
@@ -26,16 +26,22 @@ export class SupportService {
         title: dto.title,
         description: dto.description,
         category: dto.category,
-        priority: dto.priority,
+        priority: dto.priority
       },
       include: {
-        user: { select: { id: true, name: true, email: true, role: true } },
-      },
+        user: { select: { id: true, name: true, email: true, role: true } }
+      }
     });
     return ticket;
   }
 
-  async listTickets(userId: string, role: UserRole, page = 1, limit = 20, status?: TicketStatus) {
+  async listTickets(
+    userId: string,
+    role: UserRole,
+    page = 1,
+    limit = 20,
+    status?: TicketStatus
+  ) {
     const skip = (page - 1) * limit;
     const where: any = role === UserRole.SYSADMIN ? {} : { userId };
     if (status) where.status = status;
@@ -48,15 +54,15 @@ export class SupportService {
         take: limit,
         include: {
           user: { select: { id: true, name: true, email: true, role: true } },
-          _count: { select: { messages: true } },
-        },
+          _count: { select: { messages: true } }
+        }
       }),
-      this.prisma.supportTicket.count({ where }),
+      this.prisma.supportTicket.count({ where })
     ]);
 
     return {
       data: tickets,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
     };
   }
 
@@ -66,14 +72,13 @@ export class SupportService {
       include: {
         user: { select: { id: true, name: true, email: true, role: true } },
         messages: {
-          where:
-            role === UserRole.SYSADMIN ? {} : { isInternal: false },
+          where: role === UserRole.SYSADMIN ? {} : { isInternal: false },
           orderBy: { createdAt: 'asc' },
           include: {
-            user: { select: { id: true, name: true, role: true } },
-          },
-        },
-      },
+            user: { select: { id: true, name: true, role: true } }
+          }
+        }
+      }
     });
 
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
@@ -89,10 +94,10 @@ export class SupportService {
   async updateTicketStatus(
     ticketId: string,
     dto: UpdateTicketStatusDto,
-    adminId: string,
+    adminId: string
   ) {
     const ticket = await this.prisma.supportTicket.findUnique({
-      where: { id: ticketId },
+      where: { id: ticketId }
     });
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
 
@@ -110,8 +115,8 @@ export class SupportService {
         where: { id: ticketId },
         data: { status: dto.status, resolvedAt, closedAt },
         include: {
-          user: { select: { id: true, name: true, email: true, role: true } },
-        },
+          user: { select: { id: true, name: true, email: true, role: true } }
+        }
       });
 
       let message: any = null;
@@ -121,9 +126,9 @@ export class SupportService {
             ticketId,
             userId: adminId,
             message: dto.replyMessage.trim(),
-            isInternal: false,
+            isInternal: false
           },
-          include: { user: { select: { id: true, name: true, role: true } } },
+          include: { user: { select: { id: true, name: true, role: true } } }
         });
       }
 
@@ -137,15 +142,17 @@ export class SupportService {
     ticketId: string,
     userId: string,
     role: UserRole,
-    dto: CreateMessageDto,
+    dto: CreateMessageDto
   ) {
     const ticket = await this.prisma.supportTicket.findUnique({
-      where: { id: ticketId },
+      where: { id: ticketId }
     });
     if (!ticket) throw new NotFoundException('Ticket não encontrado');
 
     if (ticket.status === TicketStatus.CLOSED) {
-      throw new BadRequestException('Não é possível responder um ticket fechado');
+      throw new BadRequestException(
+        'Não é possível responder um ticket fechado'
+      );
     }
 
     // Non-admin users can only reply to their own tickets
@@ -161,11 +168,11 @@ export class SupportService {
         ticketId,
         userId,
         message: dto.message,
-        isInternal,
+        isInternal
       },
       include: {
-        user: { select: { id: true, name: true, role: true } },
-      },
+        user: { select: { id: true, name: true, role: true } }
+      }
     });
 
     // If user replies, move ticket back to IN_PROGRESS if it was WAITING_USER
@@ -175,7 +182,7 @@ export class SupportService {
     ) {
       await this.prisma.supportTicket.update({
         where: { id: ticketId },
-        data: { status: TicketStatus.IN_PROGRESS },
+        data: { status: TicketStatus.IN_PROGRESS }
       });
     }
 

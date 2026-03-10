@@ -13,7 +13,7 @@ import { NotificationsService } from '@modules/notifications/notifications.servi
 export class TrackingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService,
+    private readonly notifications: NotificationsService
   ) {}
 
   private hashIp(ip: string): string {
@@ -62,59 +62,74 @@ export class TrackingService {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [projects, publishedProjects, totalLots, totalLeads, totalSchedulings, totalSessions, totalRealtors] =
-      await Promise.all([
-        this.prisma.project.count({ where: { tenantId } }),
-        this.prisma.project.count({
-          where: { tenantId, status: ProjectStatus.PUBLISHED }
-        }),
-        this.prisma.mapElement.count({
-          where: { tenantId, type: MapElementType.LOT }
-        }),
-        this.prisma.lead.count({
-          where: {
-            tenantId,
-            ...(realtorLinkId && { realtorLinkId }),
-            ...(agencyId && { realtorLink: { user: { agencyId } } })
-          }
-        }),
-        this.prisma.scheduling.count({
-          where: {
-            tenantId,
-            ...(realtorLinkId && { lead: { realtorLinkId } }),
-            ...(agencyId && {
-              OR: [
-                { user: { agencyId } },
-                { lead: { realtorLink: { user: { agencyId } } } },
-              ],
-            }),
-          }
-        }),
-        this.prisma.trackingSession.count({
-          where: {
-            tenantId,
-            lastSeenAt: { gte: thirtyDaysAgo },
-            ...(realtorLinkId && { realtorLinkId }),
-            ...(agencyId && { realtorLink: { user: { agencyId } } }),
-          }
-        }),
-        agencyId
-          ? this.prisma.realtorLink.count({
-              where: { tenantId, enabled: true, user: { agencyId } }
-            })
-          : this.prisma.realtorLink.count({
-              where: { tenantId, enabled: true, ...(realtorLinkId && { id: realtorLinkId }) }
-            }),
-      ]);
+    const [
+      projects,
+      publishedProjects,
+      totalLots,
+      totalLeads,
+      totalSchedulings,
+      totalSessions,
+      totalRealtors
+    ] = await Promise.all([
+      this.prisma.project.count({ where: { tenantId } }),
+      this.prisma.project.count({
+        where: { tenantId, status: ProjectStatus.PUBLISHED }
+      }),
+      this.prisma.mapElement.count({
+        where: { tenantId, type: MapElementType.LOT }
+      }),
+      this.prisma.lead.count({
+        where: {
+          tenantId,
+          ...(realtorLinkId && { realtorLinkId }),
+          ...(agencyId && { realtorLink: { user: { agencyId } } })
+        }
+      }),
+      this.prisma.scheduling.count({
+        where: {
+          tenantId,
+          ...(realtorLinkId && { lead: { realtorLinkId } }),
+          ...(agencyId && {
+            OR: [
+              { user: { agencyId } },
+              { lead: { realtorLink: { user: { agencyId } } } }
+            ]
+          })
+        }
+      }),
+      this.prisma.trackingSession.count({
+        where: {
+          tenantId,
+          lastSeenAt: { gte: thirtyDaysAgo },
+          ...(realtorLinkId && { realtorLinkId }),
+          ...(agencyId && { realtorLink: { user: { agencyId } } })
+        }
+      }),
+      agencyId
+        ? this.prisma.realtorLink.count({
+            where: { tenantId, enabled: true, user: { agencyId } }
+          })
+        : this.prisma.realtorLink.count({
+            where: {
+              tenantId,
+              enabled: true,
+              ...(realtorLinkId && { id: realtorLinkId })
+            }
+          })
+    ]);
 
-    return { projects, publishedProjects, totalLots, totalLeads, totalSchedulings, totalSessions, totalRealtors };
+    return {
+      projects,
+      publishedProjects,
+      totalLots,
+      totalLeads,
+      totalSchedulings,
+      totalSessions,
+      totalRealtors
+    };
   }
 
-  async createSession(
-    dto: CreateSessionDto,
-    ip?: string,
-    userAgent?: string
-  ) {
+  async createSession(dto: CreateSessionDto, ip?: string, userAgent?: string) {
     const { tenantSlug, projectSlug, realtorCode, sessionId, ...data } = dto;
     let { tenantId, projectId } = data;
 
@@ -146,9 +161,9 @@ export class TrackingService {
     let utmSource = data.utmSource;
     let utmMedium = data.utmMedium;
     let utmCampaign = data.utmCampaign;
-    let utmContent = data.utmContent || null;
-    let utmTerm = data.utmTerm || null;
-    let referrer = data.referrer || null;
+    const utmContent = data.utmContent || null;
+    const utmTerm = data.utmTerm || null;
+    const referrer = data.referrer || null;
 
     if (!utmSource) {
       if (referrer) {
@@ -369,7 +384,11 @@ export class TrackingService {
     });
   }
 
-  private async getRealtorContextFromUser(user?: { id: string; role: string; agencyId?: string }) {
+  private async getRealtorContextFromUser(user?: {
+    id: string;
+    role: string;
+    agencyId?: string;
+  }) {
     if (user?.role === 'CORRETOR') {
       const realtor = await this.prisma.realtorLink.findUnique({
         where: { userId: user.id },
@@ -377,11 +396,11 @@ export class TrackingService {
       });
       return { realtorLinkId: realtor?.id || 'none' };
     }
-    
+
     if (user?.role === 'IMOBILIARIA' && user.agencyId) {
       return { agencyId: user.agencyId };
     }
-    
+
     return {};
   }
 
@@ -393,7 +412,13 @@ export class TrackingService {
 
     // Use Brasilia timezone boundaries (UTC-3) for consistent filtering
     const start = startDate ? new Date(`${startDate}T03:00:00.000Z`) : null;
-    const end = endDate ? new Date(new Date(`${endDate}T03:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000 - 1) : null;
+    const end = endDate
+      ? new Date(
+          new Date(`${endDate}T03:00:00.000Z`).getTime() +
+            24 * 60 * 60 * 1000 -
+            1
+        )
+      : null;
 
     return {
       tenantId,
@@ -421,7 +446,13 @@ export class TrackingService {
 
     // Use Brasilia timezone boundaries (UTC-3) for consistent filtering
     const start = startDate ? new Date(`${startDate}T03:00:00.000Z`) : null;
-    const end = endDate ? new Date(new Date(`${endDate}T03:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000 - 1) : null;
+    const end = endDate
+      ? new Date(
+          new Date(`${endDate}T03:00:00.000Z`).getTime() +
+            24 * 60 * 60 * 1000 -
+            1
+        )
+      : null;
 
     return {
       session: {
@@ -451,7 +482,13 @@ export class TrackingService {
 
     // Use Brasilia timezone boundaries (UTC-3) for consistent filtering
     const start = startDate ? new Date(`${startDate}T03:00:00.000Z`) : null;
-    const end = endDate ? new Date(new Date(`${endDate}T03:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000 - 1) : null;
+    const end = endDate
+      ? new Date(
+          new Date(`${endDate}T03:00:00.000Z`).getTime() +
+            24 * 60 * 60 * 1000 -
+            1
+        )
+      : null;
 
     return {
       tenantId,
@@ -475,12 +512,7 @@ export class TrackingService {
     user?: { id: string; role: string; agencyId?: string }
   ) {
     const context = await this.getRealtorContextFromUser(user);
-    const whereEvent = this.getEventWhere(
-      query,
-      context,
-      undefined,
-      'LOT'
-    );
+    const whereEvent = this.getEventWhere(query, context, undefined, 'LOT');
     const res = await this.prisma.trackingEvent.groupBy({
       by: ['label'],
       where: whereEvent,
@@ -689,7 +721,9 @@ export class TrackingService {
     const potentialCodes = new Set<string>();
     for (const l of topLots) {
       if (!l.label) continue;
-      const cleanLabel = l.label.replace(/^(Lote\s+|lote-|Lote:\s+)/i, '').trim();
+      const cleanLabel = l.label
+        .replace(/^(Lote\s+|lote-|Lote:\s+)/i, '')
+        .trim();
       if (l.label.length > 20) {
         potentialIds.add(l.label);
       } else if (cleanLabel) {
@@ -697,53 +731,74 @@ export class TrackingService {
       }
     }
 
-    type LotElement = { id: string; name: string | null; code: string | null; project: { name: string } | null; lotDetails: { block: string | null; lotNumber: string | null } | null };
+    type LotElement = {
+      id: string;
+      name: string | null;
+      code: string | null;
+      project: { name: string } | null;
+      lotDetails: { block: string | null; lotNumber: string | null } | null;
+    };
 
-    const [elementsById, elementsByCode]: [LotElement[], LotElement[]] = await Promise.all([
-      potentialIds.size > 0
-        ? this.prisma.mapElement.findMany({
-            where: { id: { in: Array.from(potentialIds) } },
-            select: {
-              id: true, name: true, code: true,
-              project: { select: { name: true } },
-              lotDetails: { select: { block: true, lotNumber: true } }
-            }
-          })
-        : Promise.resolve([] as LotElement[]),
-      potentialCodes.size > 0
-        ? this.prisma.mapElement.findMany({
-            where: {
-              tenantId: whereSession.tenantId as string,
-              ...(whereSession.projectId && { projectId: whereSession.projectId }),
-              code: { in: Array.from(potentialCodes) }
-            },
-            select: {
-              id: true, name: true, code: true,
-              project: { select: { name: true } },
-              lotDetails: { select: { block: true, lotNumber: true } }
-            }
-          })
-        : Promise.resolve([] as LotElement[])
-    ]);
+    const [elementsById, elementsByCode]: [LotElement[], LotElement[]] =
+      await Promise.all([
+        potentialIds.size > 0
+          ? this.prisma.mapElement.findMany({
+              where: { id: { in: Array.from(potentialIds) } },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                project: { select: { name: true } },
+                lotDetails: { select: { block: true, lotNumber: true } }
+              }
+            })
+          : Promise.resolve([] as LotElement[]),
+        potentialCodes.size > 0
+          ? this.prisma.mapElement.findMany({
+              where: {
+                tenantId: whereSession.tenantId as string,
+                ...(whereSession.projectId && {
+                  projectId: whereSession.projectId
+                }),
+                code: { in: Array.from(potentialCodes) }
+              },
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                project: { select: { name: true } },
+                lotDetails: { select: { block: true, lotNumber: true } }
+              }
+            })
+          : Promise.resolve([] as LotElement[])
+      ]);
 
-    const elementMapById = new Map(elementsById.map(e => [e.id, e]));
-    const elementMapByCode = new Map(elementsByCode.map(e => [e.code, e]));
+    const elementMapById = new Map(elementsById.map((e) => [e.id, e]));
+    const elementMapByCode = new Map(elementsByCode.map((e) => [e.code, e]));
 
     const lotGroups = new Map<string, number>();
     for (const l of topLots) {
       const rawLabel = l.label || 'Desconhecido';
-      const cleanLabel = rawLabel.replace(/^(Lote\s+|lote-|Lote:\s+)/i, '').trim();
+      const cleanLabel = rawLabel
+        .replace(/^(Lote\s+|lote-|Lote:\s+)/i, '')
+        .trim();
       const isId = rawLabel.length > 20;
 
       // Try to find element by ID or code
-      const element = isId ? elementMapById.get(rawLabel) : elementMapByCode.get(cleanLabel);
+      const element = isId
+        ? elementMapById.get(rawLabel)
+        : elementMapByCode.get(cleanLabel);
 
       let projectName = element?.project?.name || '';
       let finalLotName = cleanLabel;
 
       if (element) {
         const block = element.lotDetails?.block || '';
-        const lotCode = element.lotDetails?.lotNumber || element.code || element.name || cleanLabel;
+        const lotCode =
+          element.lotDetails?.lotNumber ||
+          element.code ||
+          element.name ||
+          cleanLabel;
         finalLotName = block ? `${block} ${lotCode}` : lotCode;
       }
 
@@ -772,28 +827,48 @@ export class TrackingService {
 
     // Calculate engagement metrics (cap at 1 hour to avoid outliers from idle sessions)
     const validSessionDurations = sessionDurations
-      .map(s => {
+      .map((s) => {
         if (!s.firstSeenAt || !s.lastSeenAt) return 0;
-        const duration = new Date(s.lastSeenAt).getTime() - new Date(s.firstSeenAt).getTime();
+        const duration =
+          new Date(s.lastSeenAt).getTime() - new Date(s.firstSeenAt).getTime();
         return duration > 0 && duration < 3600000 ? duration : 0; // Cap at 1 hour
       })
-      .filter(d => d > 0);
-    const avgSessionDurationSec = validSessionDurations.length > 0
-      ? Math.round(validSessionDurations.reduce((a, b) => a + b, 0) / validSessionDurations.length / 1000)
-      : 0;
+      .filter((d) => d > 0);
+    const avgSessionDurationSec =
+      validSessionDurations.length > 0
+        ? Math.round(
+            validSessionDurations.reduce((a, b) => a + b, 0) /
+              validSessionDurations.length /
+              1000
+          )
+        : 0;
 
     // Bounce rate: sessions with only 1 page view
-    const sessionsWithOnePageView = pageViewsPerSession.filter(p => p._count.id === 1).length;
+    const sessionsWithOnePageView = pageViewsPerSession.filter(
+      (p) => p._count.id === 1
+    ).length;
     const totalSessionsWithPageViews = pageViewsPerSession.length;
-    const bounceRate = totalSessionsWithPageViews > 0
-      ? parseFloat(((sessionsWithOnePageView / totalSessionsWithPageViews) * 100).toFixed(1))
-      : 0;
+    const bounceRate =
+      totalSessionsWithPageViews > 0
+        ? parseFloat(
+            (
+              (sessionsWithOnePageView / totalSessionsWithPageViews) *
+              100
+            ).toFixed(1)
+          )
+        : 0;
 
     // Pages per session
-    const totalPageViewsForAvg = pageViewsPerSession.reduce((a, b) => a + b._count.id, 0);
-    const avgPagesPerSession = totalSessionsWithPageViews > 0
-      ? parseFloat((totalPageViewsForAvg / totalSessionsWithPageViews).toFixed(1))
-      : 0;
+    const totalPageViewsForAvg = pageViewsPerSession.reduce(
+      (a, b) => a + b._count.id,
+      0
+    );
+    const avgPagesPerSession =
+      totalSessionsWithPageViews > 0
+        ? parseFloat(
+            (totalPageViewsForAvg / totalSessionsWithPageViews).toFixed(1)
+          )
+        : 0;
 
     return {
       summary: {
@@ -823,23 +898,29 @@ export class TrackingService {
         };
       }),
       topLots: topLotsProcessed,
-      topRealtors: await Promise.all(topRealtors.map(async (r) => {
-        let label = r.label || 'Desconhecido';
-        if (label.startsWith('Corretor Link: ')) {
-          const code = label.replace('Corretor Link: ', '');
-          const rl = await this.prisma.realtorLink.findFirst({
-            where: { tenantId: whereSession.tenantId as string, code, enabled: true },
-            select: { name: true }
-          });
-          if (rl) {
-            label = `${rl.name} (${code})`;
+      topRealtors: await Promise.all(
+        topRealtors.map(async (r) => {
+          let label = r.label || 'Desconhecido';
+          if (label.startsWith('Corretor Link: ')) {
+            const code = label.replace('Corretor Link: ', '');
+            const rl = await this.prisma.realtorLink.findFirst({
+              where: {
+                tenantId: whereSession.tenantId as string,
+                code,
+                enabled: true
+              },
+              select: { name: true }
+            });
+            if (rl) {
+              label = `${rl.name} (${code})`;
+            }
           }
-        }
-        return {
-          label,
-          count: r._count.id
-        };
-      })),
+          return {
+            label,
+            count: r._count.id
+          };
+        })
+      ),
       topProjects: topProjects.map((p) => {
         const proj = projects.find((pr) => pr.id === p.projectId);
         return {
@@ -847,7 +928,11 @@ export class TrackingService {
           count: p._count.id
         };
       }),
-      topPaths: await this.processTopPaths(topPathsRaw, query.tenantId, query.projectId),
+      topPaths: await this.processTopPaths(
+        topPathsRaw,
+        query.tenantId,
+        query.projectId
+      ),
       engagement: {
         avgSessionDurationSec,
         bounceRate,
@@ -879,8 +964,12 @@ export class TrackingService {
           tenantId: whereSession.tenantId as string,
           ...(whereSession.projectId && { projectId: whereSession.projectId }),
           mapElementId: { not: null },
-          ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-          ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
+          ...(context.realtorLinkId && {
+            realtorLinkId: context.realtorLinkId
+          }),
+          ...(context.agencyId && {
+            realtorLink: { agencyId: context.agencyId }
+          })
         } as any,
         _count: { id: true }
       }),
@@ -890,8 +979,12 @@ export class TrackingService {
           ...(whereSession.projectId && { projectId: whereSession.projectId }),
           mapElementId: { not: null },
           status: { in: [LeadStatus.RESERVATION, LeadStatus.WON] },
-          ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-          ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
+          ...(context.realtorLinkId && {
+            realtorLinkId: context.realtorLinkId
+          }),
+          ...(context.agencyId && {
+            realtorLink: { agencyId: context.agencyId }
+          })
         } as any
       })
     ]);
@@ -929,7 +1022,9 @@ export class TrackingService {
     const potentialCodes = new Set<string>();
     for (const l of lotViews) {
       if (!l.label) continue;
-      const cleanLabel = l.label.replace(/^(Lote\s+|lote-|Lote:\s+)/i, '').trim();
+      const cleanLabel = l.label
+        .replace(/^(Lote\s+|lote-|Lote:\s+)/i, '')
+        .trim();
       if (l.label.length > 20) {
         potentialIds.add(l.label);
       } else if (cleanLabel) {
@@ -939,43 +1034,68 @@ export class TrackingService {
     for (const id of leadMap.keys()) potentialIds.add(id);
 
     // Query elements by ID
-    const elementsById = potentialIds.size > 0
-      ? await this.prisma.mapElement.findMany({
-          where: { id: { in: Array.from(potentialIds) } },
-          select: {
-            id: true, code: true, name: true,
-            lotDetails: { select: { status: true, block: true, lotNumber: true } },
-            project: { select: { name: true } }
-          }
-        })
-      : [];
+    const elementsById =
+      potentialIds.size > 0
+        ? await this.prisma.mapElement.findMany({
+            where: { id: { in: Array.from(potentialIds) } },
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              lotDetails: {
+                select: { status: true, block: true, lotNumber: true }
+              },
+              project: { select: { name: true } }
+            }
+          })
+        : [];
 
     // Query elements by code (scoped to tenant/project)
-    const elementsByCode = potentialCodes.size > 0
-      ? await this.prisma.mapElement.findMany({
-          where: {
-            tenantId: whereSession.tenantId as string,
-            ...(whereSession.projectId && { projectId: whereSession.projectId }),
-            code: { in: Array.from(potentialCodes) }
-          },
-          select: {
-            id: true, code: true, name: true,
-            lotDetails: { select: { status: true, block: true, lotNumber: true } },
-            project: { select: { name: true } }
-          }
-        })
-      : [];
+    const elementsByCode =
+      potentialCodes.size > 0
+        ? await this.prisma.mapElement.findMany({
+            where: {
+              tenantId: whereSession.tenantId as string,
+              ...(whereSession.projectId && {
+                projectId: whereSession.projectId
+              }),
+              code: { in: Array.from(potentialCodes) }
+            },
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              lotDetails: {
+                select: { status: true, block: true, lotNumber: true }
+              },
+              project: { select: { name: true } }
+            }
+          })
+        : [];
 
     // Build lookup maps
-    const elementMap = new Map(elementsById.map(e => [e.id, e]));
-    const codeToElementMap = new Map(elementsByCode.map(e => [e.code, e]));
+    const elementMap = new Map(elementsById.map((e) => [e.id, e]));
+    const codeToElementMap = new Map(elementsByCode.map((e) => [e.code, e]));
 
     // Merge views with lot data
-    const lotsMap = new Map<string, { code: string; name: string; project: string; views: number; leads: number; reservations: number; status: string }>();
+    const lotsMap = new Map<
+      string,
+      {
+        code: string;
+        name: string;
+        project: string;
+        views: number;
+        leads: number;
+        reservations: number;
+        status: string;
+      }
+    >();
 
     for (const l of lotViews) {
       const rawLabel = l.label || '';
-      const cleanLabel = rawLabel.replace(/^(Lote\s+|lote-|Lote:\s+)/i, '').trim();
+      const cleanLabel = rawLabel
+        .replace(/^(Lote\s+|lote-|Lote:\s+)/i, '')
+        .trim();
       const isId = rawLabel.length > 20;
 
       // Try to find element by ID first, then by code
@@ -995,10 +1115,12 @@ export class TrackingService {
       const existing = lotsMap.get(key);
 
       lotsMap.set(key, {
-        code, name, project,
+        code,
+        name,
+        project,
         views: (existing?.views || 0) + l._count.id,
-        leads: el?.id ? (leadMap.get(el.id) || 0) : 0,
-        reservations: el?.id ? (reservationMap.get(el.id) || 0) : 0,
+        leads: el?.id ? leadMap.get(el.id) || 0 : 0,
+        reservations: el?.id ? reservationMap.get(el.id) || 0 : 0,
         status
       });
     }
@@ -1044,8 +1166,14 @@ export class TrackingService {
     const context = await this.getRealtorContextFromUser(user);
 
     // Calculate previous period
-    const start = query.startDate ? new Date(`${query.startDate}T03:00:00.000Z`) : null;
-    const end = query.endDate ? new Date(new Date(`${query.endDate}T03:00:00.000Z`).getTime() + 86400000 - 1) : null;
+    const start = query.startDate
+      ? new Date(`${query.startDate}T03:00:00.000Z`)
+      : null;
+    const end = query.endDate
+      ? new Date(
+          new Date(`${query.endDate}T03:00:00.000Z`).getTime() + 86400000 - 1
+        )
+      : null;
 
     let prevQuery: TrackingReportQueryDto | undefined;
     if (start && end) {
@@ -1060,16 +1188,33 @@ export class TrackingService {
     }
 
     const currentWhere = this.getSessionWhere(query, context);
-    const currentEventWhere = this.getEventWhere(query, context, undefined, 'LOT');
+    const currentEventWhere = this.getEventWhere(
+      query,
+      context,
+      undefined,
+      'LOT'
+    );
 
-    const [currentSessions, currentLeads, currentLotViews, deviceBreakdown, eventTimestamps, pageViewEvents, sessionDurationsForTrend] = await Promise.all([
+    const [
+      currentSessions,
+      currentLeads,
+      currentLotViews,
+      deviceBreakdown,
+      eventTimestamps,
+      pageViewEvents,
+      sessionDurationsForTrend
+    ] = await Promise.all([
       this.prisma.trackingSession.count({ where: currentWhere }),
       this.prisma.lead.count({
         where: {
           tenantId: currentWhere.tenantId as string,
           ...(currentWhere.projectId && { projectId: currentWhere.projectId }),
-          ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-          ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
+          ...(context.realtorLinkId && {
+            realtorLinkId: context.realtorLinkId
+          }),
+          ...(context.agencyId && {
+            realtorLink: { agencyId: context.agencyId }
+          })
         } as any
       }),
       this.prisma.trackingEvent.groupBy({
@@ -1110,15 +1255,24 @@ export class TrackingService {
     let prevLotViews: typeof currentLotViews = [];
     if (prevQuery) {
       const prevWhere = this.getSessionWhere(prevQuery, context);
-      const prevEventWhere = this.getEventWhere(prevQuery, context, undefined, 'LOT');
+      const prevEventWhere = this.getEventWhere(
+        prevQuery,
+        context,
+        undefined,
+        'LOT'
+      );
       [prevSessions, prevLeads, prevLotViews] = await Promise.all([
         this.prisma.trackingSession.count({ where: prevWhere }),
         this.prisma.lead.count({
           where: {
             tenantId: prevWhere.tenantId as string,
             ...(prevWhere.projectId && { projectId: prevWhere.projectId }),
-            ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-            ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
+            ...(context.realtorLinkId && {
+              realtorLinkId: context.realtorLinkId
+            }),
+            ...(context.agencyId && {
+              realtorLink: { agencyId: context.agencyId }
+            })
           } as any
         }),
         this.prisma.trackingEvent.groupBy({
@@ -1132,15 +1286,27 @@ export class TrackingService {
     }
 
     // Growth calculations
-    const sessionGrowth = prevSessions > 0 ? parseFloat((((currentSessions - prevSessions) / prevSessions) * 100).toFixed(1)) : null;
-    const leadGrowth = prevLeads > 0 ? parseFloat((((currentLeads - prevLeads) / prevLeads) * 100).toFixed(1)) : null;
+    const sessionGrowth =
+      prevSessions > 0
+        ? parseFloat(
+            (((currentSessions - prevSessions) / prevSessions) * 100).toFixed(1)
+          )
+        : null;
+    const leadGrowth =
+      prevLeads > 0
+        ? parseFloat(
+            (((currentLeads - prevLeads) / prevLeads) * 100).toFixed(1)
+          )
+        : null;
 
     // Lot trend calculations - resolve labels to friendly names with block info
     const potentialLotIds = new Set<string>();
     const potentialLotCodes = new Set<string>();
     for (const l of currentLotViews) {
       if (!l.label) continue;
-      const cleanLabel = l.label.replace(/^(Lote\s+|lote-|Lote:\s+)/i, '').trim();
+      const cleanLabel = l.label
+        .replace(/^(Lote\s+|lote-|Lote:\s+)/i, '')
+        .trim();
       if (l.label.length > 20) {
         potentialLotIds.add(l.label);
       } else if (cleanLabel) {
@@ -1149,66 +1315,91 @@ export class TrackingService {
     }
 
     // Query by ID
-    const lotElementsById = potentialLotIds.size > 0
-      ? await this.prisma.mapElement.findMany({
-          where: { id: { in: Array.from(potentialLotIds) } },
-          select: {
-            id: true, code: true, name: true,
-            project: { select: { name: true } },
-            lotDetails: { select: { block: true, lotNumber: true } }
-          }
-        })
-      : [];
+    const lotElementsById =
+      potentialLotIds.size > 0
+        ? await this.prisma.mapElement.findMany({
+            where: { id: { in: Array.from(potentialLotIds) } },
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              project: { select: { name: true } },
+              lotDetails: { select: { block: true, lotNumber: true } }
+            }
+          })
+        : [];
 
     // Query by code
-    const lotElementsByCode = potentialLotCodes.size > 0
-      ? await this.prisma.mapElement.findMany({
-          where: {
-            tenantId: currentWhere.tenantId as string,
-            ...(currentWhere.projectId && { projectId: currentWhere.projectId }),
-            code: { in: Array.from(potentialLotCodes) }
-          },
-          select: {
-            id: true, code: true, name: true,
-            project: { select: { name: true } },
-            lotDetails: { select: { block: true, lotNumber: true } }
-          }
-        })
-      : [];
+    const lotElementsByCode =
+      potentialLotCodes.size > 0
+        ? await this.prisma.mapElement.findMany({
+            where: {
+              tenantId: currentWhere.tenantId as string,
+              ...(currentWhere.projectId && {
+                projectId: currentWhere.projectId
+              }),
+              code: { in: Array.from(potentialLotCodes) }
+            },
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              project: { select: { name: true } },
+              lotDetails: { select: { block: true, lotNumber: true } }
+            }
+          })
+        : [];
 
-    const lotElementMap = new Map(lotElementsById.map(e => [e.id, e]));
-    const lotCodeMap = new Map(lotElementsByCode.map(e => [e.code, e]));
+    const lotElementMap = new Map(lotElementsById.map((e) => [e.id, e]));
+    const lotCodeMap = new Map(lotElementsByCode.map((e) => [e.code, e]));
 
-    const prevLotMap = new Map(prevLotViews.map(l => [l.label, l._count.id]));
-    const lotTrends = currentLotViews.map(l => {
-      const current = l._count.id;
-      const previous = prevLotMap.get(l.label) || 0;
-      const growth = previous > 0 ? parseFloat((((current - previous) / previous) * 100).toFixed(1)) : (current > 0 ? 100 : 0);
+    const prevLotMap = new Map(prevLotViews.map((l) => [l.label, l._count.id]));
+    const lotTrends = currentLotViews
+      .map((l) => {
+        const current = l._count.id;
+        const previous = prevLotMap.get(l.label) || 0;
+        const growth =
+          previous > 0
+            ? parseFloat((((current - previous) / previous) * 100).toFixed(1))
+            : current > 0
+              ? 100
+              : 0;
 
-      // Resolve label - try by ID first, then by code
-      const rawLabel = l.label || 'Desconhecido';
-      const cleanLabel = rawLabel.replace(/^(Lote\s+|lote-|Lote:\s+)/i, '').trim();
-      const isId = rawLabel.length > 20;
+        // Resolve label - try by ID first, then by code
+        const rawLabel = l.label || 'Desconhecido';
+        const cleanLabel = rawLabel
+          .replace(/^(Lote\s+|lote-|Lote:\s+)/i, '')
+          .trim();
+        const isId = rawLabel.length > 20;
 
-      const el = isId ? lotElementMap.get(rawLabel) : lotCodeMap.get(cleanLabel);
+        const el = isId
+          ? lotElementMap.get(rawLabel)
+          : lotCodeMap.get(cleanLabel);
 
-      let label = cleanLabel;
-      if (el) {
-        const block = el.lotDetails?.block;
-        const lotCode = el.lotDetails?.lotNumber || el.code || el.name || cleanLabel;
-        const lotName = block ? `${block} ${lotCode}` : lotCode;
-        label = el.project?.name ? `${el.project.name} - ${lotName}` : lotName;
-      }
+        let label = cleanLabel;
+        if (el) {
+          const block = el.lotDetails?.block;
+          const lotCode =
+            el.lotDetails?.lotNumber || el.code || el.name || cleanLabel;
+          const lotName = block ? `${block} ${lotCode}` : lotCode;
+          label = el.project?.name
+            ? `${el.project.name} - ${lotName}`
+            : lotName;
+        }
 
-      return { label, current, previous, growth };
-    }).sort((a, b) => b.growth - a.growth);
+        return { label, current, previous, growth };
+      })
+      .sort((a, b) => b.growth - a.growth);
 
     // Device breakdown
     const totalDevices = deviceBreakdown.reduce((a, b) => a + b._count.id, 0);
-    const devices = deviceBreakdown.map(d => ({
+    const devices = deviceBreakdown.map((d) => ({
       type: d.deviceType || 'unknown',
       count: d._count.id,
-      percentage: totalDevices > 0 ? parseFloat(((d._count.id / totalDevices) * 100).toFixed(1)) : 0
+      percentage:
+        totalDevices > 0
+          ? parseFloat(((d._count.id / totalDevices) * 100).toFixed(1))
+          : 0
     }));
 
     // Peak hours
@@ -1224,29 +1415,43 @@ export class TrackingService {
     // Engagement: Calculate time per page from consecutive PAGE_VIEW events
     const pageTimeMap = new Map<string, { totalTime: number; count: number }>();
     let currentSessionId = '';
-    let lastEvent: { path: string; label: string; timestamp: Date } | null = null;
+    let lastEvent: { path: string; label: string; timestamp: Date } | null =
+      null;
 
     for (const event of pageViewEvents) {
       if (event.sessionId !== currentSessionId) {
         currentSessionId = event.sessionId;
-        lastEvent = { path: event.path || '', label: event.label || '', timestamp: event.timestamp };
+        lastEvent = {
+          path: event.path || '',
+          label: event.label || '',
+          timestamp: event.timestamp
+        };
         continue;
       }
 
       if (lastEvent) {
-        const timeOnPage = new Date(event.timestamp).getTime() - new Date(lastEvent.timestamp).getTime();
+        const timeOnPage =
+          new Date(event.timestamp).getTime() -
+          new Date(lastEvent.timestamp).getTime();
         // Cap at 10 minutes (600000ms) to avoid outliers from idle sessions
         const validTime = Math.min(timeOnPage, 600000);
         if (validTime > 0 && validTime < 600000) {
           const pageKey = lastEvent.label || lastEvent.path || 'unknown';
-          const existing = pageTimeMap.get(pageKey) || { totalTime: 0, count: 0 };
+          const existing = pageTimeMap.get(pageKey) || {
+            totalTime: 0,
+            count: 0
+          };
           pageTimeMap.set(pageKey, {
             totalTime: existing.totalTime + validTime,
             count: existing.count + 1
           });
         }
       }
-      lastEvent = { path: event.path || '', label: event.label || '', timestamp: event.timestamp };
+      lastEvent = {
+        path: event.path || '',
+        label: event.label || '',
+        timestamp: event.timestamp
+      };
     }
 
     // Top pages by engagement time - first resolve lot codes to friendly names
@@ -1258,21 +1463,26 @@ export class TrackingService {
       }
     }
 
-    const engagementLotElements = engagementCodes.size > 0
-      ? await this.prisma.mapElement.findMany({
-          where: {
-            tenantId: currentWhere.tenantId as string,
-            ...(currentWhere.projectId && { projectId: currentWhere.projectId }),
-            code: { in: Array.from(engagementCodes) }
-          },
-          select: {
-            code: true,
-            lotDetails: { select: { block: true, lotNumber: true } },
-            project: { select: { name: true } }
-          }
-        })
-      : [];
-    const engagementCodeMap = new Map(engagementLotElements.map(e => [e.code, e]));
+    const engagementLotElements =
+      engagementCodes.size > 0
+        ? await this.prisma.mapElement.findMany({
+            where: {
+              tenantId: currentWhere.tenantId as string,
+              ...(currentWhere.projectId && {
+                projectId: currentWhere.projectId
+              }),
+              code: { in: Array.from(engagementCodes) }
+            },
+            select: {
+              code: true,
+              lotDetails: { select: { block: true, lotNumber: true } },
+              project: { select: { name: true } }
+            }
+          })
+        : [];
+    const engagementCodeMap = new Map(
+      engagementLotElements.map((e) => [e.code, e])
+    );
 
     const topEngagementPages = Array.from(pageTimeMap.entries())
       .map(([page, data]) => {
@@ -1295,24 +1505,36 @@ export class TrackingService {
           views: data.count
         };
       })
-      .filter(p => p.avgTime > 5 && p.avgTime < 600) // Filter out very short/long times
+      .filter((p) => p.avgTime > 5 && p.avgTime < 600) // Filter out very short/long times
       .sort((a, b) => b.avgTime - a.avgTime)
       .slice(0, 10);
 
     // Session duration stats for trend
     const validDurations = sessionDurationsForTrend
-      .map(s => {
-        const duration = new Date(s.lastSeenAt).getTime() - new Date(s.firstSeenAt).getTime();
+      .map((s) => {
+        const duration =
+          new Date(s.lastSeenAt).getTime() - new Date(s.firstSeenAt).getTime();
         return duration > 0 && duration < 3600000 ? duration : 0; // Cap at 1 hour
       })
-      .filter(d => d > 0);
+      .filter((d) => d > 0);
 
-    const avgSessionDurationSec = validDurations.length > 0
-      ? Math.round(validDurations.reduce((a, b) => a + b, 0) / validDurations.length / 1000)
-      : 0;
+    const avgSessionDurationSec =
+      validDurations.length > 0
+        ? Math.round(
+            validDurations.reduce((a, b) => a + b, 0) /
+              validDurations.length /
+              1000
+          )
+        : 0;
 
     // Session duration distribution
-    const durationBuckets = { '< 30s': 0, '30s - 2min': 0, '2 - 5min': 0, '5 - 15min': 0, '> 15min': 0 };
+    const durationBuckets = {
+      '< 30s': 0,
+      '30s - 2min': 0,
+      '2 - 5min': 0,
+      '5 - 15min': 0,
+      '> 15min': 0
+    };
     for (const d of validDurations) {
       const secs = d / 1000;
       if (secs < 30) durationBuckets['< 30s']++;
@@ -1323,16 +1545,25 @@ export class TrackingService {
     }
 
     const totalDurationSessions = validDurations.length;
-    const durationDistribution = Object.entries(durationBuckets).map(([label, count]) => ({
-      label,
-      count,
-      percentage: totalDurationSessions > 0 ? parseFloat(((count / totalDurationSessions) * 100).toFixed(1)) : 0
-    }));
+    const durationDistribution = Object.entries(durationBuckets).map(
+      ([label, count]) => ({
+        label,
+        count,
+        percentage:
+          totalDurationSessions > 0
+            ? parseFloat(((count / totalDurationSessions) * 100).toFixed(1))
+            : 0
+      })
+    );
 
     return {
       summary: {
-        currentSessions, prevSessions, sessionGrowth,
-        currentLeads, prevLeads, leadGrowth
+        currentSessions,
+        prevSessions,
+        sessionGrowth,
+        currentLeads,
+        prevLeads,
+        leadGrowth
       },
       lotTrends,
       deviceBreakdown: devices,
@@ -1362,59 +1593,89 @@ export class TrackingService {
         ...(context.realtorLinkId && { id: context.realtorLinkId })
       },
       select: {
-        id: true, name: true, code: true, photoUrl: true, userId: true
+        id: true,
+        name: true,
+        code: true,
+        photoUrl: true,
+        userId: true
       }
     });
 
-    const brokers = await Promise.all(realtorLinks.map(async (rl) => {
-      const [sessions, leads] = await Promise.all([
-        this.prisma.trackingSession.count({
-          where: { ...whereSession, realtorLinkId: rl.id }
-        }),
-        this.prisma.lead.count({
-          where: {
-            ...whereLead,
-            realtorLinkId: rl.id
-          } as any
-        })
-      ]);
-
-      let campaigns: Array<{ id: string; name: string; utmCampaign: string | null; active: boolean }> = [];
-      if (rl.userId) {
-        campaigns = await this.prisma.campaign.findMany({
-          where: { tenantId: query.tenantId!, userId: rl.userId },
-          select: { id: true, name: true, utmCampaign: true, active: true }
-        });
-      }
-
-      // Get sessions/leads per campaign
-      const campaignMetrics = await Promise.all(campaigns.map(async (c) => {
-        const [campSessions, campLeads] = await Promise.all([
-          c.utmCampaign ? this.prisma.trackingSession.count({
-            where: { ...whereSession, realtorLinkId: rl.id, utmCampaign: c.utmCampaign }
-          }) : Promise.resolve(0),
-          c.utmCampaign ? this.prisma.lead.count({
+    const brokers = await Promise.all(
+      realtorLinks.map(async (rl) => {
+        const [sessions, leads] = await Promise.all([
+          this.prisma.trackingSession.count({
+            where: { ...whereSession, realtorLinkId: rl.id }
+          }),
+          this.prisma.lead.count({
             where: {
               ...whereLead,
-              realtorLinkId: rl.id,
-              session: { utmCampaign: c.utmCampaign },
-            }
-          }) : Promise.resolve(0)
+              realtorLinkId: rl.id
+            } as any
+          })
         ]);
-        return { id: c.id, name: c.name, active: c.active, sessions: campSessions, leads: campLeads };
-      }));
 
-      return {
-        id: rl.id,
-        name: rl.name,
-        code: rl.code,
-        photoUrl: rl.photoUrl,
-        sessions,
-        leads,
-        conversionRate: sessions > 0 ? parseFloat(((leads / sessions) * 100).toFixed(1)) : 0,
-        campaigns: campaignMetrics
-      };
-    }));
+        let campaigns: Array<{
+          id: string;
+          name: string;
+          utmCampaign: string | null;
+          active: boolean;
+        }> = [];
+        if (rl.userId) {
+          campaigns = await this.prisma.campaign.findMany({
+            where: { tenantId: query.tenantId!, userId: rl.userId },
+            select: { id: true, name: true, utmCampaign: true, active: true }
+          });
+        }
+
+        // Get sessions/leads per campaign
+        const campaignMetrics = await Promise.all(
+          campaigns.map(async (c) => {
+            const [campSessions, campLeads] = await Promise.all([
+              c.utmCampaign
+                ? this.prisma.trackingSession.count({
+                    where: {
+                      ...whereSession,
+                      realtorLinkId: rl.id,
+                      utmCampaign: c.utmCampaign
+                    }
+                  })
+                : Promise.resolve(0),
+              c.utmCampaign
+                ? this.prisma.lead.count({
+                    where: {
+                      ...whereLead,
+                      realtorLinkId: rl.id,
+                      session: { utmCampaign: c.utmCampaign }
+                    }
+                  })
+                : Promise.resolve(0)
+            ]);
+            return {
+              id: c.id,
+              name: c.name,
+              active: c.active,
+              sessions: campSessions,
+              leads: campLeads
+            };
+          })
+        );
+
+        return {
+          id: rl.id,
+          name: rl.name,
+          code: rl.code,
+          photoUrl: rl.photoUrl,
+          sessions,
+          leads,
+          conversionRate:
+            sessions > 0
+              ? parseFloat(((leads / sessions) * 100).toFixed(1))
+              : 0,
+          campaigns: campaignMetrics
+        };
+      })
+    );
 
     brokers.sort((a, b) => b.leads - a.leads);
 
@@ -1428,7 +1689,10 @@ export class TrackingService {
         totalBrokers: activeBrokers.length,
         totalSessions,
         totalLeads,
-        avgConversionRate: totalSessions > 0 ? parseFloat(((totalLeads / totalSessions) * 100).toFixed(1)) : 0
+        avgConversionRate:
+          totalSessions > 0
+            ? parseFloat(((totalLeads / totalSessions) * 100).toFixed(1))
+            : 0
       },
       brokers
     };
@@ -1455,47 +1719,63 @@ export class TrackingService {
         by: ['projectId'],
         where: {
           tenantId: query.tenantId!,
-          ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-          ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
+          ...(context.realtorLinkId && {
+            realtorLinkId: context.realtorLinkId
+          }),
+          ...(context.agencyId && {
+            realtorLink: { agencyId: context.agencyId }
+          })
         } as any,
         _count: { id: true }
       })
     ]);
 
-    const projectIds = projectSessions.map(p => p.projectId).filter(Boolean) as string[];
+    const projectIds = projectSessions
+      .map((p) => p.projectId)
+      .filter(Boolean) as string[];
     const projects = await this.prisma.project.findMany({
       where: { id: { in: projectIds } },
       select: { id: true, name: true, slug: true, status: true }
     });
 
-    const leadMap = new Map(projectLeads.map(pl => [pl.projectId, pl._count.id]));
+    const leadMap = new Map(
+      projectLeads.map((pl) => [pl.projectId, pl._count.id])
+    );
 
-    const enriched = await Promise.all(projectSessions.map(async (ps) => {
-      const proj = projects.find(p => p.id === ps.projectId);
-      const leads = leadMap.get(ps.projectId!) || 0;
+    const enriched = await Promise.all(
+      projectSessions.map(async (ps) => {
+        const proj = projects.find((p) => p.id === ps.projectId);
+        const leads = leadMap.get(ps.projectId!) || 0;
 
-      const lotEvents = await this.prisma.trackingEvent.groupBy({
-        by: ['label'],
-        where: {
-          category: 'LOT',
-          session: { tenantId: query.tenantId!, projectId: ps.projectId }
-        },
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
-        take: 10
-      });
+        const lotEvents = await this.prisma.trackingEvent.groupBy({
+          by: ['label'],
+          where: {
+            category: 'LOT',
+            session: { tenantId: query.tenantId!, projectId: ps.projectId }
+          },
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } },
+          take: 10
+        });
 
-      return {
-        projectId: ps.projectId,
-        name: proj?.name || 'Desconhecido',
-        slug: proj?.slug,
-        status: proj?.status,
-        sessions: ps._count.id,
-        leads,
-        conversionRate: ps._count.id > 0 ? parseFloat(((leads / ps._count.id) * 100).toFixed(1)) : 0,
-        topLots: lotEvents.map(l => ({ label: l.label || 'Desconhecido', count: l._count.id }))
-      };
-    }));
+        return {
+          projectId: ps.projectId,
+          name: proj?.name || 'Desconhecido',
+          slug: proj?.slug,
+          status: proj?.status,
+          sessions: ps._count.id,
+          leads,
+          conversionRate:
+            ps._count.id > 0
+              ? parseFloat(((leads / ps._count.id) * 100).toFixed(1))
+              : 0,
+          topLots: lotEvents.map((l) => ({
+            label: l.label || 'Desconhecido',
+            count: l._count.id
+          }))
+        };
+      })
+    );
 
     enriched.sort((a, b) => b.sessions - a.sessions);
 
@@ -1517,71 +1797,92 @@ export class TrackingService {
     const context = await this.getRealtorContextFromUser(user);
     const whereSession = this.getSessionWhere(query, context);
 
-    const [sourceBreakdown, campaignBreakdown, mediumBreakdown, allCampaigns] = await Promise.all([
-      this.prisma.trackingSession.groupBy({
-        by: ['utmSource'],
-        where: whereSession,
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } }
-      }),
-      this.prisma.trackingSession.groupBy({
-        by: ['utmCampaign'],
-        where: whereSession,
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } }
-      }),
-      this.prisma.trackingSession.groupBy({
-        by: ['utmMedium'],
-        where: whereSession,
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } }
-      }),
-      this.prisma.campaign.findMany({
-        where: {
-          tenantId: query.tenantId!,
-          ...(whereSession.projectId && { projectId: whereSession.projectId })
-        },
-        include: {
-          investments: true,
-          project: { select: { name: true } }
-        }
-      })
-    ]);
+    const [sourceBreakdown, campaignBreakdown, mediumBreakdown, allCampaigns] =
+      await Promise.all([
+        this.prisma.trackingSession.groupBy({
+          by: ['utmSource'],
+          where: whereSession,
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } }
+        }),
+        this.prisma.trackingSession.groupBy({
+          by: ['utmCampaign'],
+          where: whereSession,
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } }
+        }),
+        this.prisma.trackingSession.groupBy({
+          by: ['utmMedium'],
+          where: whereSession,
+          _count: { id: true },
+          orderBy: { _count: { id: 'desc' } }
+        }),
+        this.prisma.campaign.findMany({
+          where: {
+            tenantId: query.tenantId!,
+            ...(whereSession.projectId && { projectId: whereSession.projectId })
+          },
+          include: {
+            investments: true,
+            project: { select: { name: true } }
+          }
+        })
+      ]);
 
     // Sources with lead counts
-    const sources = await Promise.all(sourceBreakdown.map(async (s) => {
-      const leads = await this.prisma.lead.count({
-        where: {
-          tenantId: query.tenantId!,
-          session: { utmSource: s.utmSource },
-          ...(whereSession.projectId && { projectId: whereSession.projectId }),
-          ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-          ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
-        } as any
-      });
-      return {
-        source: s.utmSource || '(Direto)',
-        sessions: s._count.id,
-        leads,
-        conversionRate: s._count.id > 0 ? parseFloat(((leads / s._count.id) * 100).toFixed(1)) : 0
-      };
-    }));
+    const sources = await Promise.all(
+      sourceBreakdown.map(async (s) => {
+        const leads = await this.prisma.lead.count({
+          where: {
+            tenantId: query.tenantId!,
+            session: { utmSource: s.utmSource },
+            ...(whereSession.projectId && {
+              projectId: whereSession.projectId
+            }),
+            ...(context.realtorLinkId && {
+              realtorLinkId: context.realtorLinkId
+            }),
+            ...(context.agencyId && {
+              realtorLink: { agencyId: context.agencyId }
+            })
+          } as any
+        });
+        return {
+          source: s.utmSource || '(Direto)',
+          sessions: s._count.id,
+          leads,
+          conversionRate:
+            s._count.id > 0
+              ? parseFloat(((leads / s._count.id) * 100).toFixed(1))
+              : 0
+        };
+      })
+    );
 
     // Campaigns with enriched data
     const campaigns = await Promise.all(
       campaignBreakdown
-        .filter(c => c.utmCampaign && c.utmCampaign !== '(Nenhuma)')
+        .filter((c) => c.utmCampaign && c.utmCampaign !== '(Nenhuma)')
         .map(async (c) => {
-          const matched = allCampaigns.find(camp => camp.utmCampaign === c.utmCampaign);
-          const totalSpent = matched?.investments.reduce((a, i) => a + Number(i.amount), 0) || 0;
+          const matched = allCampaigns.find(
+            (camp) => camp.utmCampaign === c.utmCampaign
+          );
+          const totalSpent =
+            matched?.investments.reduce((a, i) => a + Number(i.amount), 0) || 0;
 
           const leads = await this.prisma.lead.count({
             where: {
               tenantId: query.tenantId!,
               session: { utmCampaign: c.utmCampaign },
-              ...(whereSession.projectId && { projectId: whereSession.projectId }),
-              ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
-              ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } })
+              ...(whereSession.projectId && {
+                projectId: whereSession.projectId
+              }),
+              ...(context.realtorLinkId && {
+                realtorLinkId: context.realtorLinkId
+              }),
+              ...(context.agencyId && {
+                realtorLink: { agencyId: context.agencyId }
+              })
             } as any
           });
 
@@ -1592,8 +1893,12 @@ export class TrackingService {
             sessions: c._count.id,
             leads,
             totalSpent,
-            costPerLead: leads > 0 ? parseFloat((totalSpent / leads).toFixed(2)) : 0,
-            conversionRate: c._count.id > 0 ? parseFloat(((leads / c._count.id) * 100).toFixed(1)) : 0,
+            costPerLead:
+              leads > 0 ? parseFloat((totalSpent / leads).toFixed(2)) : 0,
+            conversionRate:
+              c._count.id > 0
+                ? parseFloat(((leads / c._count.id) * 100).toFixed(1))
+                : 0,
             budget: matched?.budget ? Number(matched.budget) : null,
             active: matched?.active ?? null
           };
@@ -1608,15 +1913,22 @@ export class TrackingService {
         totalSessions: totalSessionsAll,
         totalLeads: totalLeadsAll,
         uniqueSources: sources.length,
-        activeCampaigns: campaigns.filter(c => c.active).length
+        activeCampaigns: campaigns.filter((c) => c.active).length
       },
       sources,
       campaigns,
-      mediums: mediumBreakdown.map(m => ({ medium: m.utmMedium || '(none)', count: m._count.id }))
+      mediums: mediumBreakdown.map((m) => ({
+        medium: m.utmMedium || '(none)',
+        count: m._count.id
+      }))
     };
   }
 
-  private async processTopPaths(paths: any[], tenantId?: string, projectId?: string) {
+  private async processTopPaths(
+    paths: any[],
+    tenantId?: string,
+    projectId?: string
+  ) {
     // Map with label as key to group by their friendly names
     const groupedByLabel = new Map<string, { count: number; path: string }>();
 
@@ -1654,7 +1966,13 @@ export class TrackingService {
       }
 
       // Collect first segment as potential project slug
-      if (parts[0] && parts[0].length <= 60 && parts[0] !== 'painel' && parts[0] !== 'login' && parts[0] !== 'undefined') {
+      if (
+        parts[0] &&
+        parts[0].length <= 60 &&
+        parts[0] !== 'painel' &&
+        parts[0] !== 'login' &&
+        parts[0] !== 'undefined'
+      ) {
         potentialSlugs.add(parts[0]);
       }
     }
@@ -1664,11 +1982,25 @@ export class TrackingService {
       potentialIds.size > 0
         ? await this.prisma.mapElement.findMany({
             where: { id: { in: Array.from(potentialIds) } },
-            select: { id: true, code: true, name: true, project: { select: { name: true, slug: true } } }
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              project: { select: { name: true, slug: true } }
+            }
           })
         : [];
 
-    const elementMap = new Map(elements.map((e) => [e.id, { name: e.code || e.name, projectName: e.project?.name, projectSlug: e.project?.slug }]));
+    const elementMap = new Map(
+      elements.map((e) => [
+        e.id,
+        {
+          name: e.code || e.name,
+          projectName: e.project?.name,
+          projectSlug: e.project?.slug
+        }
+      ])
+    );
 
     // Resolve project slugs to names
     const projects =
@@ -1694,7 +2026,11 @@ export class TrackingService {
 
     // For global metrics (no specific project filter), also load all tenant projects
     // to maximize resolution of any slugs
-    if ((!projectId || projectId === 'all') && tenantId && potentialSlugs.size > 0) {
+    if (
+      (!projectId || projectId === 'all') &&
+      tenantId &&
+      potentialSlugs.size > 0
+    ) {
       const allTenantProjects = await this.prisma.project.findMany({
         where: { tenantId },
         select: { slug: true, name: true }
@@ -1708,14 +2044,14 @@ export class TrackingService {
 
     // Known page sub-paths mapping
     const PAGE_LABELS: Record<string, string> = {
-      'unidades': 'Unidades',
-      'galeria': 'Galeria',
-      'contato': 'Contato',
-      'teste': 'Teste',
-      'planta': 'Planta',
-      'panorama': 'Panorama 360°',
-      'obrigado': 'Obrigado',
-      'pagamento': 'Pagamento',
+      unidades: 'Unidades',
+      galeria: 'Galeria',
+      contato: 'Contato',
+      teste: 'Teste',
+      planta: 'Planta',
+      panorama: 'Panorama 360°',
+      obrigado: 'Obrigado',
+      pagamento: 'Pagamento'
     };
 
     for (const p of paths) {
@@ -1730,7 +2066,10 @@ export class TrackingService {
         if (existing) {
           existing.count += p._count.id;
         } else {
-          groupedByLabel.set('Página Inicial', { count: p._count.id, path: '/' });
+          groupedByLabel.set('Página Inicial', {
+            count: p._count.id,
+            path: '/'
+          });
         }
         continue;
       }
@@ -1751,7 +2090,9 @@ export class TrackingService {
 
       if (parts.length === 1) {
         // Just project slug, this is the landing page
-        label = projectName ? `${projectName} - Início` : `${firstPart} - Início`;
+        label = projectName
+          ? `${projectName} - Início`
+          : `${firstPart} - Início`;
       } else if (parts.length >= 2) {
         const secondPart = parts[1];
 

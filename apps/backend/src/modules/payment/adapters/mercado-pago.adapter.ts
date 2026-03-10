@@ -5,7 +5,7 @@ import {
   IPaymentGateway,
   PaymentGatewayResponse,
   PaymentWebhookResult,
-  WebhookPaymentStatus,
+  WebhookPaymentStatus
 } from '../interfaces/payment-gateway.interface';
 
 @Injectable()
@@ -14,13 +14,13 @@ export class MercadoPagoAdapter implements IPaymentGateway {
 
   private getClient(accessToken: string): MercadoPagoConfig {
     return new MercadoPagoConfig({
-      accessToken,
+      accessToken
     });
   }
 
   async createSession(
     keys: { accessToken: string },
-    data: CreatePaymentDto,
+    data: CreatePaymentDto
   ): Promise<PaymentGatewayResponse> {
     const client = this.getClient(keys.accessToken);
     const preference = new Preference(client);
@@ -32,22 +32,22 @@ export class MercadoPagoAdapter implements IPaymentGateway {
           title: data.description,
           unit_price: Number(data.amount),
           quantity: 1,
-          currency_id: data.currency.toUpperCase(),
-        },
+          currency_id: data.currency.toUpperCase()
+        }
       ],
       payer: {
         email: data.customerEmail,
-        name: data.customerName,
+        name: data.customerName
       },
       back_urls: {
         success: data.successUrl,
         failure: data.cancelUrl,
-        pending: data.successUrl, // Pending also success in MP context often
+        pending: data.successUrl // Pending also success in MP context often
       },
       auto_return: 'approved',
       external_reference: data.orderId,
       notification_url: data.webhookUrl,
-      metadata: data.metadata,
+      metadata: data.metadata
     };
 
     const response = await preference.create({ body });
@@ -56,14 +56,14 @@ export class MercadoPagoAdapter implements IPaymentGateway {
     // because MP webhooks deliver Payment objects whose IDs differ from Preference IDs.
     // The external_reference is the only consistent identifier between create and webhook events.
     return {
-      externalId: data.orderId,  // = leadPayment.id, matches what external_reference points to
-      paymentUrl: response.init_point!, // For production
+      externalId: data.orderId, // = leadPayment.id, matches what external_reference points to
+      paymentUrl: response.init_point! // For production
     };
   }
 
   async handleWebhook(
     keys: { accessToken: string; webhookSecret?: string },
-    payload: any,
+    payload: any
   ): Promise<PaymentWebhookResult> {
     const client = this.getClient(keys.accessToken);
     const payment = new Payment(client);
@@ -87,16 +87,17 @@ export class MercadoPagoAdapter implements IPaymentGateway {
       // Use external_reference (= our leadPayment.id / orderId) as the lookup key.
       // The Preference.id and Payment.id are different — only external_reference is consistent.
       return {
-        externalId: paymentData.external_reference || paymentData.id!.toString(),
+        externalId:
+          paymentData.external_reference || paymentData.id!.toString(),
         status,
-        rawPayload: paymentData,
+        rawPayload: paymentData
       };
     }
 
     return {
       externalId: '',
       status: WebhookPaymentStatus.PENDING,
-      rawPayload: payload,
+      rawPayload: payload
     };
   }
 }

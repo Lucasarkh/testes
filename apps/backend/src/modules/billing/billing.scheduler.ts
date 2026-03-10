@@ -18,7 +18,10 @@ export class BillingScheduler {
     try {
       await this.billingService.checkGracePeriods();
     } catch (error) {
-      this.logger.error(`Grace period check failed: ${error.message}`, error.stack);
+      this.logger.error(
+        `Grace period check failed: ${error.message}`,
+        error.stack
+      );
     }
   }
 }

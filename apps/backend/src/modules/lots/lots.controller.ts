@@ -11,7 +11,13 @@ import {
   UploadedFile,
   UseGuards
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiQuery,
+  ApiTags
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TenantGuard } from '@common/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -33,7 +39,7 @@ import { join } from 'node:path';
 export class LotsController {
   constructor(
     private readonly lotsService: LotsService,
-    private readonly lotsImportService: LotsImportService,
+    private readonly lotsImportService: LotsImportService
   ) {}
 
   @Get()
@@ -83,23 +89,23 @@ export class LotsController {
       type: 'object',
       required: ['file'],
       properties: {
-        file: { type: 'string', format: 'binary' },
-      },
-    },
+        file: { type: 'string', format: 'binary' }
+      }
+    }
   })
   @UseInterceptors(
     FileInterceptor('file', {
       dest: join(process.cwd(), 'tmp', 'lot-imports'),
       limits: {
-        fileSize: 25 * 1024 * 1024,
-      },
-    }),
+        fileSize: 25 * 1024 * 1024
+      }
+    })
   )
   async importCsv(
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
     @CurrentUser() user: any,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file?: Express.Multer.File
   ) {
     if (!file) {
       throw new BadRequestException('Arquivo CSV nao informado.');
@@ -119,7 +125,7 @@ export class LotsController {
       projectId,
       createdById: user?.id,
       fileName: file.originalname,
-      filePath: file.path,
+      filePath: file.path
     });
   }
 
@@ -127,7 +133,7 @@ export class LotsController {
   @Roles('LOTEADORA', 'SYSADMIN')
   getLatestImport(
     @TenantId() tenantId: string,
-    @Param('projectId') projectId: string,
+    @Param('projectId') projectId: string
   ) {
     return this.lotsImportService.getLatestImport(tenantId, projectId);
   }
@@ -137,9 +143,13 @@ export class LotsController {
   getImportStatus(
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
-    @Param('importId') importId: string,
+    @Param('importId') importId: string
   ) {
-    return this.lotsImportService.getImportStatus(tenantId, projectId, importId);
+    return this.lotsImportService.getImportStatus(
+      tenantId,
+      projectId,
+      importId
+    );
   }
 
   @Get('imports/:importId/errors')
@@ -149,8 +159,13 @@ export class LotsController {
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
     @Param('importId') importId: string,
-    @Query('limit') limit?: string,
+    @Query('limit') limit?: string
   ) {
-    return this.lotsImportService.getImportErrors(tenantId, projectId, importId, Number(limit) || 500);
+    return this.lotsImportService.getImportErrors(
+      tenantId,
+      projectId,
+      importId,
+      Number(limit) || 500
+    );
   }
 }

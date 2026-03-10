@@ -18,18 +18,22 @@ export class WhapiService {
     this.defaultCountryCode =
       this.configService.get<string>('WHAPI_DEFAULT_COUNTRY_CODE') || '55';
 
-    const timeout = Number(this.configService.get<string>('WHAPI_TIMEOUT_MS') || 15000);
+    const timeout = Number(
+      this.configService.get<string>('WHAPI_TIMEOUT_MS') || 15000
+    );
 
     this.client = axios.create({
       timeout,
       headers: {
         Authorization: `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     });
 
     if (!this.token) {
-      this.logger.warn('WHAPI_TOKEN not configured. WhatsApp notifications are disabled.');
+      this.logger.warn(
+        'WHAPI_TOKEN not configured. WhatsApp notifications are disabled.'
+      );
     }
   }
 
@@ -37,7 +41,10 @@ export class WhapiService {
     return !!this.token;
   }
 
-  async sendText(to: string | null | undefined, body: string): Promise<boolean> {
+  async sendText(
+    to: string | null | undefined,
+    body: string
+  ): Promise<boolean> {
     if (!this.isEnabled()) return false;
     if (!to || !body) return false;
 
@@ -50,12 +57,15 @@ export class WhapiService {
     try {
       await this.client.post(this.endpoint, {
         to: normalizedTo,
-        body,
+        body
       });
       return true;
     } catch (error: any) {
-      const details = error?.response?.data || error?.message || 'unknown error';
-      this.logger.error(`Failed to send WhatsApp to ${normalizedTo}: ${JSON.stringify(details)}`);
+      const details =
+        error?.response?.data || error?.message || 'unknown error';
+      this.logger.error(
+        `Failed to send WhatsApp to ${normalizedTo}: ${JSON.stringify(details)}`
+      );
       return false;
     }
   }

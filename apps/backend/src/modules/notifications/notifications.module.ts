@@ -8,6 +8,6 @@ import { WhapiModule } from '@infra/whapi/whapi.module';
   imports: [EmailQueueModule, WhapiModule],
   providers: [NotificationsService],
   controllers: [NotificationsController],
-  exports: [NotificationsService],
+  exports: [NotificationsService]
 })
 export class NotificationsModule {}

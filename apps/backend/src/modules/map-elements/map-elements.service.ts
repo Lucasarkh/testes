@@ -15,15 +15,23 @@ export class MapElementsService {
   }
 
   private parseStatus(value: unknown): LotStatus | null {
-    const normalized = String(value ?? '').trim().toUpperCase();
-    if (normalized === 'AVAILABLE' || normalized === 'RESERVED' || normalized === 'SOLD') {
+    const normalized = String(value ?? '')
+      .trim()
+      .toUpperCase();
+    if (
+      normalized === 'AVAILABLE' ||
+      normalized === 'RESERVED' ||
+      normalized === 'SOLD'
+    ) {
       return normalized as LotStatus;
     }
     return null;
   }
 
   private parseSlope(value: unknown): SlopeType | null {
-    const normalized = String(value ?? '').trim().toUpperCase();
+    const normalized = String(value ?? '')
+      .trim()
+      .toUpperCase();
     if (!normalized) return null;
     if (normalized === 'FLAT' || normalized === 'PLANO') return SlopeType.FLAT;
     if (
@@ -36,7 +44,11 @@ export class MapElementsService {
     ) {
       return SlopeType.UPHILL;
     }
-    if (normalized === 'DOWNHILL' || normalized === 'DOWN' || normalized === 'DECLIVE') {
+    if (
+      normalized === 'DOWNHILL' ||
+      normalized === 'DOWN' ||
+      normalized === 'DECLIVE'
+    ) {
       return SlopeType.DOWNHILL;
     }
     return null;
@@ -76,89 +88,104 @@ export class MapElementsService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     // We'll use a transaction for safety
-    return this.prisma.$transaction(async (tx) => {
-      const incomingIds = dto.elements
-        .filter((el) => el.id)
-        .map((el) => el.id as string);
+    return this.prisma.$transaction(
+      async (tx) => {
+        const incomingIds = dto.elements
+          .filter((el) => el.id)
+          .map((el) => el.id as string);
 
-      // 1. Delete elements that are no longer present in the payload
-      await tx.mapElement.deleteMany({
-        where: {
-          tenantId,
-          projectId,
-          ...(incomingIds.length > 0 ? { id: { notIn: incomingIds } } : {})
-        }
-      });
+        // 1. Delete elements that are no longer present in the payload
+        await tx.mapElement.deleteMany({
+          where: {
+            tenantId,
+            projectId,
+            ...(incomingIds.length > 0 ? { id: { notIn: incomingIds } } : {})
+          }
+        });
 
-      const toUpdate = dto.elements.filter((el) => el.id);
-      const toCreate = dto.elements.filter((el) => !el.id).map(el => ({ ...el, id: uuidv4() })); // Generate ID for convenience
+        const toUpdate = dto.elements.filter((el) => el.id);
+        const toCreate = dto.elements
+          .filter((el) => !el.id)
+          .map((el) => ({ ...el, id: uuidv4() })); // Generate ID for convenience
 
-      // 2. Perform updates in parallel (limited chunks if necessary, but here we can use Promise.all)
-      const updatePromises = toUpdate.map((el) => 
-        tx.mapElement.update({
-          where: { id: el.id },
-          data: {
+        // 2. Perform updates in parallel (limited chunks if necessary, but here we can use Promise.all)
+        const updatePromises = toUpdate.map((el) =>
+          tx.mapElement.update({
+            where: { id: el.id },
+            data: {
+              type: el.type,
+              name: el.name,
+              code: el.code,
+              geometryType: el.geometryType,
+              geometryJson: el.geometryJson,
+              styleJson: el.styleJson ?? undefined,
+              metaJson: el.metaJson ?? undefined
+            }
+          })
+        );
+
+        // 3. Perform creates in one go (Note: createMany is faster)
+        const createPromise = tx.mapElement.createMany({
+          data: toCreate.map((el) => ({
+            id: el.id,
+            tenantId,
+            projectId,
             type: el.type,
             name: el.name,
             code: el.code,
             geometryType: el.geometryType,
             geometryJson: el.geometryJson,
-            styleJson: el.styleJson ?? undefined,
-            metaJson: el.metaJson ?? undefined
-          }
-        })
-      );
+            styleJson: el.styleJson,
+            metaJson: el.metaJson
+          }))
+        });
 
-      // 3. Perform creates in one go (Note: createMany is faster)
-      const createPromise = tx.mapElement.createMany({
-        data: toCreate.map(el => ({
-          id: el.id,
-          tenantId,
-          projectId,
-          type: el.type,
-          name: el.name,
-          code: el.code,
-          geometryType: el.geometryType,
-          geometryJson: el.geometryJson,
-          styleJson: el.styleJson,
-          metaJson: el.metaJson
-        }))
-      });
+        const [updatedElements] = await Promise.all([
+          Promise.all(updatePromises),
+          createPromise
+        ]);
 
-      const [updatedElements] = await Promise.all([
-        Promise.all(updatePromises),
-        createPromise
-      ]);
+        // All elements for LOT details sync
+        const allElements = [...toUpdate, ...toCreate];
+        const lotsToSync = allElements.filter((el) => el.type === 'LOT');
 
-      // All elements for LOT details sync
-      const allElements = [...toUpdate, ...toCreate];
-      const lotsToSync = allElements.filter(el => el.type === 'LOT');
-
-      // 4. Batch LotDetails upserts
-      // To keep it clean and fairly fast, we also Promise.all these
-      const lotPromises = lotsToSync.map(element => {
-          const lotMeta = (element.metaJson as any) || {};
+        // 4. Batch LotDetails upserts
+        // To keep it clean and fairly fast, we also Promise.all these
+        const lotPromises = lotsToSync.map((element) => {
+          const lotMeta = element.metaJson || {};
           const mapElementId = element.id!; // We are sure id exists as we update/create it above
           const areaM2 = this.parseNumber(lotMeta.areaM2 ?? lotMeta.area);
           const frontage = this.parseNumber(lotMeta.frontage);
           const price = this.parseNumber(lotMeta.price);
-          const depth = this.parseNumber(lotMeta.depth ?? lotMeta.back ?? lotMeta.manualBack);
+          const depth = this.parseNumber(
+            lotMeta.depth ?? lotMeta.back ?? lotMeta.manualBack
+          );
           const sideLeft = this.parseNumber(lotMeta.sideLeft);
           const sideRight = this.parseNumber(lotMeta.sideRight);
           const status = this.parseStatus(lotMeta.status ?? lotMeta.lotStatus);
           const slope = this.parseSlope(lotMeta.slope);
-          const notes = typeof lotMeta.notes === 'string'
-            ? lotMeta.notes
-            : (typeof lotMeta.description === 'string' ? lotMeta.description : null);
+          const notes =
+            typeof lotMeta.notes === 'string'
+              ? lotMeta.notes
+              : typeof lotMeta.description === 'string'
+                ? lotMeta.description
+                : null;
           const tags = Array.isArray(lotMeta.tags)
-            ? lotMeta.tags.filter((t: unknown) => typeof t === 'string' && t.trim().length > 0)
+            ? lotMeta.tags.filter(
+                (t: unknown) => typeof t === 'string' && t.trim().length > 0
+              )
             : null;
           const sideMetricsJson = Array.isArray(lotMeta.sideMetrics)
             ? lotMeta.sideMetrics
-            : (Array.isArray(lotMeta.sideMetricsJson) ? lotMeta.sideMetricsJson : null);
+            : Array.isArray(lotMeta.sideMetricsJson)
+              ? lotMeta.sideMetricsJson
+              : null;
           const paymentConditions = lotMeta.paymentConditions ?? null;
           const conditionsJson = lotMeta.conditionsJson ?? null;
-          const panoramaUrl = typeof lotMeta.panoramaUrl === 'string' ? lotMeta.panoramaUrl : null;
+          const panoramaUrl =
+            typeof lotMeta.panoramaUrl === 'string'
+              ? lotMeta.panoramaUrl
+              : null;
 
           const updateData: any = {
             ...(areaM2 !== null && { areaM2 }),
@@ -174,7 +201,7 @@ export class MapElementsService {
             ...(sideMetricsJson !== null && { sideMetricsJson }),
             ...(paymentConditions !== null && { paymentConditions }),
             ...(conditionsJson !== null && { conditionsJson }),
-            ...(panoramaUrl !== null && { panoramaUrl }),
+            ...(panoramaUrl !== null && { panoramaUrl })
           };
 
           const createData: any = {
@@ -194,26 +221,28 @@ export class MapElementsService {
             sideMetricsJson: sideMetricsJson || null,
             paymentConditions,
             conditionsJson,
-            panoramaUrl,
+            panoramaUrl
           };
-          
+
           return tx.lotDetails.upsert({
             where: { mapElementId },
             update: updateData,
             create: createData
           });
-      });
+        });
 
-      await Promise.all(lotPromises);
+        await Promise.all(lotPromises);
 
-      // Return a full list for frontend acknowledgment (optional, but consistent with return type)
-      return tx.mapElement.findMany({
-        where: { tenantId, projectId },
-        include: { lotDetails: true }
-      });
-    }, {
-      timeout: 30000 // Increase timeout for massive map saves
-    });
+        // Return a full list for frontend acknowledgment (optional, but consistent with return type)
+        return tx.mapElement.findMany({
+          where: { tenantId, projectId },
+          include: { lotDetails: true }
+        });
+      },
+      {
+        timeout: 30000 // Increase timeout for massive map saves
+      }
+    );
   }
 
   async create(tenantId: string, projectId: string, dto: MapElementDto) {

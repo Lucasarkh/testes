@@ -29,13 +29,13 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly leadDistribution: LeadDistributionService,
+    private readonly leadDistribution: LeadDistributionService
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async cleanupExpiredReservations() {
     this.logger.log('Iniciando limpeza de reservas expiradas...');
-    
+
     // Buscar todos os leads em reserva que tenham data de reserva
     const activeReservations = await this.prisma.lead.findMany({
       where: {
@@ -53,13 +53,17 @@ export class LeadsService {
 
     for (const lead of activeReservations) {
       if (!lead.reservedAt) continue;
-      
+
       const expiryHours = lead.project.reservationExpiryHours || 24;
-      const expiryDate = new Date(lead.reservedAt.getTime() + expiryHours * 60 * 60 * 1000);
+      const expiryDate = new Date(
+        lead.reservedAt.getTime() + expiryHours * 60 * 60 * 1000
+      );
 
       if (now > expiryDate) {
-        this.logger.log(`Expirando reserva do lead ${lead.id} do projeto ${lead.project.name}`);
-        
+        this.logger.log(
+          `Expirando reserva do lead ${lead.id} do projeto ${lead.project.name}`
+        );
+
         await this.prisma.$transaction(async (tx) => {
           // 1. Atualizar status do Lead
           await tx.lead.update({
@@ -115,17 +119,19 @@ export class LeadsService {
         status: 'NEW',
         lastContactAt: null,
         phone: { not: null },
-        createdAt: { lte: oneDayAgo },
+        createdAt: { lte: oneDayAgo }
       },
       select: {
         id: true,
         status: true,
-        createdAt: true,
-      },
+        createdAt: true
+      }
     });
 
     for (const lead of leads) {
-      const elapsedDays = Math.floor((now.getTime() - lead.createdAt.getTime()) / (24 * 60 * 60 * 1000));
+      const elapsedDays = Math.floor(
+        (now.getTime() - lead.createdAt.getTime()) / (24 * 60 * 60 * 1000)
+      );
       if (![1, 3, 7].includes(elapsedDays)) continue;
 
       const tag = `[WHAPI_FOLLOWUP_D${elapsedDays}]`;
@@ -133,22 +139,25 @@ export class LeadsService {
         where: {
           leadId: lead.id,
           createdBy: 'SYSTEM_WHAPI',
-          notes: { contains: tag },
+          notes: { contains: tag }
         },
-        select: { id: true },
+        select: { id: true }
       });
 
       if (alreadySent) continue;
 
-      await this.notifications.onLeadUncontactedFollowUp(lead.id, elapsedDays as 1 | 3 | 7);
+      await this.notifications.onLeadUncontactedFollowUp(
+        lead.id,
+        elapsedDays as 1 | 3 | 7
+      );
 
       await this.prisma.leadHistory.create({
         data: {
           leadId: lead.id,
           toStatus: lead.status,
           notes: `${tag} Alerta de lead sem atendimento enviado por WhatsApp`,
-          createdBy: 'SYSTEM_WHAPI',
-        },
+          createdBy: 'SYSTEM_WHAPI'
+        }
       });
     }
   }
@@ -172,7 +181,9 @@ export class LeadsService {
         tenantId,
         projectId: project.id,
         OR: [
-          ...(dto.email ? [{ email: { equals: dto.email, mode: 'insensitive' as any } }] : []),
+          ...(dto.email
+            ? [{ email: { equals: dto.email, mode: 'insensitive' as any } }]
+            : []),
           ...(dto.phone ? [{ phone: dto.phone }] : [])
         ],
         createdAt: { gte: thirtyDaysAgo }
@@ -225,7 +236,13 @@ export class LeadsService {
       realtorLinkId = sessionRealtorLinkId;
     }
 
-    const { realtorCode, mapElementId, sessionId, aiChatTranscript: rawTranscript, ...leadData } = dto;
+    const {
+      realtorCode,
+      mapElementId,
+      sessionId,
+      aiChatTranscript: rawTranscript,
+      ...leadData
+    } = dto;
 
     // Validate if mapElementId exists within this project to avoid FK errors
     let validMapElementId: string | undefined;
@@ -259,7 +276,9 @@ export class LeadsService {
           }
         }
       } catch {
-        this.logger.warn(`Invalid aiChatTranscript JSON for lead in project ${projectSlug}`);
+        this.logger.warn(
+          `Invalid aiChatTranscript JSON for lead in project ${projectSlug}`
+        );
       }
     }
 
@@ -275,12 +294,14 @@ export class LeadsService {
         ...attributionData,
         aiChatTranscript: sanitizedTranscript,
         source: sanitizedTranscript
-          ? (realtorCode ? `corretor:${realtorCode}:ai_chat` : 'website:ai_chat')
+          ? realtorCode
+            ? `corretor:${realtorCode}:ai_chat`
+            : 'website:ai_chat'
           : realtorCode
             ? `corretor:${realtorCode}`
             : realtorLinkId
-            ? 'corretor:atribuição'
-            : 'website'
+              ? 'corretor:atribuição'
+              : 'website'
       }
     });
 
@@ -292,8 +313,8 @@ export class LeadsService {
         notes: isRecurrent
           ? 'Lead recorrente detectado'
           : sanitizedTranscript
-          ? 'Lead criado via site (interagiu com IA)'
-          : 'Lead criado via site',
+            ? 'Lead criado via site (interagiu com IA)'
+            : 'Lead criado via site',
         createdBy: 'SYSTEM'
       }
     });
@@ -319,14 +340,22 @@ export class LeadsService {
         leadName: lead.name,
         leadPhone: lead.phone,
         lotCode: lotCode ?? null,
-        sendLeadWelcome: true,
+        sendLeadWelcome: true
       })
-      .catch((e) => this.logger.error('Notification onNewLead (public)', e.message));
+      .catch((e) =>
+        this.logger.error('Notification onNewLead (public)', e.message)
+      );
 
     // Fire-and-forget: generate AI summary of the chat transcript
     if (sanitizedTranscript) {
-      this.generateAiChatSummary(lead.id, sanitizedTranscript, project.id, tenantId)
-        .catch((e) => this.logger.error('AI summary generation failed', e.message));
+      this.generateAiChatSummary(
+        lead.id,
+        sanitizedTranscript,
+        project.id,
+        tenantId
+      ).catch((e) =>
+        this.logger.error('AI summary generation failed', e.message)
+      );
     }
 
     return lead;
@@ -370,7 +399,7 @@ export class LeadsService {
         const lot = await tx.lotDetails.findUnique({
           where: { mapElementId }
         });
-        
+
         if (lot) {
           if (dto.status === 'WON' && lot.status === 'SOLD') {
             throw new BadRequestException('O lote já foi vendido.');
@@ -378,9 +407,11 @@ export class LeadsService {
 
           if (dto.status === 'RESERVATION') {
             if (lot.status !== 'AVAILABLE') {
-              // Even if it is RESERVED, it might be for another lead. 
+              // Even if it is RESERVED, it might be for another lead.
               // We only allow reservation if it's AVAILABLE.
-              throw new BadRequestException('O lote não está disponível para reserva.');
+              throw new BadRequestException(
+                'O lote não está disponível para reserva.'
+              );
             }
 
             // Check if there's any other lead that is currently reserving this lot
@@ -391,7 +422,9 @@ export class LeadsService {
               }
             });
             if (activeLead) {
-              throw new BadRequestException('Já existe uma reserva ativa para este lote.');
+              throw new BadRequestException(
+                'Já existe uma reserva ativa para este lote.'
+              );
             }
           }
         }
@@ -404,7 +437,12 @@ export class LeadsService {
           projectId,
           mapElementId,
           realtorLinkId,
-          source: user.role === 'CORRETOR' ? 'corretor_manual' : user.role === 'IMOBILIARIA' ? 'imobiliaria_manual' : 'loteadora_manual',
+          source:
+            user.role === 'CORRETOR'
+              ? 'corretor_manual'
+              : user.role === 'IMOBILIARIA'
+                ? 'imobiliaria_manual'
+                : 'loteadora_manual',
           status: dto.status || 'NEW',
           reservedAt: dto.status === 'RESERVATION' ? new Date() : null,
           history: {
@@ -438,9 +476,11 @@ export class LeadsService {
         leadId: createdLead.id,
         leadName: createdLead.name,
         leadPhone: createdLead.phone,
-        sendLeadWelcome: false,
+        sendLeadWelcome: false
       })
-      .catch((e) => this.logger.error('Notification onNewLead (manual)', e.message));
+      .catch((e) =>
+        this.logger.error('Notification onNewLead (manual)', e.message)
+      );
 
     return createdLead;
   }
@@ -451,7 +491,15 @@ export class LeadsService {
     query: LeadsQueryDto,
     user: { id: string; role: string; agencyId?: string }
   ): Promise<PaginatedResponse<any>> {
-    const { projectId, status, search, mapElementId, realtorLinkId: queryRealtorLinkId, page = 1, limit = 10 } = query;
+    const {
+      projectId,
+      status,
+      search,
+      mapElementId,
+      realtorLinkId: queryRealtorLinkId,
+      page = 1,
+      limit = 10
+    } = query;
     const skip = (page - 1) * limit;
 
     // ... (rest of the realtor logic)
@@ -491,14 +539,14 @@ export class LeadsService {
         ]
       })
     };
-    
+
     // Correction for Agency filter: strictly team leads
     if (user.role === 'IMOBILIARIA') {
-        const agencyId = user.agencyId;
-        (where as any).realtorLink = { user: { agencyId } };
-        delete (where as any).OR; // Clean up the search OR if we need to combine them, but here we just want to ensure agency
+      const agencyId = user.agencyId;
+      (where as any).realtorLink = { user: { agencyId } };
+      delete (where as any).OR; // Clean up the search OR if we need to combine them, but here we just want to ensure agency
     }
-    
+
     // Final where construction for agency search
     const finalWhere = {
       tenantId,
@@ -506,7 +554,9 @@ export class LeadsService {
       ...(status && { status }),
       ...(mapElementId && { mapElementId }),
       ...(realtorLinkId && { realtorLinkId }),
-      ...(user.role === 'IMOBILIARIA' && { realtorLink: { user: { agencyId: user.agencyId } } }),
+      ...(user.role === 'IMOBILIARIA' && {
+        realtorLink: { user: { agencyId: user.agencyId } }
+      }),
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' as any } },
@@ -521,7 +571,7 @@ export class LeadsService {
         where: finalWhere as any,
         include: {
           project: true,
-          realtorLink: { 
+          realtorLink: {
             include: { user: true }
           }
         },
@@ -624,7 +674,10 @@ export class LeadsService {
     if (!lead) throw new NotFoundException('Lead not found');
 
     // Only LOTEADORA/SYSADMIN can mark as REVERSED (Estorno)
-    if (['CORRETOR', 'IMOBILIARIA'].includes(user.role) && dto.status === 'REVERSED') {
+    if (
+      ['CORRETOR', 'IMOBILIARIA'].includes(user.role) &&
+      dto.status === 'REVERSED'
+    ) {
       throw new ForbiddenException('Apenas a loteadora pode realizar estornos');
     }
 
@@ -640,9 +693,15 @@ export class LeadsService {
 
     // Permission check for Imobiliárias (they can only manage leads from their agency's realtors)
     if (user.role === 'IMOBILIARIA') {
-      const agencyUser = await this.prisma.user.findUnique({ where: { id: user.id }, select: { agencyId: true } });
+      const agencyUser = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { agencyId: true }
+      });
       if (agencyUser?.agencyId && lead.realtorLinkId) {
-        const realtor = await this.prisma.realtorLink.findUnique({ where: { id: lead.realtorLinkId }, select: { agencyId: true } });
+        const realtor = await this.prisma.realtorLink.findUnique({
+          where: { id: lead.realtorLinkId },
+          select: { agencyId: true }
+        });
         if (realtor?.agencyId !== agencyUser.agencyId) {
           throw new ForbiddenException('Você não tem acesso a este lead');
         }
@@ -655,7 +714,12 @@ export class LeadsService {
         data: {
           status: dto.status,
           lastContactAt: new Date(),
-          reservedAt: dto.status === 'RESERVATION' ? new Date() : (dto.status === 'WON' ? undefined : null),
+          reservedAt:
+            dto.status === 'RESERVATION'
+              ? new Date()
+              : dto.status === 'WON'
+                ? undefined
+                : null,
           history: {
             create: {
               fromStatus: lead.status,
@@ -678,9 +742,11 @@ export class LeadsService {
             // Se já estava reservado por este lead, permitimos renovar a reserva (reservedAt atualiza no update do lead)
             // Se estava disponível, reservamos.
             if (lot.status !== 'AVAILABLE' && lot.status !== 'RESERVED') {
-              throw new BadRequestException('O lote não está disponível para reserva.');
+              throw new BadRequestException(
+                'O lote não está disponível para reserva.'
+              );
             }
-            
+
             // Check if there's any other lead that is currently reserving this lot
             const activeLead = await tx.lead.findFirst({
               where: {
@@ -690,11 +756,16 @@ export class LeadsService {
               }
             });
             if (activeLead) {
-              throw new BadRequestException('O lote já está reservado para outro cliente.');
+              throw new BadRequestException(
+                'O lote já está reservado para outro cliente.'
+              );
             }
 
             if (lot.status === 'AVAILABLE') {
-              await tx.lotDetails.update({ where: { id: lot.id }, data: { status: 'RESERVED' } });
+              await tx.lotDetails.update({
+                where: { id: lot.id },
+                data: { status: 'RESERVED' }
+              });
             }
           } else if (dto.status === 'WON') {
             if (lot.status === 'SOLD') {
@@ -702,18 +773,23 @@ export class LeadsService {
             }
             // Check if someone else owns it in reservation
             const otherReserver = await tx.lead.findFirst({
-                where: {
-                    mapElementId: lead.mapElementId,
-                    status: 'RESERVATION',
-                    id: { not: lead.id }
-                }
+              where: {
+                mapElementId: lead.mapElementId,
+                status: 'RESERVATION',
+                id: { not: lead.id }
+              }
             });
             if (otherReserver) {
-                // Se o dono for outro, não permitimos vender
-                throw new BadRequestException('O lote está reservado por outro corretor.');
+              // Se o dono for outro, não permitimos vender
+              throw new BadRequestException(
+                'O lote está reservado por outro corretor.'
+              );
             }
 
-            await tx.lotDetails.update({ where: { id: lot.id }, data: { status: 'SOLD' } });
+            await tx.lotDetails.update({
+              where: { id: lot.id },
+              data: { status: 'SOLD' }
+            });
           } else if (
             ['CANCELLED', 'LOST', 'ABANDONED', 'REVERSED'].includes(dto.status)
           ) {
@@ -725,7 +801,10 @@ export class LeadsService {
               }
             });
             if (othersCount === 0) {
-              await tx.lotDetails.update({ where: { id: lot.id }, data: { status: 'AVAILABLE' } });
+              await tx.lotDetails.update({
+                where: { id: lot.id },
+                data: { status: 'AVAILABLE' }
+              });
             }
           }
         }
@@ -737,7 +816,12 @@ export class LeadsService {
     if (dto.status === 'RESERVATION') {
       this.notifications
         .onLeadReservationConfirmed(id, 'PAINEL')
-        .catch((e) => this.logger.error('Notification onLeadReservationConfirmed (panel)', e.message));
+        .catch((e) =>
+          this.logger.error(
+            'Notification onLeadReservationConfirmed (panel)',
+            e.message
+          )
+        );
     }
 
     return updatedLead;
@@ -834,15 +918,21 @@ export class LeadsService {
       const messages: { role: string; text: string }[] = JSON.parse(transcript);
 
       // Strip LOT_CARD blocks from AI messages for a cleaner summary input
-      const cleanedMessages = messages.map(m => ({
+      const cleanedMessages = messages.map((m) => ({
         role: m.role,
-        text: m.role === 'ai'
-          ? m.text.replace(/:::LOT_CARD[\s\S]*?:::/g, '[Sugestão de lote]').trim()
-          : m.text
+        text:
+          m.role === 'ai'
+            ? m.text
+                .replace(/:::LOT_CARD[\s\S]*?:::/g, '[Sugestão de lote]')
+                .trim()
+            : m.text
       }));
 
       const conversationText = cleanedMessages
-        .map(m => `${m.role === 'user' ? 'Visitante' : 'Assistente IA'}: ${m.text}`)
+        .map(
+          (m) =>
+            `${m.role === 'user' ? 'Visitante' : 'Assistente IA'}: ${m.text}`
+        )
         .join('\n');
 
       // Look up the project's AI config to reuse the same provider/key
@@ -884,7 +974,7 @@ Resumo:`;
           model: 'gpt-4o-mini',
           messages: [{ role: 'user', content: summaryPrompt }],
           temperature: 0.3,
-          max_tokens: 300,
+          max_tokens: 300
         });
         summary = response.choices[0].message.content || '';
       } else if (provider === 'ANTHROPIC') {
@@ -894,14 +984,14 @@ Resumo:`;
             model: 'claude-3-5-haiku-20241022',
             max_tokens: 300,
             messages: [{ role: 'user', content: summaryPrompt }],
-            temperature: 0.3,
+            temperature: 0.3
           },
           {
             headers: {
               'x-api-key': apiKey,
               'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
-            },
+              'content-type': 'application/json'
+            }
           }
         );
         summary = resp.data.content[0].text;
@@ -917,18 +1007,23 @@ Resumo:`;
 
       this.logger.log(`AI summary generated for lead ${leadId}`);
     } catch (error) {
-      this.logger.error(`Failed to generate AI summary for lead ${leadId}:`, error.message);
+      this.logger.error(
+        `Failed to generate AI summary for lead ${leadId}:`,
+        error.message
+      );
     }
   }
 
   /**
    * Builds a simple text summary from the transcript without calling an LLM.
    */
-  private buildFallbackSummary(messages: { role: string; text: string }[]): string {
-    const userMessages = messages.filter(m => m.role === 'user');
+  private buildFallbackSummary(
+    messages: { role: string; text: string }[]
+  ): string {
+    const userMessages = messages.filter((m) => m.role === 'user');
     const messageCount = messages.length;
     const userMsgCount = userMessages.length;
-    const topics = userMessages.map(m => m.text).join(' | ');
+    const topics = userMessages.map((m) => m.text).join(' | ');
 
     return `Visitante interagiu com o chatbot de IA (${messageCount} mensagens, ${userMsgCount} do visitante). Perguntas: ${topics.substring(0, 500)}`;
   }

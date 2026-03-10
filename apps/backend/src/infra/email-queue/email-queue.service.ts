@@ -3,7 +3,13 @@ import { RabbitMqService } from '@infra/rabbitmq/rabbitmq.service';
 import { SendPulseService } from '@infra/sendpulse/sendpulse.service';
 
 export interface EmailJob {
-  type: 'welcome-tenant' | 'welcome-realtor' | 'password-reset' | 'invite' | 'two-factor' | 'system-notification';
+  type:
+    | 'welcome-tenant'
+    | 'welcome-realtor'
+    | 'password-reset'
+    | 'invite'
+    | 'two-factor'
+    | 'system-notification';
   to: string;
   data: Record<string, any>;
   attempts: number;
@@ -26,7 +32,11 @@ export class EmailQueueService implements OnModuleInit {
     this.logger.log('Email queue consumer started');
   }
 
-  async queueEmail(type: EmailJob['type'], to: string, data: Record<string, any>): Promise<void> {
+  async queueEmail(
+    type: EmailJob['type'],
+    to: string,
+    data: Record<string, any>
+  ): Promise<void> {
     const job: EmailJob = {
       type,
       to,
@@ -34,11 +44,17 @@ export class EmailQueueService implements OnModuleInit {
       attempts: 0
     };
 
-    await this.rabbitMqService.sendToQueue(EMAIL_QUEUE, job, { withDeadLetter: true });
+    await this.rabbitMqService.sendToQueue(EMAIL_QUEUE, job, {
+      withDeadLetter: true
+    });
     this.logger.debug(`Email queued: ${type} to ${to}`);
   }
 
-  async queueWelcomeTenantEmail(to: string, userName: string, tenantName: string): Promise<void> {
+  async queueWelcomeTenantEmail(
+    to: string,
+    userName: string,
+    tenantName: string
+  ): Promise<void> {
     await this.queueEmail('welcome-tenant', to, { userName, tenantName });
   }
 
@@ -46,15 +62,28 @@ export class EmailQueueService implements OnModuleInit {
     await this.queueEmail('welcome-realtor', to, { userName });
   }
 
-  async queuePasswordResetEmail(to: string, userName: string, resetToken: string): Promise<void> {
+  async queuePasswordResetEmail(
+    to: string,
+    userName: string,
+    resetToken: string
+  ): Promise<void> {
     await this.queueEmail('password-reset', to, { userName, resetToken });
   }
 
-  async queueInviteEmail(to: string, token: string, role: string, email: string): Promise<void> {
+  async queueInviteEmail(
+    to: string,
+    token: string,
+    role: string,
+    email: string
+  ): Promise<void> {
     await this.queueEmail('invite', to, { token, role, email });
   }
 
-  async queueTwoFactorEmail(to: string, userName: string, code: string): Promise<void> {
+  async queueTwoFactorEmail(
+    to: string,
+    userName: string,
+    code: string
+  ): Promise<void> {
     await this.queueEmail('two-factor', to, { userName, code });
   }
 
@@ -62,9 +91,13 @@ export class EmailQueueService implements OnModuleInit {
     to: string,
     userName: string,
     title: string,
-    message: string,
+    message: string
   ): Promise<void> {
-    await this.queueEmail('system-notification', to, { userName, title, message });
+    await this.queueEmail('system-notification', to, {
+      userName,
+      title,
+      message
+    });
   }
 
   private async startEmailConsumer(): Promise<void> {
@@ -74,11 +107,13 @@ export class EmailQueueService implements OnModuleInit {
       withDeadLetter: true,
       onMessage: async (payload: any) => {
         if (!this.isValidEmailJob(payload)) {
-          this.logger.warn('Received invalid email job payload, sending to DLQ');
+          this.logger.warn(
+            'Received invalid email job payload, sending to DLQ'
+          );
           throw new Error('Invalid email job format');
         }
 
-        await this.processEmailJob(payload as EmailJob);
+        await this.processEmailJob(payload);
       }
     });
   }
@@ -88,7 +123,14 @@ export class EmailQueueService implements OnModuleInit {
       payload &&
       typeof payload.to === 'string' &&
       typeof payload.type === 'string' &&
-      ['welcome-tenant', 'welcome-realtor', 'password-reset', 'invite', 'two-factor', 'system-notification'].includes(payload.type) &&
+      [
+        'welcome-tenant',
+        'welcome-realtor',
+        'password-reset',
+        'invite',
+        'two-factor',
+        'system-notification'
+      ].includes(payload.type) &&
       payload.data &&
       typeof payload.data === 'object' &&
       typeof payload.attempts === 'number'
@@ -100,7 +142,10 @@ export class EmailQueueService implements OnModuleInit {
       await this.sendEmail(job);
       this.logger.log(`Email sent: ${job.type} to ${job.to}`);
     } catch (error: any) {
-      this.logger.error(`Failed to send email: ${job.type} to ${job.to}`, error.message);
+      this.logger.error(
+        `Failed to send email: ${job.type} to ${job.to}`,
+        error.message
+      );
 
       if (job.attempts + 1 < this.maxRetries) {
         const retryJob: EmailJob = { ...job, attempts: job.attempts + 1 };
@@ -113,7 +158,9 @@ export class EmailQueueService implements OnModuleInit {
         // Re-queue synchronously to avoid fire-and-forget issues with setTimeout
         // The delay is approximate — we await a timer then enqueue
         await new Promise((resolve) => setTimeout(resolve, delay));
-        await this.rabbitMqService.sendToQueue(EMAIL_QUEUE, retryJob, { withDeadLetter: true });
+        await this.rabbitMqService.sendToQueue(EMAIL_QUEUE, retryJob, {
+          withDeadLetter: true
+        });
       } else {
         this.logger.error(
           `Max retries (${this.maxRetries}) reached for email ${job.type} to ${job.to}. Sending to DLQ.`
@@ -165,7 +212,7 @@ export class EmailQueueService implements OnModuleInit {
           job.to,
           job.data.userName,
           job.data.title,
-          job.data.message,
+          job.data.message
         );
         break;
       default:

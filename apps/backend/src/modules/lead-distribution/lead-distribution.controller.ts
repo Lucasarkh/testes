@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TenantGuard } from '@common/guards/tenant.guard';
@@ -27,7 +36,7 @@ export class LeadDistributionController {
   @Roles('LOTEADORA', 'SYSADMIN')
   updateConfig(
     @Param('projectId') projectId: string,
-    @Body() dto: UpdateDistributionConfigDto,
+    @Body() dto: UpdateDistributionConfigDto
   ) {
     return this.service.updateProjectConfig(projectId, dto);
   }
@@ -37,7 +46,7 @@ export class LeadDistributionController {
   getQueueState(
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
-    @Query() query: QueueQueryDto,
+    @Query() query: QueueQueryDto
   ) {
     return this.service.getQueueState(projectId, tenantId, query);
   }
@@ -53,7 +62,7 @@ export class LeadDistributionController {
   getLog(
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
-    @Query() query: DistributionLogQueryDto,
+    @Query() query: DistributionLogQueryDto
   ) {
     return this.service.getDistributionLog(projectId, tenantId, query);
   }

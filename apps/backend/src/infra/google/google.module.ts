@@ -4,6 +4,6 @@ import { GoogleMapsService } from './google-maps.service';
 @Global()
 @Module({
   providers: [GoogleMapsService],
-  exports: [GoogleMapsService],
+  exports: [GoogleMapsService]
 })
 export class GoogleModule {}

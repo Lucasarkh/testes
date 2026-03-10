@@ -6,6 +6,6 @@ import { WhapiService } from './whapi.service';
 @Module({
   imports: [ConfigModule],
   providers: [WhapiService],
-  exports: [WhapiService],
+  exports: [WhapiService]
 })
 export class WhapiModule {}

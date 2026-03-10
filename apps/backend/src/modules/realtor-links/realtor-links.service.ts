@@ -17,7 +17,7 @@ const PENDING_REQUEST_MARKER = '[PENDING_APPROVAL_REQUEST]';
 export class RealtorLinksService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   private isPendingRequest(notes?: string | null) {
@@ -40,28 +40,31 @@ export class RealtorLinksService {
       .join('\n');
   }
 
-  private toRealtorLinkResponse<T extends Record<string, any>>(link: T): T & { isPending: boolean } {
+  private toRealtorLinkResponse<T extends Record<string, any>>(
+    link: T
+  ): T & { isPending: boolean } {
     return {
       ...link,
-      isPending: this.isPendingRequest(link.notes),
+      isPending: this.isPendingRequest(link.notes)
     };
   }
 
   private async buildUniqueCode(tenantId: string, baseName: string) {
-    const slugBase = (baseName || 'corretor')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 48) || 'corretor';
+    const slugBase =
+      (baseName || 'corretor')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 48) || 'corretor';
 
     for (let i = 0; i < 10; i++) {
       const suffix = i === 0 ? '' : `-${Math.floor(100 + Math.random() * 900)}`;
       const candidate = `${slugBase}${suffix}`;
       const exists = await this.prisma.realtorLink.findUnique({
         where: { tenantId_code: { tenantId, code: candidate } },
-        select: { id: true },
+        select: { id: true }
       });
       if (!exists) return candidate;
     }
@@ -78,7 +81,10 @@ export class RealtorLinksService {
       throw new ConflictException('Já existe um corretor com este código.');
 
     // If IMOBILIARIA role, force their agencyId
-    let agencyId = currentUser?.role === 'IMOBILIARIA' ? currentUser.agencyId : (dto as any).agencyId;
+    const agencyId =
+      currentUser?.role === 'IMOBILIARIA'
+        ? currentUser.agencyId
+        : (dto as any).agencyId;
 
     // If account credentials are provided, create User + RealtorLink in a transaction
     if (accountEmail && accountPassword) {
@@ -111,7 +117,7 @@ export class RealtorLinksService {
             }
           });
           // Update the RealtorLink with the agencyId for future filters
-          (data as any).agencyId = agencyId; 
+          (data as any).agencyId = agencyId;
         }
 
         return tx.realtorLink.create({
@@ -203,24 +209,28 @@ export class RealtorLinksService {
         email: true,
         role: true,
         tenantId: true,
-        agencyId: true,
-      },
+        agencyId: true
+      }
     });
 
     if (!user) throw new NotFoundException('Usuário não encontrado.');
     if (user.role !== UserRole.CORRETOR) {
-      throw new BadRequestException('Apenas corretores podem solicitar vínculo.');
+      throw new BadRequestException(
+        'Apenas corretores podem solicitar vínculo.'
+      );
     }
     if (!user.tenantId) {
-      throw new BadRequestException('Sua conta não está vinculada a uma loteadora.');
+      throw new BadRequestException(
+        'Sua conta não está vinculada a uma loteadora.'
+      );
     }
 
     const existingLink = await this.prisma.realtorLink.findUnique({
       where: { userId: user.id },
       include: {
         projects: { select: { id: true, name: true, slug: true } },
-        _count: { select: { leads: true } },
-      },
+        _count: { select: { leads: true } }
+      }
     });
 
     if (existingLink) {
@@ -228,7 +238,7 @@ export class RealtorLinksService {
         return {
           alreadyRequested: true,
           realtorLink: this.toRealtorLinkResponse(existingLink),
-          message: 'Sua solicitação já está pendente de aprovação.',
+          message: 'Sua solicitação já está pendente de aprovação.'
         };
       }
 
@@ -236,12 +246,15 @@ export class RealtorLinksService {
         const reRequested = await this.prisma.realtorLink.update({
           where: { id: existingLink.id },
           data: {
-            notes: this.ensurePendingMarker(existingLink.notes || 'Solicitação de reativação criada pelo corretor no painel.'),
+            notes: this.ensurePendingMarker(
+              existingLink.notes ||
+                'Solicitação de reativação criada pelo corretor no painel.'
+            )
           },
           include: {
             projects: { select: { id: true, name: true, slug: true } },
-            _count: { select: { leads: true } },
-          },
+            _count: { select: { leads: true } }
+          }
         });
 
         await this.notificationsService.notifyTenantLoteadoras(
@@ -253,22 +266,29 @@ export class RealtorLinksService {
           {
             event: 'REALTOR_LINK_REACTIVATION_REQUESTED',
             realtorLinkId: reRequested.id,
-            requesterUserId: user.id,
-          },
+            requesterUserId: user.id
+          }
         );
 
         return {
           alreadyRequested: false,
           realtorLink: this.toRealtorLinkResponse(reRequested),
-          message: 'Solicitação de reativação enviada para a loteadora.',
+          message: 'Solicitação de reativação enviada para a loteadora.'
         };
       }
 
-      throw new ConflictException('Seu vínculo de corretor já está cadastrado.');
+      throw new ConflictException(
+        'Seu vínculo de corretor já está cadastrado.'
+      );
     }
 
-    const generatedCode = await this.buildUniqueCode(user.tenantId, user.name || user.email);
-    const pendingNotes = this.ensurePendingMarker('Solicitação de vínculo criada pelo corretor no painel.');
+    const generatedCode = await this.buildUniqueCode(
+      user.tenantId,
+      user.name || user.email
+    );
+    const pendingNotes = this.ensurePendingMarker(
+      'Solicitação de vínculo criada pelo corretor no painel.'
+    );
 
     const createdLink = await this.prisma.realtorLink.create({
       data: {
@@ -279,12 +299,12 @@ export class RealtorLinksService {
         email: user.email,
         code: generatedCode,
         enabled: false,
-        notes: pendingNotes,
+        notes: pendingNotes
       },
       include: {
         projects: { select: { id: true, name: true, slug: true } },
-        _count: { select: { leads: true } },
-      },
+        _count: { select: { leads: true } }
+      }
     });
 
     await this.notificationsService.notifyTenantLoteadoras(
@@ -296,14 +316,14 @@ export class RealtorLinksService {
       {
         event: 'REALTOR_LINK_REQUESTED',
         realtorLinkId: createdLink.id,
-        requesterUserId: user.id,
-      },
+        requesterUserId: user.id
+      }
     );
 
     return {
       alreadyRequested: false,
       realtorLink: this.toRealtorLinkResponse(createdLink),
-      message: 'Solicitação enviada com sucesso para a loteadora.',
+      message: 'Solicitação enviada com sucesso para a loteadora.'
     };
   }
 
@@ -311,13 +331,13 @@ export class RealtorLinksService {
     const user = await this.prisma.user.findUnique({
       where: { email: email.toLowerCase() }
     });
-    
+
     // Also check if any existing realtor has this email, except the current one
     const realtor = await this.prisma.realtorLink.findFirst({
-        where: {
-            email: email.toLowerCase(),
-            ...(excludeId ? { NOT: { id: excludeId } } : {})
-        }
+      where: {
+        email: email.toLowerCase(),
+        ...(excludeId ? { NOT: { id: excludeId } } : {})
+      }
     });
 
     return { available: !user && !realtor };
@@ -426,7 +446,7 @@ export class RealtorLinksService {
     const normalizedData: any = { ...data };
     if (dto.enabled === true) {
       normalizedData.notes = this.removePendingMarker(
-        dto.notes !== undefined ? dto.notes : link.notes,
+        dto.notes !== undefined ? dto.notes : link.notes
       );
     } else if (dto.notes !== undefined) {
       normalizedData.notes = dto.notes;
@@ -467,16 +487,32 @@ export class RealtorLinksService {
   async getStats(tenantId: string, id: string) {
     const link = await this.prisma.realtorLink.findFirst({
       where: { id, tenantId },
-      select: { id: true, name: true, code: true, email: true, phone: true, creci: true, photoUrl: true, enabled: true, createdAt: true }
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        email: true,
+        phone: true,
+        creci: true,
+        photoUrl: true,
+        enabled: true,
+        createdAt: true
+      }
     });
     if (!link) throw new NotFoundException('Corretor não encontrado.');
 
-    const [totalLeads, leadsByStatus, schedulingCount, sessionCount, recentLeads] = await Promise.all([
+    const [
+      totalLeads,
+      leadsByStatus,
+      schedulingCount,
+      sessionCount,
+      recentLeads
+    ] = await Promise.all([
       this.prisma.lead.count({ where: { realtorLinkId: id } }),
       this.prisma.lead.groupBy({
         by: ['status'],
         where: { realtorLinkId: id },
-        _count: { id: true },
+        _count: { id: true }
       }),
       this.prisma.scheduling.count({ where: { lead: { realtorLinkId: id } } }),
       this.prisma.trackingSession.count({ where: { realtorLinkId: id } }),
@@ -490,9 +526,9 @@ export class RealtorLinksService {
           email: true,
           status: true,
           createdAt: true,
-          project: { select: { id: true, name: true } },
-        },
-      }),
+          project: { select: { id: true, name: true } }
+        }
+      })
     ]);
 
     const statusMap = leadsByStatus.reduce<Record<string, number>>((acc, g) => {
@@ -506,7 +542,7 @@ export class RealtorLinksService {
       leadsByStatus: statusMap,
       schedulingCount,
       sessionCount,
-      recentLeads,
+      recentLeads
     });
   }
 }

@@ -37,7 +37,7 @@ export class PanoramaService {
 
   async findByProjectPublic(projectId: string, _isPreview = false) {
     return this.prisma.panorama.findMany({
-      where: { 
+      where: {
         projectId
       },
       include: {

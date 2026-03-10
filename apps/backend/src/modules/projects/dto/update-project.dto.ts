@@ -1,4 +1,10 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProjectStatus, ReservationFeeType } from '@prisma/client';
 import { Type } from 'class-transformer';
@@ -59,7 +65,10 @@ export class UpdateProjectDto {
   @IsString()
   highlightsTitle?: string;
 
-  @ApiPropertyOptional({ example: 'Qualidade de vida, segurança e infraestrutura completa em um só lugar.' })
+  @ApiPropertyOptional({
+    example:
+      'Qualidade de vida, segurança e infraestrutura completa em um só lugar.'
+  })
   @IsOptional()
   @IsString()
   highlightsSubtitle?: string;
@@ -69,7 +78,9 @@ export class UpdateProjectDto {
   @IsString()
   traditionalHighlightsTitle?: string;
 
-  @ApiPropertyOptional({ example: 'Diferenciais pensados para o seu bem-estar.' })
+  @ApiPropertyOptional({
+    example: 'Diferenciais pensados para o seu bem-estar.'
+  })
   @IsOptional()
   @IsString()
   traditionalHighlightsSubtitle?: string;
@@ -128,7 +139,9 @@ export class UpdateProjectDto {
   @IsString()
   googleMapsUrl?: string;
 
-  @ApiPropertyOptional({ description: 'URL do vídeo de apresentação no YouTube' })
+  @ApiPropertyOptional({
+    description: 'URL do vídeo de apresentação no YouTube'
+  })
   @IsOptional()
   @IsString()
   youtubeVideoUrl?: string;
@@ -182,7 +195,9 @@ export class UpdateProjectDto {
   @IsString()
   indexer?: string;
 
-  @ApiPropertyOptional({ description: 'Permite parcelas intermediárias/balões' })
+  @ApiPropertyOptional({
+    description: 'Permite parcelas intermediárias/balões'
+  })
   @IsOptional()
   @IsBoolean()
   allowIntermediary?: boolean;
@@ -192,18 +207,24 @@ export class UpdateProjectDto {
   @IsString()
   financingDisclaimer?: string;
 
-  @ApiPropertyOptional({ description: 'Informações legais / registros do loteamento exibidas na página pública' })
+  @ApiPropertyOptional({
+    description:
+      'Informações legais / registros do loteamento exibidas na página pública'
+  })
   @IsOptional()
   @IsString()
   legalNotice?: string;
 
   @ApiPropertyOptional({
-    description: 'Configuração de movimento do loteamento exibida na página pública'
+    description:
+      'Configuração de movimento do loteamento exibida na página pública'
   })
   @IsOptional()
   salesMotionConfig?: any;
 
-  @ApiPropertyOptional({ description: 'Ativar/desativar seção de proximidades' })
+  @ApiPropertyOptional({
+    description: 'Ativar/desativar seção de proximidades'
+  })
   @IsOptional()
   @IsBoolean()
   nearbyEnabled?: boolean;

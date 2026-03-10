@@ -45,7 +45,8 @@ export class SendPulseService implements OnModuleInit {
     this.fromName =
       this.configService.get<string>('SENDPULSE_FROM_NAME') || 'Lotio';
     this.frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') || 'https://app.lotio.com.br';
+      this.configService.get<string>('FRONTEND_URL') ||
+      'https://app.lotio.com.br';
   }
 
   onModuleInit() {
@@ -133,7 +134,9 @@ export class SendPulseService implements OnModuleInit {
         }
       });
 
-      this.logger.log(`Email sent to ${toAddresses.join(', ')}: ${options.subject}`);
+      this.logger.log(
+        `Email sent to ${toAddresses.join(', ')}: ${options.subject}`
+      );
       return true;
     } catch (error: any) {
       this.logger.error(
@@ -205,7 +208,11 @@ export class SendPulseService implements OnModuleInit {
 </html>`;
   }
 
-  async sendWelcomeTenantEmail(to: string, userName: string, tenantName: string): Promise<boolean> {
+  async sendWelcomeTenantEmail(
+    to: string,
+    userName: string,
+    tenantName: string
+  ): Promise<boolean> {
     const safeUserName = this.escapeHtml(userName);
     const safeTenantName = this.escapeHtml(tenantName);
 
@@ -227,10 +234,17 @@ export class SendPulseService implements OnModuleInit {
       </p>
     `);
 
-    return this.sendEmail({ to, subject: `Bem-vindo à Lotio - ${safeTenantName}`, html });
+    return this.sendEmail({
+      to,
+      subject: `Bem-vindo à Lotio - ${safeTenantName}`,
+      html
+    });
   }
 
-  async sendWelcomeRealtorEmail(to: string, userName: string): Promise<boolean> {
+  async sendWelcomeRealtorEmail(
+    to: string,
+    userName: string
+  ): Promise<boolean> {
     const safeUserName = this.escapeHtml(userName);
 
     const html = this.getBaseTemplate(`
@@ -243,10 +257,18 @@ export class SendPulseService implements OnModuleInit {
       <p style="margin-top: 24px; font-size: 14px;">Boas vendas!</p>
     `);
 
-    return this.sendEmail({ to, subject: 'Bem-vindo à Lotio - Acesso do Corretor', html });
+    return this.sendEmail({
+      to,
+      subject: 'Bem-vindo à Lotio - Acesso do Corretor',
+      html
+    });
   }
 
-  async sendPasswordResetEmail(to: string, userName: string, resetToken: string): Promise<boolean> {
+  async sendPasswordResetEmail(
+    to: string,
+    userName: string,
+    resetToken: string
+  ): Promise<boolean> {
     const resetUrl = `${this.frontendUrl}/redefinir-senha?token=${encodeURIComponent(resetToken)}`;
     const safeUserName = this.escapeHtml(userName);
 
@@ -265,10 +287,19 @@ export class SendPulseService implements OnModuleInit {
       </p>
     `);
 
-    return this.sendEmail({ to, subject: 'Recuperação de Senha - Lotio', html });
+    return this.sendEmail({
+      to,
+      subject: 'Recuperação de Senha - Lotio',
+      html
+    });
   }
 
-  async sendInviteEmail(to: string, token: string, role: string, email: string): Promise<boolean> {
+  async sendInviteEmail(
+    to: string,
+    token: string,
+    role: string,
+    email: string
+  ): Promise<boolean> {
     const inviteUrl = `${this.frontendUrl}/aceitar-convite?token=${encodeURIComponent(token)}`;
     const roleMap: Record<string, string> = {
       ADMIN: 'Administrador',
@@ -297,10 +328,18 @@ export class SendPulseService implements OnModuleInit {
       </p>
     `);
 
-    return this.sendEmail({ to, subject: 'Convite para Lotio - Nova Conta', html });
+    return this.sendEmail({
+      to,
+      subject: 'Convite para Lotio - Nova Conta',
+      html
+    });
   }
 
-  async sendTwoFactorEmail(to: string, userName: string, code: string): Promise<boolean> {
+  async sendTwoFactorEmail(
+    to: string,
+    userName: string,
+    code: string
+  ): Promise<boolean> {
     const safeUserName = this.escapeHtml(userName);
 
     const html = this.getBaseTemplate(`
@@ -315,14 +354,18 @@ export class SendPulseService implements OnModuleInit {
       </div>
     `);
 
-    return this.sendEmail({ to, subject: 'Código de Verificação - Lotio', html });
+    return this.sendEmail({
+      to,
+      subject: 'Código de Verificação - Lotio',
+      html
+    });
   }
 
   async sendSystemNotificationEmail(
     to: string,
     userName: string,
     title: string,
-    message: string,
+    message: string
   ): Promise<boolean> {
     const safeUserName = this.escapeHtml(userName);
     const safeTitle = this.escapeHtml(title);

@@ -15,23 +15,30 @@ export class LeadDistributionService {
 
   async getProjectConfig(projectId: string) {
     let config = await this.prisma.leadDistributionConfig.findUnique({
-      where: { projectId },
+      where: { projectId }
     });
 
     if (!config) {
       config = await this.prisma.leadDistributionConfig.create({
-        data: { projectId, enabled: false, lastAssignedIndex: -1 },
+        data: { projectId, enabled: false, lastAssignedIndex: -1 }
       });
     }
 
     return config;
   }
 
-  async updateProjectConfig(projectId: string, dto: UpdateDistributionConfigDto) {
+  async updateProjectConfig(
+    projectId: string,
+    dto: UpdateDistributionConfigDto
+  ) {
     return this.prisma.leadDistributionConfig.upsert({
       where: { projectId },
-      create: { projectId, enabled: dto.enabled ?? false, lastAssignedIndex: -1 },
-      update: dto,
+      create: {
+        projectId,
+        enabled: dto.enabled ?? false,
+        lastAssignedIndex: -1
+      },
+      update: dto
     });
   }
 
@@ -39,34 +46,40 @@ export class LeadDistributionService {
     return this.prisma.leadDistributionConfig.upsert({
       where: { projectId },
       create: { projectId, enabled: false, lastAssignedIndex: -1 },
-      update: { lastAssignedIndex: -1 },
+      update: { lastAssignedIndex: -1 }
     });
   }
 
   // ─── Queue State ──────────────────────────────────────────────────────────
 
-  async getQueueState(projectId: string, tenantId: string, query: QueueQueryDto) {
+  async getQueueState(
+    projectId: string,
+    tenantId: string,
+    query: QueueQueryDto
+  ) {
     const { page = 1, limit = 50, search } = query;
     const skip = (page - 1) * limit;
 
     const config = await this.getProjectConfig(projectId);
     const eligibleBrokers = await this.getEligibleBrokers(projectId, tenantId);
 
-    const nextIndex = eligibleBrokers.length > 0
-      ? (config.lastAssignedIndex + 1) % eligibleBrokers.length
-      : -1;
+    const nextIndex =
+      eligibleBrokers.length > 0
+        ? (config.lastAssignedIndex + 1) % eligibleBrokers.length
+        : -1;
 
     let filteredBrokers = eligibleBrokers.map((b, i) => ({
       ...b,
       position: i,
-      isNext: i === nextIndex,
+      isNext: i === nextIndex
     }));
 
     if (search) {
       const s = search.toLowerCase();
-      filteredBrokers = filteredBrokers.filter(b => 
-        b.name.toLowerCase().includes(s) || 
-        (b.code && b.code.toLowerCase().includes(s))
+      filteredBrokers = filteredBrokers.filter(
+        (b) =>
+          b.name.toLowerCase().includes(s) ||
+          (b.code && b.code.toLowerCase().includes(s))
       );
     }
 
@@ -85,8 +98,8 @@ export class LeadDistributionService {
         itemCount: paginatedBrokers.length,
         itemsPerPage: limit,
         totalPages: Math.ceil(totalFiltered / limit),
-        currentPage: page,
-      },
+        currentPage: page
+      }
     };
   }
 
@@ -99,10 +112,10 @@ export class LeadDistributionService {
   async distributeLeadIfEligible(
     projectId: string,
     tenantId: string,
-    leadId: string,
+    leadId: string
   ): Promise<string | null> {
     const config = await this.prisma.leadDistributionConfig.findUnique({
-      where: { projectId },
+      where: { projectId }
     });
 
     if (!config?.enabled) return null;
@@ -111,7 +124,7 @@ export class LeadDistributionService {
 
     if (eligibleBrokers.length === 0) {
       this.logger.warn(
-        `Auto-distribution enabled for project ${projectId} but no eligible brokers found`,
+        `Auto-distribution enabled for project ${projectId} but no eligible brokers found`
       );
       return null;
     }
@@ -119,11 +132,12 @@ export class LeadDistributionService {
     const result = await this.prisma.$transaction(async (tx) => {
       // Re-read config inside transaction for atomicity
       const freshConfig = await tx.leadDistributionConfig.findUnique({
-        where: { projectId },
+        where: { projectId }
       });
       if (!freshConfig?.enabled) return null;
 
-      const nextIndex = (freshConfig.lastAssignedIndex + 1) % eligibleBrokers.length;
+      const nextIndex =
+        (freshConfig.lastAssignedIndex + 1) % eligibleBrokers.length;
       const assignedBroker = eligibleBrokers[nextIndex];
 
       // Update the lead with the assigned broker
@@ -131,14 +145,14 @@ export class LeadDistributionService {
         where: { id: leadId },
         data: {
           realtorLinkId: assignedBroker.id,
-          source: 'website:auto_dist',
-        },
+          source: 'website:auto_dist'
+        }
       });
 
       // Advance the cursor
       await tx.leadDistributionConfig.update({
         where: { projectId },
-        data: { lastAssignedIndex: nextIndex },
+        data: { lastAssignedIndex: nextIndex }
       });
 
       // Create audit log
@@ -148,8 +162,8 @@ export class LeadDistributionService {
           leadId,
           realtorLinkId: assignedBroker.id,
           queuePosition: nextIndex,
-          queueSize: eligibleBrokers.length,
-        },
+          queueSize: eligibleBrokers.length
+        }
       });
 
       // Create LeadHistory entry
@@ -158,15 +172,17 @@ export class LeadDistributionService {
           leadId,
           toStatus: 'NEW',
           notes: `Lead distribuído automaticamente para ${assignedBroker.name} (posição ${nextIndex + 1}/${eligibleBrokers.length} na fila)`,
-          createdBy: 'SYSTEM_AUTO_DIST',
-        },
+          createdBy: 'SYSTEM_AUTO_DIST'
+        }
       });
 
       return assignedBroker.id;
     });
 
     if (result) {
-      this.logger.log(`Lead ${leadId} auto-distributed to broker in project ${projectId}`);
+      this.logger.log(
+        `Lead ${leadId} auto-distributed to broker in project ${projectId}`
+      );
     }
 
     return result;
@@ -177,28 +193,39 @@ export class LeadDistributionService {
   async getDistributionLog(
     projectId: string,
     tenantId: string,
-    query: DistributionLogQueryDto,
+    query: DistributionLogQueryDto
   ): Promise<PaginatedResponse<any>> {
     const { page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
     const where = {
       projectId,
-      project: { tenantId },
+      project: { tenantId }
     };
 
     const [data, totalItems] = await Promise.all([
       this.prisma.leadDistributionLog.findMany({
         where,
         include: {
-          lead: { select: { id: true, name: true, email: true, phone: true, status: true, createdAt: true } },
-          realtorLink: { select: { id: true, name: true, code: true, photoUrl: true } },
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              status: true,
+              createdAt: true
+            }
+          },
+          realtorLink: {
+            select: { id: true, name: true, code: true, photoUrl: true }
+          }
         },
         orderBy: { createdAt: 'desc' },
         skip,
-        take: limit,
+        take: limit
       }),
-      this.prisma.leadDistributionLog.count({ where }),
+      this.prisma.leadDistributionLog.count({ where })
     ]);
 
     return {
@@ -208,8 +235,8 @@ export class LeadDistributionService {
         itemCount: data.length,
         itemsPerPage: limit,
         totalPages: Math.ceil(totalItems / limit),
-        currentPage: page,
-      },
+        currentPage: page
+      }
     };
   }
 
@@ -221,10 +248,10 @@ export class LeadDistributionService {
         tenantId,
         enabled: true,
         projects: { some: { id: projectId } },
-        NOT: { notes: { contains: '[PENDING_APPROVAL_REQUEST]' } },
+        NOT: { notes: { contains: '[PENDING_APPROVAL_REQUEST]' } }
       },
       select: { id: true, name: true, code: true, photoUrl: true },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
     });
   }
 }

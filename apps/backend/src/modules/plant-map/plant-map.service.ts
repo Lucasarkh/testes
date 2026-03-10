@@ -29,7 +29,7 @@ export class PlantMapService {
     const plantMap = await this.prisma.plantMap.findUnique({
       where: { projectId },
       include: {
-        hotspots: { 
+        hotspots: {
           orderBy: { createdAt: 'asc' },
           select: {
             id: true,
@@ -50,7 +50,7 @@ export class PlantMapService {
             // To stick to "no interference", let's keep them and focus on query performance.
             description: true,
             metaJson: true,
-            createdAt: true,
+            createdAt: true
           }
         }
       }
@@ -84,7 +84,7 @@ export class PlantMapService {
             linkType: true,
             linkId: true,
             linkUrl: true,
-            loteStatus: true,
+            loteStatus: true
             // description and metaJson intentionally omitted here:
             // they are large text fields only needed when a user opens a hotspot popover.
             // Use GET /plant-map/hotspots/:hotspotId to lazy-load them on demand.
@@ -127,18 +127,27 @@ export class PlantMapService {
     // Fetch live status + tags from LotDetails so the map always reflects current lot status
     const lotDetails = await this.prisma.lotDetails.findMany({
       where: { mapElementId: { in: lotIds } },
-      select: { mapElementId: true, tags: true, status: true, block: true, lotNumber: true }
+      select: {
+        mapElementId: true,
+        tags: true,
+        status: true,
+        block: true,
+        lotNumber: true
+      }
     });
 
     const tagsMap = new Map<string, string[]>();
     const statusMap = new Map<string, string>();
-    const lotInfoMap = new Map<string, { block?: string; lotNumber?: string }>();
+    const lotInfoMap = new Map<
+      string,
+      { block?: string; lotNumber?: string }
+    >();
     lotDetails.forEach((ld) => {
       tagsMap.set(ld.mapElementId, ld.tags || []);
       statusMap.set(ld.mapElementId, ld.status);
       lotInfoMap.set(ld.mapElementId, {
         block: this._sanitizeLotField(ld.block),
-        lotNumber: this._sanitizeLotField(ld.lotNumber),
+        lotNumber: this._sanitizeLotField(ld.lotNumber)
       });
     });
 
@@ -146,14 +155,16 @@ export class PlantMapService {
       if (h.linkType === 'LOTE_PAGE' && h.linkId) {
         const lotInfo = lotInfoMap.get(h.linkId);
         const mergedMeta =
-          h.metaJson && typeof h.metaJson === 'object' && !Array.isArray(h.metaJson)
+          h.metaJson &&
+          typeof h.metaJson === 'object' &&
+          !Array.isArray(h.metaJson)
             ? { ...h.metaJson }
             : {};
 
         if (lotInfo?.block || lotInfo?.lotNumber) {
           mergedMeta.lotInfo = {
             block: lotInfo.block,
-            lotNumber: lotInfo.lotNumber,
+            lotNumber: lotInfo.lotNumber
           };
         }
 
@@ -161,7 +172,7 @@ export class PlantMapService {
           ...h,
           tags: tagsMap.get(h.linkId) || [],
           loteStatus: statusMap.get(h.linkId) ?? h.loteStatus,
-          metaJson: Object.keys(mergedMeta).length ? mergedMeta : h.metaJson,
+          metaJson: Object.keys(mergedMeta).length ? mergedMeta : h.metaJson
         };
       }
       return { ...h, tags: [] };
@@ -281,7 +292,7 @@ export class PlantMapService {
             mapElementId: mapElement.id,
             status: dto.loteStatus || 'AVAILABLE',
             block: lotInfo?.block,
-            lotNumber: lotInfo?.lotNumber,
+            lotNumber: lotInfo?.lotNumber
           }
         });
 
@@ -337,7 +348,7 @@ export class PlantMapService {
               mapElementId: mapElement.id,
               status: item.loteStatus || 'AVAILABLE',
               block: lotInfo?.block,
-              lotNumber: lotInfo?.lotNumber,
+              lotNumber: lotInfo?.lotNumber
             }
           });
 
@@ -415,8 +426,16 @@ export class PlantMapService {
       }
 
       // Invalidar cache público da planta para que status de lotes seja atualizado imediatamente
-      const pm = await tx.plantMap.findUnique({ where: { id: hotspot.plantMapId }, select: { projectId: true } }).catch(() => null);
-      if (pm) await this.redis?.del(`plantmap_public:${pm.projectId}`).catch(() => {});
+      const pm = await tx.plantMap
+        .findUnique({
+          where: { id: hotspot.plantMapId },
+          select: { projectId: true }
+        })
+        .catch(() => null);
+      if (pm)
+        await this.redis
+          ?.del(`plantmap_public:${pm.projectId}`)
+          .catch(() => {});
 
       return updatedHotspot;
     });
@@ -461,14 +480,22 @@ export class PlantMapService {
     return normalized.length ? normalized : undefined;
   }
 
-  private _extractLotInfo(metaJson: unknown): { block?: string; lotNumber?: string } | null {
-    if (!metaJson || typeof metaJson !== 'object' || Array.isArray(metaJson)) return null;
+  private _extractLotInfo(
+    metaJson: unknown
+  ): { block?: string; lotNumber?: string } | null {
+    if (!metaJson || typeof metaJson !== 'object' || Array.isArray(metaJson))
+      return null;
 
     const lotInfo = (metaJson as Record<string, unknown>).lotInfo;
-    if (!lotInfo || typeof lotInfo !== 'object' || Array.isArray(lotInfo)) return null;
+    if (!lotInfo || typeof lotInfo !== 'object' || Array.isArray(lotInfo))
+      return null;
 
-    const block = this._sanitizeLotField((lotInfo as Record<string, unknown>).block);
-    const lotNumber = this._sanitizeLotField((lotInfo as Record<string, unknown>).lotNumber);
+    const block = this._sanitizeLotField(
+      (lotInfo as Record<string, unknown>).block
+    );
+    const lotNumber = this._sanitizeLotField(
+      (lotInfo as Record<string, unknown>).lotNumber
+    );
 
     if (!block && !lotNumber) return null;
     return { block, lotNumber };

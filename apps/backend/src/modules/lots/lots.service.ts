@@ -44,7 +44,10 @@ export class LotsService {
     data.sort((a, b) => {
       const codeA = a.mapElement?.code || '';
       const codeB = b.mapElement?.code || '';
-      return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      return codeA.localeCompare(codeB, undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      });
     });
 
     return {

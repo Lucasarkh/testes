@@ -20,7 +20,13 @@ import { UpdateTenantProfileDto } from './dto/update-tenant-profile.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody
+} from '@nestjs/swagger';
 
 @ApiTags('Tenants (System Admin)')
 @ApiBearerAuth()
@@ -67,7 +73,12 @@ export class TenantsController {
   @Roles('LOTEADORA', 'SYSADMIN')
   @ApiOperation({ summary: 'Upload de logo da loteadora' })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } }
+    }
+  })
   @UseInterceptors(FileInterceptor('file'))
   uploadLogo(@Request() req: any, @UploadedFile() file: Express.Multer.File) {
     return this.tenantsService.uploadLogo(req.user.tenantId, file);

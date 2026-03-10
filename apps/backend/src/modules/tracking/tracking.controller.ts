@@ -38,7 +38,11 @@ export class TrackingController {
 
     const ip = req.ip || (req.headers['x-forwarded-for'] as string);
     const userAgent = req.headers['user-agent'] || 'unknown';
-    const session = await this.trackingService.createSession(dto, ip, userAgent);
+    const session = await this.trackingService.createSession(
+      dto,
+      ip,
+      userAgent
+    );
 
     // 2. Set Cookie (HttpOnly, 30 days)
     res.cookie('tracking_session_id', session.id, {

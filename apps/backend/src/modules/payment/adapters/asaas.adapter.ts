@@ -5,7 +5,7 @@ import {
   IPaymentGateway,
   PaymentGatewayResponse,
   PaymentWebhookResult,
-  WebhookPaymentStatus,
+  WebhookPaymentStatus
 } from '../interfaces/payment-gateway.interface';
 
 @Injectable()
@@ -16,28 +16,30 @@ export class AsaasAdapter implements IPaymentGateway {
   private getHeaders(apiKey: string) {
     return {
       access_token: apiKey,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     };
   }
 
   async createSession(
     keys: { apiKey: string; isSandbox?: boolean },
-    data: CreatePaymentDto,
+    data: CreatePaymentDto
   ): Promise<PaymentGatewayResponse> {
-    const url = keys.isSandbox 
-      ? 'https://sandbox.asaas.com/api/v3/payments' 
+    const url = keys.isSandbox
+      ? 'https://sandbox.asaas.com/api/v3/payments'
       : `${this.baseUrl}/payments`;
 
-    // Asaas needs a customer. In a real integration, we should search if customer exists 
-    // or create one. For simplicity in this pre-reservation, we create a one-time payment 
+    // Asaas needs a customer. In a real integration, we should search if customer exists
+    // or create one. For simplicity in this pre-reservation, we create a one-time payment
     // or dynamic customer.
-    
+
     // 1. Create/Find Customer (Simplified: creating every time for now or using a generic one)
     const customerResponse = await axios.post(
-      keys.isSandbox ? 'https://sandbox.asaas.com/api/v3/customers' : `${this.baseUrl}/customers`,
+      keys.isSandbox
+        ? 'https://sandbox.asaas.com/api/v3/customers'
+        : `${this.baseUrl}/customers`,
       {
         name: data.customerName,
-        email: data.customerEmail,
+        email: data.customerEmail
       },
       { headers: this.getHeaders(keys.apiKey) }
     );
@@ -51,22 +53,24 @@ export class AsaasAdapter implements IPaymentGateway {
         customer: customerId,
         billingType: 'UNDEFINED', // Allows customer to choose
         value: data.amount,
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0],
         description: data.description,
-        externalReference: data.orderId,
+        externalReference: data.orderId
       },
       { headers: this.getHeaders(keys.apiKey) }
     );
 
     return {
       externalId: response.data.id,
-      paymentUrl: response.data.invoiceUrl,
+      paymentUrl: response.data.invoiceUrl
     };
   }
 
   async handleWebhook(
     keys: { apiKey: string },
-    payload: any,
+    payload: any
   ): Promise<PaymentWebhookResult> {
     // Asaas webhooks: payload.event contains the event type
     const event = payload.event;
@@ -76,24 +80,35 @@ export class AsaasAdapter implements IPaymentGateway {
       return {
         externalId: '',
         status: WebhookPaymentStatus.PENDING,
-        rawPayload: payload,
+        rawPayload: payload
       };
     }
 
     let status = WebhookPaymentStatus.PENDING;
 
-    if (event === 'PAYMENT_RECEIVED' || event === 'PAYMENT_CONFIRMED' || event === 'PAYMENT_ANTICIPATED') {
+    if (
+      event === 'PAYMENT_RECEIVED' ||
+      event === 'PAYMENT_CONFIRMED' ||
+      event === 'PAYMENT_ANTICIPATED'
+    ) {
       status = WebhookPaymentStatus.PAID;
-    } else if (event === 'PAYMENT_OVERDUE' || event === 'PAYMENT_DELETED' || event === 'PAYMENT_REPROVED_BY_RISK_ANALYSIS') {
-        status = WebhookPaymentStatus.FAILED;
-    } else if (event === 'PAYMENT_REFUNDED' || event === 'PAYMENT_PARTIALLY_REFUNDED') {
-        status = WebhookPaymentStatus.REFUNDED;
+    } else if (
+      event === 'PAYMENT_OVERDUE' ||
+      event === 'PAYMENT_DELETED' ||
+      event === 'PAYMENT_REPROVED_BY_RISK_ANALYSIS'
+    ) {
+      status = WebhookPaymentStatus.FAILED;
+    } else if (
+      event === 'PAYMENT_REFUNDED' ||
+      event === 'PAYMENT_PARTIALLY_REFUNDED'
+    ) {
+      status = WebhookPaymentStatus.REFUNDED;
     }
 
     return {
       externalId: payment.id,
       status,
-      rawPayload: payload,
+      rawPayload: payload
     };
   }
 }

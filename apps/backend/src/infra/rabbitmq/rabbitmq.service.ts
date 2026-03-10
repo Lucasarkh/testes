@@ -33,7 +33,11 @@ export class RabbitMqService implements OnModuleDestroy {
     });
   }
 
-  async sendToQueue(queue: string, payload: unknown, options?: { withDeadLetter?: boolean }) {
+  async sendToQueue(
+    queue: string,
+    payload: unknown,
+    options?: { withDeadLetter?: boolean }
+  ) {
     await this.producerChannel.waitForConnect();
     await this.ensureQueue(queue, options);
 
@@ -44,7 +48,10 @@ export class RabbitMqService implements OnModuleDestroy {
     } as Parameters<ChannelWrapper['sendToQueue']>[2]);
   }
 
-  private async ensureQueue(queue: string, options?: { withDeadLetter?: boolean }) {
+  private async ensureQueue(
+    queue: string,
+    options?: { withDeadLetter?: boolean }
+  ) {
     if (this.assertedQueues.has(queue)) {
       return;
     }

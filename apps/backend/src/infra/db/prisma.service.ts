@@ -24,8 +24,8 @@ export class PrismaService
       log: [
         { emit: 'event', level: 'query' },
         { emit: 'stdout', level: 'warn' },
-        { emit: 'stdout', level: 'error' },
-      ],
+        { emit: 'stdout', level: 'error' }
+      ]
     });
   }
 
@@ -36,7 +36,7 @@ export class PrismaService
       (this as any).$on('query', (e: Prisma.QueryEvent) => {
         if (e.duration > 200) {
           this.logger.warn(
-            `[Slow Query] ${e.duration}ms — ${e.query.slice(0, 200)}`,
+            `[Slow Query] ${e.duration}ms — ${e.query.slice(0, 200)}`
           );
         }
       });
@@ -45,7 +45,7 @@ export class PrismaService
       (this as any).$on('query', (e: Prisma.QueryEvent) => {
         if (e.duration > 2000) {
           this.logger.error(
-            `[Critical Slow Query] ${e.duration}ms — ${e.query.slice(0, 200)}`,
+            `[Critical Slow Query] ${e.duration}ms — ${e.query.slice(0, 200)}`
           );
         }
       });

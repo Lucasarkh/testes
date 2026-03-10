@@ -16,7 +16,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: '8h' }
       })
-    }),
+    })
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],

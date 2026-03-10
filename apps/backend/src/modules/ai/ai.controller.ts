@@ -29,10 +29,7 @@ export class AiController {
   @Post('chat')
   @Roles('LOTEADORA', 'SYSADMIN', 'IMOBILIARIA', 'CORRETOR')
   @ApiOperation({ summary: 'Interagir com a IA no painel autenticado' })
-  chat(
-    @TenantId() tenantId: string,
-    @Body() dto: ChatDto
-  ) {
+  chat(@TenantId() tenantId: string, @Body() dto: ChatDto) {
     return this.aiService.chat(dto, tenantId);
   }
 

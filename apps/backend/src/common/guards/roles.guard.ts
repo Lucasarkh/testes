@@ -15,7 +15,7 @@ export class RolesGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
-      context.getClass(),
+      context.getClass()
     ]);
 
     if (isPublic) {
@@ -33,7 +33,7 @@ export class RolesGuard implements CanActivate {
     if (!user) {
       throw new ForbiddenException('Usuário não autenticado');
     }
-    
+
     const hasRole = requiredRoles.some((role) => user.role === role);
     if (!hasRole) {
       throw new ForbiddenException(

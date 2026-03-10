@@ -6,7 +6,7 @@ import {
   Header,
   Req,
   HttpCode,
-  Logger,
+  Logger
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -24,9 +24,11 @@ export class PaymentController {
   async createReservation(
     @Body('leadId') leadId: string,
     @Body('amount') amount: number,
-    @Body('baseUrl') baseUrl?: string,
+    @Body('baseUrl') baseUrl?: string
   ) {
-    return this.paymentService.startReservationPayment(leadId, amount, { baseUrl });
+    return this.paymentService.startReservationPayment(leadId, amount, {
+      baseUrl
+    });
   }
 
   @Post('cancel')
@@ -48,20 +50,20 @@ export class WebhooksController {
   @HttpCode(200)
   async handleStripeWebhook(
     @Param('projectId') projectId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     const signature = req.headers['stripe-signature'] as string;
-    // Note: To verify Stripe signature with raw body, 
-    // we need to set a specific middleware for this route 
+    // Note: To verify Stripe signature with raw body,
+    // we need to set a specific middleware for this route
     // or use a custom property if the raw body is already populated
-    
-    // For now processing based on payload directly, 
+
+    // For now processing based on payload directly,
     // but in production signature verification should be enabled
     return this.paymentService.processWebhook(
       projectId,
       req.body,
       PaymentProvider.STRIPE,
-      signature,
+      signature
     );
   }
 
@@ -69,13 +71,13 @@ export class WebhooksController {
   @HttpCode(200)
   async handleMercadoPagoWebhook(
     @Param('projectId') projectId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     // Mercado Pago often sends data in the body, but it could be query params too
     return this.paymentService.processWebhook(
       projectId,
       req.body,
-      PaymentProvider.MERCADO_PAGO,
+      PaymentProvider.MERCADO_PAGO
     );
   }
 
@@ -83,12 +85,12 @@ export class WebhooksController {
   @HttpCode(200)
   async handleAsaasWebhook(
     @Param('projectId') projectId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     return this.paymentService.processWebhook(
       projectId,
       req.body,
-      PaymentProvider.ASAAS,
+      PaymentProvider.ASAAS
     );
   }
 
@@ -96,12 +98,12 @@ export class WebhooksController {
   @HttpCode(200)
   async handlePagarMeWebhook(
     @Param('projectId') projectId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     return this.paymentService.processWebhook(
       projectId,
       req.body,
-      PaymentProvider.PAGAR_ME,
+      PaymentProvider.PAGAR_ME
     );
   }
 
@@ -109,12 +111,12 @@ export class WebhooksController {
   @HttpCode(200)
   async handlePagSeguroWebhook(
     @Param('projectId') projectId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     return this.paymentService.processWebhook(
       projectId,
       req.body,
-      PaymentProvider.PAGSEGURO,
+      PaymentProvider.PAGSEGURO
     );
   }
 }

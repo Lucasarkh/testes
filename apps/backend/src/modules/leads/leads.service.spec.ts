@@ -9,23 +9,23 @@ describe('LeadsService', () => {
 
   const mockPrisma = {
     project: {
-      findUnique: jest.fn(),
+      findUnique: jest.fn()
     },
     lead: {
       findFirst: jest.fn(),
-      create: jest.fn(),
+      create: jest.fn()
     },
     trackingSession: {
-      findUnique: jest.fn(),
+      findUnique: jest.fn()
     },
     realtorLink: {
-      findFirst: jest.fn(),
+      findFirst: jest.fn()
     },
     leadHistory: {
-      create: jest.fn(),
+      create: jest.fn()
     },
     mapElement: {
-      findFirst: jest.fn(),
+      findFirst: jest.fn()
     }
   };
 
@@ -33,8 +33,8 @@ describe('LeadsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeadsService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+        { provide: PrismaService, useValue: mockPrisma }
+      ]
     }).compile();
 
     service = module.get<LeadsService>(LeadsService);
@@ -52,19 +52,25 @@ describe('LeadsService', () => {
       };
 
       const mockProject = { id: 'p1', tenantId: 't1', status: 'PUBLISHED' };
-      const mockSession = { 
-        id: 's1', 
-        ftUtmSource: 'google', 
+      const mockSession = {
+        id: 's1',
+        ftUtmSource: 'google',
         ltUtmSource: 'facebook',
         realtorLinkId: 'r1'
       };
-      
-      const mockExistingLead = { id: 'l_old', phone: '11999999999', createdAt: new Date() };
+
+      const mockExistingLead = {
+        id: 'l_old',
+        phone: '11999999999',
+        createdAt: new Date()
+      };
 
       mockPrisma.project.findUnique.mockResolvedValue(mockProject);
       mockPrisma.trackingSession.findUnique.mockResolvedValue(mockSession);
       mockPrisma.lead.findFirst.mockResolvedValue(mockExistingLead); // Found recent lead
-      mockPrisma.lead.create.mockImplementation(({ data }) => Promise.resolve({ id: 'l1', ...data }));
+      mockPrisma.lead.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l1', ...data })
+      );
 
       const lead = await service.createPublic('proj-slug', dto as any);
 

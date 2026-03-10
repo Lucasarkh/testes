@@ -10,7 +10,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-  ForbiddenException,
+  ForbiddenException
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -34,7 +34,7 @@ export class SupportController {
     return this.supportService.createTicket(
       req.user.id,
       req.user.tenantId ?? null,
-      dto,
+      dto
     );
   }
 
@@ -44,24 +44,29 @@ export class SupportController {
     @Request() req: any,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('status') status?: string,
+    @Query('status') status?: string
   ) {
-    const ticketStatus = status && Object.values(TicketStatus).includes(status as TicketStatus)
-      ? (status as TicketStatus)
-      : undefined;
+    const ticketStatus =
+      status && Object.values(TicketStatus).includes(status as TicketStatus)
+        ? (status as TicketStatus)
+        : undefined;
     return this.supportService.listTickets(
       req.user.id,
       req.user.role as UserRole,
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20,
-      ticketStatus,
+      ticketStatus
     );
   }
 
   @Get('tickets/:id')
   @ApiOperation({ summary: 'Detalhes de um ticket com mensagens' })
   async getTicket(@Param('id') id: string, @Request() req: any) {
-    return this.supportService.getTicket(id, req.user.id, req.user.role as UserRole);
+    return this.supportService.getTicket(
+      id,
+      req.user.id,
+      req.user.role as UserRole
+    );
   }
 
   @Patch('tickets/:id/status')
@@ -70,10 +75,12 @@ export class SupportController {
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateTicketStatusDto,
-    @Request() req: any,
+    @Request() req: any
   ) {
     if (req.user.role !== UserRole.SYSADMIN) {
-      throw new ForbiddenException('Apenas administradores podem alterar o status do ticket');
+      throw new ForbiddenException(
+        'Apenas administradores podem alterar o status do ticket'
+      );
     }
     return this.supportService.updateTicketStatus(id, dto, req.user.id);
   }
@@ -84,13 +91,13 @@ export class SupportController {
   async addMessage(
     @Param('id') id: string,
     @Body() dto: CreateMessageDto,
-    @Request() req: any,
+    @Request() req: any
   ) {
     return this.supportService.addMessage(
       id,
       req.user.id,
       req.user.role as UserRole,
-      dto,
+      dto
     );
   }
 }

@@ -20,7 +20,7 @@ export enum WebhookPaymentStatus {
   PAID = 'PAID',
   PENDING = 'PENDING',
   FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
+  REFUNDED = 'REFUNDED'
 }
 
 export interface PaymentWebhookResult {
@@ -30,6 +30,13 @@ export interface PaymentWebhookResult {
 }
 
 export interface IPaymentGateway {
-  createSession(keys: any, data: CreatePaymentDto): Promise<PaymentGatewayResponse>;
-  handleWebhook(keys: any, payload: any, signature?: string): Promise<PaymentWebhookResult>;
+  createSession(
+    keys: any,
+    data: CreatePaymentDto
+  ): Promise<PaymentGatewayResponse>;
+  handleWebhook(
+    keys: any,
+    payload: any,
+    signature?: string
+  ): Promise<PaymentWebhookResult>;
 }

@@ -22,7 +22,7 @@ export class TenantsService {
     private prisma: PrismaService,
     private billingService: BillingService,
     private s3: S3Service,
-    @Inject('REDIS_SERVICE') private redis: any,
+    @Inject('REDIS_SERVICE') private redis: any
   ) {}
 
   private nullable(value?: string | null): string | null | undefined {
@@ -53,56 +53,58 @@ export class TenantsService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    return this.prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({
-        data: {
-          name: dto.tenantName,
-          slug,
-          customDomain: this.nullable(dto.customDomain),
-          cnpj: this.nullable(dto.cnpj),
-          legalName: this.nullable(dto.legalName),
-          stateRegistration: this.nullable(dto.stateRegistration),
-          municipalRegistration: this.nullable(dto.municipalRegistration),
-          legalRepresentative: this.nullable(dto.legalRepresentative),
-          creci: this.nullable(dto.creci),
-          phone: this.nullable(dto.phone),
-          whatsapp: this.nullable(dto.whatsapp),
-          publicEmail: this.nullable(dto.publicEmail),
-          website: this.nullable(dto.website),
-          contactName: this.nullable(dto.contactName),
-          contactEmail: this.nullable(dto.contactEmail),
-          contactPhone: this.nullable(dto.contactPhone),
-          addressZipCode: this.nullable(dto.addressZipCode),
-          addressStreet: this.nullable(dto.addressStreet),
-          addressNumber: this.nullable(dto.addressNumber),
-          addressComplement: this.nullable(dto.addressComplement),
-          addressDistrict: this.nullable(dto.addressDistrict),
-          addressCity: this.nullable(dto.addressCity),
-          addressState: this.nullable(dto.addressState),
-          addressCountry: this.nullable(dto.addressCountry),
-        }
-      });
+    return this.prisma
+      .$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
+          data: {
+            name: dto.tenantName,
+            slug,
+            customDomain: this.nullable(dto.customDomain),
+            cnpj: this.nullable(dto.cnpj),
+            legalName: this.nullable(dto.legalName),
+            stateRegistration: this.nullable(dto.stateRegistration),
+            municipalRegistration: this.nullable(dto.municipalRegistration),
+            legalRepresentative: this.nullable(dto.legalRepresentative),
+            creci: this.nullable(dto.creci),
+            phone: this.nullable(dto.phone),
+            whatsapp: this.nullable(dto.whatsapp),
+            publicEmail: this.nullable(dto.publicEmail),
+            website: this.nullable(dto.website),
+            contactName: this.nullable(dto.contactName),
+            contactEmail: this.nullable(dto.contactEmail),
+            contactPhone: this.nullable(dto.contactPhone),
+            addressZipCode: this.nullable(dto.addressZipCode),
+            addressStreet: this.nullable(dto.addressStreet),
+            addressNumber: this.nullable(dto.addressNumber),
+            addressComplement: this.nullable(dto.addressComplement),
+            addressDistrict: this.nullable(dto.addressDistrict),
+            addressCity: this.nullable(dto.addressCity),
+            addressState: this.nullable(dto.addressState),
+            addressCountry: this.nullable(dto.addressCountry)
+          }
+        });
 
-      await tx.user.create({
-        data: {
-          tenantId: tenant.id,
-          email: dto.email.toLowerCase(),
-          passwordHash,
-          name: dto.name,
-          role: UserRole.LOTEADORA
-        }
-      });
+        await tx.user.create({
+          data: {
+            tenantId: tenant.id,
+            email: dto.email.toLowerCase(),
+            passwordHash,
+            name: dto.name,
+            role: UserRole.LOTEADORA
+          }
+        });
 
-      return tenant;
-    }).then(async (tenant) => {
-      // Auto-assign default pricing table (outside transaction, non-blocking)
-      try {
-        await this.billingService.autoAssignDefaultPricingTable(tenant.id);
-      } catch (err) {
-        // Non-blocking — admin can assign manually later
-      }
-      return tenant;
-    });
+        return tenant;
+      })
+      .then(async (tenant) => {
+        // Auto-assign default pricing table (outside transaction, non-blocking)
+        try {
+          await this.billingService.autoAssignDefaultPricingTable(tenant.id);
+        } catch (err) {
+          // Non-blocking — admin can assign manually later
+        }
+        return tenant;
+      });
   }
 
   async findAll() {
@@ -195,7 +197,7 @@ export class TenantsService {
         addressState: true,
         addressCountry: true,
         isActive: true,
-        createdAt: true,
+        createdAt: true
       }
     });
 
@@ -230,7 +232,7 @@ export class TenantsService {
       addressDistrict: this.nullable(dto.addressDistrict),
       addressCity: this.nullable(dto.addressCity),
       addressState: this.nullable(dto.addressState),
-      addressCountry: this.nullable(dto.addressCountry),
+      addressCountry: this.nullable(dto.addressCountry)
     };
 
     // Keep boolean updates intact when omitted from payload
@@ -238,13 +240,17 @@ export class TenantsService {
 
     // If slug is changing, check uniqueness
     if (dto.slug && dto.slug !== tenant.slug) {
-      const existing = await this.prisma.tenant.findUnique({ where: { slug: dto.slug } });
+      const existing = await this.prisma.tenant.findUnique({
+        where: { slug: dto.slug }
+      });
       if (existing) throw new ConflictException('Slug já em uso');
     }
 
     // If customDomain is changing, check uniqueness
     if (data.customDomain && data.customDomain !== tenant.customDomain) {
-      const existing = await this.prisma.tenant.findUnique({ where: { customDomain: data.customDomain } });
+      const existing = await this.prisma.tenant.findUnique({
+        where: { customDomain: data.customDomain }
+      });
       if (existing) throw new ConflictException('Domínio já em uso');
     }
 
@@ -284,7 +290,7 @@ export class TenantsService {
     }
     const projects = await this.prisma.project.findMany({
       where: { tenantId: id },
-      select: { slug: true, customDomain: true },
+      select: { slug: true, customDomain: true }
     });
     for (const p of projects) {
       delKeys.push(this.redis.del(`domain_resolve:subdomain:${p.slug}`));
@@ -352,7 +358,10 @@ export class TenantsService {
         addressCity: true,
         addressState: true,
         addressCountry: true,
-        logos: { orderBy: { sortOrder: 'asc' }, select: { id: true, url: true, label: true, sortOrder: true } },
+        logos: {
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true, url: true, label: true, sortOrder: true }
+        }
       }
     });
     if (!tenant) throw new NotFoundException('Tenant não encontrado');
@@ -384,7 +393,7 @@ export class TenantsService {
         addressDistrict: this.nullable(dto.addressDistrict),
         addressCity: this.nullable(dto.addressCity),
         addressState: this.nullable(dto.addressState),
-        addressCountry: this.nullable(dto.addressCountry),
+        addressCountry: this.nullable(dto.addressCountry)
       },
       select: {
         id: true,
@@ -409,7 +418,7 @@ export class TenantsService {
         addressDistrict: true,
         addressCity: true,
         addressState: true,
-        addressCountry: true,
+        addressCountry: true
       }
     });
   }
@@ -426,13 +435,17 @@ export class TenantsService {
   }
 
   async deleteLogo(tenantId: string, logoId: string) {
-    const logo = await this.prisma.tenantLogo.findFirst({ where: { id: logoId, tenantId } });
+    const logo = await this.prisma.tenantLogo.findFirst({
+      where: { id: logoId, tenantId }
+    });
     if (!logo) throw new NotFoundException('Logo não encontrado');
     // Delete from S3
     try {
       const key = logo.url.split('.amazonaws.com/').pop();
       if (key) await this.s3.delete(key);
-    } catch { /* ignore S3 cleanup errors */ }
+    } catch {
+      /* ignore S3 cleanup errors */
+    }
     await this.prisma.tenantLogo.delete({ where: { id: logoId } });
     return { ok: true };
   }

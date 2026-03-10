@@ -2,7 +2,7 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  ForbiddenException,
+  ForbiddenException
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
@@ -16,22 +16,22 @@ export class TermsGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Skip if endpoint is marked public
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
-      context.getClass(),
+      context.getClass()
     ]);
     if (isPublic) return true;
 
     // Skip if endpoint explicitly opts out of terms check
-    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_TERMS_CHECK_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const skip = this.reflector.getAllAndOverride<boolean>(
+      SKIP_TERMS_CHECK_KEY,
+      [context.getHandler(), context.getClass()]
+    );
     if (skip) return true;
 
     const request = context.switchToHttp().getRequest();
@@ -57,15 +57,16 @@ export class TermsGuard implements CanActivate {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { termsAcceptedAt: true },
+      select: { termsAcceptedAt: true }
     });
 
     if (!user?.termsAcceptedAt) {
       throw new ForbiddenException({
         statusCode: 403,
         error: 'Forbidden',
-        message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
-        code: 'TERMS_NOT_ACCEPTED',
+        message:
+          'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
+        code: 'TERMS_NOT_ACCEPTED'
       });
     }
 

@@ -32,7 +32,10 @@ export class ProjectsController {
 
   @Get('check-slug/:slug')
   @ApiOperation({ summary: 'Verificar disponibilidade de slug de projeto' })
-  checkSlug(@Param('slug') slug: string, @Query('excludeId') excludeId?: string) {
+  checkSlug(
+    @Param('slug') slug: string,
+    @Query('excludeId') excludeId?: string
+  ) {
     return this.projectsService.checkSlugAvailability(slug, excludeId);
   }
 

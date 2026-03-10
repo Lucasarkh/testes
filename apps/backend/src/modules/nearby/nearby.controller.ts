@@ -6,7 +6,7 @@ import {
   Param,
   Body,
   UseGuards,
-  Logger,
+  Logger
 } from '@nestjs/common';
 import { NearbyService } from './nearby.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -30,9 +30,11 @@ export class NearbyController {
   @ApiOperation({ summary: 'Gerar/regerar proximidades do projeto' })
   async generate(
     @TenantId() tenantId: string,
-    @Param('projectId') projectId: string,
+    @Param('projectId') projectId: string
   ) {
-    this.logger.log(`Manual nearby generation triggered for project ${projectId}`);
+    this.logger.log(
+      `Manual nearby generation triggered for project ${projectId}`
+    );
     // Fire async — don't block the request
     this.nearbyService.generateNearby(projectId).catch((err) => {
       this.logger.error(`Async generation failed: ${err.message}`);
@@ -52,7 +54,7 @@ export class NearbyController {
   @ApiOperation({ summary: 'Ativar/desativar seção de proximidades' })
   toggle(
     @Param('projectId') projectId: string,
-    @Body() body: { enabled: boolean },
+    @Body() body: { enabled: boolean }
   ) {
     return this.nearbyService.toggleNearby(projectId, body.enabled);
   }
@@ -62,7 +64,7 @@ export class NearbyController {
   @ApiOperation({ summary: 'Mostrar/ocultar um local específico' })
   toggleItemVisibility(
     @Param('itemId') itemId: string,
-    @Body() body: { visible: boolean },
+    @Body() body: { visible: boolean }
   ) {
     return this.nearbyService.toggleItemVisibility(itemId, body.visible);
   }

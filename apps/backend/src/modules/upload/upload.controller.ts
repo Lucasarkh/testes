@@ -41,9 +41,14 @@ export class UploadController {
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
     @UploadedFile() file: Express.Multer.File,
-    @Query('device') device?: string,
+    @Query('device') device?: string
   ) {
-    return this.uploadService.uploadBannerImage(tenantId, projectId, file, device);
+    return this.uploadService.uploadBannerImage(
+      tenantId,
+      projectId,
+      file,
+      device
+    );
   }
 
   @Delete('banner-image')
@@ -51,7 +56,7 @@ export class UploadController {
   removeBannerImage(
     @TenantId() tenantId: string,
     @Param('projectId') projectId: string,
-    @Query('device') device?: string,
+    @Query('device') device?: string
   ) {
     return this.uploadService.removeBannerImage(tenantId, projectId, device);
   }
@@ -86,7 +91,12 @@ export class UploadController {
     @UploadedFile() file: Express.Multer.File,
     @Query('label') label?: string
   ) {
-    return this.uploadService.uploadFooterLogo(tenantId, projectId, file, label);
+    return this.uploadService.uploadFooterLogo(
+      tenantId,
+      projectId,
+      file,
+      label
+    );
   }
 
   @Delete('footer-logos/:logoId')

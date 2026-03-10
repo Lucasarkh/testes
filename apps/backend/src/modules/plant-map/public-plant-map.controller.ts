@@ -16,16 +16,24 @@ export class PublicPlantMapController {
 
   @Get()
   @ApiOperation({ summary: 'Planta interativa pública do projeto' })
-  findPublic(@Param('projectId') projectId: string, @Query('preview') preview?: string) {
+  findPublic(
+    @Param('projectId') projectId: string,
+    @Query('preview') preview?: string
+  ) {
     // tenantId not needed for public lookup — uses projectId unique constraint
-    return this.plantMapService.findByProjectPublic(projectId, preview === 'true');
+    return this.plantMapService.findByProjectPublic(
+      projectId,
+      preview === 'true'
+    );
   }
 
   @Get('hotspots/:hotspotId')
-  @ApiOperation({ summary: 'Detalhe de um hotspot (lazy — carrega description e metaJson)' })
+  @ApiOperation({
+    summary: 'Detalhe de um hotspot (lazy — carrega description e metaJson)'
+  })
   findHotspot(
     @Param('projectId') projectId: string,
-    @Param('hotspotId') hotspotId: string,
+    @Param('hotspotId') hotspotId: string
   ) {
     return this.plantMapService.findHotspotPublic(projectId, hotspotId);
   }

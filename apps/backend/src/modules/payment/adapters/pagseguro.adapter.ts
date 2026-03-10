@@ -5,7 +5,7 @@ import {
   IPaymentGateway,
   PaymentGatewayResponse,
   PaymentWebhookResult,
-  WebhookPaymentStatus,
+  WebhookPaymentStatus
 } from '../interfaces/payment-gateway.interface';
 
 @Injectable()
@@ -16,15 +16,15 @@ export class PagSeguroAdapter implements IPaymentGateway {
   private getHeaders(token: string) {
     return {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     };
   }
 
   async createSession(
     keys: { token: string; isSandbox?: boolean },
-    data: CreatePaymentDto,
+    data: CreatePaymentDto
   ): Promise<PaymentGatewayResponse> {
-    const url = keys.isSandbox 
+    const url = keys.isSandbox
       ? `https://sandbox.api.pagseguro.com/checkouts`
       : `${this.baseUrl}/checkouts`;
 
@@ -34,15 +34,15 @@ export class PagSeguroAdapter implements IPaymentGateway {
         reference_id: data.orderId,
         customer: {
           name: data.customerName,
-          email: data.customerEmail,
+          email: data.customerEmail
         },
         items: [
           {
             reference_id: data.orderId,
             name: data.description,
             quantity: 1,
-            unit_amount: Math.round(data.amount * 100), // in cents
-          },
+            unit_amount: Math.round(data.amount * 100) // in cents
+          }
         ],
         redirect_url: data.successUrl,
         notification_urls: data.webhookUrl ? [data.webhookUrl] : [],
@@ -50,34 +50,36 @@ export class PagSeguroAdapter implements IPaymentGateway {
           { type: 'CREDIT_CARD' },
           { type: 'BOLETO' },
           { type: 'PIX' }
-        ],
+        ]
       },
       { headers: this.getHeaders(keys.token) }
     );
 
     // PagSeguro returns links for redirect
-    const checkoutLink = response.data.links.find((l: any) => l.rel === 'PAY')?.href;
+    const checkoutLink = response.data.links.find(
+      (l: any) => l.rel === 'PAY'
+    )?.href;
 
     return {
       externalId: response.data.id,
-      paymentUrl: checkoutLink || '',
+      paymentUrl: checkoutLink || ''
     };
   }
 
   async handleWebhook(
     keys: { token: string },
-    payload: any,
+    payload: any
   ): Promise<PaymentWebhookResult> {
     // PagSeguro sends status change notifications
     const statusMapping: Record<string, WebhookPaymentStatus> = {
       PAID: WebhookPaymentStatus.PAID,
-      COMPLETE: WebhookPaymentStatus.PAID,       // fully delivered payment
+      COMPLETE: WebhookPaymentStatus.PAID, // fully delivered payment
       AUTHORIZED: WebhookPaymentStatus.PENDING,
       IN_ANALYSIS: WebhookPaymentStatus.PENDING,
       WAITING: WebhookPaymentStatus.PENDING,
       DECLINED: WebhookPaymentStatus.FAILED,
       CANCELED: WebhookPaymentStatus.FAILED,
-      REFUNDED: WebhookPaymentStatus.REFUNDED,
+      REFUNDED: WebhookPaymentStatus.REFUNDED
     };
 
     const rawStatus = payload.charges?.[0]?.status || payload.status;
@@ -88,7 +90,7 @@ export class PagSeguroAdapter implements IPaymentGateway {
     return {
       externalId,
       status,
-      rawPayload: payload,
+      rawPayload: payload
     };
   }
 }

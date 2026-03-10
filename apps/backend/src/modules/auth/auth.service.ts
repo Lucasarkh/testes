@@ -112,7 +112,10 @@ export class AuthService {
         dto.tenantName
       );
     } catch (error: any) {
-      this.logger.error(`Failed to queue welcome email for ${dto.email}:`, error.message);
+      this.logger.error(
+        `Failed to queue welcome email for ${dto.email}:`,
+        error.message
+      );
     }
 
     return result;
@@ -144,7 +147,10 @@ export class AuthService {
           code
         );
       } catch (error: any) {
-        this.logger.error(`Failed to queue 2FA email for ${fullUser.email}:`, error.message);
+        this.logger.error(
+          `Failed to queue 2FA email for ${fullUser.email}:`,
+          error.message
+        );
       }
 
       return {
@@ -161,9 +167,15 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
-        id: true, email: true, name: true, role: true,
-        tenantId: true, agencyId: true, termsAcceptedAt: true,
-        twoFactorCode: true, twoFactorCodeExpiry: true
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        tenantId: true,
+        agencyId: true,
+        termsAcceptedAt: true,
+        twoFactorCode: true,
+        twoFactorCodeExpiry: true
       }
     });
 
@@ -315,11 +327,17 @@ export class AuthService {
           token
         );
       } catch (error: any) {
-        this.logger.error(`Failed to queue password reset email for ${user.email}:`, error.message);
+        this.logger.error(
+          `Failed to queue password reset email for ${user.email}:`,
+          error.message
+        );
       }
     }
 
-    return { message: 'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.' };
+    return {
+      message:
+        'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.'
+    };
   }
 
   async resetPassword(token: string, newPass: string) {
@@ -385,8 +403,8 @@ export class AuthService {
           documentVersion: currentTermsVersion,
           ipAddress,
           userAgent: userAgent || 'unknown',
-          acceptedAt: now,
-        },
+          acceptedAt: now
+        }
       }),
       // Record privacy policy acceptance
       this.prisma.termsAcceptance.create({
@@ -396,43 +414,45 @@ export class AuthService {
           documentVersion: currentTermsVersion,
           ipAddress,
           userAgent: userAgent || 'unknown',
-          acceptedAt: now,
-        },
+          acceptedAt: now
+        }
       }),
       // Mark user as having accepted terms
       this.prisma.user.update({
         where: { id: userId },
-        data: { termsAcceptedAt: now },
-      }),
+        data: { termsAcceptedAt: now }
+      })
     ]);
 
-    this.logger.log(`User ${userId} accepted terms v${currentTermsVersion} from IP ${ipAddress}`);
+    this.logger.log(
+      `User ${userId} accepted terms v${currentTermsVersion} from IP ${ipAddress}`
+    );
 
     return {
       accepted: true,
       termsAcceptedAt: now.toISOString(),
-      version: currentTermsVersion,
+      version: currentTermsVersion
     };
   }
 
   async getTermsStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { termsAcceptedAt: true },
+      select: { termsAcceptedAt: true }
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
     const latestAcceptances = await this.prisma.termsAcceptance.findMany({
       where: { userId },
       orderBy: { acceptedAt: 'desc' },
-      take: 2,
+      take: 2
     });
 
     return {
       hasAccepted: !!user.termsAcceptedAt,
       termsAcceptedAt: user.termsAcceptedAt,
       currentVersion: '1.0',
-      acceptances: latestAcceptances,
+      acceptances: latestAcceptances
     };
   }
 

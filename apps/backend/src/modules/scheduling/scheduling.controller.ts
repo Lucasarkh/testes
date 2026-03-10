@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { TenantGuard } from '@common/guards/tenant.guard';
@@ -26,7 +36,10 @@ export class SchedulingController {
 
   @Patch('config/:projectId')
   @Roles('LOTEADORA', 'SYSADMIN')
-  updateConfig(@Param('projectId') projectId: string, @Body() dto: UpdateSchedulingConfigDto) {
+  updateConfig(
+    @Param('projectId') projectId: string,
+    @Body() dto: UpdateSchedulingConfigDto
+  ) {
     return this.service.updateProjectConfig(projectId, dto);
   }
 
@@ -43,7 +56,7 @@ export class SchedulingController {
   @Get()
   @Roles('LOTEADORA', 'CORRETOR', 'IMOBILIARIA', 'SYSADMIN')
   findAll(
-    @TenantId() tenantId: string, 
+    @TenantId() tenantId: string,
     @CurrentUser() user: any,
     @Query('projectId') projectId?: string
   ) {
@@ -52,7 +65,10 @@ export class SchedulingController {
 
   @Patch(':id/status')
   @Roles('LOTEADORA', 'CORRETOR', 'IMOBILIARIA', 'SYSADMIN')
-  updateStatus(@Param('id') id: string, @Body('status') status: SchedulingStatus) {
+  updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: SchedulingStatus
+  ) {
     return this.service.updateSchedulingStatus(id, status);
   }
 

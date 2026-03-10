@@ -118,7 +118,9 @@ export class PlantMapItemController {
   @Post('hotspots/bulk')
   @SkipThrottle()
   @Roles('LOTEADORA', 'SYSADMIN')
-  @ApiOperation({ summary: 'Criar múltiplos hotspots em lote (transação única)' })
+  @ApiOperation({
+    summary: 'Criar múltiplos hotspots em lote (transação única)'
+  })
   createHotspotsBulk(
     @TenantId() tenantId: string,
     @Param('plantMapId') plantMapId: string,

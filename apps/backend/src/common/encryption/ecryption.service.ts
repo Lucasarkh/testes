@@ -4,7 +4,7 @@ import {
   createCipheriv,
   createDecipheriv,
   randomBytes,
-  scryptSync,
+  scryptSync
 } from 'crypto';
 
 /**
@@ -27,7 +27,7 @@ export class EncryptionService {
   private readonly logger = new Logger(EncryptionService.name);
 
   private static readonly ALGORITHM = 'aes-256-gcm';
-  private static readonly IV_LENGTH = 12;       // 96-bit IV recommended for GCM
+  private static readonly IV_LENGTH = 12; // 96-bit IV recommended for GCM
   private static readonly AUTH_TAG_LENGTH = 16;
   private static readonly SEPARATOR = ':';
 
@@ -40,7 +40,7 @@ export class EncryptionService {
     if (!rawSecret || rawSecret.length < 32) {
       throw new Error(
         '[EncryptionService] ENCRYPTION_KEY must be set and at least 32 characters long. ' +
-          "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+          "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
       );
     }
 
@@ -60,18 +60,18 @@ export class EncryptionService {
 
     const iv = randomBytes(EncryptionService.IV_LENGTH);
     const cipher = createCipheriv(EncryptionService.ALGORITHM, this.key, iv, {
-      authTagLength: EncryptionService.AUTH_TAG_LENGTH,
+      authTagLength: EncryptionService.AUTH_TAG_LENGTH
     });
 
     const encrypted = Buffer.concat([
       cipher.update(plaintext, 'utf8'),
-      cipher.final(),
+      cipher.final()
     ]);
 
     return [
       iv.toString('hex'),
       cipher.getAuthTag().toString('hex'),
-      encrypted.toString('hex'),
+      encrypted.toString('hex')
     ].join(EncryptionService.SEPARATOR);
   }
 
@@ -90,7 +90,7 @@ export class EncryptionService {
     if (parts.length !== 3) {
       this.logger.warn(
         'decrypt() received a value that is not in encrypted format — returning as-is. ' +
-          'Re-save this record to encrypt it.',
+          'Re-save this record to encrypt it.'
       );
       return encryptedValue;
     }
@@ -105,18 +105,18 @@ export class EncryptionService {
         EncryptionService.ALGORITHM,
         this.key,
         iv,
-        { authTagLength: EncryptionService.AUTH_TAG_LENGTH },
+        { authTagLength: EncryptionService.AUTH_TAG_LENGTH }
       );
       decipher.setAuthTag(authTag);
 
       return Buffer.concat([
         decipher.update(ciphertext),
-        decipher.final(),
+        decipher.final()
       ]).toString('utf8');
     } catch (err) {
       this.logger.error(
         'Failed to decrypt value — key mismatch or data corruption.',
-        (err as Error)?.message,
+        (err as Error)?.message
       );
       return null;
     }
@@ -135,7 +135,7 @@ export class EncryptionService {
    * Returns null if the input is null or cannot be parsed.
    */
   decryptJson<T = Record<string, any>>(
-    encryptedValue: string | null | undefined,
+    encryptedValue: string | null | undefined
   ): T | null {
     const decrypted = this.decrypt(encryptedValue);
     if (!decrypted) return null;
@@ -143,7 +143,9 @@ export class EncryptionService {
     try {
       return JSON.parse(decrypted) as T;
     } catch {
-      this.logger.error('decryptJson() could not parse the decrypted value as JSON.');
+      this.logger.error(
+        'decryptJson() could not parse the decrypted value as JSON.'
+      );
       return null;
     }
   }

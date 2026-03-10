@@ -10,7 +10,7 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
   HttpCode,
-  HttpStatus,
+  HttpStatus
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -31,7 +31,7 @@ export class NotificationsController {
   findAll(
     @CurrentUser() user: any,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number
   ) {
     return this.notificationsService.findAll(user.id, page, limit);
   }

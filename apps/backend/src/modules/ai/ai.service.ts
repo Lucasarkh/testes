@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger
+} from '@nestjs/common';
 import { PrismaService } from '../../infra/db/prisma.service';
 import { EncryptionService } from '@common/encryption/ecryption.service';
 import { ChatDto } from './dto/chat.dto';
@@ -17,7 +22,7 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly encryption: EncryptionService,
+    private readonly encryption: EncryptionService
   ) {}
 
   async chat(dto: ChatDto, tenantId: string) {
@@ -25,16 +30,24 @@ export class AiService {
       throw new BadRequestException('Project ID is required for chat');
     }
 
-     if (dto.message && dto.message.length > this.maxUserMessageLength) {
-       throw new BadRequestException('Mensagem muito longa. Por favor, seja mais breve.');
+    if (dto.message && dto.message.length > this.maxUserMessageLength) {
+      throw new BadRequestException(
+        'Mensagem muito longa. Por favor, seja mais breve.'
+      );
     }
 
-     return this.processChat(dto.projectId, tenantId, this.normalizeUserMessage(dto.message));
+    return this.processChat(
+      dto.projectId,
+      tenantId,
+      this.normalizeUserMessage(dto.message)
+    );
   }
 
   async chatPublic(projectSlug: string, dto: ChatDto) {
     if (dto.message && dto.message.length > this.maxUserMessageLength) {
-      throw new BadRequestException('Sua mensagem está muito longa. Tente resumir seu pedido.');
+      throw new BadRequestException(
+        'Sua mensagem está muito longa. Tente resumir seu pedido.'
+      );
     }
 
     const project = await (this.prisma as any).project.findUnique({
@@ -47,10 +60,18 @@ export class AiService {
       throw new NotFoundException('Project not found');
     }
 
-    return this.processChat(project.id, project.tenantId, this.normalizeUserMessage(dto.message));
+    return this.processChat(
+      project.id,
+      project.tenantId,
+      this.normalizeUserMessage(dto.message)
+    );
   }
 
-  private async processChat(projectId: string, tenantId: string, message: string) {
+  private async processChat(
+    projectId: string,
+    tenantId: string,
+    message: string
+  ) {
     const hints = this.extractSearchHints(message);
 
     if (hints.isFinancialIntent) {
@@ -59,12 +80,12 @@ export class AiService {
           'Eu nao consigo realizar simulacoes financeiras ou informar condicoes detalhadas de parcelamento. No entanto, voce encontrara um SIMULADOR completo na pagina de cada lote para fazer sua simulacao personalizada.'
       };
     }
-    
+
     const project = await (this.prisma as any).project.findFirst({
       where: { id: projectId, tenantId },
       include: {
-        aiConfig: true,
-      },
+        aiConfig: true
+      }
     });
 
     if (!project) {
@@ -80,13 +101,17 @@ export class AiService {
       const fallbackConfig = await this.findTenantAutoAiConfig(tenantId);
       if (fallbackConfig) {
         aiConfig = fallbackConfig;
-        this.logger.log(`AI auto-detected for project: ${project.name} using config: ${aiConfig.name}`);
+        this.logger.log(
+          `AI auto-detected for project: ${project.name} using config: ${aiConfig.name}`
+        );
       }
     }
 
     if (!aiConfig) {
       this.logger.warn(`No AI Config available for project: ${project.name}`);
-      throw new BadRequestException('AI configuration is missing for this project. Please configure a prompt in AI settings.');
+      throw new BadRequestException(
+        'AI configuration is missing for this project. Please configure a prompt in AI settings.'
+      );
     }
 
     if (!aiConfig.apiKey) {
@@ -97,11 +122,19 @@ export class AiService {
     // Decrypt the apiKey for in-memory use — never returned to the client.
     const decryptedApiKey = this.encryption.decrypt(aiConfig.apiKey);
     if (!decryptedApiKey) {
-      this.logger.error(`Failed to decrypt API Key for AI Config: ${aiConfig.name}`);
-      throw new BadRequestException('AI API Key could not be decrypted. Please re-configure it.');
+      this.logger.error(
+        `Failed to decrypt API Key for AI Config: ${aiConfig.name}`
+      );
+      throw new BadRequestException(
+        'AI API Key could not be decrypted. Please re-configure it.'
+      );
     }
 
-    const contextBundle = await this.getProjectContext(project.id, tenantId, hints);
+    const contextBundle = await this.getProjectContext(
+      project.id,
+      tenantId,
+      hints
+    );
 
     const systemPrompt = `
       ESTAS SÃO AS INFORMAÇÕES DO PROJETO:
@@ -164,7 +197,13 @@ export class AiService {
 
     try {
       const provider = (aiConfig.provider || 'OPENAI').toUpperCase();
-      const modelName = aiConfig.model || (provider === 'OPENAI' ? 'gpt-4o-mini' : provider === 'ANTHROPIC' ? 'claude-3-5-sonnet-20240620' : 'gemini-1.5-flash');
+      const modelName =
+        aiConfig.model ||
+        (provider === 'OPENAI'
+          ? 'gpt-4o-mini'
+          : provider === 'ANTHROPIC'
+            ? 'claude-3-5-sonnet-20240620'
+            : 'gemini-1.5-flash');
 
       this.logger.log(`Calling ${provider} (Model: ${modelName})`);
 
@@ -174,12 +213,14 @@ export class AiService {
           model: modelName,
           messages: [
             { role: 'system', content: fullSystemPrompt },
-            { role: 'user', content: message },
+            { role: 'user', content: message }
           ],
           temperature: aiConfig.temperature ?? 0.0,
-          max_tokens: aiConfig.maxTokens || 1000,
+          max_tokens: aiConfig.maxTokens || 1000
         });
-        return { message: this.normalizeAiResponse(response.choices[0].message.content) };
+        return {
+          message: this.normalizeAiResponse(response.choices[0].message.content)
+        };
       }
 
       if (provider === 'ANTHROPIC') {
@@ -190,17 +231,19 @@ export class AiService {
             max_tokens: aiConfig.maxTokens || 1000,
             system: fullSystemPrompt,
             messages: [{ role: 'user', content: message }],
-            temperature: aiConfig.temperature ?? 0.0,
+            temperature: aiConfig.temperature ?? 0.0
           },
           {
             headers: {
               'x-api-key': decryptedApiKey,
               'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
-            },
-          },
+              'content-type': 'application/json'
+            }
+          }
         );
-        return { message: this.normalizeAiResponse(anthropicResp.data.content[0].text) };
+        return {
+          message: this.normalizeAiResponse(anthropicResp.data.content[0].text)
+        };
       }
 
       if (provider === 'GOOGLE') {
@@ -210,28 +253,45 @@ export class AiService {
             contents: [
               {
                 role: 'user',
-                parts: [{ text: `${fullSystemPrompt}\n\nUsuário: ${message}` }],
-              },
+                parts: [{ text: `${fullSystemPrompt}\n\nUsuário: ${message}` }]
+              }
             ],
             generationConfig: {
               temperature: aiConfig.temperature ?? 0.0,
-              maxOutputTokens: aiConfig.maxTokens || 1000,
-            },
-          },
+              maxOutputTokens: aiConfig.maxTokens || 1000
+            }
+          }
         );
-        return { message: this.normalizeAiResponse(googleResp.data.candidates[0].content.parts[0].text) };
+        return {
+          message: this.normalizeAiResponse(
+            googleResp.data.candidates[0].content.parts[0].text
+          )
+        };
       }
 
       throw new BadRequestException('Provider não suportado.');
     } catch (error) {
-      this.logger.error('Error while processing AI chat', error?.stack || error?.message);
+      this.logger.error(
+        'Error while processing AI chat',
+        error?.stack || error?.message
+      );
 
       if (this.isQuotaExceededError(error)) {
-        await this.handleAiQuotaExceeded(project.id, tenantId, project.name, aiConfig, error);
-        throw new BadRequestException('A IA foi desativada automaticamente por limite de cota da chave configurada. Nossa equipe da loteadora foi notificada no painel para ajustar a configuracao.');
+        await this.handleAiQuotaExceeded(
+          project.id,
+          tenantId,
+          project.name,
+          aiConfig,
+          error
+        );
+        throw new BadRequestException(
+          'A IA foi desativada automaticamente por limite de cota da chave configurada. Nossa equipe da loteadora foi notificada no painel para ajustar a configuracao.'
+        );
       }
 
-      throw new BadRequestException('Houve um erro ao processar sua solicitacao com a IA. Tente novamente em instantes.');
+      throw new BadRequestException(
+        'Houve um erro ao processar sua solicitacao com a IA. Tente novamente em instantes.'
+      );
     }
   }
 
@@ -264,8 +324,16 @@ export class AiService {
 
     for (const keyword of hints.keywords.slice(0, 8)) {
       targetedOr.push({ tags: { has: keyword } });
-      targetedOr.push({ mapElement: { code: { contains: keyword, mode: 'insensitive' as const } } });
-      targetedOr.push({ mapElement: { name: { contains: keyword, mode: 'insensitive' as const } } });
+      targetedOr.push({
+        mapElement: {
+          code: { contains: keyword, mode: 'insensitive' as const }
+        }
+      });
+      targetedOr.push({
+        mapElement: {
+          name: { contains: keyword, mode: 'insensitive' as const }
+        }
+      });
     }
 
     const [targetedLots, fallbackLots] = await Promise.all([
@@ -307,42 +375,68 @@ export class AiService {
     const statusMap = {
       AVAILABLE: 'Disponível',
       RESERVED: 'Reservado',
-      SOLD: 'Vendido',
+      SOLD: 'Vendido'
     };
 
     const slopeMap = {
       FLAT: 'Plano',
       UPHILL: 'Aclive',
-      DOWNHILL: 'Declive',
+      DOWNHILL: 'Declive'
     };
 
-    const summary = this.buildLotSummary(statusGroups, availableAgg, lots.length);
+    const summary = this.buildLotSummary(
+      statusGroups,
+      availableAgg,
+      lots.length
+    );
 
     return {
       summary,
-      context: lots.map(lot => {
-      const code = lot.mapElement?.code || lot.mapElement?.name || 'S/N';
-      const status = statusMap[lot.status] || lot.status;
-      const area = lot.areaM2 ? `${lot.areaM2}m²` : 'Não informada';
-      const price = lot.price ? `R$ ${Number(lot.price).toLocaleString('pt-BR')}` : 'Sob consulta';
-      const tags = (lot.tags && lot.tags.length) ? `[${lot.tags.join(', ')}]` : '[Nenhuma]';
-      const topography = slopeMap[lot.slope] || 'Plano';
-      
-      return `Lote: ${code} | Status: ${status} | Área: ${area} | Preço: ${price} | Tags: ${tags} | Topografia: ${topography}`;
-      }).join('\n')
+      context: lots
+        .map((lot) => {
+          const code = lot.mapElement?.code || lot.mapElement?.name || 'S/N';
+          const status = statusMap[lot.status] || lot.status;
+          const area = lot.areaM2 ? `${lot.areaM2}m²` : 'Não informada';
+          const price = lot.price
+            ? `R$ ${Number(lot.price).toLocaleString('pt-BR')}`
+            : 'Sob consulta';
+          const tags =
+            lot.tags && lot.tags.length
+              ? `[${lot.tags.join(', ')}]`
+              : '[Nenhuma]';
+          const topography = slopeMap[lot.slope] || 'Plano';
+
+          return `Lote: ${code} | Status: ${status} | Área: ${area} | Preço: ${price} | Tags: ${tags} | Topografia: ${topography}`;
+        })
+        .join('\n')
     };
   }
 
-  private buildLotSummary(statusGroups: any[], availableAgg: any, contextLotsCount: number): string {
-    const counts = statusGroups.reduce((acc: Record<string, number>, row: any) => {
-      acc[row.status] = row._count?._all || 0;
-      return acc;
-    }, {});
+  private buildLotSummary(
+    statusGroups: any[],
+    availableAgg: any,
+    contextLotsCount: number
+  ): string {
+    const counts = statusGroups.reduce(
+      (acc: Record<string, number>, row: any) => {
+        acc[row.status] = row._count?._all || 0;
+        return acc;
+      },
+      {}
+    );
 
-    const minPrice = availableAgg?._min?.price ? `R$ ${Number(availableAgg._min.price).toLocaleString('pt-BR')}` : 'N/A';
-    const maxPrice = availableAgg?._max?.price ? `R$ ${Number(availableAgg._max.price).toLocaleString('pt-BR')}` : 'N/A';
-    const minArea = availableAgg?._min?.areaM2 ? `${Number(availableAgg._min.areaM2).toLocaleString('pt-BR')}m²` : 'N/A';
-    const maxArea = availableAgg?._max?.areaM2 ? `${Number(availableAgg._max.areaM2).toLocaleString('pt-BR')}m²` : 'N/A';
+    const minPrice = availableAgg?._min?.price
+      ? `R$ ${Number(availableAgg._min.price).toLocaleString('pt-BR')}`
+      : 'N/A';
+    const maxPrice = availableAgg?._max?.price
+      ? `R$ ${Number(availableAgg._max.price).toLocaleString('pt-BR')}`
+      : 'N/A';
+    const minArea = availableAgg?._min?.areaM2
+      ? `${Number(availableAgg._min.areaM2).toLocaleString('pt-BR')}m²`
+      : 'N/A';
+    const maxArea = availableAgg?._max?.areaM2
+      ? `${Number(availableAgg._max.areaM2).toLocaleString('pt-BR')}m²`
+      : 'N/A';
 
     return [
       `Disponiveis: ${counts.AVAILABLE || 0}`,
@@ -354,16 +448,53 @@ export class AiService {
     ].join(' | ');
   }
 
-  private extractSearchHints(message: string): { codes: string[]; keywords: string[]; isFinancialIntent: boolean } {
+  private extractSearchHints(message: string): {
+    codes: string[];
+    keywords: string[];
+    isFinancialIntent: boolean;
+  } {
     const normalized = this.normalizeForSearch(message);
-    const codeMatches = (message.match(/\b[A-Za-z]{0,3}\d{1,4}[A-Za-z]?\b/g) || [])
+    const codeMatches = (
+      message.match(/\b[A-Za-z]{0,3}\d{1,4}[A-Za-z]?\b/g) || []
+    )
       .map((code) => code.toUpperCase())
       .slice(0, 8);
 
     const stopwords = new Set([
-      'de', 'do', 'da', 'dos', 'das', 'um', 'uma', 'uns', 'umas', 'para', 'com', 'sem', 'que', 'qual', 'quais',
-      'por', 'em', 'no', 'na', 'nos', 'nas', 'eu', 'me', 'minha', 'meu', 'quero', 'gostaria', 'tem', 'temos',
-      'lote', 'lotes', 'loteamento', 'projeto', 'sobre'
+      'de',
+      'do',
+      'da',
+      'dos',
+      'das',
+      'um',
+      'uma',
+      'uns',
+      'umas',
+      'para',
+      'com',
+      'sem',
+      'que',
+      'qual',
+      'quais',
+      'por',
+      'em',
+      'no',
+      'na',
+      'nos',
+      'nas',
+      'eu',
+      'me',
+      'minha',
+      'meu',
+      'quero',
+      'gostaria',
+      'tem',
+      'temos',
+      'lote',
+      'lotes',
+      'loteamento',
+      'projeto',
+      'sobre'
     ]);
 
     const keywords = normalized
@@ -371,7 +502,10 @@ export class AiService {
       .filter((token) => token.length >= 3 && !stopwords.has(token))
       .slice(0, 12);
 
-    const isFinancialIntent = /(parcela|parcelamento|financiamento|juros|entrada|simulacao|simular|amortizacao|mensal)/.test(normalized);
+    const isFinancialIntent =
+      /(parcela|parcelamento|financiamento|juros|entrada|simulacao|simular|amortizacao|mensal)/.test(
+        normalized
+      );
 
     return {
       codes: Array.from(new Set(codeMatches)),
@@ -427,10 +561,10 @@ export class AiService {
     const status = error?.status || error?.response?.status;
     const text = String(
       error?.message ||
-      error?.error?.message ||
-      error?.response?.data?.error?.message ||
-      error?.response?.data?.message ||
-      ''
+        error?.error?.message ||
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        ''
     ).toLowerCase();
 
     const hasQuotaSignal =
@@ -449,18 +583,18 @@ export class AiService {
     tenantId: string,
     projectName: string,
     aiConfig: any,
-    error: any,
+    error: any
   ) {
     try {
       const [disabledConfig, disabledProjects] = await Promise.all([
         (this.prisma as any).aiConfig.updateMany({
           where: { id: aiConfig.id, tenantId, isActive: true },
-          data: { isActive: false },
+          data: { isActive: false }
         }),
         (this.prisma as any).project.updateMany({
           where: { tenantId, aiConfigId: aiConfig.id, aiEnabled: true },
-          data: { aiEnabled: false },
-        }),
+          data: { aiEnabled: false }
+        })
       ]);
 
       // Avoid spamming panel notifications when the config is already disabled.
@@ -468,7 +602,9 @@ export class AiService {
 
       const provider = String(aiConfig.provider || 'openai').toUpperCase();
       const details = String(
-        error?.message || error?.response?.data?.error?.message || 'Quota exceeded'
+        error?.message ||
+          error?.response?.data?.error?.message ||
+          'Quota exceeded'
       ).slice(0, 300);
 
       await this.notifications.notifyTenantLoteadoras(
@@ -483,11 +619,14 @@ export class AiService {
           projectName,
           aiConfigId: aiConfig.id,
           aiConfigName: aiConfig.name,
-          provider,
-        },
+          provider
+        }
       );
     } catch (handlerError) {
-      this.logger.error('Failed to auto-disable AI after quota error', handlerError?.stack || handlerError?.message);
+      this.logger.error(
+        'Failed to auto-disable AI after quota error',
+        handlerError?.stack || handlerError?.message
+      );
     }
   }
 
@@ -509,9 +648,11 @@ export class AiService {
       data: {
         ...dto,
         // Encrypt the apiKey before persisting — only the encrypted blob is stored.
-        apiKey: dto.apiKey?.trim() ? this.encryption.encrypt(dto.apiKey.trim()) : null,
+        apiKey: dto.apiKey?.trim()
+          ? this.encryption.encrypt(dto.apiKey.trim())
+          : null,
         provider: dto.provider?.toLowerCase(),
-        tenantId,
+        tenantId
       }
     });
   }
@@ -519,7 +660,7 @@ export class AiService {
   async updateConfig(id: string, tenantId: string, dto: UpdateAiConfigDto) {
     const updateData: any = {
       ...dto,
-      provider: dto.provider?.toLowerCase(),
+      provider: dto.provider?.toLowerCase()
     };
 
     if (dto.apiKey !== undefined) {

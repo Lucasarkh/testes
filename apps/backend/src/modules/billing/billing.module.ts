@@ -4,7 +4,7 @@ import { BillingScheduler } from './billing.scheduler';
 import {
   BillingAdminController,
   BillingController,
-  BillingWebhookController,
+  BillingWebhookController
 } from './billing.controller';
 import { BillingGuard, FeatureGuard } from './guards/feature.guard';
 import { DbModule } from '@infra/db/db.module';
@@ -15,9 +15,9 @@ import { DbModule } from '@infra/db/db.module';
   controllers: [
     BillingAdminController,
     BillingController,
-    BillingWebhookController,
+    BillingWebhookController
   ],
   providers: [BillingService, BillingScheduler, BillingGuard],
-  exports: [BillingService, BillingGuard, FeatureGuard],
+  exports: [BillingService, BillingGuard, FeatureGuard]
 })
 export class BillingModule {}

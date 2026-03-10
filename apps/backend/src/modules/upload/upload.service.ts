@@ -26,7 +26,7 @@ export class UploadService {
     tenantId: string,
     projectId: string,
     file: Express.Multer.File,
-    deviceRaw?: string,
+    deviceRaw?: string
   ) {
     this.validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
     const device = this.normalizeBannerDevice(deviceRaw);
@@ -38,7 +38,10 @@ export class UploadService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     // Delete old image from S3 if it exists
-    const previousUrl = (project as any)[bannerField] as string | null | undefined;
+    const previousUrl = (project as any)[bannerField] as
+      | string
+      | null
+      | undefined;
     if (previousUrl) {
       const oldKey = this.s3.keyFromUrl(previousUrl);
       if (oldKey) await this.s3.delete(oldKey).catch(() => {});
@@ -54,7 +57,11 @@ export class UploadService {
     return this.updateProjectBannerField(projectId, bannerField, url);
   }
 
-  async removeBannerImage(tenantId: string, projectId: string, deviceRaw?: string) {
+  async removeBannerImage(
+    tenantId: string,
+    projectId: string,
+    deviceRaw?: string
+  ) {
     const device = this.normalizeBannerDevice(deviceRaw);
     const bannerField = this.bannerFieldByDevice(device);
 
@@ -62,7 +69,10 @@ export class UploadService {
       where: { id: projectId, tenantId }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
-    const previousUrl = (project as any)[bannerField] as string | null | undefined;
+    const previousUrl = (project as any)[bannerField] as
+      | string
+      | null
+      | undefined;
     if (!previousUrl) return project;
 
     const oldKey = this.s3.keyFromUrl(previousUrl);
@@ -79,7 +89,7 @@ export class UploadService {
     return this.prisma.projectLogo.findMany({
       where: { tenantId, projectId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-      select: { id: true, url: true, label: true, sortOrder: true },
+      select: { id: true, url: true, label: true, sortOrder: true }
     });
   }
 
@@ -87,7 +97,7 @@ export class UploadService {
     tenantId: string,
     projectId: string,
     file: Express.Multer.File,
-    label?: string,
+    label?: string
   ) {
     this.validateFile(file, ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE);
     await this.ensureProjectExists(tenantId, projectId);
@@ -95,11 +105,13 @@ export class UploadService {
     const key = this.s3.buildKey(
       tenantId,
       `projects/${projectId}/footer-logos`,
-      file.originalname,
+      file.originalname
     );
     const url = await this.s3.upload(file.buffer, key, file.mimetype);
 
-    const count = await this.prisma.projectLogo.count({ where: { tenantId, projectId } });
+    const count = await this.prisma.projectLogo.count({
+      where: { tenantId, projectId }
+    });
 
     return this.prisma.projectLogo.create({
       data: {
@@ -107,15 +119,15 @@ export class UploadService {
         projectId,
         url,
         label: label?.trim() || null,
-        sortOrder: count,
+        sortOrder: count
       },
-      select: { id: true, url: true, label: true, sortOrder: true },
+      select: { id: true, url: true, label: true, sortOrder: true }
     });
   }
 
   async removeFooterLogo(tenantId: string, projectId: string, logoId: string) {
     const logo = await this.prisma.projectLogo.findFirst({
-      where: { id: logoId, tenantId, projectId },
+      where: { id: logoId, tenantId, projectId }
     });
     if (!logo) throw new NotFoundException('Logo não encontrado.');
 
@@ -198,7 +210,14 @@ export class UploadService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     // Restrict folders to known areas
-    const allowedFolders = ['banner', 'media', 'plant-map', 'panorama', 'lots', 'footer-logos'];
+    const allowedFolders = [
+      'banner',
+      'media',
+      'plant-map',
+      'panorama',
+      'lots',
+      'footer-logos'
+    ];
     const baseFolder = folder.split('/')[0];
     if (!allowedFolders.includes(baseFolder)) {
       throw new BadRequestException('Pasta de destino não permitida.');
@@ -233,13 +252,21 @@ export class UploadService {
 
   private normalizeBannerDevice(deviceRaw?: string): BannerDevice {
     const normalized = (deviceRaw || 'desktop').toLowerCase();
-    if (normalized === 'desktop' || normalized === 'tablet' || normalized === 'mobile') {
+    if (
+      normalized === 'desktop' ||
+      normalized === 'tablet' ||
+      normalized === 'mobile'
+    ) {
       return normalized;
     }
-    throw new BadRequestException('Dispositivo inválido. Use desktop, tablet ou mobile.');
+    throw new BadRequestException(
+      'Dispositivo inválido. Use desktop, tablet ou mobile.'
+    );
   }
 
-  private bannerFieldByDevice(device: BannerDevice): 'bannerImageUrl' | 'bannerImageTabletUrl' | 'bannerImageMobileUrl' {
+  private bannerFieldByDevice(
+    device: BannerDevice
+  ): 'bannerImageUrl' | 'bannerImageTabletUrl' | 'bannerImageMobileUrl' {
     if (device === 'tablet') return 'bannerImageTabletUrl';
     if (device === 'mobile') return 'bannerImageMobileUrl';
     return 'bannerImageUrl';
@@ -248,26 +275,28 @@ export class UploadService {
   private async updateProjectBannerField(
     projectId: string,
     field: 'bannerImageUrl' | 'bannerImageTabletUrl' | 'bannerImageMobileUrl',
-    value: string | null,
+    value: string | null
   ) {
     if (field === 'bannerImageUrl') {
       return this.prisma.project.update({
         where: { id: projectId },
-        data: { bannerImageUrl: value },
+        data: { bannerImageUrl: value }
       });
     }
 
     if (field === 'bannerImageTabletUrl') {
       await this.prisma.$executeRaw(
-        Prisma.sql`UPDATE "Project" SET "bannerImageTabletUrl" = ${value}, "updatedAt" = NOW() WHERE "id" = ${projectId}`,
+        Prisma.sql`UPDATE "Project" SET "bannerImageTabletUrl" = ${value}, "updatedAt" = NOW() WHERE "id" = ${projectId}`
       );
     } else {
       await this.prisma.$executeRaw(
-        Prisma.sql`UPDATE "Project" SET "bannerImageMobileUrl" = ${value}, "updatedAt" = NOW() WHERE "id" = ${projectId}`,
+        Prisma.sql`UPDATE "Project" SET "bannerImageMobileUrl" = ${value}, "updatedAt" = NOW() WHERE "id" = ${projectId}`
       );
     }
 
-    const refreshed = await this.prisma.project.findUnique({ where: { id: projectId } });
+    const refreshed = await this.prisma.project.findUnique({
+      where: { id: projectId }
+    });
     if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
     return refreshed;
   }
