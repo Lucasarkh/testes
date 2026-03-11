@@ -4,11 +4,14 @@
     <Transition name="hs-pop">
       <div
         v-if="hotspot"
+        ref="popoverEl"
         class="hs-popover"
         :style="popoverStyle"
         role="dialog"
         :aria-label="`Info: ${hotspot.title}`"
         @click.stop
+        @mouseenter="emit('pointer-enter')"
+        @mouseleave="emit('pointer-leave')"
       >
         <!-- Arrow -->
         <div class="hs-popover__arrow" :style="arrowStyle"></div>
@@ -84,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useTenantStore } from '~/stores/tenant'
 import type { PlantHotspot } from '~/composables/plantMap/types'
@@ -109,6 +112,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'pointer-enter'): void
+  (e: 'pointer-leave'): void
 }>()
 
 const router = useRouter()
@@ -214,33 +219,48 @@ const handleCta = () => {
 
 // ── POSITIONING LOGIC ──────────────────────────────────────
 const POPOVER_W = 260
-const POPOVER_OFFSET = 12
+const VIEWPORT_MARGIN = 10
+const ANCHOR_GAP = 4
+const FALLBACK_POPOVER_HEIGHT = 220
+
+const popoverEl = ref<HTMLElement | null>(null)
+const popoverHeight = ref(FALLBACK_POPOVER_HEIGHT)
+
+watch(
+  () => props.hotspot,
+  async () => {
+    if (!import.meta.client || !props.hotspot) return
+    await nextTick()
+    if (popoverEl.value?.offsetHeight) {
+      popoverHeight.value = popoverEl.value.offsetHeight
+    }
+  },
+  { immediate: true },
+)
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
 const popoverStyle = computed(() => {
   if (!import.meta.client || !props.hotspot) return { display: 'none' }
   const vw = window.innerWidth
   const vh = window.innerHeight
+  const popH = popoverEl.value?.offsetHeight || popoverHeight.value || FALLBACK_POPOVER_HEIGHT
 
   let left = props.anchorX - POPOVER_W / 2
-  let top = props.anchorY - 140 
+  let top = props.anchorY - popH - ANCHOR_GAP
 
-  // Horizontal clamping
-  if (left < 8) left = 8
-  if (left + POPOVER_W > vw - 8) left = vw - POPOVER_W - 8
+  left = clamp(left, VIEWPORT_MARGIN, vw - POPOVER_W - VIEWPORT_MARGIN)
 
-  // Decide if showing above or below
-  const spaceAbove = props.anchorY - 20
-  if (spaceAbove < 240) {
-    // Show below if not enough space above
-    top = props.anchorY + POPOVER_OFFSET + 20
+  const maxTop = vh - popH - VIEWPORT_MARGIN
+  const minTop = VIEWPORT_MARGIN
+  const canShowAbove = top >= minTop
+
+  if (!canShowAbove) {
+    const belowTop = props.anchorY + ANCHOR_GAP
+    top = belowTop <= maxTop ? belowTop : clamp(top, minTop, maxTop)
   } else {
-    // Show above
-    top = props.anchorY - POPOVER_OFFSET - 200 // Higher offset to start, will be content dependent
+    top = clamp(top, minTop, maxTop)
   }
-
-  // Final clamp for vertical
-  if (top < 10) top = 10
-  if (top + 300 > vh - 10) top = vh - 310
 
   return {
     position: 'fixed' as const,

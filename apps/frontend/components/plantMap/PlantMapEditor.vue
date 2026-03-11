@@ -681,12 +681,12 @@ const renderedVisibleHotspots = computed(() => {
   return ordered
 })
 
-const setHoveredHotspot = (hotspotId: string) => {
-  hoveredHotspotId.value = hotspotId
+const setHoveredHotspot = (hotspot: PlantHotspot) => {
+  hoveredHotspotId.value = hotspot.id
 }
 
-const clearHoveredHotspot = (hotspotId: string) => {
-  if (hoveredHotspotId.value === hotspotId) {
+const clearHoveredHotspot = (hotspot: PlantHotspot) => {
+  if (hoveredHotspotId.value === hotspot.id) {
     hoveredHotspotId.value = null
   }
 }
