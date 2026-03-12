@@ -1404,12 +1404,15 @@ const salesMotionConfig = computed(() => {
   const root = project.value?.salesMotionConfig || {}
   const cfg = root?.enterprise && typeof root.enterprise === 'object' ? root.enterprise : root
   const rawTemplates = cfg?.templates
+  const rawDisplayMode = String(cfg.displayMode || cfg.frequency || '').toLowerCase()
+  const showOnce = cfg.showOnce === true
+    || rawDisplayMode === 'single'
+    || rawDisplayMode === 'once'
+    || rawDisplayMode === 'one-shot'
+    || rawDisplayMode === 'oneshot'
 
   const defaultTemplates = [
-    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este empreendimento hoje', enabled: true },
-    { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
-    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
-    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão vendo este loteamento', enabled: true },
   ]
 
   const templates = Array.isArray(rawTemplates)
@@ -1437,8 +1440,9 @@ const salesMotionConfig = computed(() => {
   return {
     enabled: !!cfg.enabled,
     intervalSeconds: Math.max(5, Number(cfg.intervalSeconds ?? 14)),
-    displaySeconds: Math.max(3, Number(cfg.displaySeconds ?? 6)),
-    maxNotices: Math.max(1, Number(cfg.maxNotices ?? 5)),
+    displaySeconds: 6,
+    maxNotices: showOnce ? 1 : Math.max(1, Number(cfg.maxNotices ?? 5)),
+    showOnce,
     templates,
   }
 })
@@ -1668,7 +1672,7 @@ const salesMotionTemplatesSignature = computed(() =>
 const showNextSalesNotice = (reason: 'initial' | 'scroll', progress = 0) => {
   if (!process.client) return
   const config = salesMotionConfig.value
-  const minGapMs = Math.max(2000, config.intervalSeconds * 1000)
+  const minGapMs = config.showOnce ? 0 : Math.max(2000, config.intervalSeconds * 1000)
   if (!config.enabled) return
   if (salesMotionShownCount.value >= config.maxNotices) {
     clearSalesMotionTimers()
@@ -1678,7 +1682,7 @@ const showNextSalesNotice = (reason: 'initial' | 'scroll', progress = 0) => {
 
   const now = Date.now()
   if (currentSalesNotice.value) return
-  if (now - salesMotionLastShownAt.value < minGapMs) return
+  if (!config.showOnce && now - salesMotionLastShownAt.value < minGapMs) return
 
   const message = buildSalesMotionNotice(reason, progress)
   if (!message) return
@@ -1719,6 +1723,7 @@ const startSalesMotion = () => {
 const handleSalesMotionNavigation = () => {
   if (!process.client) return
   if (!salesMotionConfig.value.enabled) return
+  if (salesMotionConfig.value.showOnce) return
   if (salesMotionShownCount.value >= salesMotionConfig.value.maxNotices) return
 
   const doc = document.documentElement
@@ -1885,6 +1890,7 @@ onMounted(async () => {
 watch(
   () => [
     salesMotionConfig.value.enabled,
+    salesMotionConfig.value.showOnce,
     salesMotionConfig.value.intervalSeconds,
     salesMotionConfig.value.displaySeconds,
     salesMotionConfig.value.maxNotices,
@@ -2180,10 +2186,15 @@ function openLightbox(idx: number) {
   .v4-sales-motion-toast {
     left: 50%;
     transform: translateX(-50%);
-    width: min(92vw, 420px);
-    bottom: 164px;
+    width: min(90vw, 360px);
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    bottom: auto;
     max-width: none;
-    font-size: 0.8rem;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 0.74rem;
+    background: rgba(10, 15, 13, 0.74);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
   }
 
   .v4-floating-cta {

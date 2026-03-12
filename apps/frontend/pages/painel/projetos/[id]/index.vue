@@ -303,20 +303,21 @@
                   <span style="font-size: 0.85rem; font-weight: 600;">Ativar avisos no empreendimento</span>
                 </label>
 
-                <div class="grid grid-cols-3 gap-3" style="margin-bottom: 10px;">
+                <div v-if="!editForm.salesMotionConfig.enterprise.showOnce" class="grid grid-cols-2 gap-3" style="margin-bottom: 10px;">
                   <div>
                     <label class="form-label">Intervalo mínimo (s)</label>
                     <input v-model.number="editForm.salesMotionConfig.enterprise.intervalSeconds" type="number" min="5" max="120" class="form-input" />
-                  </div>
-                  <div>
-                    <label class="form-label">Tempo na tela (s)</label>
-                    <input v-model.number="editForm.salesMotionConfig.enterprise.displaySeconds" type="number" min="3" max="20" class="form-input" />
                   </div>
                   <div>
                     <label class="form-label">Máx. avisos/sessão</label>
                     <input v-model.number="editForm.salesMotionConfig.enterprise.maxNotices" type="number" min="1" max="20" class="form-input" />
                   </div>
                 </div>
+
+                <label class="flex items-center" style="gap: 8px; margin-bottom: 10px; cursor:pointer;">
+                  <input v-model="editForm.salesMotionConfig.enterprise.showOnce" type="checkbox" style="width: 15px; height: 15px;" />
+                  <span style="font-size: 0.8rem; font-weight: 600;">Exibição única por página</span>
+                </label>
 
                 <div class="form-group" style="margin-bottom: 8px;">
                   <div class="flex justify-between items-center" style="margin-bottom: 8px;">
@@ -417,20 +418,21 @@
                   <span style="font-size: 0.85rem; font-weight: 600;">Ativar avisos na página de lote</span>
                 </label>
 
-                <div class="grid grid-cols-3 gap-3" style="margin-bottom: 10px;">
+                <div v-if="!editForm.salesMotionConfig.lot.showOnce" class="grid grid-cols-2 gap-3" style="margin-bottom: 10px;">
                   <div>
                     <label class="form-label">Intervalo mínimo (s)</label>
                     <input v-model.number="editForm.salesMotionConfig.lot.intervalSeconds" type="number" min="5" max="120" class="form-input" />
-                  </div>
-                  <div>
-                    <label class="form-label">Tempo na tela (s)</label>
-                    <input v-model.number="editForm.salesMotionConfig.lot.displaySeconds" type="number" min="3" max="20" class="form-input" />
                   </div>
                   <div>
                     <label class="form-label">Máx. avisos/sessão</label>
                     <input v-model.number="editForm.salesMotionConfig.lot.maxNotices" type="number" min="1" max="20" class="form-input" />
                   </div>
                 </div>
+
+                <label class="flex items-center" style="gap: 8px; margin-bottom: 10px; cursor:pointer;">
+                  <input v-model="editForm.salesMotionConfig.lot.showOnce" type="checkbox" style="width: 15px; height: 15px;" />
+                  <span style="font-size: 0.8rem; font-weight: 600;">Exibição única por página</span>
+                </label>
 
                 <div class="form-group" style="margin-bottom: 8px;">
                   <div class="flex justify-between items-center" style="margin-bottom: 8px;">
@@ -2569,27 +2571,22 @@ const editForm = ref<any>({
   salesMotionConfig: {
     enterprise: {
       enabled: false,
+      showOnce: false,
       intervalSeconds: 14,
       displaySeconds: 6,
       maxNotices: 5,
       templates: [
-        { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este empreendimento hoje', enabled: true },
-        { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
-        { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
-        { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
+        { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão vendo este loteamento', enabled: true },
       ] as any[],
     },
     lot: {
       enabled: false,
+      showOnce: false,
       intervalSeconds: 14,
       displaySeconds: 6,
       maxNotices: 5,
       templates: [
-        { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este lote hoje', enabled: true },
-        { id: 'recentReservation', text: 'Lote {{recentLot}} foi reservado recentemente', enabled: true },
-        { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
-        { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
-        { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
+        { id: 'visitorsNow', text: '{{visitsNow}} pessoas estao vendo esse lote', enabled: true },
       ] as any[],
     },
   }
@@ -2597,17 +2594,10 @@ const editForm = ref<any>({
 
 const salesMotionTemplateDefaults = {
   enterprise: [
-    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este empreendimento hoje', enabled: true },
-    { id: 'recentReservation', text: 'Unidade {{recentLot}} foi reservada recentemente', enabled: true },
-    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este empreendimento nas últimas 24h', enabled: true },
-    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão navegando na seção de {{sectionLabel}} agora', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estão vendo este loteamento', enabled: true },
   ],
   lot: [
-    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este lote hoje', enabled: true },
-    { id: 'recentReservation', text: 'Lote {{recentLot}} foi reservado recentemente', enabled: true },
-    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
-    { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
-    { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estao vendo esse lote', enabled: true },
   ]
 } as const
 
@@ -4146,15 +4136,17 @@ const loadProject = async () => {
       salesMotionConfig: {
         enterprise: {
           enabled: enterpriseConfig.enabled ?? salesMotionConfig.enabled ?? false,
+          showOnce: enterpriseConfig.showOnce ?? salesMotionConfig.showOnce ?? false,
           intervalSeconds: Number(enterpriseConfig.intervalSeconds ?? salesMotionConfig.intervalSeconds ?? 14),
-          displaySeconds: Number(enterpriseConfig.displaySeconds ?? salesMotionConfig.displaySeconds ?? 6),
+          displaySeconds: 6,
           maxNotices: Number(enterpriseConfig.maxNotices ?? salesMotionConfig.maxNotices ?? 5),
           templates: enterpriseTemplates,
         },
         lot: {
           enabled: lotConfig.enabled ?? salesMotionConfig.enabled ?? false,
+          showOnce: lotConfig.showOnce ?? salesMotionConfig.showOnce ?? false,
           intervalSeconds: Number(lotConfig.intervalSeconds ?? salesMotionConfig.intervalSeconds ?? 14),
-          displaySeconds: Number(lotConfig.displaySeconds ?? salesMotionConfig.displaySeconds ?? 6),
+          displaySeconds: 6,
           maxNotices: Number(lotConfig.maxNotices ?? salesMotionConfig.maxNotices ?? 5),
           templates: lotTemplates,
         },
@@ -4241,9 +4233,14 @@ const saveSettings = async () => {
       salesMotionConfig: {
         enterprise: {
           enabled: !!raw.salesMotionConfig?.enterprise?.enabled,
-          intervalSeconds: Math.max(5, Number(raw.salesMotionConfig?.enterprise?.intervalSeconds || 14)),
-          displaySeconds: Math.max(3, Number(raw.salesMotionConfig?.enterprise?.displaySeconds || 6)),
-          maxNotices: Math.max(1, Number(raw.salesMotionConfig?.enterprise?.maxNotices || 5)),
+          showOnce: !!raw.salesMotionConfig?.enterprise?.showOnce,
+          intervalSeconds: !!raw.salesMotionConfig?.enterprise?.showOnce
+            ? 14
+            : Math.max(5, Number(raw.salesMotionConfig?.enterprise?.intervalSeconds || 14)),
+          displaySeconds: 6,
+          maxNotices: !!raw.salesMotionConfig?.enterprise?.showOnce
+            ? 1
+            : Math.max(1, Number(raw.salesMotionConfig?.enterprise?.maxNotices || 5)),
           templates: (raw.salesMotionConfig?.enterprise?.templates || [])
             .map((tpl: any, idx: number) => ({
               id: String(tpl?.id || `enterprise_${idx + 1}`),
@@ -4256,9 +4253,14 @@ const saveSettings = async () => {
         },
         lot: {
           enabled: !!raw.salesMotionConfig?.lot?.enabled,
-          intervalSeconds: Math.max(5, Number(raw.salesMotionConfig?.lot?.intervalSeconds || 14)),
-          displaySeconds: Math.max(3, Number(raw.salesMotionConfig?.lot?.displaySeconds || 6)),
-          maxNotices: Math.max(1, Number(raw.salesMotionConfig?.lot?.maxNotices || 5)),
+          showOnce: !!raw.salesMotionConfig?.lot?.showOnce,
+          intervalSeconds: !!raw.salesMotionConfig?.lot?.showOnce
+            ? 14
+            : Math.max(5, Number(raw.salesMotionConfig?.lot?.intervalSeconds || 14)),
+          displaySeconds: 6,
+          maxNotices: !!raw.salesMotionConfig?.lot?.showOnce
+            ? 1
+            : Math.max(1, Number(raw.salesMotionConfig?.lot?.maxNotices || 5)),
           templates: (raw.salesMotionConfig?.lot?.templates || [])
             .map((tpl: any, idx: number) => ({
               id: String(tpl?.id || `lot_${idx + 1}`),

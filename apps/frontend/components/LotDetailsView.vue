@@ -1195,13 +1195,15 @@ const salesMotionConfig = computed(() => {
   const root = project.value?.salesMotionConfig || {}
   const cfg = root?.lot && typeof root.lot === 'object' ? root.lot : root
   const rawTemplates = cfg?.templates
+  const rawDisplayMode = String(cfg.displayMode || cfg.frequency || '').toLowerCase()
+  const showOnce = cfg.showOnce === true
+    || rawDisplayMode === 'single'
+    || rawDisplayMode === 'once'
+    || rawDisplayMode === 'one-shot'
+    || rawDisplayMode === 'oneshot'
 
   const defaultTemplates = [
-    { id: 'viewsToday', text: '{{viewsToday}} pessoas visualizaram este lote hoje', enabled: true },
-    { id: 'recentReservation', text: 'Lote {{recentLot}} foi reservado recentemente', enabled: true },
-    { id: 'visits24h', text: '{{visits24h}} pessoas visitaram este loteamento nas últimas 24h', enabled: true },
-    { id: 'visitorsNow', text: '{{visitsNow}} visitantes estão navegando nesta página neste momento', enabled: true },
-    { id: 'sectionNow', text: '{{visitsNow}} pessoas chegaram na seção de {{sectionLabel}} agora', enabled: true },
+    { id: 'visitorsNow', text: '{{visitsNow}} pessoas estao vendo esse lote', enabled: true },
   ]
 
   const templates = Array.isArray(rawTemplates)
@@ -1229,8 +1231,9 @@ const salesMotionConfig = computed(() => {
   return {
     enabled: !!cfg.enabled,
     intervalSeconds: Math.max(5, Number(cfg.intervalSeconds ?? 14)),
-    displaySeconds: Math.max(3, Number(cfg.displaySeconds ?? 6)),
-    maxNotices: Math.max(1, Number(cfg.maxNotices ?? 5)),
+    displaySeconds: 6,
+    maxNotices: showOnce ? 1 : Math.max(1, Number(cfg.maxNotices ?? 5)),
+    showOnce,
     templates,
   }
 })
@@ -1441,7 +1444,7 @@ const salesMotionTemplatesSignature = computed(() =>
 const showNextSalesNotice = (reason: 'initial' | 'scroll' | 'section', sectionId?: string) => {
   if (!process.client) return
   const cfg = salesMotionConfig.value
-  const minGapMs = Math.max(2000, cfg.intervalSeconds * 1000)
+  const minGapMs = cfg.showOnce ? 0 : Math.max(2000, cfg.intervalSeconds * 1000)
   if (!cfg.enabled) return
   if (salesMotionShownCount.value >= cfg.maxNotices) {
     clearSalesMotionTimers()
@@ -1451,7 +1454,7 @@ const showNextSalesNotice = (reason: 'initial' | 'scroll' | 'section', sectionId
 
   const now = Date.now()
   if (currentSalesNotice.value) return
-  if (now - salesMotionLastShownAt.value < minGapMs) return
+  if (!cfg.showOnce && now - salesMotionLastShownAt.value < minGapMs) return
 
   const message = buildSalesMotionNotice(reason, sectionId)
   if (!message) return
@@ -1492,6 +1495,7 @@ const startSalesMotion = () => {
 const handleSalesMotionByProgress = () => {
   if (!process.client) return
   if (!salesMotionConfig.value.enabled) return
+  if (salesMotionConfig.value.showOnce) return
   if (salesMotionShownCount.value >= salesMotionConfig.value.maxNotices) return
 
   const doc = document.documentElement
@@ -1953,6 +1957,7 @@ onMounted(async () => {
 watch(
   () => [
     salesMotionConfig.value.enabled,
+    salesMotionConfig.value.showOnce,
     salesMotionConfig.value.intervalSeconds,
     salesMotionConfig.value.displaySeconds,
     salesMotionConfig.value.maxNotices,
