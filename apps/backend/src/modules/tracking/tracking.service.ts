@@ -512,10 +512,18 @@ export class TrackingService {
     user?: { id: string; role: string; agencyId?: string }
   ) {
     const context = await this.getRealtorContextFromUser(user);
-    const whereEvent = this.getEventWhere(query, context, undefined, 'LOT');
+    const whereEvent = this.getEventWhere(query, context, 'PAGE_VIEW', 'LOT');
+    const whereEventQrOnly = {
+      ...whereEvent,
+      session: {
+        ...(whereEvent as any).session,
+        utmSource: 'qr_code'
+      }
+    };
+
     const res = await this.prisma.trackingEvent.groupBy({
       by: ['label'],
-      where: whereEvent,
+      where: whereEventQrOnly,
       _count: { id: true },
       orderBy: { _count: { id: 'desc' } },
       take: 20

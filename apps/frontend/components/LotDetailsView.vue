@@ -601,43 +601,14 @@
                 <NuxtLink :to="projectUrl">Ver todos no mapa</NuxtLink>
               </div>
 
-              <div class="other-lots-filters-v4">
-                <input
-                  v-model="otherLotsSearchQuery"
-                  type="text"
-                  class="other-lots-search-v4"
-                  placeholder="Buscar por codigo, quadra ou lote"
-                />
-                <div v-if="otherLotsAvailableTags.length" class="other-lots-tags-v4">
-                  <button
-                    v-for="tag in otherLotsAvailableTags"
-                    :key="tag"
-                    type="button"
-                    class="other-lots-tag-v4"
-                    :class="{ 'is-active': selectedOtherLotsTags.includes(tag) }"
-                    @click="toggleOtherLotsTag(tag)"
-                  >
-                    {{ tag }}
-                  </button>
-                  <button
-                    v-if="selectedOtherLotsTags.length || otherLotsSearchQuery"
-                    type="button"
-                    class="other-lots-clear-v4"
-                    @click="clearOtherLotsFilters"
-                  >
-                    Limpar
-                  </button>
-                </div>
-              </div>
-
               <div class="assets-grid-v4">
-                <NuxtLink v-for="l in filteredOtherLots.slice(0, 8)" :key="l.id" :to="otherLotUrl(l)" class="asset-card-v4">
+                <NuxtLink v-for="l in otherLots.slice(0, 8)" :key="l.id" :to="otherLotUrl(l)" class="asset-card-v4">
                   <div class="a-code">{{ (l.code || l.name || l.id).toString().toLowerCase().includes('lote') ? '' : 'Lote ' }}{{ l.code || l.name || l.id }}</div>
                   <div class="a-area">{{ l.lotDetails?.areaM2 ? `${l.lotDetails.areaM2} m²` : '—' }}</div>
                   <div class="a-price" v-if="l.lotDetails?.price">{{ formatCurrencyToBrasilia(l.lotDetails.price) }}</div>
                 </NuxtLink>
               </div>
-              <p v-if="!filteredOtherLots.length" class="other-lots-empty-v4">
+              <p v-if="!otherLots.length" class="other-lots-empty-v4">
                 Nenhum lote encontrado com os filtros atuais.
               </p>
             </div>
@@ -1143,13 +1114,39 @@ const lotSeoUrl = computed(() => {
   return `${origin}${pathname}`
 })
 
+const buildTrackedLotUrl = (source: 'qr_code' | 'share_button' | 'whatsapp_share') => {
+  const baseUrl = lotSeoUrl.value
+  if (!baseUrl) return ''
+
+  try {
+    const url = new URL(baseUrl)
+    const queryRealtorCode = String(route.query.c || '').trim()
+    const lotLabel = String(details.value?.lotNumber || lot.value?.code || lot.value?.name || lotCode.value || 'lote').trim()
+    const campaignBase = String(project.value?.slug || projectSlug.value || 'projeto').trim().replace(/\s+/g, '-').toLowerCase()
+
+    if (queryRealtorCode) {
+      url.searchParams.set('c', queryRealtorCode)
+    }
+    url.searchParams.set('utm_source', source)
+    url.searchParams.set('utm_medium', source === 'qr_code' ? 'offline' : 'share')
+    url.searchParams.set('utm_campaign', `project_${campaignBase}`)
+    url.searchParams.set('utm_content', `lot_${lotLabel.replace(/\s+/g, '-').toLowerCase()}`)
+    return url.toString()
+  } catch {
+    return baseUrl
+  }
+}
+
+const trackedShareUrl = computed(() => buildTrackedLotUrl('share_button'))
+const trackedWhatsappUrl = computed(() => buildTrackedLotUrl('whatsapp_share'))
+
 const whatsappShareUrl = computed(() => {
-  const message = `${lotShareMessage.value} ${lotSeoUrl.value}`.trim()
+  const message = `${lotShareMessage.value} ${trackedWhatsappUrl.value}`.trim()
   return `https://wa.me/?text=${encodeURIComponent(message)}`
 })
 
 const shareCurrentLot = async () => {
-  const url = lotSeoUrl.value
+  const url = trackedShareUrl.value || lotSeoUrl.value
   const title = lotSeoTitle.value
   const text = lotShareMessage.value
 
@@ -1619,9 +1616,6 @@ const otherLots = computed(() => {
     })
 })
 
-const otherLotsSearchQuery = ref('')
-const selectedOtherLotsTags = ref<string[]>([])
-
 const allProjectAvailableLots = computed(() => {
   return allProjectLots.value.filter((item: any) => {
     return String(item?.lotDetails?.status || 'AVAILABLE').toUpperCase() === 'AVAILABLE'
@@ -1641,55 +1635,6 @@ const idealLotAvailableTags = computed(() => {
 
   return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'pt-BR'))
 })
-
-const otherLotsAvailableTags = computed(() => {
-  const tagSet = new Set<string>()
-
-  for (const item of otherLots.value) {
-    const tags = Array.isArray(item?.lotDetails?.tags) ? item.lotDetails.tags : []
-    for (const rawTag of tags) {
-      const tag = String(rawTag || '').trim()
-      if (tag) tagSet.add(tag)
-    }
-  }
-
-  return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-})
-
-const filteredOtherLots = computed(() => {
-  const term = otherLotsSearchQuery.value.trim().toLowerCase()
-
-  return otherLots.value.filter((item: any) => {
-    const code = String(item?.code || item?.name || item?.id || '').toLowerCase()
-    const block = String(item?.lotDetails?.block || '').toLowerCase()
-    const lotNumber = String(item?.lotDetails?.lotNumber || '').toLowerCase()
-    const tags = Array.isArray(item?.lotDetails?.tags) ? item.lotDetails.tags.map((t: any) => String(t)) : []
-
-    const textMatch = !term
-      || code.includes(term)
-      || block.includes(term)
-      || lotNumber.includes(term)
-      || tags.some((tag: string) => tag.toLowerCase().includes(term))
-
-    const tagsMatch = selectedOtherLotsTags.value.length === 0
-      || selectedOtherLotsTags.value.some(selected => tags.includes(selected))
-
-    return textMatch && tagsMatch
-  })
-})
-
-function toggleOtherLotsTag(tag: string) {
-  if (selectedOtherLotsTags.value.includes(tag)) {
-    selectedOtherLotsTags.value = selectedOtherLotsTags.value.filter(t => t !== tag)
-    return
-  }
-  selectedOtherLotsTags.value = [...selectedOtherLotsTags.value, tag]
-}
-
-function clearOtherLotsFilters() {
-  otherLotsSearchQuery.value = ''
-  selectedOtherLotsTags.value = []
-}
 
 // Ideal Lot Modal
 const isIdealLotModalOpen = ref(false)

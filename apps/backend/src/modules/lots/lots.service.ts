@@ -48,6 +48,18 @@ export class LotsService {
     return `${baseUrl}/${encodeURIComponent(lotCode)}`;
   }
 
+  private buildTrackedLotPublicPageUrl(
+    publicPageUrl: string,
+    params: { source: string; medium: string; campaign: string; content: string }
+  ): string {
+    const separator = publicPageUrl.includes('?') ? '&' : '?';
+    return `${publicPageUrl}${separator}utm_source=${encodeURIComponent(
+      params.source
+    )}&utm_medium=${encodeURIComponent(params.medium)}&utm_campaign=${encodeURIComponent(
+      params.campaign
+    )}&utm_content=${encodeURIComponent(params.content)}`;
+  }
+
   private buildLotQrCodeUrl(publicPageUrl: string): string {
     return `https://api.qrserver.com/v1/create-qr-code/?size=768x768&data=${encodeURIComponent(publicPageUrl)}`;
   }
@@ -57,13 +69,20 @@ export class LotsService {
     project: { slug: string; customDomain: string | null; name: string }
   ) {
     const publicPageUrl = this.buildLotPublicPageUrl(project, lot);
-    const lotLabel =
+    const lotLabelRaw =
       lot?.lotNumber || lot?.mapElement?.code || lot?.mapElement?.name || lot?.id;
+    const lotLabel = String(lotLabelRaw || 'lote').trim();
+    const trackedQrUrl = this.buildTrackedLotPublicPageUrl(publicPageUrl, {
+      source: 'qr_code',
+      medium: 'offline',
+      campaign: `project_${String(project.slug || 'projeto').trim().toLowerCase()}`,
+      content: `lot_${lotLabel.replace(/\s+/g, '-').toLowerCase()}`
+    });
 
     return {
       ...lot,
       publicPageUrl,
-      qrCodeUrl: this.buildLotQrCodeUrl(publicPageUrl),
+      qrCodeUrl: this.buildLotQrCodeUrl(trackedQrUrl),
       shareText: `Saiba mais sobre o lote ${lotLabel} do ${project.name}`
     };
   }

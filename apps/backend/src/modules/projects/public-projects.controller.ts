@@ -234,6 +234,26 @@ export class PublicProjectsController {
     required: false,
     description: 'Comma-separated lot codes'
   })
+  @ApiQuery({ name: 'minArea', required: false, description: 'Minimum area in m2' })
+  @ApiQuery({ name: 'maxArea', required: false, description: 'Maximum area in m2' })
+  @ApiQuery({ name: 'minPrice', required: false, description: 'Minimum lot price' })
+  @ApiQuery({ name: 'maxPrice', required: false, description: 'Maximum lot price' })
+  @ApiQuery({
+    name: 'maxPricePerM2',
+    required: false,
+    description: 'Maximum price per m2'
+  })
+  @ApiQuery({
+    name: 'minFrontage',
+    required: false,
+    description: 'Minimum frontage (width) in meters'
+  })
+  @ApiQuery({
+    name: 'minDepth',
+    required: false,
+    description: 'Minimum depth (height) in meters'
+  })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['pricePerM2Asc'] })
   findPublicLots(
     @Param('projectSlug') projectSlug: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -241,8 +261,22 @@ export class PublicProjectsController {
     @Query('search') search?: string,
     @Query('tags') tagsRaw?: string,
     @Query('matchMode') matchMode?: 'any' | 'exact',
-    @Query('codes') codesRaw?: string
+    @Query('codes') codesRaw?: string,
+    @Query('minArea') minAreaRaw?: string,
+    @Query('maxArea') maxAreaRaw?: string,
+    @Query('minPrice') minPriceRaw?: string,
+    @Query('maxPrice') maxPriceRaw?: string,
+    @Query('maxPricePerM2') maxPricePerM2Raw?: string,
+    @Query('minFrontage') minFrontageRaw?: string,
+    @Query('minDepth') minDepthRaw?: string,
+    @Query('sortBy') sortBy?: 'pricePerM2Asc'
   ) {
+    const parseNumber = (value?: string) => {
+      if (value == null || value === '') return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
     const tags = tagsRaw
       ? tagsRaw
           .split(',')
@@ -255,6 +289,17 @@ export class PublicProjectsController {
           .map((c) => c.trim())
           .filter(Boolean)
       : undefined;
+
+    const smartFilters = {
+      minArea: parseNumber(minAreaRaw),
+      maxArea: parseNumber(maxAreaRaw),
+      minPrice: parseNumber(minPriceRaw),
+      maxPrice: parseNumber(maxPriceRaw),
+      maxPricePerM2: parseNumber(maxPricePerM2Raw),
+      minFrontage: parseNumber(minFrontageRaw),
+      minDepth: parseNumber(minDepthRaw)
+    };
+
     return this.projectsService.findPublicLots(
       projectSlug,
       page,
@@ -262,7 +307,9 @@ export class PublicProjectsController {
       search,
       tags,
       matchMode,
-      codes
+      codes,
+      smartFilters,
+      sortBy
     );
   }
 

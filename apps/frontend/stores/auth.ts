@@ -1,5 +1,29 @@
 import { defineStore } from 'pinia';
 
+type JwtPayload = {
+  exp?: number;
+};
+
+const parseJwtPayload = (token: string): JwtPayload | null => {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1]
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const normalized = payload.padEnd(Math.ceil(payload.length / 4) * 4, '=');
+
+    if (import.meta.client) {
+      return JSON.parse(atob(normalized));
+    }
+
+    const decoded = Buffer.from(normalized, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+};
+
 export interface User {
   id: string;
   email: string;
@@ -31,6 +55,27 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    isTokenExpired(token: string | null, clockSkewSeconds = 30): boolean {
+      if (!token) return true;
+
+      const payload = parseJwtPayload(token);
+      if (!payload?.exp) return true;
+
+      const nowInSeconds = Math.floor(Date.now() / 1000);
+      return payload.exp <= (nowInSeconds + clockSkewSeconds);
+    },
+
+    ensureSessionIsValid(): boolean {
+      if (!this.accessToken) return false;
+
+      if (this.isTokenExpired(this.accessToken)) {
+        this.logout();
+        return false;
+      }
+
+      return true;
+    },
+
     setAuth(data: { user: User; access_token: string; refresh_token: string }) {
       this.user = data.user;
       this.accessToken = data.access_token;
@@ -62,6 +107,8 @@ export const useAuthStore = defineStore('auth', {
         if (raw) {
           try { this.user = JSON.parse(raw); } catch { this.user = null; }
         }
+
+        this.ensureSessionIsValid();
       }
     },
 

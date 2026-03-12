@@ -5,6 +5,8 @@ export default defineNuxtRouteMiddleware((to) => {
 
   if (!authStore.isLoggedIn) {
     authStore.loadFromStorage();
+  } else {
+    authStore.ensureSessionIsValid();
   }
 
   // Public routes: login, root, or any tenant/project page

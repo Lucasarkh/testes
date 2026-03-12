@@ -19,11 +19,11 @@
       </div>
 
       <div class="metrics-grid">
-        <!-- Lotes mais acessados -->
+        <!-- Lotes acessados por QR Code -->
         <div class="card metrics-card">
           <div class="card-header">
-            <h3 class="card-title">Lotes mais acessados</h3>
-            <p class="card-subtitle">Top 10 unidades com mais cliques</p>
+            <h3 class="card-title">Acessos via QR Code por Lote</h3>
+            <p class="card-subtitle">Somente acessos vindos de QR Code físico</p>
           </div>
           <div class="card-content">
             <div v-if="!lotMetrics.length" class="empty-state">Nenhum dado registrado ainda</div>
@@ -32,10 +32,10 @@
                 <div class="metrics-item-info">
                   <span class="metrics-item-label">Lote: <strong>{{ m.label }}</strong></span>
                   <div class="metrics-bar-bg">
-                    <div class="metrics-bar-fill" :style="{ width: getPercentage(m._count.id, maxLotCount) + '%' }"></div>
+                    <div class="metrics-bar-fill" :style="{ width: getPercentage(m.count || m._count?.id || 0, maxLotCount) + '%' }"></div>
                   </div>
                 </div>
-                <div class="metrics-item-value">{{ m._count.id }} <span>acessos</span></div>
+                <div class="metrics-item-value">{{ m.count || m._count?.id || 0 }} <span>acessos</span></div>
               </div>
             </div>
           </div>

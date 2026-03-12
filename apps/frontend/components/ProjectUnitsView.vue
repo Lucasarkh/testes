@@ -22,18 +22,65 @@
       <section class="v4-filter-section">
         <div class="v4-container">
           <div class="v4-search-hero">
-            <h1>Encontre seu lote ideal</h1>
-            <p>Explore as melhores oportunidades disponíveis agora.</p>
+            <div class="v4-search-header">
+              <div class="v4-search-title">
+                <h1>Encontre seu lote ideal</h1>
+                <p>Busca rápida por código, preço, metragem e dimensões.</p>
+              </div>
+              <div class="v4-filter-stats" v-if="!loading && project">
+                <span>{{ filteredLots.length }} unidades encontradas</span>
+                <span v-if="selectedFilters.length || searchQuery || hasAnySmartFilter" class="v4-clear-btn" @click="clearFilters">Limpar filtros</span>
+              </div>
+            </div>
 
-            <div class="v4-search-bar-wrapper">
-              <div class="v4-search-bar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="v4-search-icon" style="color: #86868b; margin-left: 12px; opacity: 0.7;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input 
-                  v-model="searchQuery" 
-                  type="text" 
-                  placeholder="Busque pelo código do lote (ex: L01, QUADRA A...)" 
-                  style="margin-left: 0;"
-                />
+            <div class="v4-smart-filters-panel v4-smart-filters-panel--slim">
+              <div class="v4-toolbar-row">
+                <div class="v4-search-bar-wrapper">
+                  <div class="v4-search-bar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="v4-search-icon" style="color: #86868b; margin-left: 12px; opacity: 0.7;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input 
+                      v-model="searchQuery" 
+                      type="text" 
+                      placeholder="Código do lote (ex: L01, QUADRA A...)" 
+                      style="margin-left: 0;"
+                    />
+                  </div>
+                </div>
+                <label class="v4-smart-toggle v4-smart-toggle--pill">
+                  <input v-model="smartFilters.sortByLowestPricePerM2" type="checkbox" />
+                  <span>Menor valor/m²</span>
+                </label>
+              </div>
+
+              <div class="v4-smart-filters-grid v4-smart-filters-grid--slim">
+                <label class="v4-smart-input">
+                  <span>Área min</span>
+                  <input v-model="smartFilters.minArea" type="number" min="0" step="1" placeholder="250 m²" />
+                </label>
+                <label class="v4-smart-input">
+                  <span>Área max</span>
+                  <input v-model="smartFilters.maxArea" type="number" min="0" step="1" placeholder="420 m²" />
+                </label>
+                <label class="v4-smart-input">
+                  <span>Valor min</span>
+                  <input v-model="smartFilters.minPrice" type="number" min="0" step="1000" placeholder="R$ 90.000" />
+                </label>
+                <label class="v4-smart-input">
+                  <span>Valor max</span>
+                  <input v-model="smartFilters.maxPrice" type="number" min="0" step="1000" placeholder="R$ 180.000" />
+                </label>
+                <label class="v4-smart-input">
+                  <span>Teto valor/m²</span>
+                  <input v-model="smartFilters.maxPricePerM2" type="number" min="0" step="10" placeholder="R$ 650" />
+                </label>
+                <label class="v4-smart-input">
+                  <span>Largura min</span>
+                  <input v-model="smartFilters.minFrontage" type="number" min="0" step="0.1" placeholder="10 m" />
+                </label>
+                <label class="v4-smart-input">
+                  <span>Altura min</span>
+                  <input v-model="smartFilters.minDepth" type="number" min="0" step="0.1" placeholder="25 m" />
+                </label>
               </div>
             </div>
 
@@ -74,11 +121,6 @@
               </div>
             </div>
             
-            <!-- Quick Stats -->
-            <div class="v4-filter-stats" v-if="!loading && project">
-              <span>{{ filteredLots.length }} unidades encontradas</span>
-              <span v-if="selectedFilters.length || searchQuery" class="v4-clear-btn" @click="clearFilters">Limpar filtros</span>
-            </div>
           </div>
         </div>
       </section>
@@ -171,7 +213,6 @@
       <div class="v4-container">
         <div class="v4-footer-content">
           <p>&copy; {{ new Date().getFullYear() }} — {{ project?.tenant?.name }} · {{ project?.name }}</p>
-          <span class="v4-footer-badge">SISTEMA OFICIAL</span>
         </div>
       </div>
     </footer>
@@ -232,8 +273,38 @@ const searchQuery = ref('')
 const selectedFilters = ref<string[]>([])
 const codesFilter = ref<string[]>([])
 const matchMode = ref<'any' | 'exact'>('any')
+const smartFilters = ref({
+  minArea: '',
+  maxArea: '',
+  minPrice: '',
+  maxPrice: '',
+  maxPricePerM2: '',
+  minFrontage: '',
+  minDepth: '',
+  sortByLowestPricePerM2: false
+})
 const lotsPage = ref(1)
 const lotsPerPage = 12
+
+const parseFilterNumber = (value: string) => {
+  if (!value?.trim()) return null
+  const parsed = Number(value.replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const hasAnySmartFilter = computed(() => {
+  const f = smartFilters.value
+  return !!(
+    f.minArea ||
+    f.maxArea ||
+    f.minPrice ||
+    f.maxPrice ||
+    f.maxPricePerM2 ||
+    f.minFrontage ||
+    f.minDepth ||
+    f.sortByLowestPricePerM2
+  )
+})
 
 /** â”€â”€ Server-side lots (public path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const lots = ref<any[]>([])
@@ -258,6 +329,21 @@ async function fetchLots() {
     if (selectedFilters.value.length > 0) params.set('tags', selectedFilters.value.join(','))
     if (matchMode.value === 'exact') params.set('matchMode', 'exact')
     if (codesFilter.value.length > 0) params.set('codes', codesFilter.value.join(','))
+    const minArea = parseFilterNumber(smartFilters.value.minArea)
+    const maxArea = parseFilterNumber(smartFilters.value.maxArea)
+    const minPrice = parseFilterNumber(smartFilters.value.minPrice)
+    const maxPrice = parseFilterNumber(smartFilters.value.maxPrice)
+    const maxPricePerM2 = parseFilterNumber(smartFilters.value.maxPricePerM2)
+    const minFrontage = parseFilterNumber(smartFilters.value.minFrontage)
+    const minDepth = parseFilterNumber(smartFilters.value.minDepth)
+    if (minArea != null) params.set('minArea', String(minArea))
+    if (maxArea != null) params.set('maxArea', String(maxArea))
+    if (minPrice != null) params.set('minPrice', String(minPrice))
+    if (maxPrice != null) params.set('maxPrice', String(maxPrice))
+    if (maxPricePerM2 != null) params.set('maxPricePerM2', String(maxPricePerM2))
+    if (minFrontage != null) params.set('minFrontage', String(minFrontage))
+    if (minDepth != null) params.set('minDepth', String(minDepth))
+    if (smartFilters.value.sortByLowestPricePerM2) params.set('sortBy', 'pricePerM2Asc')
     const res = await fetchPublic(`/p/${projectSlug.value}/lots?${params}`)
     if (res) {
       lots.value = res.data || []
@@ -346,6 +432,15 @@ const allAvailableTags = computed(() => {
 const filteredLots = computed(() => {
   if (!isPreview.value) return lots.value
   let list = previewLots.value
+
+  const minArea = parseFilterNumber(smartFilters.value.minArea)
+  const maxArea = parseFilterNumber(smartFilters.value.maxArea)
+  const minPrice = parseFilterNumber(smartFilters.value.minPrice)
+  const maxPrice = parseFilterNumber(smartFilters.value.maxPrice)
+  const maxPricePerM2 = parseFilterNumber(smartFilters.value.maxPricePerM2)
+  const minFrontage = parseFilterNumber(smartFilters.value.minFrontage)
+  const minDepth = parseFilterNumber(smartFilters.value.minDepth)
+
   if (codesFilter.value.length > 0) list = list.filter((l: any) => codesFilter.value.includes(l.code))
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
@@ -357,6 +452,35 @@ const filteredLots = computed(() => {
       return matchMode.value === 'exact' ? selectedFilters.value.every(f => tags.includes(f)) : selectedFilters.value.some(f => tags.includes(f))
     })
   }
+
+  list = list.filter((l: any) => {
+    const areaM2 = Number(l.lotDetails?.areaM2)
+    const price = Number(l.lotDetails?.price)
+    const pricePerM2 = Number(l.lotDetails?.pricePerM2)
+    const frontage = Number(l.lotDetails?.frontage)
+    const depth = Number(l.lotDetails?.depth)
+
+    if (minArea != null && (!Number.isFinite(areaM2) || areaM2 < minArea)) return false
+    if (maxArea != null && (!Number.isFinite(areaM2) || areaM2 > maxArea)) return false
+    if (minPrice != null && (!Number.isFinite(price) || price < minPrice)) return false
+    if (maxPrice != null && (!Number.isFinite(price) || price > maxPrice)) return false
+    if (maxPricePerM2 != null && (!Number.isFinite(pricePerM2) || pricePerM2 > maxPricePerM2)) return false
+    if (minFrontage != null && (!Number.isFinite(frontage) || frontage < minFrontage)) return false
+    if (minDepth != null && (!Number.isFinite(depth) || depth < minDepth)) return false
+    return true
+  })
+
+  if (smartFilters.value.sortByLowestPricePerM2) {
+    list = [...list].sort((a: any, b: any) => {
+      const aVal = Number(a.lotDetails?.pricePerM2)
+      const bVal = Number(b.lotDetails?.pricePerM2)
+      const aOrder = Number.isFinite(aVal) ? aVal : Number.POSITIVE_INFINITY
+      const bOrder = Number.isFinite(bVal) ? bVal : Number.POSITIVE_INFINITY
+      if (aOrder === bOrder) return String(a.code || '').localeCompare(String(b.code || ''))
+      return aOrder - bOrder
+    })
+  }
+
   return list
 })
 
@@ -385,7 +509,7 @@ function scheduleLotsRefetch() {
     fetchLots()
   }, 300)
 }
-watch([searchQuery, selectedFilters, matchMode], scheduleLotsRefetch, { deep: true })
+watch([searchQuery, selectedFilters, matchMode, smartFilters], scheduleLotsRefetch, { deep: true })
 watch(lotsPage, () => { if (!isPreview.value) fetchLots() })
 
 function toggleFilter(tag: string) {
@@ -399,6 +523,16 @@ function clearFilters() {
   searchQuery.value = ''
   selectedFilters.value = []
   codesFilter.value = []
+  smartFilters.value = {
+    minArea: '',
+    maxArea: '',
+    minPrice: '',
+    maxPrice: '',
+    maxPricePerM2: '',
+    minFrontage: '',
+    minDepth: '',
+    sortByLowestPricePerM2: false
+  }
   lotsPage.value = 1
 }
 
@@ -417,15 +551,49 @@ onMounted(async () => {
     const initTags  = route.query.tags  ? (route.query.tags  as string).split(',') : []
     const initCodes = route.query.codes ? (route.query.codes as string).split(',') : []
     const initMatch = route.query.match === 'exact' ? 'exact' : 'any'
+    const initSortByLowestPricePerM2 = route.query.sortBy === 'pricePerM2Asc'
+
+    const toQueryNumber = (value: unknown) => {
+      const text = String(value ?? '').trim()
+      if (!text) return ''
+      const parsed = Number(text)
+      return Number.isFinite(parsed) ? String(parsed) : ''
+    }
+
+    const initMinArea = toQueryNumber(route.query.minArea)
+    const initMaxArea = toQueryNumber(route.query.maxArea)
+    const initMinPrice = toQueryNumber(route.query.minPrice)
+    const initMaxPrice = toQueryNumber(route.query.maxPrice)
+    const initMaxPricePerM2 = toQueryNumber(route.query.maxPricePerM2)
+    const initMinFrontage = toQueryNumber(route.query.minFrontage)
+    const initMinDepth = toQueryNumber(route.query.minDepth)
 
     if (initTags.length)  selectedFilters.value = initTags
     if (initCodes.length) codesFilter.value = initCodes
     if (initMatch === 'exact') matchMode.value = 'exact'
+    smartFilters.value = {
+      minArea: initMinArea,
+      maxArea: initMaxArea,
+      minPrice: initMinPrice,
+      maxPrice: initMaxPrice,
+      maxPricePerM2: initMaxPricePerM2,
+      minFrontage: initMinFrontage,
+      minDepth: initMinDepth,
+      sortByLowestPricePerM2: initSortByLowestPricePerM2
+    }
 
     const lotsParams = new URLSearchParams({ page: '1', limit: String(lotsPerPage) })
     if (initTags.length)  lotsParams.set('tags',      initTags.join(','))
     if (initCodes.length) lotsParams.set('codes',     initCodes.join(','))
     if (initMatch === 'exact') lotsParams.set('matchMode', 'exact')
+    if (initMinArea) lotsParams.set('minArea', initMinArea)
+    if (initMaxArea) lotsParams.set('maxArea', initMaxArea)
+    if (initMinPrice) lotsParams.set('minPrice', initMinPrice)
+    if (initMaxPrice) lotsParams.set('maxPrice', initMaxPrice)
+    if (initMaxPricePerM2) lotsParams.set('maxPricePerM2', initMaxPricePerM2)
+    if (initMinFrontage) lotsParams.set('minFrontage', initMinFrontage)
+    if (initMinDepth) lotsParams.set('minDepth', initMinDepth)
+    if (initSortByLowestPricePerM2) lotsParams.set('sortBy', 'pricePerM2Asc')
 
     const [p, lotsRes] = await Promise.allSettled([
       fetchPublic(baseUrl),
@@ -538,59 +706,154 @@ onMounted(async () => {
 /* Filter Section */
 .v4-filter-section {
   background: var(--v4-bg-alt);
-  padding: 80px 0 60px;
+  padding: 24px 0 20px;
   border-bottom: 1px solid var(--v4-border);
 }
 
 .v4-search-hero {
-  text-align: center;
+  text-align: left;
 }
-.v4-search-hero h1 { font-size: 48px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
-.v4-search-hero p { font-size: 21px; color: var(--v4-text-muted); margin-bottom: 40px; }
+
+.v4-search-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.v4-search-title h1 { font-size: clamp(24px, 3vw, 34px); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 2px; }
+.v4-search-title p { font-size: 14px; color: var(--v4-text-muted); margin: 0; }
 
 .v4-search-bar-wrapper {
-  max-width: 600px;
-  margin: 0 auto 32px;
+  flex: 1;
+  margin: 0;
 }
 
 .v4-search-bar {
   background: white;
   border: 1px solid var(--v4-border);
-  border-radius: 100px;
-  padding: 4px 24px;
+  border-radius: 14px;
+  padding: 2px 12px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
   transition: all 0.2s;
 }
 .v4-search-bar:focus-within {
   border-color: var(--v4-primary);
-  box-shadow: 0 8px 30px rgba(0, 113, 227, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.14);
 }
 .v4-search-bar input {
   border: none;
   flex: 1;
-  padding: 14px 0;
-  font-size: 17px;
+  min-width: 0;
+  padding: 10px 0;
+  font-size: 14px;
   outline: none;
   background: transparent;
+}
+
+.v4-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.v4-smart-filters-panel {
+  margin: 0 0 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 8px 22px rgba(2, 19, 45, 0.05);
+  overflow: hidden;
+}
+
+.v4-smart-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.v4-smart-filters-grid--slim {
+  grid-template-columns: repeat(7, minmax(92px, 1fr));
+}
+
+.v4-smart-input {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  min-width: 0;
+}
+
+.v4-smart-input span {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #86868b;
+}
+
+.v4-smart-input input {
+  border: 1px solid #d8dde6;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 9px;
+  font-size: 12px;
+  color: #1d1d1f;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.v4-smart-input input:focus {
+  outline: none;
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
+}
+
+.v4-smart-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #1d1d1f;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v4-smart-toggle--pill {
+  margin: 0;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.v4-smart-toggle input {
+  width: 14px;
+  height: 14px;
 }
 
 .v4-tags-filter {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  align-items: flex-start;
+  gap: 8px;
 }
 .v4-filter-label { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--v4-text-muted); letter-spacing: 0.1em; }
 
 .v4-tags-scroll {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  max-width: 800px;
+  gap: 8px;
+  max-width: 100%;
 }
 
 .v4-filter-tag {
@@ -607,14 +870,14 @@ onMounted(async () => {
 .v4-filter-tag.active { background: var(--v4-primary); color: white; border-color: var(--v4-primary); }
 
 .v4-match-mode-toggle {
-  margin-top: 24px;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 8px;
   background: #fdfdfd;
-  padding: 16px;
-  border-radius: 20px;
+  padding: 10px;
+  border-radius: 12px;
   border: 1px dashed var(--v4-border);
 }
 .v4-mode-label { font-size: 11px; font-weight: 700; color: #86868b; text-transform: uppercase; }
@@ -637,13 +900,14 @@ onMounted(async () => {
 }
 
 .v4-filter-stats {
-  margin-top: 32px;
-  font-size: 14px;
+  margin-top: 0;
+  font-size: 13px;
   color: var(--v4-text-muted);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 20px;
+  justify-content: flex-end;
+  gap: 12px;
+  white-space: nowrap;
 }
 .v4-clear-btn { color: var(--v4-primary); font-weight: 600; cursor: pointer; border-bottom: 1px dashed var(--v4-primary); }
 
@@ -832,10 +1096,42 @@ onMounted(async () => {
   .v4-back-btn { font-size: 13px; }
   .v4-header-title { gap: 8px; font-size: 13px; }
   .v4-header-title strong { max-width: 56vw; }
-  .v4-search-hero h1 { font-size: 28px; }
-  .v4-tags-scroll { padding: 0 16px; gap: 8px; }
-  .v4-search-hero p { font-size: 16px; margin-bottom: 24px; }
-  .v4-filter-section { padding: 60px 0 40px; }
+  .v4-search-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .v4-search-title h1 { font-size: 24px; }
+  .v4-search-title p { font-size: 13px; }
+  .v4-smart-filters-panel { padding: 10px; border-radius: 12px; }
+  .v4-toolbar-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .v4-smart-toggle--pill {
+    width: 100%;
+    justify-content: center;
+  }
+  .v4-smart-filters-grid,
+  .v4-smart-filters-grid--slim { grid-template-columns: 1fr 1fr; }
+  .v4-search-bar-wrapper { width: 100%; }
+  .v4-tags-scroll { gap: 6px; }
+  .v4-filter-section { padding: 18px 0 14px; }
   .v4-main-content { padding-top: 60px; }
+  .v4-filter-stats { width: 100%; justify-content: flex-start; }
+  .v4-mode-btns {
+    width: 100%;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 560px) {
+  .v4-container { width: 94%; }
+  .v4-smart-filters-grid,
+  .v4-smart-filters-grid--slim { grid-template-columns: 1fr; }
+  .v4-smart-input span { font-size: 9px; }
+  .v4-filter-tag { padding: 7px 12px; font-size: 13px; }
+  .v4-lots-grid { grid-template-columns: 1fr; }
 }
 </style>

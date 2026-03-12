@@ -2332,6 +2332,25 @@ const locationOrigin = computed(() => {
 
 const publicUrl = computed(() => project.value ? `/${project.value.slug}` : null)
 
+const lotAttributionUrl = (lot: any, source: 'qr_code' | 'share_button') => {
+  const baseUrl = lotPublicPageUrl(lot)
+  if (!baseUrl) return ''
+
+  try {
+    const url = new URL(baseUrl)
+    const lotLabel = String(lot?.lotNumber || lot?.mapElement?.code || lot?.mapElement?.name || lot?.id || 'lote').trim()
+    const campaignBase = String(project.value?.slug || projectId || 'projeto').trim().replace(/\s+/g, '-').toLowerCase()
+
+    url.searchParams.set('utm_source', source)
+    url.searchParams.set('utm_medium', source === 'qr_code' ? 'offline' : 'share')
+    url.searchParams.set('utm_campaign', `project_${campaignBase}`)
+    url.searchParams.set('utm_content', `lot_${lotLabel.replace(/\s+/g, '-').toLowerCase()}`)
+    return url.toString()
+  } catch {
+    return baseUrl
+  }
+}
+
 const lotPublicPageUrl = (lot: any) => {
   const backendUrl = String(lot?.publicPageUrl || '').trim()
   if (backendUrl) return backendUrl
@@ -2345,10 +2364,7 @@ const lotPublicPageUrl = (lot: any) => {
 }
 
 const lotQrCodeUrl = (lot: any) => {
-  const backendQr = String(lot?.qrCodeUrl || '').trim()
-  if (backendQr) return backendQr
-
-  const publicPageUrl = lotPublicPageUrl(lot)
+  const publicPageUrl = lotAttributionUrl(lot, 'qr_code')
   if (!publicPageUrl) return ''
   return `https://api.qrserver.com/v1/create-qr-code/?size=768x768&data=${encodeURIComponent(publicPageUrl)}`
 }
@@ -2363,7 +2379,7 @@ const lotShareText = (lot: any) => {
 }
 
 const shareLot = async (lot: any) => {
-  const url = lotPublicPageUrl(lot)
+  const url = lotAttributionUrl(lot, 'share_button')
   if (!url) {
     toastFromError(new Error('Nao foi possivel gerar o link publico deste lote.'))
     return
@@ -2386,7 +2402,7 @@ const shareLot = async (lot: any) => {
 }
 
 const openLotQrModal = (lot: any) => {
-  const publicPageUrl = lotPublicPageUrl(lot)
+  const publicPageUrl = lotAttributionUrl(lot, 'qr_code')
   const qrCodeUrl = lotQrCodeUrl(lot)
   if (!publicPageUrl || !qrCodeUrl) {
     toastFromError(new Error('Nao foi possivel gerar o QR code deste lote.'))

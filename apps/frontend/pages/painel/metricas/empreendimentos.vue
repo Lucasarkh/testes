@@ -87,7 +87,7 @@ definePageMeta({
         Nenhum empreendimento encontrado no período
       </div>
 
-      <div v-else class="projects-grid">
+      <div v-else class="enterprise-projects-grid">
         <NuxtLink
           v-for="project in data.projects"
           :key="project.projectId"
@@ -290,7 +290,7 @@ h1 {
 }
 
 /* Project Cards Grid */
-.projects-grid {
+.enterprise-projects-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: 20px;
@@ -426,7 +426,7 @@ h1 {
   .filter-actions {
     width: 100%;
   }
-  .projects-grid {
+  .enterprise-projects-grid {
     grid-template-columns: 1fr;
   }
 }

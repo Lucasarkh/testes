@@ -666,12 +666,51 @@
                 </button>
               </div>
 
+              <span class="v4-modal-label">Busca Inteligente</span>
+              <div class="v4-smart-grid">
+                <label class="v4-smart-field">
+                  <span>Área mínima (m²)</span>
+                  <input v-model="smartSearchForm.minArea" type="number" min="0" step="1" placeholder="Ex: 250" />
+                </label>
+                <label class="v4-smart-field">
+                  <span>Área máxima (m²)</span>
+                  <input v-model="smartSearchForm.maxArea" type="number" min="0" step="1" placeholder="Ex: 420" />
+                </label>
+                <label class="v4-smart-field">
+                  <span>Valor mínimo (R$)</span>
+                  <input v-model="smartSearchForm.minPrice" type="number" min="0" step="1000" placeholder="Ex: 90000" />
+                </label>
+                <label class="v4-smart-field">
+                  <span>Valor máximo (R$)</span>
+                  <input v-model="smartSearchForm.maxPrice" type="number" min="0" step="1000" placeholder="Ex: 180000" />
+                </label>
+                <label class="v4-smart-field">
+                  <span>Teto de valor por m² (R$)</span>
+                  <input v-model="smartSearchForm.maxPricePerM2" type="number" min="0" step="10" placeholder="Ex: 650" />
+                </label>
+                <label class="v4-smart-field">
+                  <span>Largura mínima (m)</span>
+                  <input v-model="smartSearchForm.minFrontage" type="number" min="0" step="0.1" placeholder="Ex: 10" />
+                </label>
+                <label class="v4-smart-field">
+                  <span>Altura mínima (m)</span>
+                  <input v-model="smartSearchForm.minDepth" type="number" min="0" step="0.1" placeholder="Ex: 25" />
+                </label>
+              </div>
+
               <div class="v4-modal-options">
                 <label class="v4-modal-option">
                   <input type="checkbox" v-model="exactMatchMode" />
                   <div class="v4-option-info">
                     <span class="v4-option-title">Correspondência Exata</span>
                     <span class="v4-option-desc">Mostrar apenas lotes que possuem todos os selos selecionados.</span>
+                  </div>
+                </label>
+                <label class="v4-modal-option">
+                  <input type="checkbox" v-model="smartSearchForm.sortByLowestPricePerM2" />
+                  <div class="v4-option-info">
+                    <span class="v4-option-title">Priorizar menor valor de m²</span>
+                    <span class="v4-option-desc">Ordena os resultados do mais barato por m² para o mais caro.</span>
                   </div>
                 </label>
               </div>
@@ -681,7 +720,7 @@
               <button class="v4-btn-modal-search" @click="applyFiltersAndSearch">
                 {{ selectedFilterTags.length ? `Ver ${filteredCount} unidades compatíveis` : 'Ver todas as unidades' }}
               </button>
-              <button v-if="selectedFilterTags.length" class="v4-btn-modal-clear" @click="selectedFilterTags = []">
+              <button v-if="hasAnySmartFilter || selectedFilterTags.length" class="v4-btn-modal-clear" @click="resetIdealLotFilters">
                 Limpar seleção
               </button>
             </div>
@@ -859,6 +898,70 @@ const normalizeBlockLabel = (value?: string | null) => {
 const isFilterModalOpen = ref(false)
 const selectedFilterTags = ref<string[]>([])
 const exactMatchMode = ref(false)
+const smartSearchForm = ref({
+  minArea: '',
+  maxArea: '',
+  minPrice: '',
+  maxPrice: '',
+  maxPricePerM2: '',
+  minFrontage: '',
+  minDepth: '',
+  sortByLowestPricePerM2: false
+})
+
+const parseSmartNumber = (value: unknown) => {
+  if (value == null) return null
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  const normalized = String(value).trim()
+  if (!normalized) return null
+
+  const parsed = Number(normalized.replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const hasAnySmartFilter = computed(() => {
+  const f = smartSearchForm.value
+  return !!(
+    f.minArea ||
+    f.maxArea ||
+    f.minPrice ||
+    f.maxPrice ||
+    f.maxPricePerM2 ||
+    f.minFrontage ||
+    f.minDepth ||
+    f.sortByLowestPricePerM2
+  )
+})
+
+const matchesSmartFilters = (lot: any) => {
+  const details = lot?.lotDetails || {}
+  const areaM2 = Number(details.areaM2)
+  const price = Number(details.price)
+  const pricePerM2 = Number(details.pricePerM2)
+  const frontage = Number(details.frontage)
+  const depth = Number(details.depth)
+
+  const minArea = parseSmartNumber(smartSearchForm.value.minArea)
+  const maxArea = parseSmartNumber(smartSearchForm.value.maxArea)
+  const minPrice = parseSmartNumber(smartSearchForm.value.minPrice)
+  const maxPrice = parseSmartNumber(smartSearchForm.value.maxPrice)
+  const maxPricePerM2 = parseSmartNumber(smartSearchForm.value.maxPricePerM2)
+  const minFrontage = parseSmartNumber(smartSearchForm.value.minFrontage)
+  const minDepth = parseSmartNumber(smartSearchForm.value.minDepth)
+
+  if (minArea != null && (!Number.isFinite(areaM2) || areaM2 < minArea)) return false
+  if (maxArea != null && (!Number.isFinite(areaM2) || areaM2 > maxArea)) return false
+  if (minPrice != null && (!Number.isFinite(price) || price < minPrice)) return false
+  if (maxPrice != null && (!Number.isFinite(price) || price > maxPrice)) return false
+  if (maxPricePerM2 != null && (!Number.isFinite(pricePerM2) || pricePerM2 > maxPricePerM2)) return false
+  if (minFrontage != null && (!Number.isFinite(frontage) || frontage < minFrontage)) return false
+  if (minDepth != null && (!Number.isFinite(depth) || depth < minDepth)) return false
+
+  return true
+}
 
 const allAvailableTags = computed(() => {
   const tags = new Set<string>()
@@ -871,8 +974,10 @@ const allAvailableTags = computed(() => {
 })
 
 const filteredCount = computed(() => {
-  if (selectedFilterTags.value.length === 0) return unifiedAvailableLots.value.length
   return unifiedAvailableLots.value.filter((l: any) => {
+    if (!matchesSmartFilters(l)) return false
+
+    if (selectedFilterTags.value.length === 0) return true
     const lotTags = l.lotDetails?.tags || []
     if (exactMatchMode.value) {
       return selectedFilterTags.value.every(t => lotTags.includes(t))
@@ -909,6 +1014,21 @@ const toggleFilterTag = (tag: string) => {
   else selectedFilterTags.value.push(tag)
 }
 
+const resetIdealLotFilters = () => {
+  selectedFilterTags.value = []
+  exactMatchMode.value = false
+  smartSearchForm.value = {
+    minArea: '',
+    maxArea: '',
+    minPrice: '',
+    maxPrice: '',
+    maxPricePerM2: '',
+    minFrontage: '',
+    minDepth: '',
+    sortByLowestPricePerM2: false
+  }
+}
+
 const applyFiltersAndSearch = () => {
   tracking.trackClick('Botão: Aplicar Filtros e Buscar', 'LIST_FILTER')
 
@@ -919,6 +1039,26 @@ const applyFiltersAndSearch = () => {
   if (exactMatchMode.value) {
     query.match = 'exact'
   }
+
+  const minArea = parseSmartNumber(smartSearchForm.value.minArea)
+  const maxArea = parseSmartNumber(smartSearchForm.value.maxArea)
+  const minPrice = parseSmartNumber(smartSearchForm.value.minPrice)
+  const maxPrice = parseSmartNumber(smartSearchForm.value.maxPrice)
+  const maxPricePerM2 = parseSmartNumber(smartSearchForm.value.maxPricePerM2)
+  const minFrontage = parseSmartNumber(smartSearchForm.value.minFrontage)
+  const minDepth = parseSmartNumber(smartSearchForm.value.minDepth)
+
+  if (minArea != null) query.minArea = String(minArea)
+  if (maxArea != null) query.maxArea = String(maxArea)
+  if (minPrice != null) query.minPrice = String(minPrice)
+  if (maxPrice != null) query.maxPrice = String(maxPrice)
+  if (maxPricePerM2 != null) query.maxPricePerM2 = String(maxPricePerM2)
+  if (minFrontage != null) query.minFrontage = String(minFrontage)
+  if (minDepth != null) query.minDepth = String(minDepth)
+  if (smartSearchForm.value.sortByLowestPricePerM2) {
+    query.sortBy = 'pricePerM2Asc'
+  }
+
   if (corretorCode) {
     query.c = corretorCode
   }
@@ -2159,25 +2299,24 @@ function openLightbox(idx: number) {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0;
+  padding: 12px;
 }
 
 @media (min-width: 769px) {
   .v4-filter-modal-overlay {
     align-items: center;
-    padding: 24px;
+    padding: 28px;
   }
 }
 
 .v4-filter-modal-card {
   background: white;
-  width: 100%;
-  max-width: 500px;
+  width: min(100%, 760px);
   border-radius: 28px 28px 0 0;
-  padding: 32px 24px 40px;
+  padding: 24px 20px 20px;
   box-shadow: 0 -8px 40px rgba(0,0,0,0.12);
-  max-height: 85dvh;
-  overflow-y: auto;
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -2187,8 +2326,8 @@ function openLightbox(idx: number) {
 @media (min-width: 769px) {
   .v4-filter-modal-card {
     border-radius: 28px;
-    padding: 40px;
-    max-height: 90dvh;
+    padding: 30px;
+    max-height: min(90dvh, 920px);
     box-shadow: 0 30px 60px rgba(0,0,0,0.15);
     animation: modal-appear 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   }
@@ -2229,7 +2368,31 @@ function openLightbox(idx: number) {
 }
 .v4-modal-close:hover { background: #e8e8ed; color: #1d1d1f; }
 
-.v4-modal-body { flex: 1; overflow-y: auto; margin-bottom: 24px; }
+.v4-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(134, 134, 139, 0.55) transparent;
+}
+
+.v4-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.v4-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.v4-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(134, 134, 139, 0.45);
+  border-radius: 999px;
+}
+
+.v4-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(134, 134, 139, 0.72);
+}
 .v4-modal-label { font-size: 13px; font-weight: 700; color: #86868b; text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 16px; }
 
 .v4-modal-tags {
@@ -2237,6 +2400,46 @@ function openLightbox(idx: number) {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 24px;
+}
+
+.v4-smart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .v4-smart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.v4-smart-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v4-smart-field span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6e6e73;
+}
+
+.v4-smart-field input {
+  border: 1px solid #d2d2d7;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 14px;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.v4-smart-field input:focus {
+  outline: none;
+  border-color: #0071e3;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
 }
 
 .v4-modal-tag {
@@ -2257,6 +2460,9 @@ function openLightbox(idx: number) {
   background: #f5f5f7;
   padding: 16px;
   border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .v4-modal-option {
   display: flex;
@@ -2274,6 +2480,9 @@ function openLightbox(idx: number) {
   flex-direction: column;
   gap: 12px;
   flex-shrink: 0;
+  border-top: 1px solid #ececf0;
+  padding-top: 14px;
+  background: #fff;
 }
 .v4-btn-modal-search {
   background: #0071e3;
@@ -2297,6 +2506,32 @@ function openLightbox(idx: number) {
   font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .v4-filter-modal-overlay {
+    padding: 0;
+  }
+
+  .v4-filter-modal-card {
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    max-height: 90dvh;
+    padding: 20px 16px 16px;
+  }
+
+  .v4-modal-header {
+    margin-bottom: 16px;
+  }
+
+  .v4-modal-title {
+    font-size: 28px;
+  }
+
+  .v4-modal-body {
+    padding-right: 6px;
+    margin-bottom: 12px;
+  }
 }
 
 /* Fade animation */
