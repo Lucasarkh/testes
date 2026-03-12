@@ -59,6 +59,7 @@
             :container-width="imgNaturalW"
             :container-height="imgNaturalH"
             :selected="selectedHotspot?.id === hs.id"
+            :hovered="hoveredHotspotId === hs.id"
             :show-label="showLabels"
             :pin-radius="pinRadiusForScale"
             @click="openPopover"
@@ -107,13 +108,11 @@
 
     <!-- Popover -->
     <HotspotPopover
-      :hotspot="activeHotspot"
+      :hotspot="selectedHotspot"
       :anchor-x="popoverAnchor.x"
       :anchor-y="popoverAnchor.y"
       :teleport-target="isFullscreen ? containerEl : 'body'"
       @close="handlePopoverClose"
-      @pointer-enter="handlePopoverPointerEnter"
-      @pointer-leave="handlePopoverPointerLeave"
     />
   </div>
 </template>
@@ -353,14 +352,9 @@ const pinRadiusForScale = computed(() =>
 
 // ── Popover ───────────────────────────────────────────────
 const selectedHotspot = ref<PlantHotspot | null>(null)
-const hoveredPopoverHotspot = ref<PlantHotspot | null>(null)
 const showBeacons = ref(true)
 const hydratedHotspotIds = ref<Set<string>>(new Set())
 const hoveredHotspotId = ref<string | null>(null)
-const isPointerOverPopover = ref(false)
-let hoverCloseTimeout: ReturnType<typeof setTimeout> | null = null
-
-const activeHotspot = computed(() => selectedHotspot.value || hoveredPopoverHotspot.value)
 
 const renderedVisibleHotspots = computed(() => {
   if (!hoveredHotspotId.value) return visibleHotspots.value
@@ -385,31 +379,11 @@ const getHotspotViewportAnchor = (hotspot: PlantHotspot) => {
 
 const setHoveredHotspot = (hotspot: PlantHotspot) => {
   hoveredHotspotId.value = hotspot.id
-
-  if (hoverCloseTimeout) {
-    clearTimeout(hoverCloseTimeout)
-    hoverCloseTimeout = null
-  }
-
-  if (selectedHotspot.value || !showBeacons.value) return
-  const anchor = getHotspotViewportAnchor(hotspot)
-  if (!anchor) return
-  popoverAnchor.value = anchor
-  hoveredPopoverHotspot.value = hotspot
 }
 
 const clearHoveredHotspot = (hotspot: PlantHotspot) => {
   if (hoveredHotspotId.value === hotspot.id) {
     hoveredHotspotId.value = null
-  }
-
-  if (!selectedHotspot.value) {
-    hoverCloseTimeout = setTimeout(() => {
-      if (!isPointerOverPopover.value && hoveredPopoverHotspot.value?.id === hotspot.id) {
-        hoveredPopoverHotspot.value = null
-      }
-      hoverCloseTimeout = null
-    }, 90)
   }
 }
 
@@ -418,18 +392,14 @@ const { getPublicHotspot } = usePublicPlantMap()
 watch(showBeacons, (val) => {
   if (!val) {
     selectedHotspot.value = null
-    hoveredPopoverHotspot.value = null
     hoveredHotspotId.value = null
-    isPointerOverPopover.value = false
   }
 })
 
 // Close popover when map is moved/zoomed
 watch(() => transform.value, () => {
-  if (selectedHotspot.value || hoveredPopoverHotspot.value) {
+  if (selectedHotspot.value) {
     selectedHotspot.value = null
-    hoveredPopoverHotspot.value = null
-    isPointerOverPopover.value = false
   }
 }, { deep: true })
 
@@ -468,11 +438,9 @@ const openPopover = (event: MouseEvent | KeyboardEvent | PlantHotspot, hotspot?:
       }
     }
     selectedHotspot.value = hotspot ?? null
-    hoveredPopoverHotspot.value = null
   } else {
     // Fallback for direct calls
     selectedHotspot.value = event
-    hoveredPopoverHotspot.value = null
   }
 
   // Lazy-load description + metaJson on first open.
@@ -494,42 +462,16 @@ const openPopover = (event: MouseEvent | KeyboardEvent | PlantHotspot, hotspot?:
   }
 }
 
-const handlePopoverPointerEnter = () => {
-  isPointerOverPopover.value = true
-  if (hoverCloseTimeout) {
-    clearTimeout(hoverCloseTimeout)
-    hoverCloseTimeout = null
-  }
-}
-
-const handlePopoverPointerLeave = () => {
-  isPointerOverPopover.value = false
-  if (selectedHotspot.value) return
-  if (hoveredPopoverHotspot.value && hoveredHotspotId.value !== hoveredPopoverHotspot.value.id) {
-    hoveredPopoverHotspot.value = null
-  }
-}
-
 const handlePopoverClose = () => {
   selectedHotspot.value = null
-  hoveredPopoverHotspot.value = null
-  isPointerOverPopover.value = false
 }
 
 // ── Close popover on outside click ────────────────────────
 const handleContainerClick = () => {
   selectedHotspot.value = null
-  hoveredPopoverHotspot.value = null
   hoveredHotspotId.value = null
-  isPointerOverPopover.value = false
 }
 
-onUnmounted(() => {
-  if (hoverCloseTimeout) {
-    clearTimeout(hoverCloseTimeout)
-    hoverCloseTimeout = null
-  }
-})
 </script>
 
 <style scoped>

@@ -1,6 +1,7 @@
 <template>
   <g
     class="plant-hotspot-pin"
+    :class="{ 'is-hovered': hovered, 'is-selected': selected }"
     :transform="`translate(${cx}, ${cy})`"
     role="button"
     :aria-label="hotspot.title"
@@ -39,27 +40,29 @@
 
     <!-- Sign Head (Plaquinha) -->
     <g :transform="`translate(0, ${-poleHeight})`">
-      <rect
-        :x="-headWidth / 2"
-        :y="-headHeight"
-        :width="headWidth"
-        :height="headHeight"
-        rx="4"
-        :fill="pinColor"
-        stroke="white"
-        stroke-width="1.5"
-        class="head-rect"
-      />
-      <!-- Icon or Label -->
-      <text
-        text-anchor="middle"
-        dominant-baseline="central"
-        :y="-headHeight / 2"
-        :font-size="headHeight * 0.6"
-        fill="white"
-        font-weight="700"
-        style="pointer-events: none; user-select: none;"
-      >{{ headText }}</text>
+      <g class="sign-head-group">
+        <rect
+          :x="-headWidth / 2"
+          :y="-headHeight"
+          :width="headWidth"
+          :height="headHeight"
+          rx="4"
+          :fill="pinColor"
+          stroke="white"
+          stroke-width="1.5"
+          class="head-rect"
+        />
+        <!-- Icon or Label -->
+        <text
+          text-anchor="middle"
+          dominant-baseline="central"
+          :y="-headHeight / 2"
+          :font-size="headHeight * 0.6"
+          fill="white"
+          font-weight="700"
+          style="pointer-events: none; user-select: none;"
+        >{{ headText }}</text>
+      </g>
     </g>
 
     <!-- Active ring (when selected) -->
@@ -81,6 +84,16 @@
         repeatCount="indefinite"
       />
     </circle>
+
+    <circle
+      v-else-if="hovered"
+      :r="8.5"
+      fill="none"
+      :stroke="pinColor"
+      stroke-width="1.75"
+      opacity="0.9"
+      class="hover-ring"
+    />
   </g>
 </template>
 
@@ -100,10 +113,12 @@ const props = withDefaults(defineProps<{
   /** Container height in px */
   containerHeight: number
   selected?: boolean
+  hovered?: boolean
   showLabel?: boolean
   pinRadius?: number
 }>(), {
   selected: false,
+  hovered: false,
   showLabel: true,
   pinRadius: 14,
 })
@@ -147,6 +162,28 @@ const headWidth = computed(() => Math.max(headHeight.value, headText.value.lengt
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4)) brightness(1.1);
 }
 
+.plant-hotspot-pin :deep(.head-rect),
+.plant-hotspot-pin line,
+.plant-hotspot-pin .base-dot-inner {
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.plant-hotspot-pin.is-hovered :deep(.head-rect),
+.plant-hotspot-pin.is-hovered line,
+.plant-hotspot-pin.is-hovered .base-dot-inner {
+  filter: brightness(1.08);
+}
+
+.plant-hotspot-pin.is-hovered .sign-head-group {
+  animation: pinHeadBob 0.9s ease-in-out infinite;
+}
+
+.hover-ring {
+  animation: hoverRingPulse 1s ease-in-out infinite;
+}
+
 .head-rect {
   transition: fill 0.2s ease;
 }
@@ -160,4 +197,15 @@ const headWidth = computed(() => Math.max(headHeight.value, headText.value.lengt
   50% { transform: scale(2); opacity: 0.1; }
   100% { transform: scale(1); opacity: 0.6; }
 }
+
+@keyframes hoverRingPulse {
+  0%, 100% { transform: scale(0.96); opacity: 0.55; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+@keyframes pinHeadBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
 </style>
