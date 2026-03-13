@@ -45,25 +45,6 @@ docker-compose*.yml
 Dockerfile
 **/Dockerfile
 
-# Frontend app (not needed for backend build context)
-# NOTE: We still need apps/frontend/package.json for pnpm lockfile validation
-apps/frontend/app
-apps/frontend/assets
-apps/frontend/components
-apps/frontend/composables
-apps/frontend/layouts
-apps/frontend/middleware
-apps/frontend/pages
-apps/frontend/plugins
-apps/frontend/public
-apps/frontend/stores
-apps/frontend/utils
-apps/frontend/__tests__
-apps/frontend/_backup_map
-apps/frontend/vitest.config.ts
-apps/frontend/nuxt.config.ts
-apps/frontend/.env*
-
 # Test & dev files
 **/*.spec.ts
 **/*.test.ts
