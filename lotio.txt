@@ -1,0 +1,18 @@
+A Lotio é uma plataforma de inteligência comercial para loteamentos que ajuda loteadoras e equipes de vendas a acelerar a comercialização de lotes e organizar a gestão do empreendimento.
+
+O sistema centraliza processos importantes do negócio, conectando corretores, gestão comercial e inteligência de leads em um único ambiente. A plataforma oferece ferramentas para melhorar a experiência de vendas, organizar informações do loteamento e facilitar a tomada de decisões.
+
+O objetivo da Lotio é transformar a forma como loteamentos são vendidos, trazendo mais eficiência para o processo comercial, melhor gestão de leads e maior controle das operações de venda de lotes.
+
+A solução permite que loteadoras tenham mais visibilidade sobre suas vendas, otimizem o trabalho das equipes comerciais e aumentem a velocidade de comercialização dos empreendimentos.
+
+Lotio - Plataforma de inteligência comercial para loteamentos
+
+Seguem os valores por empreendimento ativo na plataforma:
+
+* 1 empreendimento — R$ 1.200 / mês
+* 2 empreendimentos — R$ 1.080 / mês por empreendimento
+* 3 empreendimentos — R$ 1.020 / mês por empreendimento
+* 4 ou mais empreendimentos — R$ 960 / mês por empreendimento
+
+funcionalidades: mapa interativo com spot que leva a pagina do lote para mais detalhes, imagem 360 do loteamento e do lote, simulador de preços, pre reserva online via integração da loteadora com gateways, chatbot com ia com integração de chave de api da loteadora, galeria de imagens, video do empreendimento, mapa do google com localização, locais nas proximidades via api do maps do google, simulador de movimento do loteamento "x pessoas estão vendo". evolução das obras. link de compartilhamento por corretor, onde lead é auto atribuido. qrcode unico por lote para impressão e posicionamento em lotes. busca por metros, caracteristicas etc. metricas de lotes mais acessados, campanhas mais acessadas, origem de trafego, tempo medio de permanencia, performance por corretores e imobiliarias, etc. auto distribuição automatica de leads para corretores e agendamentos de visitas.

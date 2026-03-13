@@ -14,6 +14,7 @@ import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import { NearbyService } from '@modules/nearby/nearby.service';
 import { BillingService } from '@modules/billing/billing.service';
+import { S3Service } from '@infra/s3/s3.service';
 
 @Injectable()
 export class ProjectsService {
@@ -41,8 +42,98 @@ export class ProjectsService {
     private prisma: PrismaService,
     @Inject('REDIS_SERVICE') private redis: any,
     private nearbyService: NearbyService,
-    private billingService: BillingService
+    private billingService: BillingService,
+    private readonly s3: S3Service
   ) {}
+
+  private async toPublicAssetUrl(url?: string | null): Promise<string | null> {
+    if (!url) return null;
+
+    const trimmed = String(url).trim();
+    if (!trimmed) return null;
+
+    const key = this.s3.keyFromUrl(trimmed);
+    if (!key) return trimmed;
+
+    try {
+      return await this.s3.presignedDownloadUrl(key, 60 * 60 * 24);
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to sign public asset URL for key ${key}: ${error?.message || error}`
+      );
+      return trimmed;
+    }
+  }
+
+  private async hydratePublicLotDetailsAssets<T extends {
+    panoramaUrl?: string | null;
+    medias?: Array<{ url?: string | null }>;
+  } | null>(lotDetails: T): Promise<T> {
+    if (!lotDetails) return lotDetails;
+
+    const medias = Array.isArray(lotDetails.medias)
+      ? await Promise.all(
+          lotDetails.medias.map(async (media) => ({
+            ...media,
+            url: await this.toPublicAssetUrl(media?.url)
+          }))
+        )
+      : [];
+
+    return {
+      ...lotDetails,
+      panoramaUrl: await this.toPublicAssetUrl(lotDetails.panoramaUrl),
+      medias
+    };
+  }
+
+  private async hydratePublicProjectAssets<T extends Record<string, any>>(
+    project: T
+  ): Promise<T> {
+    const logos = Array.isArray(project.logos)
+      ? await Promise.all(
+          project.logos.map(async (logo: any) => ({
+            ...logo,
+            url: await this.toPublicAssetUrl(logo?.url)
+          }))
+        )
+      : [];
+
+    const projectMedias = Array.isArray(project.projectMedias)
+      ? await Promise.all(
+          project.projectMedias.map(async (media: any) => ({
+            ...media,
+            url: await this.toPublicAssetUrl(media?.url)
+          }))
+        )
+      : [];
+
+    const teaserLots = Array.isArray(project.teaserLots)
+      ? await Promise.all(
+          project.teaserLots.map(async (lot: any) => ({
+            ...lot,
+            lotDetails: await this.hydratePublicLotDetailsAssets(lot?.lotDetails || null)
+          }))
+        )
+      : [];
+
+    return {
+      ...project,
+      ogLogoUrl: await this.toPublicAssetUrl(project.ogLogoUrl),
+      bannerImageUrl: await this.toPublicAssetUrl(project.bannerImageUrl),
+      bannerImageTabletUrl: await this.toPublicAssetUrl(project.bannerImageTabletUrl),
+      bannerImageMobileUrl: await this.toPublicAssetUrl(project.bannerImageMobileUrl),
+      logos,
+      projectMedias,
+      plantMap: project.plantMap
+        ? {
+            ...project.plantMap,
+            imageUrl: await this.toPublicAssetUrl(project.plantMap.imageUrl)
+          }
+        : project.plantMap,
+      teaserLots
+    };
+  }
 
   async create(tenantId: string, dto: CreateProjectDto, user?: User) {
     // Validate project creation against billing limits
@@ -352,7 +443,7 @@ export class ProjectsService {
       teaserLots = teaser;
     }
 
-    return { ...project, lotSummary, teaserLots };
+    return this.hydratePublicProjectAssets({ ...project, lotSummary, teaserLots });
   }
 
   /**
@@ -580,7 +671,12 @@ export class ProjectsService {
       });
 
       return {
-        data: paged,
+        data: await Promise.all(
+          paged.map(async (lot: any) => ({
+            ...lot,
+            lotDetails: await this.hydratePublicLotDetailsAssets(lot.lotDetails)
+          }))
+        ),
         total,
         page,
         limit,
@@ -704,7 +800,12 @@ export class ProjectsService {
     ).sort() as string[];
 
     return {
-      data,
+      data: await Promise.all(
+        data.map(async (lot) => ({
+          ...lot,
+          lotDetails: await this.hydratePublicLotDetailsAssets(lot.lotDetails)
+        }))
+      ),
       total,
       page,
       limit,
