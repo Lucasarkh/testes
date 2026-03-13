@@ -106,6 +106,37 @@ services:
         limits:
           memory: 512M
 
+  # ── Frontend (Nuxt SSR) ───────────────────────
+  frontend:
+    image: ghcr.io/${GHCR_OWNER:?Defina GHCR_OWNER}/lotio-frontend:${FRONTEND_TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NUXT_PUBLIC_API_BASE: ${FRONTEND_API_URL:-https://lotio.com.br}
+        NUXT_PUBLIC_SITE_URL: ${FRONTEND_URL:-https://www.lotio.com.br}
+        NUXT_PUBLIC_FB_APP_ID: ${NUXT_PUBLIC_FB_APP_ID:-}
+    container_name: lotio_frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NUXT_PUBLIC_API_BASE: ${FRONTEND_API_URL:-https://lotio.com.br}
+      NUXT_PUBLIC_SITE_URL: ${FRONTEND_URL:-https://www.lotio.com.br}
+      NUXT_PUBLIC_FB_APP_ID: ${NUXT_PUBLIC_FB_APP_ID:-}
+    networks:
+      - app_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
   # ── Backend (NestJS) ──────────────────────────
   backend:
     image: ghcr.io/${GHCR_OWNER:?Defina GHCR_OWNER}/lotio-backend:${BACKEND_TAG:-latest}
