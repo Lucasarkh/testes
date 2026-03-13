@@ -223,8 +223,8 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
 
-            docker compose -f docker-compose.prod.yml pull frontend
-            docker compose -f docker-compose.prod.yml up -d frontend
+            docker compose pull frontend
+            docker compose up -d frontend
 
             echo "Waiting for frontend to stabilize..."
             for i in $(seq 1 20); do
