@@ -1,10 +1,6 @@
 <template>
-  <div v-if="!tenantStore.isLoaded" class="loading-full">
-    <div class="spinner"></div>
-  </div>
-
   <!-- Subdomain / custom-domain: show the resolved project directly at "/" -->
-  <ProjectLandingView v-else-if="tenantStore.config?.projectId" />
+  <ProjectLandingView v-if="hasResolvedProjectContext" />
 
   <!-- Standard platform landing for lotio.com.br -->
   <div v-else class="landing-page">
@@ -88,6 +84,10 @@ const { data: resolvedProject } = await useAsyncData(
     }
   },
   { server: true, default: () => null },
+)
+
+const hasResolvedProjectContext = computed(
+  () => !!resolvedProjectSlug.value || !!tenantStore.config?.projectId,
 )
 
 const seoTitle = computed(() => {

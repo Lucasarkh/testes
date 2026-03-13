@@ -1,13 +1,7 @@
 <template>
   <div class="pub-page">
-    <!-- Loading -->
-    <div v-if="loading" class="pub-loading">
-      <div class="loading-spinner"></div>
-      <p>Carregando projeto...</p>
-    </div>
-
     <!-- Error -->
-    <div v-else-if="error" class="pub-error">
+    <div v-if="error && !project" class="pub-error">
       <div class="pub-error-card card">
         <h2>Projeto não encontrado</h2>
         <p>{{ error }}</p>
@@ -855,7 +849,6 @@ const { success: toastSuccess } = useToast()
 const tracking = useTracking()
 const trackingStore = useTrackingStore()
 
-const loading = ref(true)
 const showSchedulingModal = ref(false)
 const error = ref('')
 const project = ref<any>(null)
@@ -1854,7 +1847,6 @@ onMounted(async () => {
   } catch (e: any) {
     error.value = e.message || 'Projeto não encontrado'
   }
-  loading.value = false
   startSalesMotion()
 })
 
