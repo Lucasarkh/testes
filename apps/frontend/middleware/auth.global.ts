@@ -50,7 +50,10 @@ export default defineNuxtRouteMiddleware((to) => {
   if (to.path.startsWith('/painel/usuarios') && !authStore.canManageUsers) {
     return navigateTo('/painel');
   }
-  if (to.path.startsWith('/painel/assinatura') && !authStore.isLoteadora) {
+  if (to.path.startsWith('/painel/assinatura')) {
+    return navigateTo('/painel');
+  }
+  if (to.path.startsWith('/painel/cobranca')) {
     return navigateTo('/painel');
   }
   if (to.path.startsWith('/painel/reservar') && !authStore.isCorretor && !authStore.isImobiliaria) {

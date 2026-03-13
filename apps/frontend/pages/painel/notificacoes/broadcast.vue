@@ -75,7 +75,7 @@
 
       <div class="field-group">
         <label>Link de ação (opcional)</label>
-        <input v-model="form.actionUrl" class="text-input" placeholder="Ex.: /painel/assinatura" />
+        <input v-model="form.actionUrl" class="text-input" placeholder="Ex.: /painel/suporte" />
         <span class="field-hint">Caminho interno para redirecionar o usuário ao clicar na notificação.</span>
       </div>
 

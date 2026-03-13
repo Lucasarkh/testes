@@ -85,13 +85,16 @@ const checkingSlug = ref(false)
 
 const form = ref({ name: '', slug: '', description: '' })
 
-/** Pre-check billing limits before opening the create modal */
+const showContractRequiredMessage = () => {
+  toastError('A criação de novos projetos depende do seu contrato. Fale com a equipe da Lotio para ajustar o acesso.')
+}
+
+/** Validate contract-related project access before opening the create modal */
 const handleNewProject = async () => {
   try {
     const limits = await fetchApi('/billing/project-limits')
     if (!limits?.canCreateProject || limits?.requiresSubscription) {
-      // Redirect with query param to ensure toast is shown on the next page
-      navigateTo('/painel/assinatura?limit_reached=true')
+      showContractRequiredMessage()
       return
     }
   } catch {
@@ -161,7 +164,7 @@ const handleCreate = async () => {
     try { parsed = JSON.parse(e.message || '') } catch {}
     if (parsed?.code === 'SUBSCRIPTION_REQUIRED') {
       showCreate.value = false
-      navigateTo('/painel/assinatura?limit_reached=true')
+      showContractRequiredMessage()
       return
     }
     createError.value = e.message
