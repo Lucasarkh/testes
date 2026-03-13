@@ -7,7 +7,11 @@ import {
   Logger
 } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
-import { UserRole } from '@prisma/client';
+import {
+  InviteCodeProjectAssignmentMode,
+  Prisma,
+  UserRole
+} from '@prisma/client';
 import { CreateAgencyDto, UpdateAgencyDto } from './dto/agency.dto';
 import { CreateInviteDto, AcceptInviteDto } from './dto/invite.dto';
 import {
@@ -35,6 +39,100 @@ export class AgenciesService {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  private async resolveInviteCodeProjectIds(
+    tenantId: string,
+    projectIds?: string[]
+  ) {
+    const uniqueProjectIds = Array.from(
+      new Set((projectIds || []).filter(Boolean))
+    );
+
+    if (uniqueProjectIds.length === 0) {
+      return [];
+    }
+
+    const projects = await this.prisma.project.findMany({
+      where: { tenantId, id: { in: uniqueProjectIds } },
+      select: { id: true }
+    });
+
+    if (projects.length !== uniqueProjectIds.length) {
+      throw new BadRequestException(
+        'Um ou mais projetos selecionados nao pertencem a esta loteadora.'
+      );
+    }
+
+    return projects.map((project) => project.id);
+  }
+
+  private async buildInviteCodeProjectAssignment(
+    tenantId: string,
+    role: UserRole,
+    mode?: InviteCodeProjectAssignmentMode,
+    projectIds?: string[]
+  ) {
+    if (role !== UserRole.CORRETOR) {
+      return {
+        projectAssignmentMode: InviteCodeProjectAssignmentMode.NONE,
+        projectIds: [] as string[]
+      };
+    }
+
+    const resolvedMode = mode ?? InviteCodeProjectAssignmentMode.NONE;
+
+    if (resolvedMode === InviteCodeProjectAssignmentMode.SELECTED) {
+      const resolvedProjectIds = await this.resolveInviteCodeProjectIds(
+        tenantId,
+        projectIds
+      );
+
+      if (resolvedProjectIds.length === 0) {
+        throw new BadRequestException(
+          'Selecione ao menos um projeto para a atribuicao automatica.'
+        );
+      }
+
+      return {
+        projectAssignmentMode: resolvedMode,
+        projectIds: resolvedProjectIds
+      };
+    }
+
+    return {
+      projectAssignmentMode: resolvedMode,
+      projectIds: [] as string[]
+    };
+  }
+
+  private async resolveRealtorInviteProjects(
+    tx: Prisma.TransactionClient,
+    inviteCode: {
+      tenantId: string;
+      projectAssignmentMode: InviteCodeProjectAssignmentMode;
+      projects: Array<{ id: string }>;
+    }
+  ) {
+    if (
+      inviteCode.projectAssignmentMode ===
+      InviteCodeProjectAssignmentMode.SELECTED
+    ) {
+      return inviteCode.projects.map((project) => project.id);
+    }
+
+    if (
+      inviteCode.projectAssignmentMode === InviteCodeProjectAssignmentMode.ALL
+    ) {
+      const tenantProjects = await tx.project.findMany({
+        where: { tenantId: inviteCode.tenantId },
+        select: { id: true }
+      });
+
+      return tenantProjects.map((project) => project.id);
+    }
+
+    return [];
   }
 
   async createAgency(tenantId: string, dto: CreateAgencyDto) {
@@ -334,13 +432,29 @@ export class AgenciesService {
       );
     }
 
+    const assignment = await this.buildInviteCodeProjectAssignment(
+      tenantId,
+      role,
+      dto.projectAssignmentMode,
+      dto.projectIds
+    );
+
     return this.prisma.tenantInviteCode.create({
       data: {
         tenantId,
         description: dto.description,
         role,
+        projectAssignmentMode: assignment.projectAssignmentMode,
+        projects: assignment.projectIds.length
+          ? {
+              connect: assignment.projectIds.map((id) => ({ id }))
+            }
+          : undefined,
         maxUses: dto.maxUses,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null
+      },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } }
       }
     });
   }
@@ -348,6 +462,9 @@ export class AgenciesService {
   async listInviteCodes(tenantId: string) {
     return this.prisma.tenantInviteCode.findMany({
       where: { tenantId },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } }
+      },
       orderBy: { createdAt: 'desc' }
     });
   }
@@ -358,9 +475,29 @@ export class AgenciesService {
     dto: UpdateInviteCodeDto
   ) {
     const code = await this.prisma.tenantInviteCode.findFirst({
-      where: { id, tenantId }
+      where: { id, tenantId },
+      include: {
+        projects: { select: { id: true } }
+      }
     });
     if (!code) throw new NotFoundException('Código de convite não encontrado.');
+
+    let projectAssignmentMode: InviteCodeProjectAssignmentMode | undefined;
+    let projectIds: string[] | undefined;
+
+    if (
+      code.role === UserRole.CORRETOR &&
+      (dto.projectAssignmentMode !== undefined || dto.projectIds !== undefined)
+    ) {
+      const assignment = await this.buildInviteCodeProjectAssignment(
+        tenantId,
+        code.role,
+        dto.projectAssignmentMode ?? code.projectAssignmentMode,
+        dto.projectIds ?? code.projects.map((project) => project.id)
+      );
+      projectAssignmentMode = assignment.projectAssignmentMode;
+      projectIds = assignment.projectIds;
+    }
 
     return this.prisma.tenantInviteCode.update({
       where: { id },
@@ -368,6 +505,10 @@ export class AgenciesService {
         description:
           dto.description !== undefined ? dto.description : undefined,
         isActive: dto.isActive !== undefined ? dto.isActive : undefined,
+        projectAssignmentMode,
+        projects: projectIds
+          ? { set: projectIds.map((projectId) => ({ id: projectId })) }
+          : undefined,
         maxUses: dto.maxUses !== undefined ? dto.maxUses : undefined,
         expiresAt:
           dto.expiresAt !== undefined
@@ -375,6 +516,9 @@ export class AgenciesService {
               ? new Date(dto.expiresAt)
               : null
             : undefined
+      },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } }
       }
     });
   }
@@ -395,7 +539,8 @@ export class AgenciesService {
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
       },
       include: {
-        tenant: { select: { name: true, slug: true } }
+        tenant: { select: { name: true, slug: true } },
+        projects: { select: { id: true, name: true, slug: true } }
       }
     });
 
@@ -417,6 +562,8 @@ export class AgenciesService {
       code: inviteCode.code,
       role: inviteCode.role,
       description: inviteCode.description,
+      projectAssignmentMode: inviteCode.projectAssignmentMode,
+      projects: inviteCode.projects,
       tenantName: inviteCode.tenant.name,
       tenantSlug: inviteCode.tenant.slug
     };
@@ -469,7 +616,10 @@ export class AgenciesService {
         isActive: true,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
       },
-      include: { tenant: true }
+      include: {
+        tenant: true,
+        projects: { select: { id: true, name: true, slug: true } }
+      }
     });
 
     if (!inviteCode)
@@ -537,6 +687,11 @@ export class AgenciesService {
           data: { userId: user.id, agencyId: null }
         });
 
+        const assignedProjectIds = await this.resolveRealtorInviteProjects(
+          tx,
+          inviteCode
+        );
+
         const finalCode = this.normalizeSharingLinkCode(dto.sharingLinkCode);
         if (!finalCode) {
           throw new BadRequestException(
@@ -566,7 +721,14 @@ export class AgenciesService {
             phone: dto.phone || null,
             creci: dto.creci || null,
             code: finalCode,
-            agencyId: null
+            agencyId: null,
+            projects: assignedProjectIds.length
+              ? {
+                  connect: assignedProjectIds.map((projectId) => ({
+                    id: projectId
+                  }))
+                }
+              : undefined
           }
         });
       }

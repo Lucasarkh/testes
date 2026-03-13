@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsEnum,
+  IsArray,
   IsInt,
   IsDateString,
   IsBoolean,
@@ -10,7 +11,7 @@ import {
   Min,
   Matches
 } from 'class-validator';
-import { UserRole } from '@prisma/client';
+import { InviteCodeProjectAssignmentMode, UserRole } from '@prisma/client';
 import {
   PASSWORD_POLICY_MESSAGE,
   PASSWORD_POLICY_REGEX
@@ -24,6 +25,15 @@ export class CreateInviteCodeDto {
   @IsEnum([UserRole.CORRETOR, UserRole.IMOBILIARIA])
   @IsOptional()
   role?: UserRole;
+
+  @IsEnum(InviteCodeProjectAssignmentMode)
+  @IsOptional()
+  projectAssignmentMode?: InviteCodeProjectAssignmentMode;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  projectIds?: string[];
 
   @IsInt()
   @Min(1)
@@ -76,6 +86,15 @@ export class UpdateInviteCodeDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsEnum(InviteCodeProjectAssignmentMode)
+  @IsOptional()
+  projectAssignmentMode?: InviteCodeProjectAssignmentMode;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  projectIds?: string[];
 
   @IsInt()
   @Min(1)

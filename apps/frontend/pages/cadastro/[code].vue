@@ -15,7 +15,13 @@ const code = route.params.code as string
 const loading = ref(false)
 const validating = ref(true)
 const errorMsg = ref('')
-const codeData = ref<{ tenantName: string; role: string; description: string | null } | null>(null)
+const codeData = ref<{
+  tenantName: string
+  role: string
+  description: string | null
+  projectAssignmentMode?: 'NONE' | 'ALL' | 'SELECTED'
+  projects?: Array<{ id: string; name: string; slug: string }>
+} | null>(null)
 const success = ref(false)
 
 const form = ref({
@@ -251,11 +257,9 @@ onBeforeUnmount(() => {
         <div class="card-header">
           <h1>Cadastro de {{ roleName }}</h1>
           <p>
-            Voce foi convidado para se cadastrar como <strong>{{ roleName }}</strong>
-            na plataforma da <strong>{{ codeData.tenantName }}</strong>.
+            Voce foi convidado pela loteadora <strong>{{ codeData.tenantName }}</strong>
+            para concluir seu cadastro como <strong>{{ roleName }}</strong>.
           </p>
-
-          <p class="tenant-note">Loteadora: {{ codeData.tenantName }}</p>
 
           <p v-if="codeData.description" class="invite-note">{{ codeData.description }}</p>
         </div>
@@ -406,13 +410,8 @@ onBeforeUnmount(() => {
   line-height: 1.55;
 }
 
-.card-header strong { color: var(--gray-900); }
-
-.tenant-note {
-  margin-top: var(--space-3) !important;
-  font-size: 0.8125rem !important;
-  color: var(--primary-hover) !important;
-  font-weight: 600;
+.card-header strong {
+  color: var(--gray-900);
 }
 
 .invite-note {
@@ -447,10 +446,21 @@ onBeforeUnmount(() => {
   font-size: 0.875rem;
 }
 
-.state-center.error { color: #dc2626; }
-.state-center.error h2 { color: #b91c1c; }
-.state-center.success { color: var(--primary-hover); }
-.state-center.success h2 { color: var(--primary-hover); }
+.state-center.error {
+  color: #dc2626;
+}
+
+.state-center.error h2 {
+  color: #b91c1c;
+}
+
+.state-center.success {
+  color: var(--primary-hover);
+}
+
+.state-center.success h2 {
+  color: var(--primary-hover);
+}
 
 .spinner {
   width: 36px;
@@ -460,7 +470,10 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .form {
   display: flex;
@@ -495,7 +508,9 @@ onBeforeUnmount(() => {
   color: var(--gray-700);
 }
 
-.required { color: #ef4444; }
+.required {
+  color: #ef4444;
+}
 
 .form-input {
   width: 100%;
@@ -515,7 +530,9 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 }
 
-.form-input::placeholder { color: var(--gray-400); }
+.form-input::placeholder {
+  color: var(--gray-400);
+}
 
 .input-error {
   border-color: #ef4444 !important;
@@ -586,8 +603,14 @@ onBeforeUnmount(() => {
   box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28);
 }
 
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-full { width: 100%; }
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-full {
+  width: 100%;
+}
 
 .footer-note {
   font-size: 0.75rem;
@@ -603,7 +626,9 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.footer-note a:hover { text-decoration: underline; }
+.footer-note a:hover {
+  text-decoration: underline;
+}
 
 @media (max-width: 640px) {
   .card-header h1 {

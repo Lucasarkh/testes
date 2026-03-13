@@ -13,6 +13,8 @@ interface InviteCode {
   code: string
   description: string | null
   role: string
+  projectAssignmentMode: 'NONE' | 'ALL' | 'SELECTED'
+  projects: Array<{ id: string; name: string; slug: string }>
   isActive: boolean
   usageCount: number
   maxUses: number | null
@@ -20,15 +22,25 @@ interface InviteCode {
   createdAt: string
 }
 
+interface ProjectOption {
+  id: string
+  name: string
+  slug: string
+}
+
 const codes = ref<InviteCode[]>([])
+const projects = ref<ProjectOption[]>([])
 const loading = ref(true)
 const showModal = ref(false)
 const saving = ref(false)
 const copiedId = ref<string | null>(null)
+const editingCodeId = ref<string | null>(null)
 
 const form = ref({
   description: '',
   role: 'CORRETOR' as 'CORRETOR' | 'IMOBILIARIA',
+  projectAssignmentMode: 'NONE' as 'NONE' | 'ALL' | 'SELECTED',
+  projectIds: [] as string[],
   maxUses: '',
   expiresAt: ''
 })
@@ -47,37 +59,102 @@ function registrationLink(code: string) {
 async function fetchCodes() {
   loading.value = true
   try {
-    const data = await fetchApi('/agencies/invite-codes')
+    const [inviteCodes, projectsResponse] = await Promise.all([
+      fetchApi('/agencies/invite-codes'),
+      fetchApi('/projects?limit=100')
+    ])
+
+    const data = inviteCodes
     codes.value = Array.isArray(data) ? data : []
+    projects.value = Array.isArray(projectsResponse?.data) ? projectsResponse.data : []
   } catch (err: any) {
     console.error('Failed to load invite codes:', err?.message)
     toastError(err?.message || 'Erro ao carregar links de cadastro.')
     codes.value = []
+    projects.value = []
   } finally {
     loading.value = false
   }
 }
 
 function openModal() {
-  form.value = { description: '', role: 'CORRETOR', maxUses: '', expiresAt: '' }
+  editingCodeId.value = null
+  form.value = {
+    description: '',
+    role: 'CORRETOR',
+    projectAssignmentMode: 'NONE',
+    projectIds: [],
+    maxUses: '',
+    expiresAt: ''
+  }
   showModal.value = true
 }
 
+function openEditModal(code: InviteCode) {
+  editingCodeId.value = code.id
+  form.value = {
+    description: code.description || '',
+    role: code.role as 'CORRETOR' | 'IMOBILIARIA',
+    projectAssignmentMode: code.role === 'CORRETOR' ? code.projectAssignmentMode : 'NONE',
+    projectIds: code.role === 'CORRETOR' && code.projectAssignmentMode === 'SELECTED'
+      ? code.projects.map(project => project.id)
+      : [],
+    maxUses: code.maxUses ? String(code.maxUses) : '',
+    expiresAt: code.expiresAt ? new Date(code.expiresAt).toISOString().slice(0, 10) : ''
+  }
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  editingCodeId.value = null
+}
+
+watch(() => form.value.role, (role) => {
+  if (role !== 'CORRETOR') {
+    form.value.projectAssignmentMode = 'NONE'
+    form.value.projectIds = []
+  }
+})
+
+watch(() => form.value.projectAssignmentMode, (mode) => {
+  if (mode !== 'SELECTED') {
+    form.value.projectIds = []
+  }
+})
+
 async function saveCode() {
+  if (form.value.role === 'CORRETOR' && form.value.projectAssignmentMode === 'SELECTED' && form.value.projectIds.length === 0) {
+    toastError('Selecione ao menos um empreendimento ou escolha "Nenhum" ou "Todos".')
+    return
+  }
+
   saving.value = true
   try {
     const payload: any = {
-      role: form.value.role,
       description: form.value.description || undefined,
+      projectAssignmentMode: form.value.role === 'CORRETOR' ? form.value.projectAssignmentMode : undefined,
+      projectIds: form.value.role === 'CORRETOR' && form.value.projectAssignmentMode === 'SELECTED'
+        ? form.value.projectIds
+        : undefined,
       maxUses: form.value.maxUses ? parseInt(form.value.maxUses) : undefined,
       expiresAt: form.value.expiresAt || undefined
     }
-    await fetchApi('/agencies/invite-codes', { method: 'POST', body: payload })
-    toastSuccess('Link de cadastro criado com sucesso.')
-    showModal.value = false
+    if (editingCodeId.value) {
+      await fetchApi(`/agencies/invite-codes/${editingCodeId.value}`, {
+        method: 'PATCH',
+        body: payload
+      })
+      toastSuccess('Link de cadastro atualizado com sucesso.')
+    } else {
+      payload.role = form.value.role
+      await fetchApi('/agencies/invite-codes', { method: 'POST', body: payload })
+      toastSuccess('Link de cadastro criado com sucesso.')
+    }
+    closeModal()
     fetchCodes()
   } catch (err: any) {
-    toastError(err.message || 'Erro ao criar link.')
+    toastError(err.message || (editingCodeId.value ? 'Erro ao atualizar link.' : 'Erro ao criar link.'))
   } finally {
     saving.value = false
   }
@@ -120,6 +197,23 @@ async function copyLink(code: InviteCode) {
 
 function roleLabel(role: string) {
   return role === 'IMOBILIARIA' ? 'Imobiliária' : 'Corretor'
+}
+
+function assignmentLabel(code: InviteCode) {
+  if (code.role !== 'CORRETOR') return 'Nao se aplica para imobiliarias.'
+  if (code.projectAssignmentMode === 'ALL') return 'Vincula automaticamente em todos os empreendimentos.'
+  if (code.projectAssignmentMode === 'SELECTED') {
+    if (!code.projects?.length) return 'Vincula automaticamente em projetos selecionados.'
+    return code.projects.length === 1
+      ? `Vincula automaticamente em ${code.projects[0].name}.`
+      : `Vincula automaticamente em ${code.projects.length} empreendimentos selecionados.`
+  }
+  return 'Nao vincula o corretor a nenhum empreendimento automaticamente.'
+}
+
+function assignmentProjectsText(code: InviteCode) {
+  if (code.projectAssignmentMode !== 'SELECTED' || !code.projects?.length) return ''
+  return code.projects.map(project => project.name).join(', ')
 }
 
 function formatDate(d: string | null) {
@@ -173,6 +267,9 @@ onMounted(fetchCodes)
             <span v-if="!code.isActive" class="inactive-badge">Inativo</span>
           </div>
           <div class="code-actions">
+            <button class="icon-btn" title="Editar" @click="openEditModal(code)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+            </button>
             <button class="icon-btn" :title="code.isActive ? 'Desativar' : 'Ativar'" @click="toggleActive(code)">
               <svg v-if="code.isActive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
               <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2v10"/><path d="M5.636 5.636a9 9 0 1 0 12.728 12.728"/></svg>
@@ -184,6 +281,14 @@ onMounted(fetchCodes)
         </div>
 
         <div class="code-description">{{ code.description || 'Sem descrição' }}</div>
+
+        <div v-if="code.role === 'CORRETOR'" class="code-assignment">
+          <strong>Atribuição automática:</strong>
+          <span>{{ assignmentLabel(code) }}</span>
+          <small v-if="code.projectAssignmentMode === 'SELECTED' && code.projects?.length">
+            {{ assignmentProjectsText(code) }}
+          </small>
+        </div>
 
         <div class="code-url-row">
           <span class="code-url">{{ registrationLink(code.code) }}</span>
@@ -210,32 +315,74 @@ onMounted(fetchCodes)
     <!-- Create Modal -->
     <Teleport to="body">
       <div v-if="showModal" class="modal-overlay">
-        <div class="modal">
+        <div class="modal-container animate-in">
           <div class="modal-header">
-            <h2>Novo Link de Cadastro</h2>
-            <button class="modal-close" @click="showModal = false">
+            <div class="header-info">
+              <h2 class="modal-title">{{ editingCodeId ? 'Editar Link de Cadastro' : 'Novo Link de Cadastro' }}</h2>
+            </div>
+            <button class="btn-close" @click="closeModal" aria-label="Fechar">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
-          <div class="modal-body">
+          <div class="modal-body custom-scroll">
             <div class="form-group">
               <label class="form-label">Perfil de acesso <span class="required">*</span></label>
               <div class="role-options">
-                <label class="role-option" :class="{ selected: form.role === 'CORRETOR' }">
-                  <input type="radio" v-model="form.role" value="CORRETOR" />
+                <label class="role-option" :class="{ selected: form.role === 'CORRETOR', disabled: !!editingCodeId }">
+                  <input type="radio" v-model="form.role" value="CORRETOR" :disabled="!!editingCodeId" />
                   <span>Corretor</span>
                 </label>
-                <label class="role-option" :class="{ selected: form.role === 'IMOBILIARIA' }">
-                  <input type="radio" v-model="form.role" value="IMOBILIARIA" />
+                <label class="role-option" :class="{ selected: form.role === 'IMOBILIARIA', disabled: !!editingCodeId }">
+                  <input type="radio" v-model="form.role" value="IMOBILIARIA" :disabled="!!editingCodeId" />
                   <span>Imobiliária</span>
                 </label>
               </div>
+              <small v-if="editingCodeId" class="form-hint">O perfil do link nao pode ser alterado depois de criado.</small>
             </div>
 
             <div class="form-group">
               <label class="form-label">Descrição (opcional)</label>
               <input v-model="form.description" type="text" class="form-input" placeholder="Ex: Link para corretores da Remax" />
+            </div>
+
+            <div v-if="form.role === 'CORRETOR'" class="form-group">
+              <label class="form-label">Atribuição automática de empreendimentos</label>
+              <div class="assignment-options">
+                <label class="assignment-option" :class="{ selected: form.projectAssignmentMode === 'NONE' }">
+                  <input v-model="form.projectAssignmentMode" type="radio" value="NONE" />
+                  <div>
+                    <strong>Nenhum</strong>
+                    <span>O corretor entra sem empreendimentos vinculados.</span>
+                  </div>
+                </label>
+                <label class="assignment-option" :class="{ selected: form.projectAssignmentMode === 'ALL' }">
+                  <input v-model="form.projectAssignmentMode" type="radio" value="ALL" />
+                  <div>
+                    <strong>Todos</strong>
+                    <span>No cadastro, o corretor ja entra vinculado a todos os empreendimentos da loteadora.</span>
+                  </div>
+                </label>
+                <label class="assignment-option" :class="{ selected: form.projectAssignmentMode === 'SELECTED' }">
+                  <input v-model="form.projectAssignmentMode" type="radio" value="SELECTED" />
+                  <div>
+                    <strong>Selecionados</strong>
+                    <span>Escolha um ou mais empreendimentos para vincular automaticamente.</span>
+                  </div>
+                </label>
+              </div>
+
+              <div v-if="form.projectAssignmentMode === 'SELECTED'" class="project-selection-card">
+                <div v-if="projects.length === 0" class="empty-project-hint">
+                  Nenhum empreendimento cadastrado no tenant.
+                </div>
+                <div v-else class="project-selection-grid">
+                  <label v-for="project in projects" :key="project.id" class="project-checkbox">
+                    <input v-model="form.projectIds" type="checkbox" :value="project.id" />
+                    <span>{{ project.name }}</span>
+                  </label>
+                </div>
+              </div>
             </div>
 
             <div class="form-row">
@@ -251,9 +398,9 @@ onMounted(fetchCodes)
           </div>
 
           <div class="modal-footer">
-            <button class="btn btn-ghost" @click="showModal = false">Cancelar</button>
+            <button class="btn btn-ghost" @click="closeModal">Cancelar</button>
             <button class="btn btn-primary" :disabled="saving" @click="saveCode">
-              {{ saving ? 'Criando...' : 'Criar Link' }}
+              {{ saving ? (editingCodeId ? 'Salvando...' : 'Criando...') : (editingCodeId ? 'Salvar Alterações' : 'Criar Link') }}
             </button>
           </div>
         </div>
@@ -334,6 +481,17 @@ onMounted(fetchCodes)
 
 .code-description { font-size: 0.875rem; color: var(--color-surface-300); margin-bottom: 12px; }
 
+.code-assignment {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 12px; padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.8125rem; color: var(--color-surface-300);
+}
+.code-assignment strong { color: var(--color-surface-100); }
+.code-assignment small { color: var(--color-surface-400); }
+
 .code-url-row {
   display: flex; align-items: center; gap: 8px;
   background: rgba(0,0,0,0.2); border-radius: var(--radius-sm);
@@ -361,33 +519,93 @@ onMounted(fetchCodes)
 
 /* Modal */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center;
-  z-index: 1000; padding: 16px;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
 }
-.modal {
-  background: var(--color-surface-900, #111827);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: var(--radius-xl); width: 100%; max-width: 480px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+
+.modal-container {
+  background: var(--glass-bg);
+  width: 100%;
+  max-width: 580px;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 24px 0; margin-bottom: 20px;
+  padding: 24px 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.modal-header h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-surface-50); margin: 0; }
-.modal-close {
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: var(--radius-sm);
-  border: none; background: none; cursor: pointer;
-  color: var(--color-surface-400); transition: all 150ms ease;
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-surface-50);
+  margin: 0;
 }
-.modal-close:hover { background: rgba(255,255,255,0.06); color: var(--color-surface-100); }
-.modal-body { padding: 0 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.btn-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--glass-bg-heavy);
+  color: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: #EF4444;
+  color: white;
+  transform: scale(1.1);
+}
+
+.modal-body {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
 .modal-footer {
-  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
-  padding: 20px 24px;
+  padding: 24px 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
 }
+
+.animate-in {
+  animation: modalIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.custom-scroll::-webkit-scrollbar { width: 6px; }
+.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+.custom-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -412,6 +630,89 @@ onMounted(fetchCodes)
 }
 .role-option input { display: none; }
 .role-option.selected { border-color: var(--color-primary-500); color: var(--color-primary-400); background: rgba(16,185,129,0.08); }
+.role-option.disabled { opacity: 0.65; cursor: not-allowed; }
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--color-surface-400);
+}
+
+.assignment-options {
+  display: grid;
+  gap: 10px;
+}
+
+.assignment-option {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px; border-radius: var(--radius-md);
+  border: 1.5px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.02);
+  cursor: pointer; transition: all 150ms ease;
+}
+
+.assignment-option input {
+  margin-top: 3px;
+}
+
+.assignment-option div {
+  display: flex; flex-direction: column; gap: 3px;
+}
+
+.assignment-option strong {
+  color: var(--color-surface-100);
+  font-size: 0.875rem;
+}
+
+.assignment-option span {
+  color: var(--color-surface-400);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.assignment-option.selected {
+  border-color: rgba(16,185,129,0.45);
+  background: rgba(16,185,129,0.08);
+}
+
+.project-selection-card {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.project-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.project-checkbox {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  color: var(--color-surface-200);
+  cursor: pointer;
+}
+
+.project-checkbox input {
+  margin-top: 2px;
+}
+
+.empty-project-hint {
+  color: var(--color-surface-400);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 640px) {
+  .project-selection-grid,
+  .form-row,
+  .role-options {
+    grid-template-columns: 1fr;
+  }
+}
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px;

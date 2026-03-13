@@ -434,6 +434,7 @@ model Project {
   nearbyItems      NearbyItem[]
   subscriptionItems TenantSubscriptionItem[]
   logos           ProjectLogo[]
+  inviteCodes     TenantInviteCode[]
 
   @@index([tenantId])
   @@index([slug])
@@ -1248,19 +1249,27 @@ model SupportMessage {
 // ─── INVITE CODES ────────────────────────────────────────
 // Open registration links that loteadoras share with imobiliárias/corretores
 
+enum InviteCodeProjectAssignmentMode {
+  NONE
+  ALL
+  SELECTED
+}
+
 model TenantInviteCode {
-  id          String    @id @default(cuid())
-  tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  code        String    @unique @default(cuid())
-  description String?
-  role        UserRole  @default(CORRETOR)
-  isActive    Boolean   @default(true)
-  usageCount  Int       @default(0)
-  maxUses     Int?
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                    String                           @id @default(cuid())
+  tenantId              String
+  tenant                Tenant                           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code                  String                           @unique @default(cuid())
+  description           String?
+  role                  UserRole                         @default(CORRETOR)
+  projectAssignmentMode InviteCodeProjectAssignmentMode  @default(NONE)
+  projects              Project[]
+  isActive              Boolean                          @default(true)
+  usageCount            Int                              @default(0)
+  maxUses               Int?
+  expiresAt             DateTime?
+  createdAt             DateTime                         @default(now())
+  updatedAt             DateTime                         @updatedAt
 
   @@index([tenantId])
   @@index([code])

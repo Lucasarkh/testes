@@ -87,6 +87,66 @@ export class ProjectsService {
     };
   }
 
+  private async hydratePublicLegacyMapData<T>(mapData: T): Promise<T> {
+    if (!mapData) return mapData;
+
+    let parsed: any = mapData;
+    let shouldStringify = false;
+
+    if (typeof mapData === 'string') {
+      try {
+        parsed = JSON.parse(mapData);
+        shouldStringify = true;
+      } catch {
+        return mapData;
+      }
+    }
+
+    if (!parsed || typeof parsed !== 'object' || !parsed.lots) {
+      return mapData;
+    }
+
+    const hydrateLot = async (lot: any) => ({
+      ...lot,
+      panoramaUrl: await this.toPublicAssetUrl(lot?.panoramaUrl),
+      medias: Array.isArray(lot?.medias)
+        ? await Promise.all(
+            lot.medias.map(async (media: any) => ({
+              ...media,
+              url: await this.toPublicAssetUrl(media?.url)
+            }))
+          )
+        : lot?.medias
+    });
+
+    const hydratedLots = Array.isArray(parsed.lots)
+      ? await Promise.all(
+          parsed.lots.map(async (entry: any) => {
+            if (!Array.isArray(entry) || entry.length < 2) return entry;
+
+            const [key, lot] = entry;
+            return [key, await hydrateLot(lot)];
+          })
+        )
+      : Object.fromEntries(
+          await Promise.all(
+            Object.entries(parsed.lots).map(async ([key, lot]) => [
+              key,
+              await hydrateLot(lot)
+            ])
+          )
+        );
+
+    const hydratedMapData = {
+      ...parsed,
+      lots: hydratedLots
+    };
+
+    return (shouldStringify
+      ? JSON.stringify(hydratedMapData)
+      : hydratedMapData) as T;
+  }
+
   private async hydratePublicProjectAssets<T extends Record<string, any>>(
     project: T
   ): Promise<T> {
@@ -117,6 +177,8 @@ export class ProjectsService {
         )
       : [];
 
+    const mapData = await this.hydratePublicLegacyMapData(project.mapData);
+
     return {
       ...project,
       ogLogoUrl: await this.toPublicAssetUrl(project.ogLogoUrl),
@@ -131,6 +193,7 @@ export class ProjectsService {
             imageUrl: await this.toPublicAssetUrl(project.plantMap.imageUrl)
           }
         : project.plantMap,
+      mapData,
       teaserLots
     };
   }
