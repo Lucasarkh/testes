@@ -7,13 +7,15 @@ const defaultTitle = 'Lotio - Plataforma de inteligência comercial para loteame
 const defaultDescription = 'Acelere as vendas do seu loteamento com a Lotio: Experiência completa para corretores, inteligência de leads e gestão eficiente. Transforme seu loteamento em um sucesso de vendas!'
 
 export default defineNuxtConfig({
-  ssr: false,
+  ssr: true,
   routeRules: {
-    '/': { ssr: true },
-    '/:slug': { ssr: true },
-    '/:slug/:code': { ssr: true },
-    '/preview/**': { ssr: true },
-    '/preview-**': { ssr: true },
+    '/painel/**': { ssr: false },
+    '/login': { ssr: false },
+    '/aceitar-convite': { ssr: false },
+    '/cadastro/**': { ssr: false },
+    '/esqueci-senha': { ssr: false },
+    '/redefinir-senha': { ssr: false },
+    '/pagamento': { ssr: false },
   },
   devtools: { enabled: true },
   app: {

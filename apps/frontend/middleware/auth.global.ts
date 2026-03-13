@@ -1,6 +1,10 @@
 import { useAuthStore } from '../stores/auth';
 
 export default defineNuxtRouteMiddleware((to) => {
+  if (import.meta.server && !to.path.startsWith('/painel') && to.path !== '/login') {
+    return;
+  }
+
   const authStore = useAuthStore();
 
   if (!authStore.isLoggedIn) {
