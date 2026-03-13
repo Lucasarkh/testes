@@ -29,16 +29,110 @@ import LandingCTA from '@/components/landing/LandingCTA.vue'
 import LandingFooter from '@/components/landing/LandingFooter.vue'
 import { useTenantStore } from '~/stores/tenant'
 
+const defaultSeoTitle = 'Lotio - Aliado das Loteadoras, Incorporadoras e Imobiliárias'
+const defaultSeoDescription = 'A plataforma definitiva para incorporadoras, loteadoras, imobiliárias e corretores. Mapas interativos, gestão de leads em tempo real e controle total de estoque.'
+
 const tenantStore = useTenantStore()
+const route = useRoute()
+const runtimeConfig = useRuntimeConfig()
+const requestUrl = useRequestURL()
+const incomingHeaders = useRequestHeaders(['host', 'x-forwarded-host', 'x-forwarded-proto'])
+
+const apiBase = computed(() => String(runtimeConfig.public.apiBase || '').replace(/\/+$/, ''))
+const siteOrigin = computed(() => {
+  const configured = String(runtimeConfig.public.siteUrl || '').replace(/\/+$/, '')
+  if (configured) return configured
+  return requestUrl.origin
+})
+const requestHost = computed(() => {
+  const forwarded = String(incomingHeaders['x-forwarded-host'] || '').split(',')[0].trim()
+  if (forwarded) return forwarded
+  return String(incomingHeaders.host || requestUrl.host || '').trim()
+})
+
+const { data: tenantResolverData } = await useAsyncData(
+  () => `tenant-resolve-root-${requestHost.value || 'unknown'}`,
+  async () => {
+    if (!requestHost.value) return null
+    try {
+      return await $fetch(`${apiBase.value}/api/p/resolve-tenant`, {
+        headers: {
+          host: requestHost.value,
+          'x-forwarded-host': requestHost.value,
+          'x-forwarded-proto': String(incomingHeaders['x-forwarded-proto'] || requestUrl.protocol.replace(':', '')),
+        },
+      })
+    } catch {
+      return null
+    }
+  },
+  { server: true, default: () => null },
+)
+
+const resolvedProjectSlug = computed(() => {
+  const payload = tenantResolverData.value
+  if (!payload || typeof payload !== 'object') return ''
+  const fromProject = String(payload?.project?.slug || '').trim()
+  if (fromProject) return fromProject
+  return String(payload?.slug || '').trim()
+})
+
+const { data: resolvedProject } = await useAsyncData(
+  () => `tenant-root-project-${resolvedProjectSlug.value || 'none'}`,
+  async () => {
+    if (!resolvedProjectSlug.value) return null
+    try {
+      return await $fetch(`${apiBase.value}/api/p/${encodeURIComponent(resolvedProjectSlug.value)}`)
+    } catch {
+      return null
+    }
+  },
+  { server: true, default: () => null },
+)
+
+const seoTitle = computed(() => {
+  const name = String(resolvedProject.value?.name || '').trim()
+  if (name) return `Loteamento ${name} - Lotio`
+  return defaultSeoTitle
+})
+const seoDescription = computed(() => {
+  const description = String(resolvedProject.value?.description || '').trim()
+  if (description) return description
+  const name = String(resolvedProject.value?.name || '').trim()
+  if (name) return `Conheca o empreendimento ${name} e veja os lotes disponiveis.`
+  return defaultSeoDescription
+})
+const seoImage = computed(() => {
+  return (
+    resolvedProject.value?.ogLogoUrl
+    || resolvedProject.value?.bannerImageUrl
+    || resolvedProject.value?.bannerImageTabletUrl
+    || resolvedProject.value?.bannerImageMobileUrl
+    || `${siteOrigin.value}/img/og-image.png`
+  )
+})
+const seoUrl = computed(() => `${requestUrl.origin}${route.path}`)
 
 useSeoMeta({
-  title: 'Lotio - Aliado das Loteadoras, Incorporadoras e Imobiliárias',
-  ogTitle: 'Lotio - Aliado das Loteadoras, Incorporadoras e Imobiliárias',
-  description: 'A plataforma definitiva para incorporadoras, loteadoras, imobiliárias e corretores. Mapas interativos, gestão de leads em tempo real e controle total de estoque.',
-  ogDescription: 'A plataforma definitiva para incorporadoras, loteadoras, imobiliárias e corretores. Mapas interativos, gestão de leads em tempo real e controle total de estoque.',
-  ogImage: '/og-image.jpg',
+  title: seoTitle,
+  ogTitle: seoTitle,
+  description: seoDescription,
+  ogDescription: seoDescription,
+  ogType: 'website',
+  ogUrl: seoUrl,
+  ogImage: seoImage,
+  ogSiteName: computed(() => String(resolvedProject.value?.name || 'Lotio')),
   twitterCard: 'summary_large_image',
+  twitterTitle: seoTitle,
+  twitterDescription: seoDescription,
+  twitterImage: seoImage,
 })
+
+useHead(() => ({
+  link: [
+    { rel: 'image_src', href: seoImage.value },
+  ],
+}))
 
 definePageMeta({
   layout: 'public'

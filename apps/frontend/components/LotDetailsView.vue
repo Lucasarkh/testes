@@ -1172,25 +1172,6 @@ const shareCurrentLotWhatsapp = () => {
   window.open(whatsappShareUrl.value, '_blank', 'noopener,noreferrer')
 }
 
-useHead(() => ({
-  title: lotSeoTitle.value,
-  meta: [
-    { name: 'description', content: lotSeoDescription.value },
-    { property: 'og:type', content: 'article' },
-    { property: 'og:title', content: lotSeoTitle.value },
-    { property: 'og:description', content: lotSeoDescription.value },
-    { property: 'og:url', content: lotSeoUrl.value },
-    { property: 'og:image', content: lotSeoImage.value },
-    { property: 'og:image:alt', content: lotShareMessage.value },
-    { property: 'og:site_name', content: project.value?.name || 'Lotio' },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: lotSeoTitle.value },
-    { name: 'twitter:description', content: lotSeoDescription.value },
-    { name: 'twitter:image', content: lotSeoImage.value },
-    { name: 'twitter:image:alt', content: lotShareMessage.value }
-  ]
-}))
-
 const salesMotionConfig = computed(() => {
   const root = project.value?.salesMotionConfig || {}
   const cfg = root?.lot && typeof root.lot === 'object' ? root.lot : root
