@@ -2,6 +2,10 @@
   <!-- Subdomain / custom-domain: show the resolved project directly at "/" -->
   <ProjectLandingView v-if="hasResolvedProjectContext" />
 
+  <div v-else-if="shouldHoldPlatformLanding" class="loading-full">
+    <div class="spinner"></div>
+  </div>
+
   <!-- Standard platform landing for lotio.com.br -->
   <div v-else class="landing-page">
     <LandingHeader />
@@ -46,6 +50,15 @@ const requestHost = computed(() => {
   return String(incomingHeaders.host || requestUrl.host || '').trim()
 })
 
+function normalizeHostname(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .split(':')[0]
+}
+
 const { data: tenantResolverData } = await useAsyncData(
   () => `tenant-resolve-root-${requestHost.value || 'unknown'}`,
   async () => {
@@ -88,6 +101,26 @@ const { data: resolvedProject } = await useAsyncData(
 
 const hasResolvedProjectContext = computed(
   () => !!resolvedProjectSlug.value || !!tenantStore.config?.projectId,
+)
+
+const isKnownPlatformHost = computed(() => {
+  const currentHost = normalizeHostname(requestHost.value || requestUrl.host)
+  if (!currentHost) return false
+
+  const configuredHost = normalizeHostname(siteOrigin.value)
+  const knownHosts = new Set([
+    configuredHost,
+    configuredHost.replace(/^www\./, ''),
+    configuredHost ? `www.${configuredHost.replace(/^www\./, '')}` : '',
+    'localhost',
+    '127.0.0.1',
+  ].filter(Boolean))
+
+  return knownHosts.has(currentHost)
+})
+
+const shouldHoldPlatformLanding = computed(
+  () => process.client && !hasResolvedProjectContext.value && !tenantStore.isLoaded && !isKnownPlatformHost.value,
 )
 
 const seoTitle = computed(() => {
