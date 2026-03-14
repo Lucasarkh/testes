@@ -13,6 +13,7 @@
 
       <main class="modal-body custom-scroll">
         <form id="scheduling-form" @submit.prevent="save" class="form-layout">
+          <fieldset :disabled="!canWriteScheduling" class="form-fieldset">
           <!-- Seção: Ativos e Horários -->
           <div class="form-section">
             <h3 class="section-label text-primary">Detalhes da Visita</h3>
@@ -120,12 +121,13 @@
             <label class="section-label">Observações Internas</label>
             <textarea v-model="form.notes" rows="3" class="form-control text-area" placeholder="Detalhes ou requisitos especiais para este agendamento..."></textarea>
           </div>
+          </fieldset>
         </form>
       </main>
 
       <footer class="modal-footer">
         <button type="button" class="btn-ghost" @click="$emit('close')">Cancelar</button>
-        <button type="submit" form="scheduling-form" class="btn-primary-action" :disabled="saving">
+        <button type="submit" form="scheduling-form" class="btn-primary-action" :disabled="saving || !canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined">
           <i v-if="!saving" class="pi pi-check-circle me-1"></i>
           <span v-else class="spinner-sm me-2"></span>
           <span>{{ saving ? 'Salvando...' : 'Confirmar Agendamento' }}</span>
@@ -543,6 +545,12 @@ const props = defineProps({
 const emit = defineEmits(['close', 'success']);
 const api = useApi();
 const toast = useToast();
+const authStore = useAuthStore();
+const canWriteScheduling = computed(() => authStore.canWriteFeature('scheduling'));
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição';
+const canLoadProjectsCatalog = computed(() => {
+  return !authStore.isLoteadora || !authStore.hasPanelRestrictions || authStore.canReadFeature('projects');
+});
 
 const saving = ref(false);
 const loadingLeads = ref(false);
@@ -562,6 +570,11 @@ const form = ref({
 });
 
 onMounted(async () => {
+  if (!canLoadProjectsCatalog.value) {
+    projects.value = [];
+    return;
+  }
+
   try {
     const res = await api.get('/projects');
     projects.value = Array.isArray(res) ? res : (res.data || []);
@@ -619,6 +632,7 @@ const onProjectChange = async () => {
 }
 
 const save = async () => {
+  if (!canWriteScheduling.value) return;
   if (!form.value.projectId || !form.value.scheduledAt) {
      toast.error('Preencha os campos obrigatórios');
      return;

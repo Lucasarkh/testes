@@ -12,6 +12,11 @@ import * as bcrypt from 'bcrypt';
 import { UserRole } from '@prisma/client';
 import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 import { EmailQueueService } from '@infra/email-queue/email-queue.service';
+import {
+  FULL_PANEL_PERMISSIONS,
+  hasAnyPanelPermission,
+  normalizePanelPermissions
+} from '@/common/permissions/panel-permissions';
 
 const USER_SELECT = {
   id: true,
@@ -19,6 +24,7 @@ const USER_SELECT = {
   name: true,
   role: true,
   tenantId: true,
+  panelPermissions: true,
   createdAt: true
 };
 
@@ -33,6 +39,31 @@ export class UserService {
 
   private buildTenantScope(tenantId?: string) {
     return tenantId ? { tenantId } : { tenantId: null };
+  }
+
+  private buildManagedUserScope(tenantId?: string) {
+    if (!tenantId) {
+      return { tenantId: null, role: UserRole.SYSADMIN };
+    }
+
+    return {
+      tenantId,
+      role: UserRole.LOTEADORA,
+      agencyId: null,
+      realtor: { is: null },
+      realtorLink: { is: null }
+    };
+  }
+
+  private validateTenantPanelPermissions(input: unknown) {
+    const permissions = normalizePanelPermissions(input);
+    if (!hasAnyPanelPermission(permissions)) {
+      throw new BadRequestException(
+        'Selecione ao menos uma funcionalidade com acesso de leitura ou edição.'
+      );
+    }
+
+    return permissions;
   }
 
   async create(
@@ -78,13 +109,22 @@ export class UserService {
       );
     }
 
+    if (dto.role && dto.role !== UserRole.LOTEADORA) {
+      throw new BadRequestException(
+        'Nesta tela, apenas usuários internos do sistema podem ser criados. Para corretores e imobiliárias, use os menus específicos.'
+      );
+    }
+
+    const panelPermissions = this.validateTenantPanelPermissions(dto.panelPermissions);
+
     const user = await this.prisma.user.create({
       data: {
         tenantId,
         name: dto.name,
         email: dto.email.toLowerCase(),
         passwordHash,
-        role: dto.role ?? UserRole.CORRETOR
+        role: UserRole.LOTEADORA,
+        panelPermissions
       },
       select: { ...USER_SELECT, tenant: { select: { name: true } } }
     });
@@ -116,7 +156,7 @@ export class UserService {
   async findAll(tenantId: string | undefined, query: PaginationQueryDto) {
     const { page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
-    const where = this.buildTenantScope(tenantId);
+    const where = this.buildManagedUserScope(tenantId);
 
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
@@ -145,7 +185,7 @@ export class UserService {
 
   async findById(tenantId: string | undefined, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, ...this.buildTenantScope(tenantId) },
+      where: { id, ...this.buildManagedUserScope(tenantId) },
       select: USER_SELECT
     });
 
@@ -155,7 +195,7 @@ export class UserService {
 
   async update(tenantId: string | undefined, id: string, dto: UpdateUserDto) {
     const user = await this.prisma.user.findFirst({
-      where: { id, ...this.buildTenantScope(tenantId) }
+      where: { id, ...this.buildManagedUserScope(tenantId) }
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
@@ -171,10 +211,19 @@ export class UserService {
       );
     }
 
+    if (tenantId && dto.role && dto.role !== UserRole.LOTEADORA) {
+      throw new BadRequestException(
+        'Nesta tela, apenas usuários internos do sistema podem ser gerenciados.'
+      );
+    }
+
     const data: any = {};
     if (dto.name) data.name = dto.name;
-    if (dto.role) data.role = dto.role;
+    if (dto.role && !tenantId) data.role = dto.role;
     if (dto.password) data.passwordHash = await bcrypt.hash(dto.password, 10);
+    if (tenantId && dto.panelPermissions !== undefined) {
+      data.panelPermissions = this.validateTenantPanelPermissions(dto.panelPermissions);
+    }
 
     return this.prisma.user.update({
       where: { id },
@@ -185,7 +234,7 @@ export class UserService {
 
   async remove(tenantId: string | undefined, id: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id, ...this.buildTenantScope(tenantId) }
+      where: { id, ...this.buildManagedUserScope(tenantId) }
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
@@ -200,6 +249,7 @@ export class UserService {
       data: {
         isActive: false,
         refreshToken: null,
+        ...(tenantId ? { panelPermissions: FULL_PANEL_PERMISSIONS } : {}),
         email: nextEmail,
         passwordHash: randomizedPassword,
         name: user.name.startsWith('[Removido]') ? user.name : `[Removido] ${user.name}`

@@ -162,7 +162,7 @@ const { success: toastSuccess, error: toastError } = useToast()
 
 // Guard: only SYSADMIN
 if (!authStore.isSysAdmin) {
-  router.replace('/painel')
+  router.replace(authStore.getDashboardRoute())
 }
 
 const sending = ref(false)

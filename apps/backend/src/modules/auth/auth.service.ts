@@ -173,6 +173,7 @@ export class AuthService {
         role: true,
         tenantId: true,
         agencyId: true,
+        panelPermissions: true,
         termsAcceptedAt: true,
         twoFactorCode: true,
         twoFactorCodeExpiry: true
@@ -236,6 +237,7 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         agencyId: user.agencyId,
+        panelPermissions: user.panelPermissions || null,
         termsAcceptedAt: user.termsAcceptedAt || null
       }
     };
@@ -377,6 +379,7 @@ export class AuthService {
         role: true,
         tenantId: true,
         agencyId: true,
+        panelPermissions: true,
         twoFactorEnabled: true,
         termsAcceptedAt: true,
         tenant: { select: { id: true, name: true, slug: true } }

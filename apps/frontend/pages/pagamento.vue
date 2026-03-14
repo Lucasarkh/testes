@@ -12,7 +12,7 @@
       <p>Você cancelou o processo de pagamento. A reserva não foi concluída.</p>
       
       <div class="actions">
-        <button @click="goHome" class="btn btn-primary">Voltar ao Início</button>
+        <button @click="goHome" class="btn btn-primary"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Voltar ao Início</span></button>
       </div>
     </div>
   </div>

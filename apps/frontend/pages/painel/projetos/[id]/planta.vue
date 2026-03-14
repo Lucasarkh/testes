@@ -5,7 +5,8 @@
       <div style="flex: 1;">
         <div class="flex items-center gap-2" style="margin-bottom: 4px;">
           <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm page-back-btn">
-            ← {{ projectName || 'Projeto' }}
+            <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
+            <span class="back-nav-label">{{ projectName || 'Projeto' }}</span>
           </NuxtLink>
         </div>
         <h1 style="margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;"><i class="bi bi-map" aria-hidden="true"></i> Planta Interativa</h1>

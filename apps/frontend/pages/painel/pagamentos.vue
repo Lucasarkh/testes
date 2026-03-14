@@ -9,9 +9,11 @@ definePageMeta({
 
 const { get, post, patch, delete: del } = useApi()
 const toast = useToast()
+const authStore = useAuthStore()
+const canWritePayments = computed(() => authStore.canWriteFeature('payments'))
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
 
 const configs = ref([])
-const projects = ref([])
 const loading = ref(true)
 const showModal = ref(false)
 const editingConfig = ref(null)
@@ -50,12 +52,8 @@ watch(showModal, (val) => {
 async function fetchData() {
   loading.value = true
   try {
-    const [configsData, projectsRes] = await Promise.all([
-      get('/admin/payment-config'),
-      get('/projects')
-    ])
+    const configsData = await get('/admin/payment-config')
     configs.value = configsData
-    projects.value = projectsRes.data
   } catch (error) {
     console.error('Error fetching payment configs:', error)
     toast.error('Erro ao carregar dados')
@@ -227,7 +225,7 @@ onMounted(fetchData)
         <h1 class="page-title">Configurações de Pagamento</h1>
         <p class="page-subtitle">Gerencie suas chaves de API e gateways de forma centralizada.</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">
+      <button class="btn btn-primary" :disabled="!canWritePayments" :title="!canWritePayments ? writePermissionHint : undefined" @click="openCreate">
         <span>+ Novo Gateway</span>
       </button>
     </div>
@@ -241,7 +239,7 @@ onMounted(fetchData)
         <div class="icon-blob mx-auto mb-4"><i class="bi bi-credit-card-2-front-fill" aria-hidden="true"></i></div>
         <h3 class="fw-bold mb-3">Nenhum gateway configurado</h3>
         <p class="mb-4 px-4">Configure um gateway (Stripe, Asaas, etc) para permitir reservas online nos seus projetos.</p>
-        <button class="btn btn-primary btn-lg rounded-pill px-5" @click="openCreate">Configurar Primeiro Gateway</button>
+        <button class="btn btn-primary btn-lg rounded-pill px-5" :disabled="!canWritePayments" :title="!canWritePayments ? writePermissionHint : undefined" @click="openCreate">Configurar Primeiro Gateway</button>
       </div>
     </div>
 
@@ -260,8 +258,8 @@ onMounted(fetchData)
             </div>
           </div>
           <div class="flex gap-2">
-            <button class="btn btn-sm btn-outline" @click="openEdit(config)">Editar</button>
-            <button class="btn btn-sm btn-outline btn-danger" @click="removeConfig(config.id)">Remover</button>
+            <button class="btn btn-sm btn-outline" :disabled="!canWritePayments" :title="!canWritePayments ? writePermissionHint : undefined" @click="openEdit(config)">Editar</button>
+            <button class="btn btn-sm btn-outline btn-danger" :disabled="!canWritePayments" :title="!canWritePayments ? writePermissionHint : undefined" @click="removeConfig(config.id)">Remover</button>
           </div>
         </div>
 

@@ -122,7 +122,7 @@
 <script setup>
 const authStore = useAuthStore()
 if (!authStore.isSysAdmin) {
-  navigateTo('/painel')
+  navigateTo(authStore.getDashboardRoute())
 }
 
 const api = useApi()

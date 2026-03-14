@@ -5,7 +5,7 @@
       <div class="pub-error-card card">
         <h2>Projeto não encontrado</h2>
         <p>{{ error }}</p>
-        <NuxtLink to="/" class="v4-btn-primary" style="display: inline-block; margin-top: 1rem;">Voltar ao início</NuxtLink>
+        <NuxtLink to="/" class="v4-btn-primary" style="display: inline-flex; align-items: center; gap: 8px; margin-top: 1rem;"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Voltar ao início</span></NuxtLink>
       </div>
     </div>
 

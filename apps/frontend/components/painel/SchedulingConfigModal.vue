@@ -13,6 +13,7 @@
         </div>
         
         <div v-else class="config-container">
+          <fieldset :disabled="!canWriteScheduling" class="config-fieldset">
           <!-- Seção: Ativação -->
           <section class="config-card toggle-card">
             <div class="card-info">
@@ -131,12 +132,13 @@
               Os horários serão gerados automaticamente para os dias selecionados.
             </footer>
           </section>
+          </fieldset>
         </div>
       </div>
 
       <div class="modal-footer">
         <button class="btn btn-secondary" @click="$emit('close')">Cancelar</button>
-        <button class="btn btn-primary" :disabled="saving" @click="save">
+        <button class="btn btn-primary" :disabled="saving || !canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="save">
           <span v-if="saving" class="spinner-sm"></span>
           Salvar Configurações
         </button>
@@ -153,6 +155,9 @@ const props = defineProps<{
 const emit = defineEmits(['close', 'updated']);
 const api = useApi();
 const toast = useToast();
+const authStore = useAuthStore();
+const canWriteScheduling = computed(() => authStore.canWriteFeature('scheduling'));
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição';
 
 const loading = ref(true);
 const saving = ref(false);
@@ -194,15 +199,18 @@ onMounted(async () => {
 });
 
 const addBreak = () => {
+  if (!canWriteScheduling.value) return
   if (!config.value.breaks) config.value.breaks = [];
   config.value.breaks.push({ name: '', start: '', end: '' });
 }
 
 const removeBreak = (idx: number) => {
+  if (!canWriteScheduling.value) return
   config.value.breaks.splice(idx, 1);
 }
 
 const save = async () => {
+  if (!canWriteScheduling.value) return
   saving.value = true;
   try {
     // Destructuring to remove read-only/metadata fields that backend might reject

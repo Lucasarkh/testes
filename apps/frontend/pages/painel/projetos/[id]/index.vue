@@ -11,7 +11,10 @@
       <div class="page-header" style="border-bottom: 1px solid var(--glass-border-subtle); padding-bottom: 24px; margin-bottom: 32px;">
         <div style="flex: 1;">
           <div class="flex items-center gap-2" style="margin-bottom: 4px;">
-            <NuxtLink to="/painel/projetos" class="btn btn-sm" style="padding-left: 0; color: var(--color-surface-200);">← Projetos</NuxtLink>
+            <NuxtLink to="/painel/projetos" class="btn btn-ghost btn-sm page-back-btn">
+              <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
+              <span class="back-nav-label">Projetos</span>
+            </NuxtLink>
             <div style="width: 1px; height: 10px; background: rgba(255, 255, 255, 0.06);"></div>
             <span class="badge" :class="project.status === 'PUBLISHED' ? 'badge-success' : 'badge-neutral'" style="font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;">
               {{ project.status === 'PUBLISHED' ? 'Publicado' : 'Rascunho' }}
@@ -89,9 +92,10 @@
 
           <div class="flex items-center gap-2">
             <button 
-              v-if="authStore.canEdit" 
               class="btn btn-sm btn-primary" 
               style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
+              :disabled="!authStore.canEdit"
+              :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined"
               @click="togglePublish"
             >
               <span style="display: inline-flex; align-items: center; gap: 6px;">
@@ -101,9 +105,10 @@
             </button>
             
             <button 
-              v-if="authStore.canEdit && !isArchivedProject" 
               class="btn btn-sm btn-danger" 
               style="border-radius: 9999px; padding-left: 16px; padding-right: 16px; height: 38px;"
+              :disabled="!authStore.canEdit || isArchivedProject"
+              :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : (isArchivedProject ? 'Projeto arquivado em modo somente leitura' : undefined)"
               @click="confirmDelete"
             >
               <span><i class="bi bi-trash3-fill" aria-hidden="true"></i> Excluir</span>
@@ -150,7 +155,8 @@
                       <button
                         class="sidebar-toggle-btn"
                         type="button"
-                        :disabled="savingPublicSectionOrder || !isPublicSectionConfigured(s.id)"
+                        :disabled="!authStore.canEdit || savingPublicSectionOrder || !isPublicSectionConfigured(s.id)"
+                        :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined"
                         @click="togglePublicSectionVisibility(s.id)"
                       >
                         {{ !isPublicSectionConfigured(s.id) ? 'Configurar' : (isPublicSectionEnabled(s.id) ? 'Ocultar' : 'Mostrar') }}
@@ -159,18 +165,18 @@
                       <button
                         class="sidebar-order-btn"
                         type="button"
-                        :disabled="!canMovePublicSection(s.id, 'up') || savingPublicSectionOrder"
+                        :disabled="!authStore.canEdit || !canMovePublicSection(s.id, 'up') || savingPublicSectionOrder"
+                        :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : 'Mover para cima'"
                         @click="movePublicSection(s.id, 'up')"
-                        title="Mover para cima"
                       >
                         <i class="bi bi-chevron-up" aria-hidden="true"></i>
                       </button>
                       <button
                         class="sidebar-order-btn"
                         type="button"
-                        :disabled="!canMovePublicSection(s.id, 'down') || savingPublicSectionOrder"
+                        :disabled="!authStore.canEdit || !canMovePublicSection(s.id, 'down') || savingPublicSectionOrder"
+                        :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : 'Mover para baixo'"
                         @click="movePublicSection(s.id, 'down')"
-                        title="Mover para baixo"
                       >
                         <i class="bi bi-chevron-down" aria-hidden="true"></i>
                       </button>
@@ -207,6 +213,7 @@
           }"
         >
           <form @submit.prevent="saveSettings">
+            <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
             <template v-if="activeSection === 'configuracoes'">
             <div class="form-group">
               <label class="form-label">Nome</label>
@@ -526,7 +533,8 @@
             </div>
             <div v-if="settingsError" class="alert alert-error">{{ settingsError }}</div>
             <div v-if="settingsSaved" class="alert alert-success">Salvo com sucesso!</div>
-            <button type="submit" class="btn btn-primary" :disabled="savingSettings || editSlugTaken">{{ savingSettings ? 'Salvando...' : 'Salvar' }}</button>
+            <button type="submit" class="btn btn-primary" :disabled="!authStore.canEdit || savingSettings || editSlugTaken" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined">{{ savingSettings ? 'Salvando...' : 'Salvar' }}</button>
+            </fieldset>
           </form>
         </div>
       </section>
@@ -534,6 +542,7 @@
       <!-- Pagamentos & Taxas -->
       <section v-if="activeSection === 'pagamentos'" id="pagamentos" class="content-section">
         <div class="card" style="max-width: 800px;">
+          <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
           <h3><i class="bi bi-credit-card-2-front-fill" aria-hidden="true"></i> Ativar Gateways de Pagamento</h3>
           <p class="text-muted">Selecione abaixo quais perfis de pagamento globais você deseja habilitar para este projeto.</p>
           
@@ -621,7 +630,7 @@
             </div>
             
             <div class="flex justify-end" style="margin-top: 20px;">
-              <button class="btn btn-primary" @click="saveSettings" :disabled="savingSettings" style="min-width: 200px;">
+              <button class="btn btn-primary" @click="saveSettings" :disabled="!authStore.canEdit || savingSettings" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" style="min-width: 200px;">
                 <span v-if="savingSettings">Salvando...</span>
                 <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
                   <i class="bi bi-floppy-fill" aria-hidden="true"></i>
@@ -630,12 +639,14 @@
               </button>
             </div>
           </div>
+          </fieldset>
         </div>
       </section>
 
       <!-- Assistente IA -->
       <section v-if="activeSection === 'assistente-ia'" id="assistente-ia" class="content-section">
         <div class="card" style="max-width: 600px;">
+          <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
           <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
             <span><i class="bi bi-robot" aria-hidden="true"></i></span> Assistente de IA
           </h3>
@@ -667,7 +678,7 @@
           </div>
 
           <div class="flex justify-end" style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--glass-border-subtle);">
-            <button class="btn btn-primary" @click="saveSettings" :disabled="savingSettings">
+            <button class="btn btn-primary" @click="saveSettings" :disabled="!authStore.canEdit || savingSettings" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined">
               <span v-if="savingSettings">Salvando...</span>
               <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
                 <i class="bi bi-floppy-fill" aria-hidden="true"></i>
@@ -675,12 +686,14 @@
               </span>
             </button>
           </div>
+          </fieldset>
         </div>
       </section>
 
       <!-- Agendamento de Visitas -->
       <section v-if="activeSection === 'pub-scheduling'" id="agendamento" class="content-section">
         <div class="card" style="max-width: 900px;">
+          <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
           <div class="flex justify-between items-center" style="margin-bottom: 24px;">
             <div>
               <h3 style="margin:0; display: flex; align-items: center; gap: 8px;">
@@ -804,7 +817,7 @@
                 <span><i class="bi bi-x-circle-fill" aria-hidden="true"></i></span>
                 <span style="color: #f87171;">Selecione ao menos um dia da semana para habilitar o agendamento.</span>
               </div>
-              <button class="btn btn-primary" @click="saveSchedulingSettings" :disabled="savingScheduling || (schedulingForm.enabled && schedulingForm.availableDays.length === 0)" style="min-width: 200px; height: 48px; border-radius: 12px;">
+              <button class="btn btn-primary" @click="saveSchedulingSettings" :disabled="!authStore.canEdit || savingScheduling || (schedulingForm.enabled && schedulingForm.availableDays.length === 0)" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" style="min-width: 200px; height: 48px; border-radius: 12px;">
                 <span v-if="savingScheduling">Salvando...</span>
                 <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
                   <i class="bi bi-floppy-fill" aria-hidden="true"></i>
@@ -813,11 +826,13 @@
               </button>
             </div>
           </template>
+          </fieldset>
         </div>
       </section>
 
       <!-- Simulação Financeira -->
       <section v-if="activeSection === 'financeiro'" id="financeiro" class="content-section">
+      <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
       <div class="financing-layout-v4">
         <div class="card" style="flex: 1; max-width: 800px;">
           <h3 style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
@@ -964,6 +979,7 @@
           </div>
         </div>
       </div>
+      </fieldset>
       </section>
 
       <!-- Lotes -->
@@ -985,7 +1001,7 @@
               </div>
               <div class="lot-import-card__actions" v-if="authStore.canEdit">
                 <button class="btn btn-sm btn-outline" @click="downloadLotCsvTemplate">Baixar modelo</button>
-                <button class="btn btn-sm btn-primary" :disabled="uploadingLotCsv || !!activeLotImportRunning" @click="openLotCsvPicker">
+                <button class="btn btn-sm btn-primary" :disabled="!authStore.canEdit || uploadingLotCsv || !!activeLotImportRunning" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="openLotCsvPicker">
                   {{ uploadingLotCsv ? 'Enviando...' : 'Importar Arquivo' }}
                 </button>
                 <input ref="lotCsvInputRef" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display: none" @change="handleLotCsvSelected" />
@@ -1106,10 +1122,10 @@
               </div>
               <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:16px; border-top: 1px solid var(--glass-border-subtle);">
                 <button class="btn btn-ghost btn-sm" @click="viewingReservation = null">Fechar</button>
-                <button class="btn btn-danger btn-sm" :disabled="reservationActing" @click="handleReservationAction('RELEASE')">
+                <button class="btn btn-danger btn-sm" :disabled="!authStore.canEdit || reservationActing" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="handleReservationAction('RELEASE')">
                   {{ reservationActing ? '...' : 'Liberar Lote' }}
                 </button>
-                <button class="btn btn-success btn-sm" :disabled="reservationActing" @click="handleReservationAction('WON')">
+                <button class="btn btn-success btn-sm" :disabled="!authStore.canEdit || reservationActing" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="handleReservationAction('WON')">
                   {{ reservationActing ? '...' : 'Confirmar Venda' }}
                 </button>
               </div>
@@ -1150,6 +1166,7 @@
             <h3>Editar Lote: {{ editingLot.mapElement?.code || editingLot.id }}</h3>
             <button class="modal-close" @click="editingLot = null">✕</button>
           </div>
+          <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
           
           <div class="grid grid-cols-2" style="gap: 16px; margin-top: 16px;">
             <div class="form-group">
@@ -1367,16 +1384,18 @@
 
           <div class="modal-actions" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn btn-secondary" style="background: var(--glass-bg-heavy); color: var(--color-surface-200); border: 1px solid var(--glass-border-subtle);" @click="editingLot = null">Cancelar</button>
-            <button class="btn btn-primary" style="background: var(--color-primary-600); color: #fff; border: none; font-weight: 600;" :disabled="savingLot" @click="saveLotDetails">
+            <button class="btn btn-primary" style="background: var(--color-primary-600); color: #fff; border: none; font-weight: 600;" :disabled="!authStore.canEdit || savingLot" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="saveLotDetails">
               {{ savingLot ? 'Salvando...' : 'Salvar Detalhes' }}
             </button>
           </div>
+          </fieldset>
         </div>
       </div>
 
 
       <!-- Página Pública -->
       <section v-if="activeSection.startsWith('pub-')" id="pagina-publica" class="content-section pub-page">
+        <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
 
         <!-- ── Banner & Vídeo (lado a lado) ── -->
         <div v-if="activeSection === 'pub-banner' || activeSection === 'pub-video'" class="pub-row pub-row--2col">
@@ -1874,6 +1893,7 @@
             </button>
           </div>
         </div>
+        </fieldset>
       </section>
 
 
@@ -2016,6 +2036,7 @@ const reservationExpiry = (createdAt: string) => {
 }
 
 const handleReservationAction = async (newStatus: 'WON' | 'CANCELLED' | 'RELEASE') => {
+  if (!authStore.canEdit) return
   if (!reservationData.value) return
   reservationActing.value = true
   try {
@@ -2161,6 +2182,7 @@ const openEditLot = (lot: any) => {
 }
 
 const saveLotDetails = async () => {
+  if (!authStore.canEdit) return
   if (!editingLot.value) return
   savingLot.value = true
   try {
@@ -2524,6 +2546,7 @@ const loadSchedulingConfig = async () => {
 }
 
 const saveSchedulingSettings = async () => {
+  if (!authStore.canEdit) return
   savingScheduling.value = true
   try {
     const payload = {
@@ -3154,6 +3177,7 @@ const savePublicInfoBlock = async (
   errorMessage: string,
   afterSave?: () => Promise<void> | void,
 ) => {
+  if (!authStore.canEdit) return
   savingRef.value = true
   try {
     const fullPayload = buildPublicInfoPayload()
@@ -3952,6 +3976,7 @@ const startLotImportPolling = (importId: string) => {
 }
 
 const openLotCsvPicker = () => {
+  if (!authStore.canEdit) return
   lotCsvInputRef.value?.click()
 }
 
@@ -4189,6 +4214,7 @@ const loadProject = async () => {
 }
 
 const togglePublish = async () => {
+  if (!authStore.canEdit) return
   const action = project.value.status === 'PUBLISHED' ? 'unpublish' : 'publish'
   try {
     project.value = await fetchApi(`/projects/${projectId}/${action}`, { method: 'PATCH' })
@@ -4199,6 +4225,7 @@ const togglePublish = async () => {
 }
 
 const saveSettings = async () => {
+  if (!authStore.canEdit) return
   if (isArchivedProject.value) {
     toastFromError(new Error('Projeto arquivado está em modo somente leitura.'))
     return
@@ -4285,6 +4312,7 @@ const saveSettings = async () => {
 }
 
 const confirmDelete = async () => {
+  if (!authStore.canEdit || isArchivedProject.value) return
   if (!confirm('Tem certeza que deseja excluir este projeto?')) return
   try {
     await fetchApi(`/projects/${projectId}`, { method: 'DELETE' })
@@ -4303,6 +4331,7 @@ const bannerUrlByDevice = (device: BannerDevice) => {
 }
 
 const uploadBannerImage = async (e: Event, device: BannerDevice = 'desktop') => {
+  if (!authStore.canEdit) return
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   uploadingBannerDevice.value = device
@@ -4319,6 +4348,7 @@ const uploadBannerImage = async (e: Event, device: BannerDevice = 'desktop') => 
 }
 
 const removeBannerImage = async (device: BannerDevice = 'desktop') => {
+  if (!authStore.canEdit) return
   try {
     project.value = await fetchApi(`/projects/${projectId}/banner-image?device=${device}`, { method: 'DELETE' })
     const deviceLabel = device === 'desktop' ? 'desktop' : device === 'tablet' ? 'tablet' : 'celular'

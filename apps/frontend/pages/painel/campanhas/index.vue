@@ -1,6 +1,12 @@
 <script setup lang="ts">
 const { get, post, patch, delete: del } = useApi()
 const toast = useToast()
+const authStore = useAuthStore()
+const canWriteCampaigns = computed(() => authStore.canWriteFeature('campaigns'))
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
+const canLoadProjectsCatalog = computed(() => {
+  return !authStore.isLoteadora || !authStore.hasPanelRestrictions || authStore.canReadFeature('projects')
+})
 
 const campaigns = ref<any[]>([])
 const projects = ref<any[]>([])
@@ -23,12 +29,15 @@ const form = ref({
 async function fetchData() {
   loading.value = true
   try {
-    const [campaignsData, projectsRes] = await Promise.all([
-      get('/campaigns'),
-      get('/projects')
-    ])
+    const campaignsData = await get('/campaigns')
     campaigns.value = campaignsData
-    projects.value = projectsRes.data
+
+    if (canLoadProjectsCatalog.value) {
+      const projectsRes = await get('/projects')
+      projects.value = projectsRes.data
+    } else {
+      projects.value = []
+    }
   } catch (error) {
     console.error('Error fetching campaigns:', error)
     toast.error('Erro ao carregar dados')
@@ -131,7 +140,7 @@ definePageMeta({
         <h1>Gestão de Campanhas</h1>
         <p class="subtitle">Crie e gerencie links UTM para seus empreendimentos</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">
+      <button class="btn btn-primary" :disabled="!canWriteCampaigns" :title="!canWriteCampaigns ? writePermissionHint : undefined" @click="openCreate">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         Nova Campanha
       </button>
@@ -184,10 +193,10 @@ definePageMeta({
               <button class="btn btn-sm btn-outline" @click="copyLink(campaign)">
                 Copiar Link
               </button>
-              <button class="btn-icon" @click="openEdit(campaign)" title="Editar">
+              <button class="btn-icon" :disabled="!canWriteCampaigns" @click="openEdit(campaign)" :title="!canWriteCampaigns ? writePermissionHint : 'Editar'">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn-icon text-danger" @click="removeCampaign(campaign.id)" title="Remover">
+              <button class="btn-icon text-danger" :disabled="!canWriteCampaigns" @click="removeCampaign(campaign.id)" :title="!canWriteCampaigns ? writePermissionHint : 'Remover'">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
               </button>
             </td>

@@ -6,11 +6,11 @@
         <p class="text-secondary font-medium mt-1">Gerencie visitas e monitoramento de leads com precisão.</p>
       </div>
       <div class="d-flex gap-3">
-        <button class="btn btn-glass" :disabled="!filters.projectId" @click="showConfig = true">
+        <button class="btn btn-glass" :disabled="!canWriteScheduling || !filters.projectId" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="showConfig = true">
           <i class="pi pi-sliders-h"></i>
           <span>Regras</span>
         </button>
-        <button class="btn btn-lotio-primary shadow-lotio" @click="openCreateModal(null)">
+        <button class="btn btn-lotio-primary shadow-lotio" :disabled="!canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="openCreateModal(null)">
           <i class="pi pi-plus"></i>
           <span>Novo Agendamento</span>
         </button>
@@ -126,7 +126,7 @@
                 <div class="empty-artwork"><i class="bi bi-calendar-event-fill" aria-hidden="true"></i></div>
                 <h4>Agenda Livre</h4>
                 <p>Nenhum compromisso marcado para este dia.</p>
-                <button class="btn btn-lotio-primary mt-4 w-full" @click="openCreateModal(selectedDay)">
+                <button class="btn btn-lotio-primary mt-4 w-full" :disabled="!canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="openCreateModal(selectedDay)">
                   <i class="pi pi-plus me-2"></i> Criar Agendamento
                 </button>
              </div>
@@ -159,19 +159,19 @@
                       </div>
                       
                       <div class="agenda-actions">
-                         <button v-if="event.status === 'PENDING'" class="btn-action-confirmed" @click="updateStatus(event.id, 'CONFIRMED')">
+                         <button v-if="event.status === 'PENDING'" class="btn-action-confirmed" :disabled="!canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="updateStatus(event.id, 'CONFIRMED')">
                            Confirmar
                          </button>
-                         <button v-if="['PENDING', 'CONFIRMED'].includes(event.status)" class="btn-action-danger" @click="updateStatus(event.id, 'CANCELLED')">
+                         <button v-if="['PENDING', 'CONFIRMED'].includes(event.status)" class="btn-action-danger" :disabled="!canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="updateStatus(event.id, 'CANCELLED')">
                            Cancelar
                          </button>
-                         <button class="btn-action-icon" @click="deleteScheduling(event.id)">
+                         <button class="btn-action-icon" :disabled="!canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="deleteScheduling(event.id)">
                             <i class="pi pi-trash"></i>
                          </button>
                       </div>
                    </div>
                 </div>
-                <button class="btn btn-lotio-soft w-full mt-6 py-3" @click="openCreateModal(selectedDay)">
+                <button class="btn btn-lotio-soft w-full mt-6 py-3" :disabled="!canWriteScheduling" :title="!canWriteScheduling ? writePermissionHint : undefined" @click="openCreateModal(selectedDay)">
                   <i class="pi pi-plus me-2"></i> Novo compromisso
                 </button>
              </div>
@@ -198,6 +198,17 @@ import { formatTimeToBrasilia, formatDateToBrasilia, getISODateInBrasilia } from
 
 const api = useApi();
 const toast = useToast();
+const authStore = useAuthStore();
+const canWriteScheduling = computed(() => {
+  if (authStore.isLoteadora || authStore.isSysAdmin) {
+    return authStore.canWriteFeature('scheduling');
+  }
+  return true;
+});
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição';
+const canLoadProjectsCatalog = computed(() => {
+  return !authStore.isLoteadora || !authStore.hasPanelRestrictions || authStore.canReadFeature('projects');
+});
 
 const loading = ref(true);
 const projects = ref([]);
@@ -217,8 +228,12 @@ const filters = ref({
 
 onMounted(async () => {
     try {
-        const res = await api.get('/projects');
-        projects.value = Array.isArray(res) ? res : (res.data || []);
+        if (canLoadProjectsCatalog.value) {
+          const res = await api.get('/projects');
+          projects.value = Array.isArray(res) ? res : (res.data || []);
+        } else {
+          projects.value = [];
+        }
         
         // Load all initially or let filters decide
         await loadSchedulings();

@@ -24,7 +24,7 @@
             Tabela
           </button>
         </div>
-        <button class="btn btn-primary" @click="showCreateModal = true">+ Novo Lead</button>
+        <button class="btn btn-primary" :disabled="!canWriteLeads" :title="!canWriteLeads ? writePermissionHint : undefined" @click="showCreateModal = true">+ Novo Lead</button>
       </div>
     </div>
 
@@ -120,8 +120,8 @@
               <td>{{ formatDateToBrasilia(lead.createdAt) }}</td>
               <td @click.stop>
                 <div class="d-flex gap-1">
-                  <button class="btn-icon btn-sm" title="Editar" @click="editLead(lead)"><i class="bi bi-pencil-fill" aria-hidden="true"></i></button>
-                  <button v-if="authStore.isAdmin || authStore.isLoteadora" class="btn-icon btn-sm" title="Excluir" @click="onDeleteLead(lead)"><i class="bi bi-trash3-fill" aria-hidden="true"></i></button>
+                  <button class="btn-icon btn-sm" :disabled="!canWriteLeads" :title="!canWriteLeads ? writePermissionHint : 'Editar'" @click="editLead(lead)"><i class="bi bi-pencil-fill" aria-hidden="true"></i></button>
+                  <button class="btn-icon btn-sm" :disabled="!canWriteLeads" :title="!canWriteLeads ? writePermissionHint : 'Excluir'" @click="onDeleteLead(lead)"><i class="bi bi-trash3-fill" aria-hidden="true"></i></button>
                 </div>
               </td>
             </tr>
@@ -166,6 +166,13 @@ const { leads, loading, meta, projects, loadLeads, loadProjects, getLead } = use
 const authStore = useAuthStore()
 const { fromError, success: toastSuccess } = useToast()
 const route = useRoute()
+const canWriteLeads = computed(() => {
+  if (authStore.isLoteadora || authStore.isSysAdmin) {
+    return authStore.canWriteFeature('leads')
+  }
+  return true
+})
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
 
 const viewMode = ref('kanban')
 
@@ -205,6 +212,7 @@ const viewLead = async (lead) => {
 }
 
 const editLead = (lead) => {
+  if (!canWriteLeads.value) return
   editingLead.value = lead
   showEditModal.value = true
 }
@@ -222,6 +230,7 @@ const onDetailsRefresh = async () => {
 }
 
 const onDeleteLead = async (lead) => {
+  if (!canWriteLeads.value) return
   if (!confirm(`Deseja realmente excluir o lead ${lead.name}?`)) return
   try {
     const { fetchApi } = useApi()

@@ -1,4 +1,12 @@
 import { defineStore } from 'pinia';
+import {
+  hasAssignedPanelPermission,
+  hasPanelFeatureAccess,
+  PANEL_FEATURE_DEFAULT_ROUTE,
+  PANEL_FEATURES,
+  type PanelFeatureKey,
+  type PanelPermissions,
+} from '~/utils/panelPermissions';
 
 type JwtPayload = {
   exp?: number;
@@ -32,7 +40,24 @@ export interface User {
   tenantId?: string;
   agencyId?: string;
   termsAcceptedAt?: string | null;
+  panelPermissions?: PanelPermissions | null;
 }
+
+const hasManagedPanelRestrictions = (user: User | null): boolean => {
+  return user?.role === 'LOTEADORA' && hasAssignedPanelPermission(user.panelPermissions);
+};
+
+const canUserAccessFeature = (
+  user: User | null,
+  feature: PanelFeatureKey,
+  required: 'read' | 'write' = 'read',
+): boolean => {
+  if (!user) return false;
+  if (user.role === 'SYSADMIN') return true;
+  if (user.role !== 'LOTEADORA') return false;
+  if (!hasManagedPanelRestrictions(user)) return true;
+  return hasPanelFeatureAccess(user.panelPermissions, feature, required);
+};
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -47,9 +72,19 @@ export const useAuthStore = defineStore('auth', {
     isLoteadora: (state) => state.user?.role === 'LOTEADORA',
     isImobiliaria: (state) => state.user?.role === 'IMOBILIARIA',
     isCorretor: (state) => state.user?.role === 'CORRETOR',
+    hasPanelRestrictions: (state) => hasManagedPanelRestrictions(state.user),
     canManageTenants: (state) => state.user?.role === 'SYSADMIN',
-    canManageUsers: (state) => ['SYSADMIN', 'LOTEADORA'].includes(state.user?.role ?? ''),
-    canEdit: (state) => ['SYSADMIN', 'LOTEADORA'].includes(state.user?.role ?? ''),
+    canManageUsers: (state) => {
+      if (!state.user) return false;
+      return state.user.role === 'SYSADMIN' || canUserAccessFeature(state.user, 'users', 'read');
+    },
+    canEdit: (state) => {
+      if (!state.user) return false;
+      if (state.user.role === 'SYSADMIN') return true;
+      return canUserAccessFeature(state.user, 'projects', 'write');
+    },
+    canReadFeature: (state) => (feature: PanelFeatureKey) => canUserAccessFeature(state.user, feature, 'read'),
+    canWriteFeature: (state) => (feature: PanelFeatureKey) => canUserAccessFeature(state.user, feature, 'write'),
     userRole: (state) => state.user?.role ?? null,
     hasAcceptedTerms: (state) => !!state.user?.termsAcceptedAt,
   },
@@ -113,7 +148,18 @@ export const useAuthStore = defineStore('auth', {
     },
 
     getDashboardRoute(): string {
-      return '/painel';
+      if (!this.user) return '/painel';
+      if (this.user.role === 'SYSADMIN') return '/painel';
+      if (this.user.role !== 'LOTEADORA') return '/painel';
+      if (!hasManagedPanelRestrictions(this.user)) return '/painel';
+
+      for (const feature of PANEL_FEATURES) {
+        if (canUserAccessFeature(this.user, feature, 'read')) {
+          return PANEL_FEATURE_DEFAULT_ROUTE[feature];
+        }
+      }
+
+      return '/painel/perfil';
     },
 
     setTermsAccepted() {

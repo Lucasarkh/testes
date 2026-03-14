@@ -11,7 +11,8 @@
         <h2>Lote não encontrado</h2>
         <p>{{ error }}</p>
         <NuxtLink :to="projectUrl" class="btn btn-primary" style="margin-top: 16px;">
-          ← Ver Loteamento
+          <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
+          <span class="back-nav-label">Ver Loteamento</span>
         </NuxtLink>
       </div>
     </div>
@@ -21,8 +22,8 @@
       <header class="lot-header-v4">
         <div class="header-inner">
           <NuxtLink :to="projectUrl" class="back-link-v4">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-            <span>Voltar ao Masterplan</span>
+            <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
+            <span class="back-nav-label">Voltar ao Masterplan</span>
           </NuxtLink>
           <div class="project-tags">
             <span class="tag-tenant">{{ project?.tenant?.name }}</span>
@@ -518,7 +519,7 @@
 
                   <div v-else class="booking-form-v4">
                     <div class="booking-header">
-                      <button @click="bookingMode = false" class="back-link">← Cancelar</button>
+                      <button @click="bookingMode = false" class="back-link"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Cancelar</span></button>
                       <h4>Dados da Reserva</h4>
                     </div>
                     <form @submit.prevent="submitReservation" class="form-v4">

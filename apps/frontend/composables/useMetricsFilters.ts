@@ -1,13 +1,23 @@
 export function useMetricsFilters() {
   const { fetchApi } = useApi()
   const toast = useToast()
+  const auth = useAuthStore()
 
   const projects = ref<any[]>([])
   const selectedProjectId = ref('all')
   const startDate = ref(getDaysAgoInBrasilia(30))
   const endDate = ref(getTodayInBrasilia())
+  const canLoadProjectsCatalog = computed(() => {
+    return !auth.isLoteadora || !auth.hasPanelRestrictions || auth.canReadFeature('projects')
+  })
 
   async function fetchProjects() {
+    if (!canLoadProjectsCatalog.value) {
+      projects.value = []
+      selectedProjectId.value = 'all'
+      return
+    }
+
     try {
       const res = await fetchApi('/projects?limit=100')
       projects.value = res.data

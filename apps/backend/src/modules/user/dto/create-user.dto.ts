@@ -34,4 +34,14 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserRole, { message: 'Role inválida' })
   role?: UserRole;
+
+  @ApiPropertyOptional({
+    example: {
+      projects: 'write',
+      leads: 'read',
+      distribution: 'none'
+    }
+  })
+  @IsOptional()
+  panelPermissions?: Record<string, string>;
 }

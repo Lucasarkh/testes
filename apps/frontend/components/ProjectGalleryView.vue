@@ -11,7 +11,7 @@
       <div class="pub-error-card card">
         <h2>Projeto não encontrado</h2>
         <p>{{ error }}</p>
-        <NuxtLink :to="projectUrl" class="v4-btn-primary" style="display: inline-block; margin-top: 1rem;">Voltar ao projeto</NuxtLink>
+        <NuxtLink :to="projectUrl" class="v4-btn-primary" style="display: inline-flex; align-items: center; gap: 8px; margin-top: 1rem;"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Voltar ao projeto</span></NuxtLink>
       </div>
     </div>
 
@@ -22,7 +22,8 @@
         <div class="v4-container">
           <div class="v4-mini-header-inner">
             <NuxtLink :to="projectUrl" class="v4-back-link">
-              ← Voltar para o Projeto
+              <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
+              <span class="back-nav-label">Voltar para o Projeto</span>
             </NuxtLink>
             <div class="v4-mini-brand">
               <strong>{{ project.name }}</strong>

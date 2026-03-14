@@ -37,6 +37,7 @@ import { NotificationsModule } from '@modules/notifications/notifications.module
 import { LeadDistributionModule } from '@modules/lead-distribution/lead-distribution.module';
 import { AppController } from './app.controller';
 import { TermsGuard } from './common/guards/terms.guard';
+import { PanelPermissionGuard } from './common/guards/panel-permission.guard';
 
 @Module({
   imports: [
@@ -99,6 +100,10 @@ import { TermsGuard } from './common/guards/terms.guard';
     {
       provide: APP_GUARD,
       useClass: TermsGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PanelPermissionGuard
     }
   ]
 })

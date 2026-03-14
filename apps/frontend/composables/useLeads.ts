@@ -1,16 +1,29 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 export const useLeads = () => {
   const { fetchApi } = useApi();
   const { fromError, success } = useToast();
+  const authStore = useAuthStore();
 
   const loading = ref(false);
   const leads = ref([]);
   const meta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 10, totalPages: 0, currentPage: 1 });
   const selectedLead = ref(null);
   const projects = ref([]);
+  const canLoadProjectsCatalog = computed(() => {
+    if (!authStore.isLoteadora || !authStore.hasPanelRestrictions) {
+      return true;
+    }
+
+    return authStore.canReadFeature('projects');
+  });
 
   const loadProjects = async () => {
+    if (!canLoadProjectsCatalog.value) {
+      projects.value = [];
+      return;
+    }
+
     try {
       const res = await fetchApi('/projects?limit=100');
       projects.value = res.data || [];

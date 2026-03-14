@@ -53,10 +53,6 @@
             <label class="form-label">E-mail</label>
             <input :value="authStore.user?.email" class="form-input" disabled />
           </div>
-          <div class="form-group">
-            <label class="form-label">Perfil / Role</label>
-            <input :value="authStore.user?.role" class="form-input" disabled />
-          </div>
         </div>
       </div>
 

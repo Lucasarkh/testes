@@ -10,8 +10,9 @@
     <template v-else>
       <div class="page-header" style="margin-bottom: 32px;">
         <div style="flex: 1;">
-          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm" style="padding-left: 0; margin-bottom: 8px;">
-            &larr; Voltar ao Projeto
+          <NuxtLink :to="`/painel/projetos/${projectId}`" class="btn btn-ghost btn-sm page-back-btn" style="margin-bottom: 8px;">
+            <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
+            <span class="back-nav-label">Voltar ao Projeto</span>
           </NuxtLink>
           <h1 style="margin: 0; font-size: 1.5rem;">Métricas e Analíticos</h1>
           <p style="margin: 0; color: var(--color-surface-400);">Desempenho e engajamento do empreendimento</p>

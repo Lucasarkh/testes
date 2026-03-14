@@ -123,7 +123,7 @@ const handleAccept = async () => {
 
     authStore.setTermsAccepted()
     toastSuccess('Termos aceitos com sucesso!')
-    router.push('/painel')
+    router.push(authStore.getDashboardRoute())
   } catch (e) {
     error.value = e.message || 'Erro ao registrar aceite. Tente novamente.'
   } finally {

@@ -5,7 +5,7 @@
         <h1>Projetos</h1>
         <p>Gerencie seus loteamentos</p>
       </div>
-      <button v-if="authStore.canEdit" class="btn btn-primary" @click="handleNewProject">+ Novo Projeto</button>
+      <button class="btn btn-primary" :disabled="!authStore.canEdit" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="handleNewProject">+ Novo Projeto</button>
     </div>
 
     <div v-if="loading" class="loading-state"><div class="loading-spinner"></div></div>
@@ -91,6 +91,7 @@ const showContractRequiredMessage = () => {
 
 /** Validate contract-related project access before opening the create modal */
 const handleNewProject = async () => {
+  if (!authStore.canEdit) return
   try {
     const limits = await fetchApi('/billing/project-limits')
     if (!limits?.canCreateProject || limits?.requiresSubscription) {
@@ -144,6 +145,7 @@ const loadProjects = async (page = 1) => {
 }
 
 const handleCreate = async () => {
+  if (!authStore.canEdit) return
   if (slugTaken.value) {
     createError.value = 'Este slug já está em uso!'
     return

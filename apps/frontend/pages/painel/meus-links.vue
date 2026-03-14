@@ -5,7 +5,7 @@ const { success: toastSuccess, error: toastError } = useToast()
 const authStore = useAuthStore()
 
 if (!authStore.isCorretor) {
-  await navigateTo('/painel')
+  await navigateTo(authStore.getDashboardRoute())
 }
 
 interface RealtorLink {

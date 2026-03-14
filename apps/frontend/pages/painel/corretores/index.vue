@@ -6,6 +6,12 @@ import {
 const auth = useAuthStore()
 const { get, post, patch, delete: del } = useApi()
 const toast = useToast()
+const authStore = useAuthStore()
+const canWriteRealtors = computed(() => authStore.canWriteFeature('realtors'))
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
+const canLoadProjectsCatalog = computed(() => {
+  return !authStore.isLoteadora || !authStore.hasPanelRestrictions || authStore.canReadFeature('projects')
+})
 const router = useRouter()
 
 const realtors = ref([])
@@ -116,8 +122,12 @@ async function fetchData() {
   try {
     const res = await get('/realtor-links')
     realtors.value = res
-    const projectsRes = await get('/projects')
-    projects.value = projectsRes.data
+    if (canLoadProjectsCatalog.value) {
+      const projectsRes = await get('/projects')
+      projects.value = projectsRes.data
+    } else {
+      projects.value = []
+    }
   } catch (error) {
     console.error('Error fetching realtors:', error)
     toast.error('Erro ao carregar dados')
@@ -127,6 +137,7 @@ async function fetchData() {
 }
 
 async function saveRealtor() {
+  if (!canWriteRealtors.value) return
   if (emailError.value || codeError.value) {
     toast.error('Por favor, corrija os erros no formulário antes de salvar.')
     return
@@ -169,6 +180,7 @@ async function saveRealtor() {
 }
 
 async function removeRealtor(id: string) {
+  if (!canWriteRealtors.value) return
   if (!confirm('Tem certeza que deseja remover este corretor?')) return
   try {
     await del(`/realtor-links/${id}`)
@@ -180,6 +192,7 @@ async function removeRealtor(id: string) {
 }
 
 function openCreate() {
+  if (!canWriteRealtors.value) return
   editingRealtor.value = null
   form.value = { name: '', phone: '', creci: '', code: '', projectIds: [], accountEmail: '', accountPassword: '' }
   slugManuallyEdited.value = false
@@ -191,6 +204,7 @@ function openCreate() {
 }
 
 function openEdit(realtor) {
+  if (!canWriteRealtors.value) return
   editingRealtor.value = realtor
   form.value = {
     name: realtor.name,
@@ -219,6 +233,7 @@ function isPendingRealtor(realtor: any) {
 }
 
 async function approvePendingRealtor(realtor: any) {
+  if (!canWriteRealtors.value) return
   approvingId.value = realtor.id
   try {
     await patch(`/realtor-links/${realtor.id}`, { enabled: true })
@@ -250,6 +265,7 @@ function copyLink(realtor, project = null) {
 }
 
 async function sendInvite() {
+  if (!canWriteRealtors.value) return
   if (!inviteForm.value.email) {
     toast.error('O e-mail é obrigatório para o convite')
     return
@@ -266,6 +282,7 @@ async function sendInvite() {
 }
 
 function openInvite() {
+  if (!canWriteRealtors.value) return
   inviteForm.value.email = ''
   inviteForm.value.role = 'CORRETOR'
   // No agencyId = Direct broker if LOTEADORA, or the API will handle if it's IMOBILIARIA
@@ -288,10 +305,10 @@ definePageMeta({
         <p class="subtitle">Gerencie os links e CRECI dos corretores</p>
       </div>
       <div class="header-actions" style="display: flex; gap: 12px;">
-        <button class="btn btn-outline" @click="openInvite">
+        <button class="btn btn-outline" :disabled="!canWriteRealtors" :title="!canWriteRealtors ? writePermissionHint : undefined" @click="openInvite">
           Convidar Corretor via E-mail
         </button>
-        <button class="btn btn-primary" @click="openCreate">
+        <button class="btn btn-primary" :disabled="!canWriteRealtors" :title="!canWriteRealtors ? writePermissionHint : undefined" @click="openCreate">
           Vincular Corretor Manualmente
         </button>
       </div>
@@ -348,7 +365,8 @@ definePageMeta({
                 <button
                   v-if="isPendingRealtor(realtor)"
                   class="btn-copy-small btn-approve"
-                  :disabled="approvingId === realtor.id"
+                  :disabled="!canWriteRealtors || approvingId === realtor.id"
+                  :title="!canWriteRealtors ? writePermissionHint : undefined"
                   @click.stop="approvePendingRealtor(realtor)"
                 >
                   {{ approvingId === realtor.id ? 'Aprovando...' : 'Aprovar' }}
@@ -356,10 +374,10 @@ definePageMeta({
               </div>
             </td>
             <td class="text-right actions vertical-actions">
-              <button class="btn-icon" @click.stop="openEdit(realtor)" title="Editar">
+              <button class="btn-icon" :disabled="!canWriteRealtors" @click.stop="openEdit(realtor)" :title="!canWriteRealtors ? writePermissionHint : 'Editar'">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn-icon text-danger" @click.stop="removeRealtor(realtor.id)" title="Remover">
+              <button class="btn-icon text-danger" :disabled="!canWriteRealtors" @click.stop="removeRealtor(realtor.id)" :title="!canWriteRealtors ? writePermissionHint : 'Remover'">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
               </button>
             </td>
@@ -448,7 +466,7 @@ definePageMeta({
 
             <div class="modal-actions">
               <button type="button" class="btn btn-ghost" @click="showModal = false">Cancelar</button>
-              <button type="submit" class="btn btn-primary">Salvar</button>
+              <button type="submit" class="btn btn-primary" :disabled="!canWriteRealtors" :title="!canWriteRealtors ? writePermissionHint : undefined">Salvar</button>
             </div>
           </form>
           </div>
@@ -483,7 +501,7 @@ definePageMeta({
                 <button type="button" class="btn btn-ghost" @click="showInviteModal = false">
                   Cancelar
                 </button>
-                <button type="submit" class="btn btn-primary" :disabled="!inviteForm.email">
+                <button type="submit" class="btn btn-primary" :disabled="!canWriteRealtors || !inviteForm.email" :title="!canWriteRealtors ? writePermissionHint : undefined">
                   Enviar Convite
                 </button>
               </div>

@@ -7,7 +7,7 @@
           <LeadsLeadStatusBadge :status="lead.status" />
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-neutral btn-sm" @click="$emit('edit', lead)">Editar Dados</button>
+          <button class="btn btn-neutral btn-sm" :disabled="!canWriteLead" :title="!canWriteLead ? writePermissionHint : undefined" @click="$emit('edit', lead)">Editar Dados</button>
           <button class="modal-close" @click="$emit('close')">&times;</button>
         </div>
       </div>
@@ -57,6 +57,7 @@
                 <select
                   :value="lead.status"
                   class="form-select"
+                  :disabled="!canWriteLead"
                   @change="onStatusChange($event.target.value)"
                 >
                   <option v-for="(label, code) in statusOptions" :key="code" :value="code">{{ label }}</option>
@@ -119,7 +120,7 @@
               <div v-if="activeTab === 'docs'" class="tab-pane">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <h3>Documentos</h3>
-                  <button class="btn btn-neutral btn-sm" @click="showAddDoc = true">+ Anexar</button>
+                  <button class="btn btn-neutral btn-sm" :disabled="!canWriteLead" :title="!canWriteLead ? writePermissionHint : undefined" @click="showAddDoc = true">+ Anexar</button>
                 </div>
                 <div v-if="lead.documents?.length" class="doc-grid">
                   <div v-for="doc in lead.documents" :key="doc.id" class="doc-card">
@@ -138,7 +139,7 @@
               <div v-if="activeTab === 'finance'" class="tab-pane">
                  <div class="d-flex justify-content-between align-items-center mb-3">
                   <h3>Pagamentos & Financeiro</h3>
-                  <button v-if="authStore.isLoteadora" class="btn btn-neutral btn-sm" @click="showAddPayment = true">+ Adicionar</button>
+                  <button class="btn btn-neutral btn-sm" :disabled="!canWritePayments" :title="!canWritePayments ? paymentsWritePermissionHint : undefined" @click="showAddPayment = true">+ Adicionar</button>
                 </div>
                 <table v-if="lead.payments?.length" class="table">
                   <thead>
@@ -258,7 +259,7 @@
             <input v-model="newDoc.url" type="text" class="form-control">
           </div>
           <div class="text-end">
-            <button class="btn btn-primary" @click="saveDoc" :disabled="!newDoc.name || !newDoc.url">Salvar</button>
+            <button class="btn btn-primary" @click="saveDoc" :disabled="!canWriteLead || !newDoc.name || !newDoc.url" :title="!canWriteLead ? writePermissionHint : undefined">Salvar</button>
           </div>
         </div>
       </div>
@@ -274,6 +275,26 @@ const emit = defineEmits(['close', 'refresh', 'edit'])
 
 const { updateLeadStatus, addDocument, addPayment } = useLeads()
 const authStore = useAuthStore()
+const canWriteLead = computed(() => {
+  if (authStore.isLoteadora || authStore.isSysAdmin) {
+    return authStore.canWriteFeature('leads')
+  }
+  return true
+})
+const canReadPayments = computed(() => {
+  if (authStore.isLoteadora || authStore.isSysAdmin) {
+    return authStore.canReadFeature('payments')
+  }
+  return false
+})
+const canWritePayments = computed(() => {
+  if (authStore.isLoteadora || authStore.isSysAdmin) {
+    return authStore.canWriteFeature('payments')
+  }
+  return false
+})
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
+const paymentsWritePermissionHint = 'Disponível apenas para usuários com permissão de edição em Pagamentos'
 
 const activeTab = ref('info')
 
@@ -323,7 +344,7 @@ const tabs = computed(() => {
   if (props.lead.aiChatTranscript || props.lead.aiChatSummary) {
     t.splice(1, 0, { id: 'ai', label: 'Chat IA' })
   }
-  if (authStore.isLoteadora || authStore.isSysAdmin) {
+  if (canReadPayments.value) {
     t.push({ id: 'finance', label: 'Financeiro', count: props.lead.payments?.length })
   }
   return t

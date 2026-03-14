@@ -227,6 +227,10 @@ import { useDebounceFn } from '@vueuse/core'
 
 const api = useApi()
 const toast = useToast()
+const authStore = useAuthStore()
+const canLoadProjectsCatalog = computed(() => {
+  return !authStore.isLoteadora || !authStore.hasPanelRestrictions || authStore.canReadFeature('projects')
+})
 
 const loading = ref(true)
 const projects = ref<any[]>([])
@@ -242,8 +246,12 @@ const loadingLog = ref(false)
 
 onMounted(async () => {
   try {
-    const res = await api.get('/projects')
-    projects.value = Array.isArray(res) ? res : (res.data || [])
+    if (canLoadProjectsCatalog.value) {
+      const res = await api.get('/projects')
+      projects.value = Array.isArray(res) ? res : (res.data || [])
+    } else {
+      projects.value = []
+    }
   } catch {
     toast.error('Erro ao carregar projetos')
   } finally {

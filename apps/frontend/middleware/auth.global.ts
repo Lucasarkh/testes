@@ -1,4 +1,5 @@
 import { useAuthStore } from '../stores/auth';
+import { resolvePanelFeatureFromPath } from '~/utils/panelPermissions';
 
 export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.server && !to.path.startsWith('/painel') && to.path !== '/login') {
@@ -20,7 +21,7 @@ export default defineNuxtRouteMiddleware((to) => {
 
   if (isPublic) {
     if (authStore.isLoggedIn && ['/login'].includes(to.path)) {
-      return navigateTo('/painel');
+      return navigateTo(authStore.getDashboardRoute());
     }
     return;
   }
@@ -30,6 +31,12 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo('/login');
   }
 
+  const homeRoute = authStore.getDashboardRoute();
+
+  if (to.path === '/painel' && homeRoute !== '/painel') {
+    return navigateTo(homeRoute);
+  }
+
   // Terms acceptance enforcement — redirect to lock-screen page before accessing any panel route
   const isTermsPage = to.path === '/painel/aceitar-termos';
   if (!authStore.hasAcceptedTerms && !isTermsPage) {
@@ -37,30 +44,39 @@ export default defineNuxtRouteMiddleware((to) => {
   }
   // Prevent accessing the terms page after already accepting
   if (authStore.hasAcceptedTerms && isTermsPage) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
 
   // Role-based route protection
   if (to.path.startsWith('/painel/tenants') && !authStore.canManageTenants) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
   if (to.path.startsWith('/painel/backups') && !authStore.isSysAdmin) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
   if (to.path.startsWith('/painel/usuarios') && !authStore.canManageUsers) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
+  }
+  const panelFeature = resolvePanelFeatureFromPath(to.path);
+  if (
+    panelFeature
+    && authStore.hasPanelRestrictions
+    && authStore.isLoteadora
+    && !authStore.canReadFeature(panelFeature)
+  ) {
+    return navigateTo(homeRoute);
   }
   if (to.path.startsWith('/painel/assinatura')) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
   if (to.path.startsWith('/painel/cobranca')) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
   if (to.path.startsWith('/painel/reservar') && !authStore.isCorretor && !authStore.isImobiliaria) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
   if (to.path.startsWith('/painel/distribuicao') && !authStore.isLoteadora && !authStore.isSysAdmin) {
-    return navigateTo('/painel');
+    return navigateTo(homeRoute);
   }
 });
 

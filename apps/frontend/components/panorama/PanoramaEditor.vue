@@ -14,19 +14,26 @@
             {{ p.title }}
           </option>
         </select>
-        <button class="btn btn-sm btn-outline" @click="showCreatePanorama = true">
+        <button
+          class="btn btn-sm btn-outline"
+          :disabled="!canEdit"
+          :title="!canEdit ? writePermissionHint : undefined"
+          @click="openCreatePanoramaModal"
+        >
           + Novo Panorama
         </button>
       </div>
 
       <div class="pe-toolbar-right">
+        <span v-if="!canEdit" class="pe-readonly-badge">Somente leitura</span>
         <template v-if="activePanorama">
           <!-- Publication button -->
           <button
             class="btn btn-sm"
             :class="activePanorama.published ? 'btn-outline-danger' : 'btn-outline-success'"
             style="margin-right: 8px;"
-            :title="activePanorama.published ? 'Clique para despublicar' : 'Clique para publicar'"
+            :disabled="!canEdit"
+            :title="!canEdit ? writePermissionHint : (activePanorama.published ? 'Clique para despublicar' : 'Clique para publicar')"
             @click="togglePublication"
           >
             {{ activePanorama.published ? 'Despublicar' : 'Publicar' }}
@@ -43,18 +50,27 @@
           <button
             class="btn btn-sm"
             :class="mode === 'add-beacon' ? 'btn-primary' : 'btn-ghost'"
-            @click="mode = 'add-beacon'"
+            :disabled="!canEdit"
+            :title="!canEdit ? writePermissionHint : undefined"
+            @click="setMode('add-beacon')"
           >
             <i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Adicionar Beacon
           </button>
           <button
             class="btn btn-sm"
             :class="mode === 'move' ? 'btn-primary' : 'btn-ghost'"
-            @click="mode = 'move'"
+            :disabled="!canEdit"
+            :title="!canEdit ? writePermissionHint : undefined"
+            @click="setMode('move')"
           >
             <i class="bi bi-hand-index-thumb-fill" aria-hidden="true"></i> Mover
           </button>
-          <button class="btn btn-sm btn-outline" @click="showSettings = true">
+          <button
+            class="btn btn-sm btn-outline"
+            :disabled="!canEdit"
+            :title="!canEdit ? writePermissionHint : undefined"
+            @click="openSettingsModal"
+          >
             <i class="bi bi-gear-fill" aria-hidden="true"></i> Configurações
           </button>
         </template>
@@ -69,7 +85,12 @@
         <div v-if="activePanorama" class="pe-section">
           <div class="pe-section-header">
             <h3><i class="bi bi-camera-fill" aria-hidden="true"></i> Snapshots ({{ activePanorama.snapshots.length }})</h3>
-            <button class="btn btn-xs btn-outline" @click="showAddSnapshot = true">+ Adicionar</button>
+            <button
+              class="btn btn-xs btn-outline"
+              :disabled="!canEdit"
+              :title="!canEdit ? writePermissionHint : undefined"
+              @click="openAddSnapshotModal"
+            >+ Adicionar</button>
           </div>
           <div class="pe-list">
             <div
@@ -84,7 +105,12 @@
                 <span class="pe-list-item-label">{{ snap.label }}</span>
                 <span class="pe-list-item-meta">#{{ snap.sortOrder }}</span>
               </div>
-              <button class="btn btn-xs btn-ghost pe-list-item-del" @click.stop="removeSnapshot(snap.id)">
+              <button
+                class="btn btn-xs btn-ghost pe-list-item-del"
+                :disabled="!canEdit"
+                :title="!canEdit ? writePermissionHint : 'Excluir snapshot'"
+                @click.stop="removeSnapshot(snap.id)"
+              >
                 <i class="bi bi-trash3-fill" aria-hidden="true"></i>
               </button>
             </div>
@@ -115,7 +141,12 @@
                   x={{ beacon.x.toFixed(2) }} y={{ beacon.y.toFixed(2) }}
                 </span>
               </div>
-              <button class="btn btn-xs btn-ghost pe-list-item-del" @click.stop="removeBeacon(beacon.id)">
+              <button
+                class="btn btn-xs btn-ghost pe-list-item-del"
+                :disabled="!canEdit"
+                :title="!canEdit ? writePermissionHint : 'Excluir beacon'"
+                @click.stop="removeBeacon(beacon.id)"
+              >
                 <i class="bi bi-trash3-fill" aria-hidden="true"></i>
               </button>
             </div>
@@ -203,20 +234,22 @@
       <div v-if="showCreatePanorama" class="modal-backdrop">
         <div class="modal-content" style="max-width: 440px;">
           <h2>Novo Panorama</h2>
-          <div class="form-group">
-            <label>Título</label>
-            <input v-model="newPanoramaTitle" class="form-input" placeholder="Vista Geral" />
-          </div>
-          <div class="form-group">
-            <label>Tipo de visualização</label>
-            <select v-model="newPanoramaProjection" class="form-input">
-              <option value="FLAT">Foto Estática (Plana)</option>
-              <option value="EQUIRECTANGULAR">Panorama 360° (Equerretangular)</option>
-            </select>
-          </div>
+          <fieldset class="pe-modal-fieldset" :disabled="!canEdit">
+            <div class="form-group">
+              <label>Título</label>
+              <input v-model="newPanoramaTitle" class="form-input" placeholder="Vista Geral" />
+            </div>
+            <div class="form-group">
+              <label>Tipo de visualização</label>
+              <select v-model="newPanoramaProjection" class="form-input">
+                <option value="FLAT">Foto Estática (Plana)</option>
+                <option value="EQUIRECTANGULAR">Panorama 360° (Equerretangular)</option>
+              </select>
+            </div>
+          </fieldset>
           <div class="modal-actions">
             <button class="btn btn-ghost" @click="showCreatePanorama = false">Cancelar</button>
-            <button class="btn btn-primary" :disabled="creatingPanorama" @click="doCreatePanorama">
+            <button class="btn btn-primary" :disabled="!canEdit || creatingPanorama" :title="!canEdit ? writePermissionHint : undefined" @click="doCreatePanorama">
               {{ creatingPanorama ? 'Criando...' : 'Criar' }}
             </button>
           </div>
@@ -229,18 +262,20 @@
       <div v-if="showAddSnapshot" class="modal-backdrop">
         <div class="modal-content" style="max-width: 480px;">
           <h2>Adicionar Snapshot</h2>
-          <div class="form-group">
-            <label>Rótulo do período</label>
-            <input v-model="newSnapshotLabel" class="form-input" placeholder="Novembro/25" />
-          </div>
-          <div class="form-group">
-            <label>Imagem</label>
-            <input type="file" accept="image/*" class="form-input" @change="onSnapshotFileSelect" />
-          </div>
+          <fieldset class="pe-modal-fieldset" :disabled="!canEdit">
+            <div class="form-group">
+              <label>Rótulo do período</label>
+              <input v-model="newSnapshotLabel" class="form-input" placeholder="Novembro/25" />
+            </div>
+            <div class="form-group">
+              <label>Imagem</label>
+              <input type="file" accept="image/*" class="form-input" @change="onSnapshotFileSelect" />
+            </div>
+          </fieldset>
           <p v-if="snapshotUploadProgress" class="pe-upload-progress">{{ snapshotUploadProgress }}</p>
           <div class="modal-actions">
             <button class="btn btn-ghost" @click="showAddSnapshot = false">Cancelar</button>
-            <button class="btn btn-primary" :disabled="uploadingSnapshot" @click="doAddSnapshot">
+            <button class="btn btn-primary" :disabled="!canEdit || uploadingSnapshot" :title="!canEdit ? writePermissionHint : undefined" @click="doAddSnapshot">
               {{ uploadingSnapshot ? 'Enviando...' : 'Adicionar' }}
             </button>
           </div>
@@ -253,38 +288,41 @@
       <div v-if="showBeaconModal" class="modal-backdrop">
         <div class="modal-content" style="max-width: 480px;">
           <h2>{{ editingBeacon ? 'Editar Beacon' : 'Novo Beacon' }}</h2>
-          <div class="form-group">
-            <label>Título</label>
-            <input v-model="beaconForm.title" class="form-input" placeholder="Av. da Amizade" />
-          </div>
-          <div class="form-group">
-            <label>Descrição (opcional)</label>
-            <textarea v-model="beaconForm.description" class="form-input" rows="2" placeholder="Descrição do ponto..."></textarea>
-          </div>
-          <div class="form-group">
-            <label>Estilo</label>
-            <div class="pe-style-options">
-              <button
-                v-for="opt in BEACON_STYLE_OPTIONS"
-                :key="opt.value"
-                class="pe-style-btn"
-                :class="{ 'pe-style-btn--active': beaconForm.style === opt.value }"
-                :style="{ '--btn-color': opt.color }"
-                @click="beaconForm.style = opt.value"
-              >
-                {{ opt.label }}
-              </button>
+          <fieldset class="pe-modal-fieldset" :disabled="!canEdit">
+            <div class="form-group">
+              <label>Título</label>
+              <input v-model="beaconForm.title" class="form-input" placeholder="Av. da Amizade" />
             </div>
-          </div>
-          <div class="form-group">
-            <label class="pe-checkbox-label">
-              <input type="checkbox" v-model="beaconForm.visible" />
-              Visível na página pública
-            </label>
-          </div>
+            <div class="form-group">
+              <label>Descrição (opcional)</label>
+              <textarea v-model="beaconForm.description" class="form-input" rows="2" placeholder="Descrição do ponto..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Estilo</label>
+              <div class="pe-style-options">
+                <button
+                  v-for="opt in BEACON_STYLE_OPTIONS"
+                  :key="opt.value"
+                  type="button"
+                  class="pe-style-btn"
+                  :class="{ 'pe-style-btn--active': beaconForm.style === opt.value }"
+                  :style="{ '--btn-color': opt.color }"
+                  @click="beaconForm.style = opt.value"
+                >
+                  {{ opt.label }}
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="pe-checkbox-label">
+                <input type="checkbox" v-model="beaconForm.visible" />
+                Visível na página pública
+              </label>
+            </div>
+          </fieldset>
           <div class="modal-actions">
             <button class="btn btn-ghost" @click="closeBeaconModal">Cancelar</button>
-            <button class="btn btn-primary" :disabled="savingBeacon" @click="doSaveBeacon">
+            <button class="btn btn-primary" :disabled="!canEdit || savingBeacon" :title="!canEdit ? writePermissionHint : undefined" @click="doSaveBeacon">
               {{ savingBeacon ? 'Salvando...' : (editingBeacon ? 'Salvar' : 'Criar') }}
             </button>
           </div>
@@ -297,22 +335,24 @@
       <div v-if="showSettings" class="modal-backdrop">
         <div class="modal-content" style="max-width: 480px;">
           <h2>Configurações do Panorama</h2>
-          <div class="form-group">
-            <label>Título</label>
-            <input v-model="settingsForm.title" class="form-input" />
-          </div>
-          <div class="form-group">
-            <label>Tipo de visualização</label>
-            <select v-model="settingsForm.projection" class="form-input">
-              <option value="FLAT">Foto Estática (Plana)</option>
-              <option value="EQUIRECTANGULAR">Panorama 360° (Equerretangular)</option>
-            </select>
-          </div>
+          <fieldset class="pe-modal-fieldset" :disabled="!canEdit">
+            <div class="form-group">
+              <label>Título</label>
+              <input v-model="settingsForm.title" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>Tipo de visualização</label>
+              <select v-model="settingsForm.projection" class="form-input">
+                <option value="FLAT">Foto Estática (Plana)</option>
+                <option value="EQUIRECTANGULAR">Panorama 360° (Equerretangular)</option>
+              </select>
+            </div>
+          </fieldset>
           <div class="modal-actions" style="justify-content: space-between;">
-            <button class="btn btn-danger btn-sm" @click="doDeletePanorama"><i class="bi bi-trash3-fill" aria-hidden="true"></i> Excluir Panorama</button>
+            <button class="btn btn-danger btn-sm" :disabled="!canEdit" :title="!canEdit ? writePermissionHint : undefined" @click="doDeletePanorama"><i class="bi bi-trash3-fill" aria-hidden="true"></i> Excluir Panorama</button>
             <div class="flex gap-2">
               <button class="btn btn-ghost" @click="showSettings = false">Cancelar</button>
-              <button class="btn btn-primary" :disabled="savingSettings" @click="doSaveSettings">
+              <button class="btn btn-primary" :disabled="!canEdit || savingSettings" :title="!canEdit ? writePermissionHint : undefined" @click="doSaveSettings">
                 {{ savingSettings ? 'Salvando...' : 'Salvar' }}
               </button>
             </div>
@@ -344,6 +384,7 @@ import { useToast } from '~/composables/useToast'
 const props = defineProps<{
   projectId: string
   initialPanoramas?: Panorama[]
+  canEdit?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -352,6 +393,7 @@ const emit = defineEmits<{
 
 const api = usePanoramaApi()
 const toast = useToast()
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
 
 // ── Core State ───────────────────────────────────────
 
@@ -359,6 +401,7 @@ const panoramas = ref<Panorama[]>(props.initialPanoramas ?? [])
 const activePanoramaId = ref<string | null>(null)
 const activeSnapshotId = ref<string | null>(null)
 const mode = ref<'view' | 'add-beacon' | 'move'>('view')
+const canEdit = computed(() => props.canEdit !== false)
 
 const canvasContainerRef = ref<HTMLElement | null>(null)
 const canvasRef = ref<HTMLElement | null>(null)
@@ -427,6 +470,11 @@ onBeforeUnmount(() => {
 })
 
 watch(activePanoramaId, () => setInitialSnapshot())
+watch(canEdit, (value) => {
+  if (!value && mode.value !== 'view') {
+    mode.value = 'view'
+  }
+})
 
 async function loadPanoramas() {
   try {
@@ -458,6 +506,26 @@ function emitUpdate() {
   emit('updated', panoramas.value)
 }
 
+function setMode(nextMode: 'view' | 'add-beacon' | 'move') {
+  if (nextMode !== 'view' && !canEdit.value) return
+  mode.value = nextMode
+}
+
+function openCreatePanoramaModal() {
+  if (!canEdit.value) return
+  showCreatePanorama.value = true
+}
+
+function openAddSnapshotModal() {
+  if (!canEdit.value) return
+  showAddSnapshot.value = true
+}
+
+function openSettingsModal() {
+  if (!canEdit.value) return
+  showSettings.value = true
+}
+
 // ── Create Panorama ──────────────────────────────────
 
 const showCreatePanorama = ref(false)
@@ -466,6 +534,7 @@ const newPanoramaProjection = ref<PanoramaProjection>('FLAT')
 const creatingPanorama = ref(false)
 
 async function doCreatePanorama() {
+  if (!canEdit.value) return
   creatingPanorama.value = true
   try {
     const created = await api.createPanorama(props.projectId, {
@@ -495,11 +564,13 @@ const uploadingSnapshot = ref(false)
 const snapshotUploadProgress = ref('')
 
 function onSnapshotFileSelect(e: Event) {
+  if (!canEdit.value) return
   const input = e.target as HTMLInputElement
   snapshotFile.value = input.files?.[0] ?? null
 }
 
 async function doAddSnapshot() {
+  if (!canEdit.value) return
   if (!activePanorama.value || !snapshotFile.value || !newSnapshotLabel.value) {
     toast.error('Preencha o rótulo e selecione uma imagem.')
     return
@@ -534,6 +605,7 @@ async function doAddSnapshot() {
 }
 
 async function removeSnapshot(snapshotId: string) {
+  if (!canEdit.value) return
   if (!confirm('Excluir este snapshot?')) return
   try {
     await api.deleteSnapshot(snapshotId)
@@ -567,6 +639,7 @@ const beaconForm = reactive({
 })
 
 function openNewBeaconModal(x: number, y: number) {
+  if (!canEdit.value) return
   editingBeacon.value = null
   beaconForm.title = ''
   beaconForm.description = ''
@@ -578,6 +651,7 @@ function openNewBeaconModal(x: number, y: number) {
 }
 
 function editBeacon(beacon: PanoramaBeacon) {
+  if (!canEdit.value) return
   editingBeacon.value = beacon
   beaconForm.title = beacon.title
   beaconForm.description = beacon.description ?? ''
@@ -594,6 +668,7 @@ function closeBeaconModal() {
 }
 
 async function doSaveBeacon() {
+  if (!canEdit.value) return
   if (!activePanorama.value || !beaconForm.title.trim()) {
     toast.error('Título é obrigatório.')
     return
@@ -645,6 +720,7 @@ async function doSaveBeacon() {
 }
 
 async function removeBeacon(beaconId: string) {
+  if (!canEdit.value) return
   if (!confirm('Excluir este beacon?')) return
   try {
     await api.deleteBeacon(beaconId)
@@ -658,6 +734,7 @@ async function removeBeacon(beaconId: string) {
 }
 
 function onBeaconClick(beacon: PanoramaBeacon) {
+  if (!canEdit.value) return
   if (mode.value === 'view' || mode.value === 'add-beacon') {
     editBeacon(beacon)
   }
@@ -666,6 +743,7 @@ function onBeaconClick(beacon: PanoramaBeacon) {
 // ── Beacon Drag ──────────────────────────────────────
 
 function onBeaconDragStart(beacon: PanoramaBeacon, e: MouseEvent) {
+  if (!canEdit.value) return
   if (mode.value !== 'move') return
   draggingBeaconId.value = beacon.id
   dragBeaconStartX = e.clientX
@@ -675,6 +753,7 @@ function onBeaconDragStart(beacon: PanoramaBeacon, e: MouseEvent) {
 }
 
 async function togglePublication() {
+  if (!canEdit.value) return
   if (!activePanorama.value) return
   const isPublished = activePanorama.value.published
   const message = isPublished
@@ -716,6 +795,7 @@ watch(showSettings, (v) => {
 })
 
 async function doSaveSettings() {
+  if (!canEdit.value) return
   if (!activePanorama.value) return
   savingSettings.value = true
   try {
@@ -738,6 +818,7 @@ async function doSaveSettings() {
 }
 
 async function doDeletePanorama() {
+  if (!canEdit.value) return
   if (!activePanorama.value) return
   if (!confirm('Excluir este panorama e todos seus snapshots e beacons?')) return
   try {
@@ -791,6 +872,7 @@ function resetView() {
 }
 
 function on360ViewClick(pos: { x: number; y: number }) {
+  if (!canEdit.value) return
   if (mode.value === 'add-beacon') {
     placementPreview.value = pos
     openNewBeaconModal(pos.x, pos.y)
@@ -800,6 +882,7 @@ function on360ViewClick(pos: { x: number; y: number }) {
 function onMouseDown(e: MouseEvent) {
   // Adding beacon: calculate normalised position and open modal
   if (mode.value === 'add-beacon') {
+    if (!canEdit.value) return
     const pos = clientToNormalized(e.clientX, e.clientY)
     if (pos) {
       placementPreview.value = pos
@@ -820,7 +903,7 @@ function onMouseDown(e: MouseEvent) {
 
 function onGlobalMouseMove(e: MouseEvent) {
   // Beacon drag
-  if (draggingBeaconId.value && mode.value === 'move' && activePanorama.value) {
+  if (canEdit.value && draggingBeaconId.value && mode.value === 'move' && activePanorama.value) {
     const dx = (e.clientX - dragBeaconStartX) / (imgW.value * scale.value)
     const dy = (e.clientY - dragBeaconStartY) / (imgH.value * scale.value)
     const beacon = activePanorama.value.beacons.find(b => b.id === draggingBeaconId.value)
@@ -840,7 +923,7 @@ function onGlobalMouseMove(e: MouseEvent) {
 
 async function onGlobalMouseUp() {
   // Finish beacon drag → persist
-  if (draggingBeaconId.value && activePanorama.value) {
+  if (canEdit.value && draggingBeaconId.value && activePanorama.value) {
     const beacon = activePanorama.value.beacons.find(b => b.id === draggingBeaconId.value)
     if (beacon) {
       try {
@@ -894,6 +977,20 @@ function clientToNormalized(clientX: number, clientY: number) {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.pe-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.16);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  color: var(--color-surface-300);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .pe-select {
@@ -993,6 +1090,10 @@ function clientToNormalized(clientX: number, clientY: number) {
 .pe-list-item-del {
   opacity: 0;
   font-size: 0.7rem;
+}
+
+.pe-list-item-del:disabled {
+  opacity: 0.4;
 }
 
 .pe-list-item:hover .pe-list-item-del {
@@ -1130,6 +1231,17 @@ function clientToNormalized(clientX: number, clientY: number) {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
+}
+
+.pe-modal-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.pe-modal-fieldset:disabled {
+  opacity: 0.72;
 }
 
 .form-group {

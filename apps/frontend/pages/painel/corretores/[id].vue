@@ -7,7 +7,7 @@ const toast = useToast()
 
 // Guard
 if (!auth.isLoteadora && !auth.isImobiliaria && !auth.isSysAdmin) {
-  router.replace('/painel')
+  router.replace(auth.getDashboardRoute())
 }
 
 const id = computed(() => route.params.id as string)

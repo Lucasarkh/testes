@@ -5,7 +5,7 @@ const { success: toastSuccess, error: toastError } = useToast()
 const authStore = useAuthStore()
 
 if (!authStore.isCorretor && !authStore.isImobiliaria) {
-  await navigateTo('/painel')
+  await navigateTo(authStore.getDashboardRoute())
 }
 
 // ─── Types ───────────────────────────────────────────────
@@ -353,7 +353,7 @@ onMounted(loadProjects)
       </div>
 
       <div class="step-actions">
-        <button class="btn btn-ghost" @click="step = 1">← Voltar</button>
+        <button class="btn btn-ghost" @click="step = 1"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Voltar</span></button>
         <button class="btn btn-primary" @click="goStep3">Revisar Reserva →</button>
       </div>
     </div>
@@ -391,7 +391,7 @@ onMounted(loadProjects)
       </div>
 
       <div class="step-actions">
-        <button class="btn btn-ghost" @click="step = 2">← Voltar</button>
+        <button class="btn btn-ghost" @click="step = 2"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Voltar</span></button>
         <button class="btn btn-primary btn-reserve" :disabled="submitting" @click="submitReservation">
           <svg v-if="!submitting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
           {{ submitting ? 'Reservando...' : 'Confirmar Reserva' }}

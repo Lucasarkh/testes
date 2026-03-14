@@ -107,7 +107,7 @@ const handleLogin = async () => {
     
     authStore.setAuth(data)
     toastSuccess('Bem-vindo!')
-    router.push('/painel')
+    router.push(authStore.getDashboardRoute())
   } catch (e) {
     error.value = e.message === 'Unauthorized' ? 'E-mail ou senha incorretos' : e.message
     toastFromError(e, 'Falha no login')
@@ -132,7 +132,7 @@ const handleVerify2FA = async () => {
     const data = await res.json()
     authStore.setAuth(data)
     toastSuccess('Bem-vindo!')
-    router.push('/painel')
+    router.push(authStore.getDashboardRoute())
   } catch (e) {
     error.value = e.message || 'Código inválido. Tente novamente.'
     toastFromError(e, 'Verificação falhou')

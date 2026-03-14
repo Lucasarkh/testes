@@ -5,7 +5,7 @@
 
     <aside v-if="authStore.isLoggedIn" class="sidebar" :class="{ collapsed: sidebarCollapsed, 'mobile-open': mobileMenuOpen }">
       <div class="sidebar-brand">
-        <NuxtLink to="/painel" class="sidebar-logo-link">
+        <NuxtLink :to="homeRoute" class="sidebar-logo-link">
           <img v-if="sidebarCollapsed" src="/img/logo-icon.svg" alt="Lotio" class="sidebar-logo-icon" />
           <img v-else src="/img/logo-white.svg" alt="Lotio" class="sidebar-logo" />
         </NuxtLink>
@@ -25,7 +25,7 @@
 
       <nav class="sidebar-nav">
         <!-- Dashboard always present -->
-        <NuxtLink to="/painel" class="nav-item" :title="sidebarCollapsed ? 'Dashboard' : undefined">
+        <NuxtLink v-if="showDashboardEntry" :to="homeRoute" class="nav-item" :title="sidebarCollapsed ? 'Dashboard' : undefined">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           <span v-if="!sidebarCollapsed">Dashboard</span>
         </NuxtLink>
@@ -61,52 +61,52 @@
 
         <!-- LOTEADORA Menu -->
         <template v-if="authStore.isLoteadora">
-          <NuxtLink to="/painel/projetos" class="nav-item" :title="sidebarCollapsed ? 'Projetos' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('projects')" to="/painel/projetos" class="nav-item" :title="sidebarCollapsed ? 'Projetos' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
             <span v-if="!sidebarCollapsed">Projetos</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/leads" class="nav-item" :title="sidebarCollapsed ? 'Leads' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('leads')" to="/painel/leads" class="nav-item" :title="sidebarCollapsed ? 'Leads' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
             <span v-if="!sidebarCollapsed">Leads</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/distribuicao" class="nav-item" :title="sidebarCollapsed ? 'Distribuição' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('distribution')" to="/painel/distribuicao" class="nav-item" :title="sidebarCollapsed ? 'Distribuição' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             <span v-if="!sidebarCollapsed">Distribuição</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/agendamentos" class="nav-item" :title="sidebarCollapsed ? 'Agendamentos' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('scheduling')" to="/painel/agendamentos" class="nav-item" :title="sidebarCollapsed ? 'Agendamentos' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span v-if="!sidebarCollapsed">Agendamentos</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/imobiliarias" class="nav-item" :title="sidebarCollapsed ? 'Imobiliárias' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('agencies')" to="/painel/imobiliarias" class="nav-item" :title="sidebarCollapsed ? 'Imobiliárias' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7v1a3 3 0 006 0V7m0 1a3 3 0 006 0V7m0 1a3 3 0 006 0V7M4 21v-4m5 4v-4m5 4v-4m5 4v-4m-11-7a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2z"/></svg>
             <span v-if="!sidebarCollapsed">Imobiliárias</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/corretores" class="nav-item" :title="sidebarCollapsed ? 'Corretores' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('realtors')" to="/painel/corretores" class="nav-item" :title="sidebarCollapsed ? 'Corretores' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
             <span v-if="!sidebarCollapsed">Corretores</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/pagamentos" class="nav-item" :title="sidebarCollapsed ? 'Pagamentos' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('payments')" to="/painel/pagamentos" class="nav-item" :title="sidebarCollapsed ? 'Pagamentos' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
             <span v-if="!sidebarCollapsed">Pagamentos</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/campanhas" class="nav-item" :title="sidebarCollapsed ? 'Campanhas' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('campaigns')" to="/painel/campanhas" class="nav-item" :title="sidebarCollapsed ? 'Campanhas' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 10V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h3l-1 5h2l1-5h4l4 4V6l-4 4z"/></svg>
             <span v-if="!sidebarCollapsed">Campanhas</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/ai" class="nav-item" :title="sidebarCollapsed ? 'Assistente IA' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('ai')" to="/painel/ai" class="nav-item" :title="sidebarCollapsed ? 'Assistente IA' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm0 18a8 8 0 118-8 8 8 0 01-8 8zm-1-11a1 1 0 112 0v2a1 1 0 01-2 0V9zm1 7a1 1 0 100-2 1 1 0 000 2z"/></svg>
             <span v-if="!sidebarCollapsed">Assistente IA</span>
           </NuxtLink>
 
-          <NuxtLink to="/painel/links-cadastro" class="nav-item" :title="sidebarCollapsed ? 'Links de Cadastro' : undefined">
+          <NuxtLink v-if="authStore.canReadFeature('signupLinks')" to="/painel/links-cadastro" class="nav-item" :title="sidebarCollapsed ? 'Links de Cadastro' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
             <span v-if="!sidebarCollapsed">Links de Cadastro</span>
           </NuxtLink>
@@ -169,7 +169,7 @@
         </template>
 
         <!-- Common items like Metrics if allowed -->
-        <NuxtLink v-if="!authStore.isSysAdmin && !authStore.isImobiliaria" to="/painel/metricas" class="nav-item" :title="sidebarCollapsed ? 'Métricas' : undefined">
+        <NuxtLink v-if="(authStore.isLoteadora && authStore.canReadFeature('metrics')) || authStore.isCorretor" to="/painel/metricas" class="nav-item" :title="sidebarCollapsed ? 'Métricas' : undefined">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           <span v-if="!sidebarCollapsed">Métricas</span>
         </NuxtLink>
@@ -229,6 +229,8 @@ const router = useRouter()
 const { success: toastSuccess } = useToast()
 const sidebarCollapsed = ref(false)
 const mobileMenuOpen = ref(false)
+const homeRoute = computed(() => authStore.getDashboardRoute())
+const showDashboardEntry = computed(() => !(authStore.isLoteadora && authStore.hasPanelRestrictions))
 
 const { unreadCount, startPolling, stopPolling } = useNotifications()
 
@@ -266,7 +268,7 @@ const initials = computed(() => {
 const roleLabel = computed(() => {
   const map = { 
     SYSADMIN: 'System Admin', 
-    LOTEADORA: 'Loteadora', 
+    LOTEADORA: authStore.hasPanelRestrictions ? 'Usuário do sistema' : 'Loteadora', 
     IMOBILIARIA: 'Imobiliária',
     CORRETOR: 'Corretor' 
   }

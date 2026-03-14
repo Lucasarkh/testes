@@ -3,9 +3,14 @@
 const { fetchApi } = useApi()
 const { success: toastSuccess, error: toastError } = useToast()
 const authStore = useAuthStore()
+const canWriteSignupLinks = computed(() => authStore.canWriteFeature('signupLinks'))
+const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
+const canLoadProjectsCatalog = computed(() => {
+  return !authStore.isLoteadora || !authStore.hasPanelRestrictions || authStore.canReadFeature('projects')
+})
 
-if (!authStore.isLoteadora) {
-  await navigateTo('/painel')
+if (!authStore.isLoteadora || !authStore.canReadFeature('signupLinks')) {
+  await navigateTo(authStore.getDashboardRoute())
 }
 
 interface InviteCode {
@@ -59,14 +64,17 @@ function registrationLink(code: string) {
 async function fetchCodes() {
   loading.value = true
   try {
-    const [inviteCodes, projectsResponse] = await Promise.all([
-      fetchApi('/agencies/invite-codes'),
-      fetchApi('/projects?limit=100')
-    ])
+    const inviteCodes = await fetchApi('/agencies/invite-codes')
 
     const data = inviteCodes
     codes.value = Array.isArray(data) ? data : []
-    projects.value = Array.isArray(projectsResponse?.data) ? projectsResponse.data : []
+
+    if (canLoadProjectsCatalog.value) {
+      const projectsResponse = await fetchApi('/projects?limit=100')
+      projects.value = Array.isArray(projectsResponse?.data) ? projectsResponse.data : []
+    } else {
+      projects.value = []
+    }
   } catch (err: any) {
     console.error('Failed to load invite codes:', err?.message)
     toastError(err?.message || 'Erro ao carregar links de cadastro.')
@@ -231,7 +239,7 @@ onMounted(fetchCodes)
         <h1>Links de Cadastro</h1>
         <p>Compartilhe links para que imobiliárias e corretores se cadastrem e se vinculem automaticamente à sua loteadora.</p>
       </div>
-      <button class="btn btn-primary" @click="openModal">
+      <button class="btn btn-primary" :disabled="!canWriteSignupLinks" :title="!canWriteSignupLinks ? writePermissionHint : undefined" @click="openModal">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Novo Link
       </button>
@@ -254,7 +262,7 @@ onMounted(fetchCodes)
       </svg>
       <h3>Nenhum link criado</h3>
       <p>Crie seu primeiro link de cadastro para compartilhar com imobiliárias e corretores.</p>
-      <button class="btn btn-primary" @click="openModal">Criar Link</button>
+      <button class="btn btn-primary" :disabled="!canWriteSignupLinks" :title="!canWriteSignupLinks ? writePermissionHint : undefined" @click="openModal">Criar Link</button>
     </div>
 
     <div v-else class="codes-grid">
@@ -267,14 +275,14 @@ onMounted(fetchCodes)
             <span v-if="!code.isActive" class="inactive-badge">Inativo</span>
           </div>
           <div class="code-actions">
-            <button class="icon-btn" title="Editar" @click="openEditModal(code)">
+            <button class="icon-btn" :disabled="!canWriteSignupLinks" :title="!canWriteSignupLinks ? writePermissionHint : 'Editar'" @click="openEditModal(code)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
             </button>
-            <button class="icon-btn" :title="code.isActive ? 'Desativar' : 'Ativar'" @click="toggleActive(code)">
+            <button class="icon-btn" :disabled="!canWriteSignupLinks" :title="!canWriteSignupLinks ? writePermissionHint : (code.isActive ? 'Desativar' : 'Ativar')" @click="toggleActive(code)">
               <svg v-if="code.isActive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
               <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2v10"/><path d="M5.636 5.636a9 9 0 1 0 12.728 12.728"/></svg>
             </button>
-            <button class="icon-btn danger" title="Excluir" @click="deleteCode(code)">
+            <button class="icon-btn danger" :disabled="!canWriteSignupLinks" :title="!canWriteSignupLinks ? writePermissionHint : 'Excluir'" @click="deleteCode(code)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
             </button>
           </div>
@@ -399,7 +407,7 @@ onMounted(fetchCodes)
 
           <div class="modal-footer">
             <button class="btn btn-ghost" @click="closeModal">Cancelar</button>
-            <button class="btn btn-primary" :disabled="saving" @click="saveCode">
+            <button class="btn btn-primary" :disabled="saving || !canWriteSignupLinks" :title="!canWriteSignupLinks ? writePermissionHint : undefined" @click="saveCode">
               {{ saving ? (editingCodeId ? 'Salvando...' : 'Criando...') : (editingCodeId ? 'Salvar Alterações' : 'Criar Link') }}
             </button>
           </div>

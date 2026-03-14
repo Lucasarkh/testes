@@ -5,7 +5,8 @@
       <div class="v4-container">
         <div class="v4-header-inner">
           <NuxtLink :to="projectUrl" class="v4-back-btn">
-            <span class="v4-icon">←</span> Ver Projeto
+            <span class="v4-icon" aria-hidden="true"><i class="bi bi-arrow-left-short back-nav-icon"></i></span>
+            <span class="back-nav-label">Ver Projeto</span>
           </NuxtLink>
           <div v-if="project" class="v4-header-title">
             <strong>{{ project.name }}</strong>

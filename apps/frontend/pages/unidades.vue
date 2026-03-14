@@ -5,7 +5,7 @@
   <ProjectUnitsView v-else-if="tenantStore.config?.projectId" />
   <div v-else class="p-8 text-center">
      <h1 class="text-2xl font-bold">Página não encontrada</h1>
-     <NuxtLink to="/" class="text-primary underline">Voltar para o início</NuxtLink>
+    <NuxtLink to="/" class="text-primary underline" style="display: inline-flex; align-items: center; gap: 6px;"><i class="bi bi-arrow-left-short" aria-hidden="true"></i><span>Voltar para o início</span></NuxtLink>
   </div>
 </template>
 
