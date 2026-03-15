@@ -4,6 +4,12 @@ import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import LandingHeader from '@/components/landing/LandingHeader.vue'
 import LandingFooter from '@/components/landing/LandingFooter.vue'
+import {
+  buildAbsoluteUrl,
+  buildRobotsContent,
+  normalizeSiteOrigin,
+  resolveSeoImage,
+} from '~/utils/seo'
 
 // ── Demo map reactive state ──────────────────────────────────────
 const demoLots = ref(
@@ -30,14 +36,63 @@ const ctaFinalRef = ref(null)
 
 definePageMeta({ layout: 'public', alias: ['/demo'] })
 
+const runtimeConfig = useRuntimeConfig()
+const requestUrl = useRequestURL()
+const siteOrigin = computed(() => normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin))
+const canonicalUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, '/landing'))
+const seoImage = computed(() => resolveSeoImage(siteOrigin.value, '/img/og-image.png'))
+const seoTitle = 'Landing Lotio para loteadoras, incorporadoras e imobiliárias'
+const seoDescription = 'Veja como loteadoras, incorporadoras e imobiliárias vendem mais com mapas interativos, captura de leads em tempo real, reservas online e inteligência comercial.'
+const robotsContent = buildRobotsContent(false)
+const seoSchema = computed(() => ([
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: seoTitle,
+    description: seoDescription,
+    url: canonicalUrl.value,
+    primaryImageOfPage: seoImage.value,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Lotio',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: canonicalUrl.value,
+    description: seoDescription,
+    image: seoImage.value,
+  },
+]))
+
 useSeoMeta({
-  title: 'Landing — Lotio',
-  ogTitle: 'Landing — Lotio',
-  description:
-    'Veja como loteadoras, incorporadoras e imobiliárias estão vendendo mais com mapas interativos, captura de leads em tempo real e reservas online.',
-  ogImage: '/og-image.jpg',
+  title: seoTitle,
+  ogTitle: seoTitle,
+  description: seoDescription,
+  ogDescription: seoDescription,
+  ogType: 'website',
+  ogUrl: canonicalUrl,
+  ogImage: seoImage,
   twitterCard: 'summary_large_image',
+  twitterTitle: seoTitle,
+  twitterDescription: seoDescription,
+  twitterImage: seoImage,
+  robots: robotsContent,
 })
+
+useHead(() => ({
+  link: [
+    { rel: 'canonical', href: canonicalUrl.value },
+    { rel: 'image_src', href: seoImage.value },
+  ],
+  script: [
+    {
+      key: 'landing-ld-json',
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(seoSchema.value),
+    },
+  ],
+}))
 
 const { get, post } = usePublicApi()
 const toast = useToast()

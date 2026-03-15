@@ -5,6 +5,12 @@
 <script setup lang="ts">
 import ProjectLandingView from '~/components/ProjectLandingView.vue'
 import { useTenantStore } from '~/stores/tenant'
+import {
+  buildAbsoluteUrl,
+  buildRobotsContent,
+  normalizeSiteOrigin,
+  resolveSeoImage,
+} from '~/utils/seo'
 
 type PublicProject = {
   name?: string
@@ -23,9 +29,7 @@ const requestUrl = useRequestURL()
 const slug = computed(() => String(route.params.slug || '').trim())
 const apiBase = computed(() => String(runtimeConfig.public.apiBase || '').replace(/\/+$/, ''))
 const siteOrigin = computed(() => {
-  const configured = String(runtimeConfig.public.siteUrl || '').replace(/\/+$/, '')
-  if (configured) return configured
-  return requestUrl.origin
+  return normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
 })
 
 const { data: projectData } = await useAsyncData<PublicProject | null>(
@@ -56,13 +60,35 @@ const seoDescription = computed(
 )
 const seoImage = computed(
   () =>
-    projectData.value?.ogLogoUrl
-    || projectData.value?.bannerImageUrl
-    || projectData.value?.bannerImageTabletUrl
-    || projectData.value?.bannerImageMobileUrl
-    || `${siteOrigin.value}/img/og-image.png`,
+    resolveSeoImage(
+      siteOrigin.value,
+      projectData.value?.ogLogoUrl,
+      projectData.value?.bannerImageUrl,
+      projectData.value?.bannerImageTabletUrl,
+      projectData.value?.bannerImageMobileUrl,
+      '/img/og-image.png',
+    ),
 )
-const seoUrl = computed(() => `${requestUrl.origin}${route.path}`)
+const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path || `/${slug.value}`))
+const robotsContent = computed(() => buildRobotsContent(false))
+const seoSchema = computed(() => ([
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: seoTitle.value,
+    description: seoDescription.value,
+    url: seoUrl.value,
+    primaryImageOfPage: seoImage.value,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Residence',
+    name: projectData.value?.name || seoTitle.value,
+    description: seoDescription.value,
+    url: seoUrl.value,
+    image: seoImage.value,
+  },
+]))
 
 useSeoMeta({
   title: seoTitle,
@@ -77,11 +103,20 @@ useSeoMeta({
   twitterTitle: seoTitle,
   twitterDescription: seoDescription,
   twitterImage: seoImage,
+  robots: robotsContent,
 })
 
 useHead(() => ({
   link: [
+    { rel: 'canonical', href: seoUrl.value },
     { rel: 'image_src', href: seoImage.value },
+  ],
+  script: [
+    {
+      key: 'project-landing-ld-json',
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(seoSchema.value),
+    },
   ],
 }))
 

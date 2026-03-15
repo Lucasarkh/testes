@@ -4,6 +4,12 @@
 
 <script setup lang="ts">
 import LotDetailsView from '~/components/LotDetailsView.vue'
+import {
+  buildAbsoluteUrl,
+  buildRobotsContent,
+  normalizeSiteOrigin,
+  resolveSeoImage,
+} from '~/utils/seo'
 
 type PublicProject = {
   name?: string
@@ -39,9 +45,7 @@ const lotCode = computed(() => decodeURIComponent(String(route.params.code || ''
 
 const apiBase = computed(() => String(runtimeConfig.public.apiBase || '').replace(/\/+$/, ''))
 const siteOrigin = computed(() => {
-  const configured = String(runtimeConfig.public.siteUrl || '').replace(/\/+$/, '')
-  if (configured) return configured
-  return requestUrl.origin
+  return normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
 })
 
 const { data: projectData } = await useAsyncData<PublicProject | null>(
@@ -103,16 +107,38 @@ const seoDescription = computed(
 )
 const seoImage = computed(() => {
   const lotMedia = lotData.value?.lotDetails?.medias?.find((media) => !!media?.url)?.url || ''
-  return (
-    projectData.value?.ogLogoUrl
-    || lotMedia
-    || projectData.value?.bannerImageUrl
-    || projectData.value?.bannerImageTabletUrl
-    || projectData.value?.bannerImageMobileUrl
-    || `${siteOrigin.value}/img/og-image.png`
+  return resolveSeoImage(
+    siteOrigin.value,
+    projectData.value?.ogLogoUrl,
+    lotMedia,
+    projectData.value?.bannerImageUrl,
+    projectData.value?.bannerImageTabletUrl,
+    projectData.value?.bannerImageMobileUrl,
+    '/img/og-image.png',
   )
 })
-const seoUrl = computed(() => `${requestUrl.origin}${route.path}`)
+const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path || `/${slug.value}/${encodeURIComponent(lotCode.value)}`))
+const robotsContent = computed(() => buildRobotsContent(false))
+const seoSchema = computed(() => ([
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: seoTitle.value,
+    description: seoDescription.value,
+    url: seoUrl.value,
+    primaryImageOfPage: seoImage.value,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: `Lote ${seoLotLabel.value}`,
+    description: seoDescription.value,
+    image: seoImage.value,
+    brand: seoProjectName.value,
+    category: 'Lote imobiliário',
+    url: seoUrl.value,
+  },
+]))
 
 useSeoMeta({
   title: seoTitle,
@@ -127,7 +153,22 @@ useSeoMeta({
   twitterTitle: seoTitle,
   twitterDescription: seoDescription,
   twitterImage: seoImage,
+  robots: robotsContent,
 })
+
+useHead(() => ({
+  link: [
+    { rel: 'canonical', href: seoUrl.value },
+    { rel: 'image_src', href: seoImage.value },
+  ],
+  script: [
+    {
+      key: 'lot-page-ld-json',
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(seoSchema.value),
+    },
+  ],
+}))
 
 definePageMeta({
   layout: 'public'

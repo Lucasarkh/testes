@@ -28,6 +28,12 @@ import LandingFeatures from '@/components/landing/LandingFeatures.vue'
 import LandingCTA from '@/components/landing/LandingCTA.vue'
 import LandingFooter from '@/components/landing/LandingFooter.vue'
 import { useTenantStore } from '~/stores/tenant'
+import {
+  buildAbsoluteUrl,
+  buildRobotsContent,
+  normalizeSiteOrigin,
+  resolveSeoImage,
+} from '~/utils/seo'
 
 const defaultSeoTitle = 'Lotio - Aliado das Loteadoras, Incorporadoras e Imobiliárias'
 const defaultSeoDescription = 'A plataforma definitiva para incorporadoras, loteadoras, imobiliárias e corretores. Mapas interativos, gestão de leads em tempo real e controle total de estoque.'
@@ -40,9 +46,7 @@ const incomingHeaders = useRequestHeaders(['host', 'x-forwarded-host', 'x-forwar
 
 const apiBase = computed(() => String(runtimeConfig.public.apiBase || '').replace(/\/+$/, ''))
 const siteOrigin = computed(() => {
-  const configured = String(runtimeConfig.public.siteUrl || '').replace(/\/+$/, '')
-  if (configured) return configured
-  return requestUrl.origin
+  return normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
 })
 const requestHost = computed(() => {
   const forwarded = String(incomingHeaders['x-forwarded-host'] || '').split(',')[0].trim()
@@ -136,15 +140,56 @@ const seoDescription = computed(() => {
   return defaultSeoDescription
 })
 const seoImage = computed(() => {
-  return (
-    resolvedProject.value?.ogLogoUrl
-    || resolvedProject.value?.bannerImageUrl
-    || resolvedProject.value?.bannerImageTabletUrl
-    || resolvedProject.value?.bannerImageMobileUrl
-    || `${siteOrigin.value}/img/og-image.png`
+  return resolveSeoImage(
+    siteOrigin.value,
+    resolvedProject.value?.ogLogoUrl,
+    resolvedProject.value?.bannerImageUrl,
+    resolvedProject.value?.bannerImageTabletUrl,
+    resolvedProject.value?.bannerImageMobileUrl,
+    '/img/og-image.png',
   )
 })
-const seoUrl = computed(() => `${requestUrl.origin}${route.path}`)
+const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path || '/'))
+const robotsContent = computed(() => buildRobotsContent(false))
+const seoSchema = computed(() => {
+  if (resolvedProject.value?.name) {
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        name: seoTitle.value,
+        description: seoDescription.value,
+        url: seoUrl.value,
+        primaryImageOfPage: seoImage.value,
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Residence',
+        name: resolvedProject.value.name,
+        description: seoDescription.value,
+        url: seoUrl.value,
+        image: seoImage.value,
+      },
+    ]
+  }
+
+  return [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'Organization',
+      name: 'Lotio',
+      url: seoUrl.value,
+      logo: buildAbsoluteUrl(siteOrigin.value, '/img/logo-icon.svg'),
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Lotio',
+      url: seoUrl.value,
+      description: seoDescription.value,
+    },
+  ]
+})
 
 useSeoMeta({
   title: seoTitle,
@@ -159,11 +204,20 @@ useSeoMeta({
   twitterTitle: seoTitle,
   twitterDescription: seoDescription,
   twitterImage: seoImage,
+  robots: robotsContent,
 })
 
 useHead(() => ({
   link: [
+    { rel: 'canonical', href: seoUrl.value },
     { rel: 'image_src', href: seoImage.value },
+  ],
+  script: [
+    {
+      key: 'home-ld-json',
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(seoSchema.value),
+    },
   ],
 }))
 

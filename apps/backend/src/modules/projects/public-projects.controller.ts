@@ -19,6 +19,24 @@ export class PublicProjectsController {
     private readonly prisma: PrismaService
   ) {}
 
+  @Get()
+  @ApiOperation({ summary: 'Lista pública de projetos indexáveis' })
+  async listPublicProjects() {
+    return this.prisma.project.findMany({
+      where: {
+        status: 'PUBLISHED',
+        slug: { not: '' },
+        tenant: { is: { isActive: true } }
+      },
+      select: {
+        slug: true,
+        name: true,
+        updatedAt: true
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+  }
+
   @Get('resolve-tenant')
   @ApiOperation({ summary: 'Resolver contexto de tenant/projeto via Host' })
   async resolveTenant(@Req() req: any, @Query('host') hostQuery?: string) {
