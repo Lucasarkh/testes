@@ -1038,7 +1038,7 @@ const buildPanoramaProxyUrl = (url?: string | null) => {
   if (!trimmed) return null
   if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('/')) return trimmed
   if (!/^https?:\/\//i.test(trimmed)) return trimmed
-  return `/api/panorama-image?url=${encodeURIComponent(trimmed)}`
+  return `/panorama-image?url=${encodeURIComponent(trimmed)}`
 }
 
 const isPanoramaMedia = (media: any) => {
