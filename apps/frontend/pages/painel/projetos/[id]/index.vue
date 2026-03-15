@@ -2269,6 +2269,29 @@ const removeParcelaInForm = (idx: number) => {
   lotForm.value.paymentConditions.parcelas.splice(idx, 1)
 }
 
+const isLotPanoramaMedia = (media: any, fallbackUrls: Array<string | null | undefined> = []) => {
+  const caption = String(media?.caption || '').toLowerCase()
+  const url = String(media?.url || '').toLowerCase()
+  const normalizedFallbackUrls = fallbackUrls
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+
+  if (normalizedFallbackUrls.includes(String(media?.url || '').trim())) return true
+  if (caption.includes('lot_panorama_360') || caption.includes('panorama_360') || caption.includes('panorama-360') || caption.includes('panorama 360')) return true
+  if (url.includes('panorama_360') || url.includes('panorama-360') || url.includes('/panorama/')) return true
+  return false
+}
+
+const removePanoramaMediaFromDraft = (fallbackUrls: Array<string | null | undefined> = []) => {
+  if (!Array.isArray(editingLot.value?.medias)) return
+  editingLot.value.medias = editingLot.value.medias.filter((media: any) => !isLotPanoramaMedia(media, fallbackUrls))
+}
+
+const clearLotPanoramaSelection = () => {
+  removePanoramaMediaFromDraft([lotForm.value.panoramaUrl])
+  lotForm.value.panoramaUrl = null
+}
+
 const uploadLotMediaFile = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file || !editingLot.value) return
@@ -2299,6 +2322,9 @@ const uploadLotPanoramaFile = async (e: Event) => {
     // Tag panorama uploads so they can be reliably filtered from static galleries.
     const m = await uploadApi(`/projects/${projectId}/media?lotDetailsId=${editingLot.value.id}&caption=lot_panorama_360`, fd)
 
+    if (!editingLot.value.medias) editingLot.value.medias = []
+    editingLot.value.medias.unshift(m)
+
     // If a previous panorama was already selected, remove its media record to avoid stale gallery mixing.
     if (previousPanoramaUrl && Array.isArray(editingLot.value.medias)) {
       const previousMedia = editingLot.value.medias.find((item: any) => item?.url === previousPanoramaUrl)
@@ -2315,7 +2341,7 @@ const uploadLotPanoramaFile = async (e: Event) => {
     toastFromError(err, 'Erro ao enviar imagem')
   }
   (e.target as HTMLInputElement).value = ''
-  uploadingPanorama.value = false
+              <button class="media-delete-btn-v4" @click="clearLotPanoramaSelection">✕</button>
 }
 
 const removeLotMedia = async (id: string) => {

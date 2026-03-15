@@ -4,10 +4,89 @@ import { UpsertLotDetailsDto } from './dto/upsert-lot-details.dto';
 import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import { LotDetails } from '@prisma/client';
+import { S3Service } from '@infra/s3/s3.service';
+
+const LOT_PANORAMA_MEDIA_TAGS = [
+  'lot_panorama_360',
+  'panorama_360',
+  'panorama-360',
+  'panorama 360'
+];
 
 @Injectable()
 export class LotsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service
+  ) {}
+
+  private normalizeMediaUrl(url?: string | null): string | null {
+    const trimmed = String(url || '').trim();
+    return trimmed || null;
+  }
+
+  private isLotPanoramaMedia(
+    media: { caption?: string | null; url?: string | null },
+    fallbackUrls: Array<string | null | undefined> = []
+  ): boolean {
+    const caption = String(media.caption || '').toLowerCase();
+    const url = String(media.url || '').toLowerCase();
+    const normalizedFallbackUrls = fallbackUrls
+      .map((value) => this.normalizeMediaUrl(value))
+      .filter((value): value is string => Boolean(value));
+
+    if (
+      normalizedFallbackUrls.length > 0
+      && normalizedFallbackUrls.includes(this.normalizeMediaUrl(media.url) || '')
+    ) {
+      return true;
+    }
+
+    if (LOT_PANORAMA_MEDIA_TAGS.some((tag) => caption.includes(tag))) return true;
+    if (url.includes('panorama_360') || url.includes('panorama-360') || url.includes('/panorama/')) return true;
+    return false;
+  }
+
+  private async cleanupObsoleteLotPanoramaMedia(
+    tenantId: string,
+    lotDetailsId: string,
+    previousPanoramaUrl?: string | null,
+    nextPanoramaUrl?: string | null
+  ) {
+    const medias = await this.prisma.projectMedia.findMany({
+      where: { tenantId, lotDetailsId }
+    });
+
+    const normalizedPreviousUrl = this.normalizeMediaUrl(previousPanoramaUrl);
+    const normalizedNextUrl = this.normalizeMediaUrl(nextPanoramaUrl);
+
+    const obsoleteMedias = medias.filter((media) => {
+      const mediaUrl = this.normalizeMediaUrl(media.url);
+      if (!mediaUrl) return false;
+      if (normalizedNextUrl && mediaUrl === normalizedNextUrl) return false;
+      if (normalizedPreviousUrl && mediaUrl === normalizedPreviousUrl && normalizedPreviousUrl !== normalizedNextUrl) {
+        return true;
+      }
+
+      return this.isLotPanoramaMedia(media, [normalizedPreviousUrl]);
+    });
+
+    if (!obsoleteMedias.length) return;
+
+    await Promise.all(
+      obsoleteMedias.map(async (media) => {
+        const key = this.s3.keyFromUrl(media.url);
+        if (key) await this.s3.delete(key).catch(() => {});
+      })
+    );
+
+    await this.prisma.projectMedia.deleteMany({
+      where: {
+        tenantId,
+        id: { in: obsoleteMedias.map((media) => media.id) }
+      }
+    });
+  }
 
   private resolveProjectBasePublicUrl(project: {
     slug: string;
@@ -189,6 +268,11 @@ export class LotsService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
     this.ensureProjectEditable(project);
 
+    const existingLot = await this.prisma.lotDetails.findFirst({
+      where: { tenantId, mapElementId },
+      select: { id: true, panoramaUrl: true }
+    });
+
     await this.prisma.lotDetails.upsert({
       where: { mapElementId },
       create: {
@@ -205,6 +289,13 @@ export class LotsService {
       include: { mapElement: true }
     });
     if (!lot) throw new NotFoundException('LotDetails not found');
+
+    await this.cleanupObsoleteLotPanoramaMedia(
+      tenantId,
+      lot.id,
+      existingLot?.panoramaUrl,
+      dto.panoramaUrl ?? lot.panoramaUrl
+    );
 
     return this.enrichLotPublicData(lot, project);
   }

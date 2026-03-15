@@ -506,7 +506,7 @@
                     <div class="reserve-fee">
                       Taxa de reserva: {{ formatCurrencyToBrasilia(reservationFeeValue) }}
                     </div>
-                    <p class="reserve-disclaimer">*Sujeito a análise de crédito da loteadora responsável pelo empreendimento.</p>
+                    <p class="reserve-disclaimer">*Sujeito a análise de crédito.</p>
                   </div>
 
                   <div v-else class="booking-form-v4">
@@ -1050,8 +1050,14 @@ const isPanoramaMedia = (media: any) => {
   return false
 }
 
+const hasExplicitPanoramaField = computed(() => {
+  if (!details.value || typeof details.value !== 'object') return false
+  return Object.prototype.hasOwnProperty.call(details.value, 'panoramaUrl')
+})
+
 const rawPanoramaImageUrl = computed(() => {
   if (details.value?.panoramaUrl) return details.value.panoramaUrl
+  if (hasExplicitPanoramaField.value) return null
 
   const medias = Array.isArray(details.value?.medias) ? details.value.medias : []
   const taggedPanorama = medias.find((m: any) => isPanoramaMedia(m))
