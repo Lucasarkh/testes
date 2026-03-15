@@ -11,8 +11,8 @@
     <LandingHeader />
     <main>
       <LandingHero />
-      <!-- <LandingAudience />
-      <LandingFeatures /> -->
+      <LandingAudience />
+      <LandingFeatures />
       <LandingCTA />
     </main>
     <LandingFooter />

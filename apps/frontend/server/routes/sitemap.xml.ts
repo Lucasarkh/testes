@@ -1,4 +1,4 @@
-import { setResponseHeader } from 'h3'
+import { getRequestURL, setResponseHeader } from 'h3'
 import { buildAbsoluteUrl, normalizeSiteOrigin } from '~/utils/seo'
 
 type PublicProjectSummary = {
@@ -21,6 +21,88 @@ type SitemapEntry = {
   priority?: string
 }
 
+const LOTS_PER_PAGE = 50
+
+function expandOriginCandidates(...origins: string[]) {
+  const candidates = new Set<string>()
+
+  for (const origin of origins) {
+    const normalized = normalizeSiteOrigin(origin)
+    if (!normalized) continue
+
+    candidates.add(normalized)
+
+    try {
+      const url = new URL(normalized)
+      const host = url.hostname
+
+      if (host.startsWith('www.')) {
+        url.hostname = host.slice(4)
+        candidates.add(url.origin)
+      } else if (host.includes('.')) {
+        url.hostname = `www.${host}`
+        candidates.add(url.origin)
+      }
+    } catch {
+      // Ignore malformed fallback origins.
+    }
+  }
+
+  return Array.from(candidates)
+}
+
+async function fetchJsonFromOrigins<T>(origins: string[], path: string, query?: Record<string, string | number>) {
+  let lastError: unknown = null
+
+  for (const origin of origins) {
+    try {
+      return {
+        origin,
+        data: await $fetch<T>(`${origin}${path}`, query ? { query } : undefined),
+      }
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError || new Error(`Unable to fetch ${path}`)
+}
+
+async function fetchLotPages(origins: string[], slug: string) {
+  const firstPageResult = await fetchJsonFromOrigins<PublicLotResponse>(
+    origins,
+    `/api/p/${encodeURIComponent(slug)}/lots`,
+    { page: 1, limit: LOTS_PER_PAGE },
+  )
+  const firstPage = firstPageResult.data
+
+  const total = Number(firstPage?.total || 0)
+  const totalPages = Math.max(1, Math.ceil(total / LOTS_PER_PAGE))
+  const pages: PublicLotResponse[] = [firstPage]
+
+  if (totalPages === 1) {
+    return pages
+  }
+
+  const remainingPages = await Promise.allSettled(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      fetchJsonFromOrigins<PublicLotResponse>(
+        origins,
+        `/api/p/${encodeURIComponent(slug)}/lots`,
+        { page: index + 2, limit: LOTS_PER_PAGE },
+      ),
+    ),
+  )
+
+  for (const result of remainingPages) {
+    if (result.status === 'fulfilled') {
+      pages.push(result.value.data)
+    }
+  }
+
+  return pages
+}
+
 const xmlEscape = (value: string) =>
   value
     .replace(/&/g, '&amp;')
@@ -31,9 +113,18 @@ const xmlEscape = (value: string) =>
 
 export default defineEventHandler(async (event) => {
   const runtimeConfig = useRuntimeConfig(event)
+  const requestUrl = getRequestURL(event)
   const siteOrigin = normalizeSiteOrigin(runtimeConfig.public.siteUrl, runtimeConfig.public.apiBase)
   const apiOrigin = normalizeSiteOrigin(runtimeConfig.public.apiBase, siteOrigin)
+  const apiOrigins = expandOriginCandidates(
+    apiOrigin,
+    siteOrigin,
+    requestUrl.origin,
+  )
   const entries = new Map<string, SitemapEntry>()
+  let projectsLoaded = 0
+  let lotUrlsLoaded = 0
+  let sourceOrigin = ''
 
   const addEntry = (loc: string, options: Omit<SitemapEntry, 'loc'> = {}) => {
     if (!loc) return
@@ -45,13 +136,16 @@ export default defineEventHandler(async (event) => {
   addEntry(buildAbsoluteUrl(siteOrigin, '/politica-de-privacidade'), { priority: '0.3' })
   addEntry(buildAbsoluteUrl(siteOrigin, '/termos-de-uso'), { priority: '0.3' })
 
-  if (apiOrigin) {
+  if (apiOrigins.length > 0) {
     try {
-      const projects = await $fetch<PublicProjectSummary[]>(`${apiOrigin}/api/p`)
+      const projectsResult = await fetchJsonFromOrigins<PublicProjectSummary[]>(apiOrigins, '/api/p')
+      const projects = projectsResult.data
+      sourceOrigin = projectsResult.origin
 
       for (const project of projects || []) {
         const slug = String(project?.slug || '').trim()
         if (!slug) continue
+        projectsLoaded += 1
 
         const lastmod = project.updatedAt
           ? new Date(project.updatedAt).toISOString()
@@ -62,36 +156,22 @@ export default defineEventHandler(async (event) => {
         addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/galeria`), { lastmod, priority: '0.6' })
         addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/espelho-planta`), { lastmod, priority: '0.4' })
 
-        const firstPage = await $fetch<PublicLotResponse>(
-          `${apiOrigin}/api/p/${encodeURIComponent(slug)}/lots`,
-          { query: { page: 1, limit: 50 } },
-        )
+        try {
+          const lotPages = await fetchLotPages(apiOrigins, slug)
 
-        const total = Number(firstPage?.total || 0)
-        const totalPages = Math.max(1, Math.ceil(total / 50))
-        const lotPages: PublicLotResponse[] = [firstPage]
-
-        if (totalPages > 1) {
-          const remainingPages = await Promise.all(
-            Array.from({ length: totalPages - 1 }, (_, index) =>
-              $fetch<PublicLotResponse>(
-                `${apiOrigin}/api/p/${encodeURIComponent(slug)}/lots`,
-                { query: { page: index + 2, limit: 50 } },
-              ),
-            ),
-          )
-          lotPages.push(...remainingPages)
-        }
-
-        for (const page of lotPages) {
-          for (const lot of page?.data || []) {
-            const code = String(lot?.code || lot?.name || lot?.id || '').trim()
-            if (!code) continue
-            addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/${encodeURIComponent(code)}`), {
-              lastmod,
-              priority: '0.7',
-            })
+          for (const page of lotPages) {
+            for (const lot of page?.data || []) {
+              const code = String(lot?.code || lot?.name || lot?.id || '').trim()
+              if (!code) continue
+              addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/${encodeURIComponent(code)}`), {
+                lastmod,
+                priority: '0.7',
+              })
+              lotUrlsLoaded += 1
+            }
           }
+        } catch {
+          // Keep the project-level URLs in the sitemap even if lot listing fails.
         }
       }
     } catch {
@@ -113,5 +193,9 @@ export default defineEventHandler(async (event) => {
   ].join('\n')
 
   setResponseHeader(event, 'content-type', 'application/xml; charset=UTF-8')
+  setResponseHeader(event, 'x-sitemap-source-origin', sourceOrigin || 'static-only')
+  setResponseHeader(event, 'x-sitemap-project-count', String(projectsLoaded))
+  setResponseHeader(event, 'x-sitemap-lot-count', String(lotUrlsLoaded))
+  setResponseHeader(event, 'x-sitemap-entry-count', String(entries.size))
   return body
 })
