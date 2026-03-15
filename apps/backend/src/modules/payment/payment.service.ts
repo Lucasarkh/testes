@@ -92,7 +92,11 @@ export class PaymentService {
   async startReservationPayment(
     leadId: string,
     amount: number,
-    options?: { baseUrl?: string; metadata?: Record<string, any> }
+    options?: {
+      baseUrl?: string;
+      returnPath?: string;
+      metadata?: Record<string, any>;
+    }
   ) {
     const lead = await this.prisma.lead.findUnique({
       where: { id: leadId },
@@ -168,8 +172,13 @@ export class PaymentService {
     const siteUrl =
       options?.baseUrl ||
       `https://${lead.project.customDomain || 'demo.lotio.com.br'}`;
-    const successUrl = `${siteUrl}/obrigado?paymentId=${leadPayment.id}`;
-    const cancelUrl = `${siteUrl}/pagamento?leadId=${leadId}`;
+    const normalizedReturnPath = this.normalizeReturnPath(
+      options?.returnPath,
+      lead.project.slug,
+      lead.mapElement?.code || lead.mapElement?.name || undefined
+    );
+    const successUrl = `${siteUrl}${normalizedReturnPath}?payment=success&paymentId=${leadPayment.id}`;
+    const cancelUrl = `${siteUrl}${normalizedReturnPath}?payment=cancelled&leadId=${leadId}`;
 
     // Improve description with Lot information
     const lotInfo = lead.mapElement
@@ -191,6 +200,7 @@ export class PaymentService {
         leadId,
         paymentId: leadPayment.id,
         projectId: lead.projectId,
+        returnPath: normalizedReturnPath,
         ...options?.metadata
       }
     };
@@ -225,6 +235,108 @@ export class PaymentService {
       this.logger.error(`Error creating payment session: ${message}`);
       throw new BadRequestException(message);
     }
+  }
+
+  private normalizeReturnPath(
+    returnPath: string | undefined,
+    projectSlug: string,
+    lotCode?: string
+  ): string {
+    if (returnPath && returnPath.startsWith('/')) {
+      return returnPath;
+    }
+
+    if (lotCode) {
+      return `/${projectSlug}/${encodeURIComponent(lotCode)}`;
+    }
+
+    return `/${projectSlug}`;
+  }
+
+  async getReservationStatus(paymentId: string) {
+    const payment = await this.prisma.leadPayment.findUnique({
+      where: { id: paymentId },
+      include: {
+        lead: {
+          include: {
+            project: {
+              include: {
+                paymentGateways: {
+                  where: { isActive: true }
+                }
+              }
+            },
+            mapElement: true
+          }
+        }
+      }
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    let effectiveStatus = payment.status;
+    let effectiveLeadStatus = payment.lead.status;
+
+    if (
+      payment.status !== 'PAID' &&
+      payment.provider === PaymentProvider.STRIPE &&
+      payment.externalId
+    ) {
+      const gatewayConfig = payment.lead.project.paymentGateways.find(
+        (gateway) => gateway.provider === PaymentProvider.STRIPE
+      );
+
+      if (gatewayConfig?.keysJson) {
+        const keysJson = this.encryption.decryptJson(gatewayConfig.keysJson);
+
+        if (keysJson) {
+          const status = await this.stripe.getCheckoutStatus(
+            keysJson as { secretKey: string },
+            payment.externalId
+          );
+
+          if (status === WebhookPaymentStatus.PAID) {
+            await this.handleSuccessfulPayment(
+              payment.externalId,
+              PaymentProvider.STRIPE
+            );
+
+            const refreshedPayment = await this.prisma.leadPayment.findUnique({
+              where: { id: paymentId },
+              include: {
+                lead: {
+                  include: {
+                    project: true,
+                    mapElement: true
+                  }
+                }
+              }
+            });
+
+            if (refreshedPayment) {
+              effectiveStatus = refreshedPayment.status;
+              effectiveLeadStatus = refreshedPayment.lead.status;
+            }
+          }
+        }
+      }
+    }
+
+    const lotCode = payment.lead.mapElement?.code || payment.lead.mapElement?.name;
+    const returnPath = this.normalizeReturnPath(
+      undefined,
+      payment.lead.project.slug,
+      lotCode || undefined
+    );
+
+    return {
+      paymentId: payment.id,
+      status: effectiveStatus,
+      leadStatus: effectiveLeadStatus,
+      returnPath
+    };
   }
 
   async processWebhook(

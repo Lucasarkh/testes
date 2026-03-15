@@ -139,4 +139,22 @@ export class StripeAdapter implements IPaymentGateway {
       rawPayload: event
     };
   }
+
+  async getCheckoutStatus(
+    keys: { secretKey: string },
+    sessionId: string
+  ): Promise<WebhookPaymentStatus> {
+    const stripe = this.getStripe(keys.secretKey);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === 'paid') {
+      return WebhookPaymentStatus.PAID;
+    }
+
+    if (session.status === 'expired') {
+      return WebhookPaymentStatus.FAILED;
+    }
+
+    return WebhookPaymentStatus.PENDING;
+  }
 }

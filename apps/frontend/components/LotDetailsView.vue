@@ -727,6 +727,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 const tenantStore = useTenantStore()
 const chatStore = useAiChatStore()
 const { fetchPublic } = usePublicApi()
@@ -832,6 +833,47 @@ const unitsUrl = computed(() => {
   const base = `${pathPrefix.value}/unidades`
   return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
 })
+
+const currentLotPath = computed(() => {
+  const basePath = pathPrefix.value || '/'
+  const lotSegment = lotCode.value ? `/${encodeURIComponent(lotCode.value)}` : ''
+  const path = `${basePath}${lotSegment}`
+
+  return corretorCode ? `${path}?c=${encodeURIComponent(corretorCode)}` : path
+})
+
+const paymentReturnHandled = ref(false)
+
+async function handlePaymentReturn() {
+  if (!process.client || paymentReturnHandled.value) return
+
+  const paymentStatus = String(route.query.payment || '')
+  const paymentId = String(route.query.paymentId || '')
+
+  if (!paymentStatus || !paymentId) return
+
+  paymentReturnHandled.value = true
+
+  try {
+    const result = await fetchPublic(`/payment/${paymentId}/status`)
+
+    if (result.status === 'PAID') {
+      toastSuccess('Pagamento confirmado. Reserva atualizada.')
+      window.location.replace(currentLotPath.value)
+      return
+    }
+
+    bookingError.value = 'Pagamento recebido, mas a reserva ainda está em processamento.'
+  } catch (e: any) {
+    bookingError.value = e.message || 'Não foi possível confirmar o pagamento agora.'
+  } finally {
+    const cleanQuery = { ...route.query }
+    delete cleanQuery.payment
+    delete cleanQuery.paymentId
+    delete cleanQuery.leadId
+    router.replace({ path: route.path, query: cleanQuery })
+  }
+}
 
 /**
  * Standard Brazilian real estate area: (average width) * (average depth)
@@ -1948,6 +1990,7 @@ onMounted(async () => {
   window.addEventListener('scroll', handleScroll)
   window.addEventListener('keydown', handleModalKeyDown)
   handleScroll()
+  await handlePaymentReturn()
   
   try {
     const baseUrl = isPreview.value ? `/p/preview/${previewId.value}` : `/p/${projectSlug.value}`
@@ -2172,7 +2215,8 @@ async function submitReservation() {
       body: JSON.stringify({
         leadId: leadRes.id,
         amount: reservationFeeValue.value,
-        baseUrl: window.location.origin
+        baseUrl: window.location.origin,
+        returnPath: currentLotPath.value
       }),
     })
 

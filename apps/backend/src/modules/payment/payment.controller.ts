@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Param,
@@ -24,11 +25,20 @@ export class PaymentController {
   async createReservation(
     @Body('leadId') leadId: string,
     @Body('amount') amount: number,
-    @Body('baseUrl') baseUrl?: string
+    @Body('baseUrl') baseUrl?: string,
+    @Body('returnPath') returnPath?: string
   ) {
     return this.paymentService.startReservationPayment(leadId, amount, {
-      baseUrl
+      baseUrl,
+      returnPath
     });
+  }
+
+  @Get(':paymentId/status')
+  @ApiOperation({ summary: 'Check or sync reservation payment status' })
+  @ApiResponse({ status: 200, description: 'Payment status resolved' })
+  async getReservationStatus(@Param('paymentId') paymentId: string) {
+    return this.paymentService.getReservationStatus(paymentId);
   }
 
   @Post('cancel')
