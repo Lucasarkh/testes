@@ -83,7 +83,7 @@
     </div>
 
     <p class="lot-terrain-3d__footnote">
-      Modelo 3D gerado com base nas medidas do lote e, quando disponivel, na geometria da planta. Quando a frente foi marcada no editor, ela passa a orientar o destaque frontal e a leitura da guia solar.
+      *Esse modelo é gerado automaticamente com base nos dados disponíveis de medida. Pode não condizer com o formato real do lote e deve ser usado apenas para fins de visualização aproximada. Para informações precisas, consulte a planta oficial ou as medidas fornecidas pela loteadora.
     </p>
   </section>
 </template>
@@ -778,17 +778,36 @@ const buildTerrainGroup = () => {
   )
   const frontNormal = outwardNormalForEdge(planShape, 0)
   const frontDirection = new three.Vector3(frontNormal.x, 0, frontNormal.z)
+  const frontEdgeVector = new three.Vector3(
+    planShape[1]!.x - planShape[0]!.x,
+    0,
+    planShape[1]!.z - planShape[0]!.z,
+  ).normalize()
+  const frontArrowLength = clamp(terrainSpec.value.frontage * 0.18, 1.2, 2.8)
   const frontArrow = new three.ArrowHelper(
     frontDirection,
     frontMid.clone().add(frontDirection.clone().multiplyScalar(0.7)),
-    clamp(terrainSpec.value.frontage * 0.18, 1.2, 2.8),
+    frontArrowLength,
     0xf97316,
     0.7,
     0.36,
   )
-  const frontLabel = createTextSprite(three, 'Frente', { background: 'rgba(249, 115, 22, 0.92)', color: '#fff7ed' })
+  const frontLabel = createTextSprite(three, 'Frente', {
+    background: 'rgba(249, 115, 22, 0.92)',
+    color: '#fff7ed',
+    scaleX: clamp(terrainSpec.value.frontage * 0.18, 2.2, 3),
+    scaleY: 1.35,
+  })
   if (frontLabel) {
-    frontLabel.position.copy(frontMid.clone().add(frontDirection.clone().multiplyScalar(1.35)).add(new three.Vector3(0, 0.7, 0)))
+    const frontLabelOffset = 0.75 + frontArrowLength * 0.55
+    const frontLabelSideShift = clamp(terrainSpec.value.frontage * 0.12, 0.8, 1.45)
+    frontLabel.position.copy(
+      frontMid
+        .clone()
+        .add(frontDirection.clone().multiplyScalar(frontLabelOffset))
+        .add(frontEdgeVector.clone().multiplyScalar(frontLabelSideShift))
+        .add(new three.Vector3(0, 0.84, 0)),
+    )
   }
 
   const frontMeasure = createEdgeMeasureLabel(
@@ -1255,7 +1274,7 @@ onUnmounted(() => {
 .lot-terrain-3d__footnote {
   margin: 0;
   color: var(--lot3d-muted);
-  font-size: 0.92rem;
+  font-size: 0.75rem;
 }
 
 @media (max-width: 900px) {

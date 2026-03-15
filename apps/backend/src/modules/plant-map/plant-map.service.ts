@@ -380,7 +380,7 @@ export class PlantMapService {
   ) {
     const hotspot = await this._findHotspot(tenantId, hotspotId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedHotspot = await this.prisma.$transaction(async (tx) => {
       const updatedHotspot = await tx.plantHotspot.update({
         where: { id: hotspot.id },
         data: dto
@@ -439,6 +439,9 @@ export class PlantMapService {
 
       return updatedHotspot;
     });
+
+    const [enrichedHotspot] = await this._attachTagsToHotspots([updatedHotspot]);
+    return enrichedHotspot ?? updatedHotspot;
   }
 
   async removeHotspot(tenantId: string, hotspotId: string) {
