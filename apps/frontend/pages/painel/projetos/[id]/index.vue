@@ -1312,7 +1312,7 @@
                 decoding="async"
                 @error="retryMediaPreviewLoad"
               />
-              <button class="media-delete-btn-v4" @click="lotForm.panoramaUrl = null">✕</button>
+              <button class="media-delete-btn-v4" @click="clearLotPanoramaSelection">✕</button>
               <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg pointer-events-none">
                 <span class="text-white text-xs font-bold">Vista 360° Ativa</span>
               </div>
@@ -2341,7 +2341,6 @@ const uploadLotPanoramaFile = async (e: Event) => {
     toastFromError(err, 'Erro ao enviar imagem')
   }
   (e.target as HTMLInputElement).value = ''
-              <button class="media-delete-btn-v4" @click="clearLotPanoramaSelection">✕</button>
 }
 
 const removeLotMedia = async (id: string) => {
