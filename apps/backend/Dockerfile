@@ -82,7 +82,7 @@ RUN mv node_modules ./prod_node_modules
 # -- Stage 5: Production runner -------------------------------------------
 FROM node:22-alpine AS runner
 
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init postgresql-client
 
 WORKDIR /app
 

@@ -212,6 +212,7 @@ function formatDate(dateStr) {
 
 function formatSize(bytes) {
   if (!bytes) return '-'
+  if (bytes < 1024) return `${bytes} B`
   const mb = bytes / (1024 * 1024)
   if (mb >= 1) return `${mb.toFixed(2)} MB`
   const kb = bytes / 1024

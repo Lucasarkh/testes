@@ -8,14 +8,21 @@ import {
   DeleteObjectCommand,
   GetObjectCommand
 } from '@aws-sdk/client-s3';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
+import { createGzip, createGunzip } from 'zlib';
 
-const execAsync = promisify(exec);
+type DatabaseConnection = {
+  host: string;
+  port: string;
+  database: string;
+  username: string;
+  password: string;
+};
 
 @Injectable()
 export class BackupService {
@@ -34,6 +41,186 @@ export class BackupService {
       }
     });
     this.bucketName = this.configService.get('AWS_S3_BUCKET')!;
+  }
+
+  private getDatabaseConnection(): DatabaseConnection {
+    const dbUrl = this.configService.get('DATABASE_URL');
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL não configurada');
+    }
+
+    const url = new URL(dbUrl);
+
+    return {
+      host: url.hostname,
+      port: url.port || '5432',
+      database: url.pathname.slice(1),
+      username: url.username,
+      password: url.password
+    };
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
+  }
+
+  private unlinkIfExists(filePath: string) {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  private toNodeReadable(body: unknown): Readable {
+    if (body instanceof Readable) {
+      return body;
+    }
+
+    if (
+      body &&
+      typeof body === 'object' &&
+      'transformToWebStream' in body &&
+      typeof body.transformToWebStream === 'function'
+    ) {
+      return Readable.fromWeb(body.transformToWebStream());
+    }
+
+    if (body && typeof body === 'object' && 'pipe' in body) {
+      return body as Readable;
+    }
+
+    throw new Error('Resposta do S3 não retornou um stream legível');
+  }
+
+  private async dumpDatabaseToGzip(
+    connection: DatabaseConnection,
+    outputPath: string
+  ): Promise<void> {
+    const dumpProcess = spawn(
+      'pg_dump',
+      [
+        '-h',
+        connection.host,
+        '-p',
+        connection.port,
+        '-U',
+        connection.username,
+        '-d',
+        connection.database,
+        '--no-owner',
+        '--no-acl'
+      ],
+      {
+        env: { ...process.env, PGPASSWORD: connection.password },
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    );
+
+    const stderrChunks: string[] = [];
+    dumpProcess.stderr.on('data', (chunk: Buffer | string) => {
+      stderrChunks.push(chunk.toString());
+    });
+
+    const exitPromise = new Promise<void>((resolve, reject) => {
+      dumpProcess.once('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') {
+          reject(
+            new Error('pg_dump não está disponível no ambiente do backend')
+          );
+          return;
+        }
+
+        reject(error);
+      });
+
+      dumpProcess.once('close', (code) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        const stderr = stderrChunks.join('').trim();
+        reject(
+          new Error(stderr || `pg_dump finalizou com código ${code ?? 'desconhecido'}`)
+        );
+      });
+    });
+
+    await Promise.all([
+      pipeline(dumpProcess.stdout, createGzip(), fs.createWriteStream(outputPath)),
+      exitPromise
+    ]);
+  }
+
+  private async unzipBackup(inputPath: string, outputPath: string): Promise<void> {
+    await pipeline(
+      fs.createReadStream(inputPath),
+      createGunzip(),
+      fs.createWriteStream(outputPath)
+    );
+  }
+
+  private async restoreDatabaseFromSql(
+    connection: DatabaseConnection,
+    sqlPath: string
+  ): Promise<void> {
+    const restoreProcess = spawn(
+      'psql',
+      [
+        '-h',
+        connection.host,
+        '-p',
+        connection.port,
+        '-U',
+        connection.username,
+        '-d',
+        connection.database,
+        '-v',
+        'ON_ERROR_STOP=1',
+        '-f',
+        sqlPath
+      ],
+      {
+        env: { ...process.env, PGPASSWORD: connection.password },
+        stdio: ['ignore', 'pipe', 'pipe']
+      }
+    );
+
+    const outputChunks: string[] = [];
+
+    restoreProcess.stdout.on('data', (chunk: Buffer | string) => {
+      outputChunks.push(chunk.toString());
+    });
+
+    restoreProcess.stderr.on('data', (chunk: Buffer | string) => {
+      outputChunks.push(chunk.toString());
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      restoreProcess.once('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'ENOENT') {
+          reject(new Error('psql não está disponível no ambiente do backend'));
+          return;
+        }
+
+        reject(error);
+      });
+
+      restoreProcess.once('close', (code) => {
+        if (code === 0) {
+          resolve();
+          return;
+        }
+
+        const output = outputChunks.join('').trim();
+        reject(
+          new Error(output || `psql finalizou com código ${code ?? 'desconhecido'}`)
+        );
+      });
+    });
   }
 
   /**
@@ -67,28 +254,13 @@ export class BackupService {
     this.logger.log(`Iniciando backup do banco de dados (${label})...`);
 
     try {
-      // Get database connection details from environment
-      const dbUrl = this.configService.get('DATABASE_URL');
-      if (!dbUrl) {
-        throw new Error('DATABASE_URL não configurada');
-      }
+      const connection = this.getDatabaseConnection();
 
-      // Parse DATABASE_URL
-      const url = new URL(dbUrl);
-      const host = url.hostname;
-      const port = url.port || '5432';
-      const database = url.pathname.slice(1);
-      const username = url.username;
-      const password = url.password;
+      this.logger.debug(
+        `Executando pg_dump para ${connection.database}@${connection.host}...`
+      );
 
-      // Create pg_dump command with gzip compression
-      const pgDumpCmd = `pg_dump -h ${host} -p ${port} -U ${username} -d ${database} --no-owner --no-acl | gzip > "${tempPath}"`;
-
-      this.logger.debug(`Executando pg_dump para ${database}@${host}...`);
-
-      await execAsync(pgDumpCmd, {
-        env: { ...process.env, PGPASSWORD: password }
-      });
+      await this.dumpDatabaseToGzip(connection, tempPath);
 
       // Check if file was created
       if (!fs.existsSync(tempPath)) {
@@ -96,6 +268,10 @@ export class BackupService {
       }
 
       const stats = fs.statSync(tempPath);
+      if (stats.size === 0) {
+        throw new Error('Arquivo de backup foi gerado vazio');
+      }
+
       this.logger.log(
         `Backup criado: ${filename} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`
       );
@@ -113,7 +289,8 @@ export class BackupService {
           Metadata: {
             'backup-type': label,
             'backup-date': new Date().toISOString(),
-            database: database
+            database: connection.database,
+            'compressed-size-bytes': String(stats.size)
           }
         })
       );
@@ -121,18 +298,16 @@ export class BackupService {
       this.logger.log(`Backup enviado para S3: ${s3Key}`);
 
       // Remove temp file
-      fs.unlinkSync(tempPath);
+      this.unlinkIfExists(tempPath);
 
       return { success: true, key: s3Key };
     } catch (error) {
       this.logger.error(`Erro ao criar backup (${label}):`, error);
 
       // Cleanup temp file if exists
-      if (fs.existsSync(tempPath)) {
-        fs.unlinkSync(tempPath);
-      }
+      this.unlinkIfExists(tempPath);
 
-      return { success: false, error: error.message };
+      return { success: false, error: this.getErrorMessage(error) };
     }
   }
 
@@ -209,7 +384,7 @@ export class BackupService {
       }
 
       const backups = listResponse.Contents.filter(
-        (obj) => obj.Key && obj.Size && obj.LastModified
+        (obj) => obj.Key && obj.LastModified && typeof obj.Size === 'number'
       )
         .map((obj) => {
           // Extract label from filename (e.g., lotio-backup-2025-01-27T10-00-00-000Z-morning.sql.gz)
@@ -246,19 +421,11 @@ export class BackupService {
     const sqlPath = path.join(os.tmpdir(), 'restore-backup.sql');
 
     try {
-      // Get database connection details from environment
-      const dbUrl = this.configService.get('DATABASE_URL');
-      if (!dbUrl) {
-        throw new Error('DATABASE_URL não configurada');
+      if (!backupKey || !backupKey.startsWith(`${this.backupPrefix}/`)) {
+        throw new Error('Chave de backup inválida');
       }
 
-      // Parse DATABASE_URL
-      const url = new URL(dbUrl);
-      const host = url.hostname;
-      const port = url.port || '5432';
-      const database = url.pathname.slice(1);
-      const username = url.username;
-      const password = url.password;
+      const connection = this.getDatabaseConnection();
 
       // Download backup from S3
       this.logger.log(`Baixando backup do S3: ${backupKey}`);
@@ -275,22 +442,19 @@ export class BackupService {
       }
 
       // Save to temp file
-      const bodyStream = getResponse.Body as Readable;
-      const writeStream = fs.createWriteStream(tempPath);
+      await pipeline(
+        this.toNodeReadable(getResponse.Body),
+        fs.createWriteStream(tempPath)
+      );
 
-      await new Promise<void>((resolve, reject) => {
-        bodyStream.pipe(writeStream);
-        bodyStream.on('error', reject);
-        writeStream.on('finish', () => resolve());
-        writeStream.on('error', reject);
-      });
+      const archiveStats = fs.statSync(tempPath);
+      if (archiveStats.size === 0) {
+        throw new Error('Backup baixado está vazio');
+      }
 
       this.logger.log('Backup baixado, descompactando...');
 
-      // Decompress gzip
-      await execAsync(`gunzip -c "${tempPath}" > "${sqlPath}"`, {
-        shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh'
-      });
+      await this.unzipBackup(tempPath, sqlPath);
 
       // Verify file exists
       if (!fs.existsSync(sqlPath)) {
@@ -298,6 +462,10 @@ export class BackupService {
       }
 
       const stats = fs.statSync(sqlPath);
+      if (stats.size === 0) {
+        throw new Error('Backup restaurável está vazio após descompactação');
+      }
+
       this.logger.log(
         `Backup descompactado: ${(stats.size / 1024 / 1024).toFixed(2)} MB`
       );
@@ -305,27 +473,18 @@ export class BackupService {
       // Restore database
       this.logger.warn('Iniciando restauração do banco de dados...');
 
-      const restoreCmd = `psql -h ${host} -p ${port} -U ${username} -d ${database} -f "${sqlPath}"`;
-
-      await execAsync(restoreCmd, {
-        env: { ...process.env, PGPASSWORD: password }
-      });
+      await this.restoreDatabaseFromSql(connection, sqlPath);
 
       this.logger.log('✅ Restauração concluída com sucesso!');
-
-      // Cleanup temp files
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath);
 
       return { success: true };
     } catch (error) {
       this.logger.error('❌ Erro ao restaurar backup:', error);
 
-      // Cleanup temp files
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath);
-
-      return { success: false, error: error.message };
+      return { success: false, error: this.getErrorMessage(error) };
+    } finally {
+      this.unlinkIfExists(tempPath);
+      this.unlinkIfExists(sqlPath);
     }
   }
 }
