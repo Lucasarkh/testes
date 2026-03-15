@@ -24,6 +24,13 @@ export class UpdatePlantMapDto {
   @IsNumber()
   imageHeight?: number;
 
+  @ApiPropertyOptional({ minimum: 0, maximum: 359 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(359)
+  northAngleDeg?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()

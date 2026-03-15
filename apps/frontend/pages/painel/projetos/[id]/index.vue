@@ -1214,7 +1214,7 @@
                   <span v-else style="font-size:0.75rem; color:var(--color-surface-500); font-style:italic;">—</span>
                 </div>
               </div>
-              <p style="font-size:0.7rem; color:var(--color-surface-500); margin-top:4px;">Edite no editor de mapas para alterar os lados.</p>
+              <p style="font-size:0.7rem; color:var(--color-surface-500); margin-top:8px;">A frente do lote agora é definida no editor da planta, arrastando a seta no hotspot.</p>
             </div>
             <div class="grid grid-cols-2" style="gap: 12px;">
               <div class="form-group" style="margin:0">
@@ -1273,61 +1273,6 @@
           <div class="form-group" style="margin-top: 24px;">
             <label class="form-label">Notas / Descrição</label>
             <textarea v-model="lotForm.notes" class="form-textarea" rows="3" placeholder="Informações adicionais do lote..."></textarea>
-          </div>
-
-          <div class="form-group" style="border-top: 1px dashed var(--glass-border-subtle); padding-top: 16px; margin-top: 16px;">
-            <div class="flex justify-between items-center" style="margin-bottom: 8px;">
-              <label class="form-label" style="margin:0">Tabela de Financiamento</label>
-              <button v-if="!lotForm.paymentConditions" class="btn btn-sm btn-ghost" @click="initPaymentConditionsInForm">+ Habilitar Tabela</button>
-              <button v-else class="btn btn-sm btn-ghost btn-danger" @click="lotForm.paymentConditions = null">Remover Tabela</button>
-            </div>
-
-            <template v-if="lotForm.paymentConditions">
-              <div class="grid grid-cols-2" style="gap: 12px; background: var(--glass-bg-heavy); padding: 16px; border-radius: 8px; border: 1px solid var(--glass-border-subtle);">
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Setor / Localização</label>
-                  <input v-model="lotForm.paymentConditions.setor" class="form-input" placeholder="Ex: Setor 6" />
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Ato (R$)</label>
-                  <input v-model.number="lotForm.paymentConditions.ato" type="number" step="0.01" class="form-input" placeholder="0.00" />
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Entrada (Qtd Parcelas)</label>
-                  <input v-model.number="lotForm.paymentConditions.entrada.count" type="number" class="form-input" placeholder="Ex: 6" />
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Entrada Total (R$)</label>
-                  <input v-model.number="lotForm.paymentConditions.entrada.total" type="number" step="0.01" class="form-input" placeholder="0.00" />
-                </div>
-                <div class="form-group" style="margin:0">
-                  <label class="form-label">Saldo do Saldo (R$)</label>
-                  <input v-model.number="lotForm.paymentConditions.saldo" type="number" step="0.01" class="form-input" placeholder="0.00" />
-                </div>
-              </div>
-
-              <div style="margin-top: 16px;">
-                <label class="form-label">Parcelas Mensais</label>
-                <div v-for="(p, i) in lotForm.paymentConditions.parcelas" :key="i" class="flex gap-2 items-center" style="margin-bottom: 4px;">
-                  <input v-model.number="p.months" type="number" class="form-input" style="width: 80px;" placeholder="Meses" />
-                  <span style="font-size: 0.8rem; color: var(--color-surface-500);">vezes de</span>
-                  <input v-model.number="p.amount" type="number" step="0.01" class="form-input flex-1" placeholder="R$ 0.00" />
-                  <button class="btn btn-sm" style="padding: 4px;" @click="removeParcelaInForm(Number(i))">✕</button>
-                </div>
-                <button class="btn btn-sm btn-outline" style="width:100%; margin-top: 8px;" @click="addParcelaInForm">+ Adicionar Parcela</button>
-              </div>
-
-              <div class="form-group" style="margin-top: 16px;">
-                <label class="form-label">Observações da Tabela (uma por linha)</label>
-                <textarea 
-                  :value="lotForm.paymentConditions.observacoes?.join('\n')" 
-                  @input="lotForm.paymentConditions.observacoes = ($event.target as HTMLTextAreaElement).value.split('\n')"
-                  class="form-textarea" 
-                  rows="3" 
-                  placeholder="Observações legais..."
-                ></textarea>
-              </div>
-            </template>
           </div>
 
           <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
@@ -2084,6 +2029,7 @@ const lotForm = ref({
   panoramaUrl: null as string | null,
   notes: '',
   tags: [] as string[],
+  frontEdgeIndex: null as number | null,
   conditionsText: '',
   paymentConditions: null as any
 })
@@ -2112,6 +2058,20 @@ const editingLotSideMetrics = computed(() => {
   const raw = editingLot.value?.sideMetricsJson
   if (!Array.isArray(raw) || raw.length === 0) return []
   return raw
+})
+
+const normalizeFrontEdgeIndex = (value: unknown, edgeCount: number) => {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || edgeCount < 1) return null
+  return ((parsed % edgeCount) + edgeCount) % edgeCount
+}
+
+const lotFrontEdgeOptions = computed(() => {
+  return editingLotSideMetrics.value.map((side: any, index: number) => ({
+    index,
+    label: `Aresta ${index + 1}`,
+    metersText: side?.meters != null ? `${Number(side.meters).toFixed(2)} m` : '',
+  }))
 })
 
 const lotContractArea = computed(() => {
@@ -2176,6 +2136,7 @@ const openEditLot = (lot: any) => {
     panoramaUrl: lot.panoramaUrl || null,
     notes: lot.notes || '',
     tags: Array.isArray(lot.tags) ? [...lot.tags] : [],
+    frontEdgeIndex: normalizeFrontEdgeIndex(lot.frontEdgeIndex ?? lot.mapElement?.metaJson?.frontEdgeIndex, Array.isArray(lot.sideMetricsJson) ? lot.sideMetricsJson.length : 0),
     conditionsText: Array.isArray(lot.conditionsJson) ? lot.conditionsJson.join('\n') : '',
     paymentConditions: lot.paymentConditions ? JSON.parse(JSON.stringify(lot.paymentConditions)) : null
   }
@@ -2214,11 +2175,47 @@ const saveLotDetails = async () => {
       method: 'PUT',
       body: JSON.stringify(payload),
     })
+
+    let updatedMapElement = editingLot.value.mapElement || null
+    if (editingLot.value.mapElement?.id) {
+      const nextFrontEdgeIndex = normalizeFrontEdgeIndex(lotForm.value.frontEdgeIndex, editingLotSideMetrics.value.length)
+      const currentFrontEdgeIndex = normalizeFrontEdgeIndex(editingLot.value.mapElement?.metaJson?.frontEdgeIndex, editingLotSideMetrics.value.length)
+
+      if (nextFrontEdgeIndex !== currentFrontEdgeIndex) {
+        const nextMetaJson = { ...(editingLot.value.mapElement.metaJson || {}) }
+        if (nextFrontEdgeIndex === null) delete nextMetaJson.frontEdgeIndex
+        else nextMetaJson.frontEdgeIndex = nextFrontEdgeIndex
+
+        updatedMapElement = await fetchApi(`/projects/${projectId}/map-elements/${editingLot.value.mapElement.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            id: editingLot.value.mapElement.id,
+            type: editingLot.value.mapElement.type,
+            name: editingLot.value.mapElement.name || undefined,
+            code: editingLot.value.mapElement.code || undefined,
+            geometryType: editingLot.value.mapElement.geometryType,
+            geometryJson: editingLot.value.mapElement.geometryJson,
+            styleJson: editingLot.value.mapElement.styleJson,
+            metaJson: nextMetaJson,
+          }),
+        })
+
+        const mapElementIndex = mapElements.value.findIndex((item: any) => item.id === updatedMapElement.id)
+        if (mapElementIndex !== -1) {
+          mapElements.value[mapElementIndex] = updatedMapElement
+        }
+      }
+    }
     
     // Update local lots array
     const idx = lots.value.findIndex((l: any) => l.id === editingLot.value.id)
     if (idx !== -1) {
-      lots.value[idx] = { ...lots.value[idx], ...updated }
+      lots.value[idx] = {
+        ...lots.value[idx],
+        ...updated,
+        frontEdgeIndex: normalizeFrontEdgeIndex(lotForm.value.frontEdgeIndex, editingLotSideMetrics.value.length),
+        ...(updatedMapElement ? { mapElement: updatedMapElement } : {}),
+      }
     }
     
     toastSuccess('Detalhes do lote salvos!')

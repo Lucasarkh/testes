@@ -46,6 +46,7 @@ export interface PlantMap {
   imageUrl: string
   imageWidth?: number | null
   imageHeight?: number | null
+  northAngleDeg: number
   sunPathEnabled: boolean
   sunPathAngleDeg: number
   sunPathLabelEnabled: boolean
@@ -60,6 +61,7 @@ export interface CreatePlantMapPayload {
   imageUrl: string
   imageWidth?: number
   imageHeight?: number
+  northAngleDeg?: number
   sunPathEnabled?: boolean
   sunPathAngleDeg?: number
   sunPathLabelEnabled?: boolean

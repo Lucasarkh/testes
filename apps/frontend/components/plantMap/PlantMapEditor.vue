@@ -66,21 +66,22 @@
       </div>
     </div>
 
-    <!-- Sun path controls (shown when enabled) -->
-    <div v-if="plantMap && localSunPath.enabled" class="pme__sun-controls">
+    <!-- Orientation controls -->
+    <div v-if="plantMap" class="pme__sun-controls">
       <label class="pme__sun-label">
-        Ângulo (0°=L → 90°=S → 180°=O → 270°=N):
+        Norte da planta (0°=L → 90°=S → 180°=O → 270°=N):
       </label>
       <input
         type="range"
         min="0"
         max="359"
-        :value="localSunPath.angleDeg"
-        @input="localSunPath.angleDeg = +($event.target as HTMLInputElement).value"
+        :value="localNorthAngleDeg"
+        @input="localNorthAngleDeg = +($event.target as HTMLInputElement).value"
         style="width: 180px;"
       />
-      <span class="pme__sun-value">{{ localSunPath.angleDeg }}°</span>
-      <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+      <span class="pme__sun-value">{{ localNorthAngleDeg }}°</span>
+      <span class="pme__sun-value">Sol {{ effectiveSunPathAngleDeg }}°</span>
+      <label v-if="localSunPath.enabled" style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
         <input type="checkbox" v-model="localSunPath.showLabels" />
         Mostrar Nasce/Põe
       </label>
@@ -150,7 +151,7 @@
             <!-- Sun path -->
             <SunPathLine
               :enabled="localSunPath.enabled"
-              :angle-deg="localSunPath.angleDeg"
+              :angle-deg="effectiveSunPathAngleDeg"
               :show-labels="localSunPath.showLabels"
               :width="imgW"
               :height="imgH"
@@ -190,6 +191,42 @@
               </g>
             </g>
 
+            <g v-if="selectedFrontOverlay" class="pme__front-overlay">
+              <circle
+                :cx="selectedFrontOverlay.centerX"
+                :cy="selectedFrontOverlay.centerY"
+                :r="selectedFrontOverlay.originRadius"
+                class="pme__front-origin"
+              />
+              <line
+                :x1="selectedFrontOverlay.startX"
+                :y1="selectedFrontOverlay.startY"
+                :x2="selectedFrontOverlay.tipX"
+                :y2="selectedFrontOverlay.tipY"
+                class="pme__front-line"
+              />
+              <polygon :points="selectedFrontOverlay.headPoints" class="pme__front-head" />
+              <text
+                :x="selectedFrontOverlay.labelX"
+                :y="selectedFrontOverlay.labelY"
+                class="pme__front-label"
+              >Frente</text>
+              <circle
+                :cx="selectedFrontOverlay.tipX"
+                :cy="selectedFrontOverlay.tipY"
+                :r="selectedFrontOverlay.handleHitRadius"
+                class="pme__front-handle-hit"
+                @mousedown.stop="startFrontAngleDrag($event)"
+                @touchstart.stop.prevent="startFrontAngleDragTouch($event)"
+              />
+              <circle
+                :cx="selectedFrontOverlay.tipX"
+                :cy="selectedFrontOverlay.tipY"
+                :r="selectedFrontOverlay.handleRadius"
+                class="pme__front-handle"
+              />
+            </g>
+
             <!-- Batch markers -->
             <g v-if="editorMode === 'batch'">
               <g v-for="(m, i) in batchMarkers" :key="i" class="pme__batch-marker">
@@ -214,6 +251,8 @@
             </g>
           </svg>
         </div>
+
+        <NorthCompassOverlay v-if="plantMap" :angle-deg="localNorthAngleDeg" />
 
         <!-- Toast hint -->
         <div v-if="editorMode === 'add'" class="pme__canvas-hint">
@@ -318,6 +357,10 @@
               </button>
             </div>
             <p class="pme__sidebar-tip">Use Ctrl/Cmd + clique para seleção múltipla.</p>
+            <p v-if="selectedFrontHotspot" class="pme__sidebar-tip pme__sidebar-tip--accent">
+              Arraste a seta laranja sobre {{ selectedFrontHotspot.label || selectedFrontHotspot.title }} para apontar a frente do lote.
+              <span v-if="savingFrontSelection"> Salvando...</span>
+            </p>
 
             <div v-if="selectedLotHotspotsCount > 0" class="pme__bulk-card">
               <div class="pme__bulk-title">
@@ -419,9 +462,11 @@ import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } 
 import type { PlantMap, PlantHotspot, CreateHotspotPayload } from '~/composables/plantMap/types'
 import { HOTSPOT_TYPE_ICONS, HOTSPOT_TYPE_LABELS } from '~/composables/plantMap/types'
 import { usePlantMapApi } from '~/composables/plantMap/usePlantMapApi'
+import { useApi } from '~/composables/useApi'
 import HotspotPin from './HotspotPin.vue'
 import SunPathLine from './SunPathLine.vue'
 import HotspotModal from './HotspotModal.vue'
+import NorthCompassOverlay from './NorthCompassOverlay.vue'
 
 const props = defineProps<{
   projectId: string
@@ -433,6 +478,31 @@ const emit = defineEmits<{
 }>()
 
 const api = usePlantMapApi()
+const { fetchApi } = useApi()
+const normalizeAngle = (angle: number) => ((angle % 360) + 360) % 360
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const FRONT_EDGE_ANGLE_MAP = [270, 0, 90, 180] as const
+const angleDistanceDeg = (a: number, b: number) => Math.abs((((a - b) % 360) + 540) % 360 - 180)
+const approximateFrontEdgeIndexFromAngle = (angle: number) => {
+  let bestIndex = 0
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  FRONT_EDGE_ANGLE_MAP.forEach((targetAngle, index) => {
+    const distance = angleDistanceDeg(angle, targetAngle)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestIndex = index
+    }
+  })
+
+  return bestIndex
+}
+const edgeIndexToAngle = (value: unknown): number | null => {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed)) return null
+  const normalizedIndex = ((parsed % FRONT_EDGE_ANGLE_MAP.length) + FRONT_EDGE_ANGLE_MAP.length) % FRONT_EDGE_ANGLE_MAP.length
+  return FRONT_EDGE_ANGLE_MAP[normalizedIndex] ?? null
+}
 
 // ── State ─────────────────────────────────────────────────
 const plantMap = ref<PlantMap | null>(props.initialPlantMap ?? null)
@@ -443,6 +513,13 @@ const localSunPath = reactive({
   angleDeg: props.initialPlantMap?.sunPathAngleDeg ?? 0,
   showLabels: props.initialPlantMap?.sunPathLabelEnabled ?? true,
 })
+const localNorthAngleDeg = ref(
+  normalizeAngle(
+    props.initialPlantMap?.northAngleDeg
+      ?? ((props.initialPlantMap?.sunPathAngleDeg ?? 0) - 90),
+  ),
+)
+const effectiveSunPathAngleDeg = computed(() => normalizeAngle(localNorthAngleDeg.value + 90))
 
 watch(
   () => props.initialPlantMap,
@@ -457,6 +534,7 @@ watch(
     localSunPath.enabled = pm?.sunPathEnabled ?? false
     localSunPath.angleDeg = pm?.sunPathAngleDeg ?? 0
     localSunPath.showLabels = pm?.sunPathLabelEnabled ?? true
+    localNorthAngleDeg.value = normalizeAngle(pm?.northAngleDeg ?? ((pm?.sunPathAngleDeg ?? 0) - 90))
   },
 )
 
@@ -483,6 +561,7 @@ const saving = ref(false)
 const uploadingImage = ref(false)
 const savingHotspot = ref(false)
 const savingBatch = ref(false)
+const savingFrontSelection = ref(false)
 const hotspotError = ref<string | null>(null)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
@@ -523,6 +602,63 @@ const selectedHotspots = computed(() => {
   return localHotspots.value.filter((h) => selectedIds.has(h.id))
 })
 
+const selectedFrontHotspot = computed(() => {
+  if (selectedHotspotIds.value.length !== 1) return null
+  const hotspot = selectedHotspots.value[0]
+  if (!hotspot || hotspot.type !== 'LOTE' || !hotspot.linkId) return null
+  return hotspot
+})
+
+const readFrontAngleFromHotspot = (hotspot: PlantHotspot | null): number | null => {
+  const rawAngle = Number(hotspot?.metaJson?.lotInfo?.frontAngleDeg ?? hotspot?.metaJson?.frontAngleDeg)
+  if (Number.isFinite(rawAngle)) return normalizeAngle(rawAngle)
+
+  const rawIndex = hotspot?.metaJson?.lotInfo?.frontEdgeIndex ?? hotspot?.metaJson?.frontEdgeIndex
+  return edgeIndexToAngle(rawIndex)
+}
+
+const selectedFrontAngleDeg = computed<number | null>(() => readFrontAngleFromHotspot(selectedFrontHotspot.value))
+
+const selectedFrontOverlay = computed(() => {
+  const hotspot = selectedFrontHotspot.value
+  if (!hotspot) return null
+
+  const angleDeg = selectedFrontAngleDeg.value ?? 270
+  const angleRad = (angleDeg * Math.PI) / 180
+  const centerX = hotspot.x * imgW.value
+  const centerY = hotspot.y * imgH.value
+  const arrowLength = clamp(98 / canvasScale.value, 54, 126)
+  const startOffset = clamp(20 / canvasScale.value, 10, 24)
+  const handleRadius = clamp(7 / canvasScale.value, 4, 8)
+  const handleHitRadius = clamp(18 / canvasScale.value, 10, 18)
+  const originRadius = clamp(10 / canvasScale.value, 5, 10)
+  const startX = centerX + Math.cos(angleRad) * startOffset
+  const startY = centerY + Math.sin(angleRad) * startOffset
+  const tipX = centerX + Math.cos(angleRad) * arrowLength
+  const tipY = centerY + Math.sin(angleRad) * arrowLength
+  const headSize = clamp(18 / canvasScale.value, 10, 20)
+  const headLeftX = tipX + Math.cos(angleRad + Math.PI * 0.82) * headSize
+  const headLeftY = tipY + Math.sin(angleRad + Math.PI * 0.82) * headSize
+  const headRightX = tipX + Math.cos(angleRad - Math.PI * 0.82) * headSize
+  const headRightY = tipY + Math.sin(angleRad - Math.PI * 0.82) * headSize
+  const labelDistance = arrowLength + clamp(24 / canvasScale.value, 12, 26)
+
+  return {
+    centerX,
+    centerY,
+    startX,
+    startY,
+    tipX,
+    tipY,
+    headPoints: `${tipX},${tipY} ${headLeftX},${headLeftY} ${headRightX},${headRightY}`,
+    handleRadius,
+    handleHitRadius,
+    originRadius,
+    labelX: centerX + Math.cos(angleRad) * labelDistance,
+    labelY: centerY + Math.sin(angleRad) * labelDistance,
+  }
+})
+
 const selectedLotHotspots = computed(() => selectedHotspots.value.filter((h) => h.type === 'LOTE'))
 const selectedLotHotspotsCount = computed(() => selectedLotHotspots.value.length)
 const selectedNonLotHotspotsCount = computed(() => selectedHotspots.value.length - selectedLotHotspots.value.length)
@@ -561,6 +697,105 @@ const setHotspotBlockInMeta = (hs: PlantHotspot, nextBlock: string): Record<stri
   }
 
   return Object.keys(baseMeta).length > 0 ? baseMeta : undefined
+}
+
+const setHotspotFrontAngleInMeta = (hs: PlantHotspot, frontAngleDeg: number): Record<string, any> | undefined => {
+  const baseMeta =
+    hs.metaJson && typeof hs.metaJson === 'object' && !Array.isArray(hs.metaJson)
+      ? { ...hs.metaJson }
+      : {}
+
+  const currentLotInfo =
+    baseMeta.lotInfo && typeof baseMeta.lotInfo === 'object' && !Array.isArray(baseMeta.lotInfo)
+      ? { ...baseMeta.lotInfo }
+      : {}
+
+  const normalizedAngle = normalizeAngle(frontAngleDeg)
+  currentLotInfo.frontAngleDeg = normalizedAngle
+  currentLotInfo.frontEdgeIndex = approximateFrontEdgeIndexFromAngle(normalizedAngle)
+  delete currentLotInfo.frontSide
+  baseMeta.lotInfo = currentLotInfo
+  baseMeta.frontAngleDeg = normalizedAngle
+  return baseMeta
+}
+
+const persistFrontAngleSelection = async (hotspotId: string) => {
+  const hotspot = localHotspots.value.find((item) => item.id === hotspotId)
+  const frontAngleDeg = readFrontAngleFromHotspot(hotspot ?? null)
+  if (!hotspot?.linkId || !hotspot || frontAngleDeg === null || savingFrontSelection.value) return
+
+  savingFrontSelection.value = true
+  try {
+    const updatedHotspot = await api.updateHotspot(hotspot.id, { metaJson: hotspot.metaJson })
+    localHotspots.value = localHotspots.value.map((item) => item.id === updatedHotspot.id ? updatedHotspot : item)
+
+    const mapElement = await fetchApi(`/projects/${props.projectId}/map-elements/${hotspot.linkId}`)
+    const normalizedAngle = normalizeAngle(frontAngleDeg)
+    const nextElementMeta = {
+      ...((mapElement?.metaJson && typeof mapElement.metaJson === 'object' && !Array.isArray(mapElement.metaJson)) ? mapElement.metaJson : {}),
+      frontAngleDeg: normalizedAngle,
+      frontEdgeIndex: approximateFrontEdgeIndexFromAngle(normalizedAngle),
+    }
+    delete nextElementMeta.frontSide
+
+    await fetchApi(`/projects/${props.projectId}/map-elements/${hotspot.linkId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        id: mapElement.id,
+        type: mapElement.type,
+        name: mapElement.name || undefined,
+        code: mapElement.code || undefined,
+        geometryType: mapElement.geometryType,
+        geometryJson: mapElement.geometryJson,
+        styleJson: mapElement.styleJson,
+        metaJson: nextElementMeta,
+      }),
+    })
+
+    showSuccess('Frente do lote atualizada.')
+  } catch (e: any) {
+    showError(e.message ?? 'Erro ao salvar frente do lote.')
+  } finally {
+    savingFrontSelection.value = false
+  }
+}
+
+const updateFrontAngleByPointer = (clientX: number, clientY: number) => {
+  if (!draggingFrontAngleHotspotId) return
+  const hotspot = localHotspots.value.find((item) => item.id === draggingFrontAngleHotspotId)
+  if (!hotspot) return
+
+  const pointer = clientToNormalized(clientX, clientY)
+  const dx = pointer.x - hotspot.x
+  const dy = pointer.y - hotspot.y
+  if (Math.hypot(dx, dy) < 0.005) return
+
+  const nextAngle = normalizeAngle((Math.atan2(dy, dx) * 180) / Math.PI)
+  const nextMetaJson = setHotspotFrontAngleInMeta(hotspot, nextAngle)
+  localHotspots.value = localHotspots.value.map((item) => item.id === hotspot.id
+    ? { ...item, metaJson: nextMetaJson }
+    : item)
+}
+
+const startFrontAngleDrag = (event: MouseEvent) => {
+  const hotspot = selectedFrontHotspot.value
+  if (!hotspot) return
+  isDraggingFrontAngle = true
+  draggingFrontAngleHotspotId = hotspot.id
+  skipNextCanvasClick = true
+  canvasWrapEl.value?.focus()
+  updateFrontAngleByPointer(event.clientX, event.clientY)
+  event.preventDefault()
+}
+
+const startFrontAngleDragTouch = (event: TouchEvent) => {
+  const hotspot = selectedFrontHotspot.value
+  const touch = event.touches[0]
+  if (!hotspot || !touch) return
+  isDraggingFrontAngle = true
+  draggingFrontAngleHotspotId = hotspot.id
+  skipNextCanvasClick = true
+  updateFrontAngleByPointer(touch.clientX, touch.clientY)
 }
 
 const applyBlockToSelectedLots = async (rawBlock: string) => {
@@ -715,6 +950,8 @@ let panOffsetStart = { x: 0, y: 0 }
 let panMoved = false
 let isDraggingHotspot = false
 let draggingHotspotId: string | null = null
+let isDraggingFrontAngle = false
+let draggingFrontAngleHotspotId: string | null = null
 const isSpacePressed = ref(false)
 let skipNextCanvasClick = false
 
@@ -823,6 +1060,10 @@ const onMouseDown = (e: MouseEvent) => {
 }
 
 const onMouseMove = (e: MouseEvent) => {
+  if (isDraggingFrontAngle) {
+    updateFrontAngleByPointer(e.clientX, e.clientY)
+    return
+  }
   if (isPanning) {
     const dx = e.clientX - panStart.x
     const dy = e.clientY - panStart.y
@@ -840,12 +1081,18 @@ const onMouseMove = (e: MouseEvent) => {
 }
 
 const onMouseUp = () => {
+  if (isDraggingFrontAngle && draggingFrontAngleHotspotId) {
+    void persistFrontAngleSelection(draggingFrontAngleHotspotId)
+    skipNextCanvasClick = true
+  }
   if (isPanning && panMoved) {
     skipNextCanvasClick = true
   }
   if (isDraggingHotspot && draggingHotspotId) {
     commitHotspotPosition(draggingHotspotId)
   }
+  isDraggingFrontAngle = false
+  draggingFrontAngleHotspotId = null
   isPanning = false
   isDraggingHotspot = false
   draggingHotspotId = null
@@ -873,6 +1120,12 @@ const onTouchStart = (e: TouchEvent) => {
 }
 
 const onTouchMove = (e: TouchEvent) => {
+  if (isDraggingFrontAngle && e.touches.length === 1) {
+    const touch = e.touches[0]
+    if (!touch) return
+    updateFrontAngleByPointer(touch.clientX, touch.clientY)
+    return
+  }
   if (e.touches.length === 2) {
     const firstTouch = e.touches[0]
     const secondTouch = e.touches[1]
@@ -903,6 +1156,11 @@ const onTouchMove = (e: TouchEvent) => {
 }
 
 const onTouchEnd = () => {
+  if (isDraggingFrontAngle && draggingFrontAngleHotspotId) {
+    void persistFrontAngleSelection(draggingFrontAngleHotspotId)
+  }
+  isDraggingFrontAngle = false
+  draggingFrontAngleHotspotId = null
   isPanning = false
 }
 
@@ -1193,8 +1451,9 @@ const saveAll = async () => {
   saving.value = true
   try {
     const updated = await api.updatePlantMap(plantMap.value.id, {
+      northAngleDeg: localNorthAngleDeg.value,
       sunPathEnabled: localSunPath.enabled,
-      sunPathAngleDeg: localSunPath.angleDeg,
+      sunPathAngleDeg: effectiveSunPathAngleDeg.value,
       sunPathLabelEnabled: localSunPath.showLabels,
     })
     plantMap.value = { ...updated, hotspots: localHotspots.value }
@@ -1585,6 +1844,60 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 11px;
   color: #64748b;
+}
+
+.pme__sidebar-tip--accent {
+  color: #fbbf24;
+}
+
+.pme__front-overlay {
+  pointer-events: none;
+}
+
+.pme__front-origin {
+  fill: rgba(249, 115, 22, 0.22);
+  stroke: rgba(251, 146, 60, 0.95);
+  stroke-width: 1.4;
+}
+
+.pme__front-line {
+  stroke: rgba(249, 115, 22, 0.96);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.38));
+}
+
+.pme__front-head {
+  fill: rgba(249, 115, 22, 0.98);
+}
+
+.pme__front-label {
+  fill: #ffedd5;
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: rgba(124, 45, 18, 0.92);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+
+.pme__front-handle-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.pme__front-handle-hit:active {
+  cursor: grabbing;
+}
+
+.pme__front-handle {
+  fill: #fff7ed;
+  stroke: #f97316;
+  stroke-width: 2;
+  pointer-events: none;
 }
 
 .pme__bulk-card {

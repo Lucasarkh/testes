@@ -43,33 +43,16 @@
         <!-- Persistent Side Navigation Guide -->
         <aside class="side-navigation-guide">
           <div class="nav-stack">
-            <a href="#hero" class="nav-dot" :class="{ 'is-active': activeSection === 'hero' }" title="Início">
+            <a
+              v-for="item in sectionNavItems"
+              :key="item.id"
+              :href="item.href"
+              class="nav-dot"
+              :class="{ 'is-active': activeSection === item.id }"
+              :title="item.title"
+            >
               <span class="dot"></span>
-              <span class="label">Início</span>
-            </a>
-            <a v-if="galleryMedias.length" href="#galeria" class="nav-dot" :class="{ 'is-active': activeSection === 'galeria' }" title="Galeria">
-              <span class="dot"></span>
-              <span class="label">Galeria</span>
-            </a>
-            <a v-if="lotPlantMap" href="#localizacao" class="nav-dot" :class="{ 'is-active': activeSection === 'localizacao' }" title="Localização">
-              <span class="dot"></span>
-              <span class="label">Planta</span>
-            </a>
-            <a v-if="lotPanorama" href="#vista-360" class="nav-dot" :class="{ 'is-active': activeSection === 'vista-360' }" title="Vista 360°">
-              <span class="dot"></span>
-              <span class="label">360°</span>
-            </a>
-            <a v-if="details?.areaM2 || details?.frontage || details?.depth || details?.sideLeft || details?.sideRight || details?.slope || details?.notes" href="#ficha" class="nav-dot" :class="{ 'is-active': activeSection === 'ficha' }" title="Ficha Técnica">
-              <span class="dot"></span>
-              <span class="label">Ficha</span>
-            </a>
-            <a v-if="details?.paymentConditions" href="#financiamento" class="nav-dot" :class="{ 'is-active': activeSection === 'financiamento' }" title="Financiamento">
-              <span class="dot"></span>
-              <span class="label">Tabela</span>
-            </a>
-            <a v-if="project?.showPaymentConditions" href="#simulador" class="nav-dot" :class="{ 'is-active': activeSection === 'simulador' }" title="Simulador">
-              <span class="dot"></span>
-              <span class="label">Simular</span>
+              <span class="label">{{ item.shortLabel }}</span>
             </a>
           </div>
         </aside>
@@ -143,102 +126,20 @@
                 </div>
               </section>
 
-            <!-- Gallery -->
-            <section v-if="galleryMedias.length" id="galeria" class="section-v4">
-              <div class="section-title-v4">
-                <h2>Galeria de Imagens</h2>
-                <div class="title-line"></div>
-              </div>
-              
-              <div class="gallery-v4">
-                <div v-for="(m, i) in galleryMedias" :key="i" 
-                  class="gallery-tile" 
-                  :class="{ 'main': i === 0 }"
-                  @click="() => { openLightbox(Number(i)); tracking.trackClick('Galeria: Abrir Foto', 'GALLERY'); }">
-                  <img
-                    v-if="m.type === 'PHOTO'"
-                    :src="m.url"
-                    :loading="Number(i) < 4 ? 'eager' : 'lazy'"
-                    :fetchpriority="Number(i) < 2 ? 'high' : 'auto'"
-                    decoding="async"
-                  />
-                  <div v-else class="video-preview-v4">
-                    <video :src="m.url" preload="metadata"></video>
-                    <div class="play-btn">▶</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Location Map -->
-            <section v-if="lotPlantMap" id="localizacao" class="section-v4">
-              <div class="section-title-v4">
-                <h2>Localização no Loteamento</h2>
-                <div class="title-line"></div>
-              </div>
-              <div class="lot-plant-map-frame">
-                <ClientOnly>
-                  <PlantMapViewer
-                    :plant-map="lotPlantMap"
-                    :show-controls="true"
-                    :show-legend="false"
-                    :interactive="isPlantMapInteractive"
-                    :focus-lot-code="lot?.code"
-                  />
-                  <template #fallback>
-                    <div class="loading-state-pm">Carregando planta...</div>
-                  </template>
-                </ClientOnly>
-                <div v-if="showPlantMapTouchCta" class="interaction-gate-v4">
-                  <button type="button" class="interaction-gate-v4__btn" @click.stop.prevent="enablePlantMapInteraction">
-                    Ver mapa interativo
-                  </button>
-                  <p class="interaction-gate-v4__hint">Ative para arrastar e dar zoom. Desative para voltar a rolar a pagina.</p>
-                </div>
-              </div>
-              <button
-                v-if="showPlantMapDisableButton"
-                class="interaction-toggle-v4"
-                @click="disablePlantMapInteraction"
-              >
-                Desativar interacao do mapa
-              </button>
-              <p style="margin-top: 16px; color: var(--v4-text-muted); font-size: 14px; text-align: center;">
-                Localização exata do lote dentro do empreendimento.
-              </p>
-            </section>
-
-            <!-- 360 View -->
-            <section v-if="lotPanorama" id="vista-360" class="section-v4">
-              <div class="section-title-v4">
-                <h2>Vista 360° do Lote</h2>
-                <div class="title-line"></div>
-              </div>
-              <div class="panorama-container-v4" 
-                   :class="{ 'is-interaction-disabled': !isPanoramaInteractive }"
-                   @click="tracking.trackClick('Panorama: Interação 360', 'VIEW_360')">
-                <PanoramaViewer :panorama="lotPanorama" />
-                <div v-if="showPanoramaTouchCta" class="interaction-gate-v4">
-                  <button type="button" class="interaction-gate-v4__btn" @click.stop.prevent="enablePanoramaInteraction">
-                    Ver 360 interativo
-                  </button>
-                  <p class="interaction-gate-v4__hint">Ative para girar a vista 360. Desative para continuar rolando a pagina.</p>
-                </div>
-              </div>
-              <button
-                v-if="showPanoramaDisableButton"
-                class="interaction-toggle-v4"
-                @click="disablePanoramaInteraction"
-              >
-                Desativar interacao do 360
-              </button>
-            </section>
-
             <!-- Specification -->
-            <section v-if="details?.areaM2 || details?.frontage || details?.depth || details?.sideLeft || details?.sideRight || details?.slope || details?.notes" id="ficha" class="section-v4">
+            <section v-if="hasTechnicalSheet" id="ficha" class="section-v4">
               <div class="section-title-v4">
                 <h2>Ficha Técnica Detalhada</h2>
                 <div class="title-line"></div>
+              </div>
+
+              <div v-if="showTerrainPreset3d" class="terrain-preset-v4">
+                <LotTerrainPreset3D
+                  :details="details"
+                  :lot-label="details?.lotNumber || lot?.code || lot?.name"
+                  :lot-data="terrainLotData"
+                  :sun-path-angle-deg="terrainSunPathAngleDeg"
+                />
               </div>
               
               <div class="specs-grid-v4">
@@ -286,8 +187,99 @@
               </div>
             </section>
 
+            <!-- Location Map -->
+            <section v-if="lotPlantMap" id="localizacao" class="section-v4">
+              <div class="section-title-v4">
+                <h2>Localização no Loteamento</h2>
+                <div class="title-line"></div>
+              </div>
+              <div class="lot-plant-map-frame">
+                <ClientOnly>
+                  <PlantMapViewer
+                    :plant-map="lotPlantMap"
+                    :show-controls="true"
+                    :show-legend="false"
+                    :interactive="isPlantMapInteractive"
+                    :focus-lot-code="lot?.code"
+                  />
+                  <template #fallback>
+                    <div class="loading-state-pm">Carregando planta...</div>
+                  </template>
+                </ClientOnly>
+                <div v-if="showPlantMapTouchCta" class="interaction-gate-v4">
+                  <button type="button" class="interaction-gate-v4__btn" @click.stop.prevent="enablePlantMapInteraction">
+                    Ver mapa interativo
+                  </button>
+                  <p class="interaction-gate-v4__hint">Ative para arrastar e dar zoom. Desative para voltar a rolar a pagina.</p>
+                </div>
+              </div>
+              <button
+                v-if="showPlantMapDisableButton"
+                class="interaction-toggle-v4"
+                @click="disablePlantMapInteraction"
+              >
+                Desativar interacao do mapa
+              </button>
+              <p style="margin-top: 16px; color: var(--v4-text-muted); font-size: 14px; text-align: center;">
+                Localização exata do lote dentro do empreendimento.
+              </p>
+            </section>
+
+            <!-- Gallery -->
+            <section v-if="galleryMedias.length" id="galeria" class="section-v4">
+              <div class="section-title-v4">
+                <h2>Galeria de Imagens</h2>
+                <div class="title-line"></div>
+              </div>
+              
+              <div class="gallery-v4">
+                <div v-for="(m, i) in galleryMedias" :key="i" 
+                  class="gallery-tile" 
+                  :class="{ 'main': i === 0 }"
+                  @click="() => { openLightbox(Number(i)); tracking.trackClick('Galeria: Abrir Foto', 'GALLERY'); }">
+                  <img
+                    v-if="m.type === 'PHOTO'"
+                    :src="m.url"
+                    :loading="Number(i) < 4 ? 'eager' : 'lazy'"
+                    :fetchpriority="Number(i) < 2 ? 'high' : 'auto'"
+                    decoding="async"
+                  />
+                  <div v-else class="video-preview-v4">
+                    <video :src="m.url" preload="metadata"></video>
+                    <div class="play-btn">▶</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- 360 View -->
+            <section v-if="lotPanorama" id="vista-360" class="section-v4">
+              <div class="section-title-v4">
+                <h2>Vista 360° do Lote</h2>
+                <div class="title-line"></div>
+              </div>
+              <div class="panorama-container-v4" 
+                   :class="{ 'is-interaction-disabled': !isPanoramaInteractive }"
+                   @click="tracking.trackClick('Panorama: Interação 360', 'VIEW_360')">
+                <PanoramaViewer :panorama="lotPanorama" />
+                <div v-if="showPanoramaTouchCta" class="interaction-gate-v4">
+                  <button type="button" class="interaction-gate-v4__btn" @click.stop.prevent="enablePanoramaInteraction">
+                    Ver 360 interativo
+                  </button>
+                  <p class="interaction-gate-v4__hint">Ative para girar a vista 360. Desative para continuar rolando a pagina.</p>
+                </div>
+              </div>
+              <button
+                v-if="showPanoramaDisableButton"
+                class="interaction-toggle-v4"
+                @click="disablePanoramaInteraction"
+              >
+                Desativar interacao do 360
+              </button>
+            </section>
+
             <!-- Simulator Section -->
-            <section v-if="project?.showPaymentConditions" id="simulador" class="section-v4">
+            <section v-if="hasSimulator" id="simulador" class="section-v4">
               <div class="section-title-v4">
                 <h2>Simulador Financeiro</h2>
                 <div class="title-line"></div>
@@ -644,8 +636,15 @@
       </div>
 
       <nav class="v4-sticky-nav">
-        <a v-if="lotPlantMap" href="#localizacao" class="v4-nav-item">Planta</a>
-        <a v-if="lotPanorama" href="#vista-360" class="v4-nav-item">Panorama</a>
+        <a
+          v-for="item in stickySectionNavItems"
+          :key="item.id"
+          :href="item.href"
+          class="v4-nav-item"
+          :class="{ 'is-active': activeSection === item.id }"
+        >
+          {{ item.mobileLabel || item.shortLabel }}
+        </a>
         <NuxtLink :to="unitsUrl" class="v4-nav-item">Unidades</NuxtLink>
         <a href="#contato" class="v4-nav-item v4-nav-cta">TENHO INTERESSE</a>
       </nav>
@@ -716,6 +715,7 @@ import { getTodayInBrasilia, getYearInBrasilia } from '~/utils/date'
 import { formatCurrencyToBrasilia } from '~/utils/money'
 import PanoramaViewer from '~/components/panorama/PanoramaViewer.vue'
 import PlantMapViewer from '~/components/plantMap/PlantMapViewer.vue'
+import LotTerrainPreset3D from '~/components/lot/LotTerrainPreset3D.vue'
 import { usePublicPlantMap } from '~/composables/plantMap/usePlantMapApi'
 import type { Panorama } from '~/composables/panorama/types'
 import type { PlantMap } from '~/composables/plantMap/types'
@@ -964,12 +964,19 @@ const lot = computed(() => {
           id: found.id,
           code: found.code || found.label || found.id,
           name: found.label || found.code || 'Lote',
+          polygon: Array.isArray(found.polygon) ? found.polygon : [],
+          geometryJson: found.geometryJson ?? null,
+          sideMetrics: Array.isArray(found.sideMetrics) ? found.sideMetrics : [],
+          manualFrontage: found.manualFrontage ?? null,
+          manualBack: found.manualBack ?? null,
+          frontEdgeIndex: found.frontEdgeIndex ?? found.metaJson?.frontEdgeIndex ?? publicCandidate?.frontEdgeIndex ?? null,
+          frontAngleDeg: found.frontAngleDeg ?? found.metaJson?.frontAngleDeg ?? publicCandidate?.frontAngleDeg ?? null,
           lotDetails: {
             status: (publicDetails?.status || found.status || 'available').toString().toUpperCase(),
             price: publicDetails?.price ?? found.price ?? null,
             areaM2: publicDetails?.areaM2 ?? parseFloat(finalAreaM2.toFixed(2)),
             frontage: publicDetails?.frontage ?? parseFloat(finalFrontage.toFixed(2)),
-            depth: publicDetails?.depth ?? found.manualBack ?? found.depth ?? null,
+            depth: publicDetails?.depth ?? found.depth ?? null,
             sideLeft: publicDetails?.sideLeft ?? found.sideLeft ?? null,
             sideRight: publicDetails?.sideRight ?? found.sideRight ?? null,
             sideMetricsJson: publicDetails?.sideMetricsJson ?? found.sideMetrics ?? [],
@@ -1002,6 +1009,8 @@ const lot = computed(() => {
       id: fromPublicLots.id,
       code: fromPublicLots.code || fromPublicLots.name || fromPublicLots.id,
       name: fromPublicLots.name || fromPublicLots.code || 'Lote',
+      frontEdgeIndex: fromPublicLots.frontEdgeIndex ?? fromPublicLots.mapElement?.metaJson?.frontEdgeIndex ?? null,
+      frontAngleDeg: fromPublicLots.frontAngleDeg ?? fromPublicLots.mapElement?.metaJson?.frontAngleDeg ?? null,
       lotDetails: fromPublicLots.lotDetails || null,
     }
   }
@@ -1011,7 +1020,26 @@ const lot = computed(() => {
 
 const details = computed(() => lot.value?.lotDetails || null)
 
+const terrainSunPathAngleDeg = computed(() => {
+  if (!lotPlantMap.value?.sunPathEnabled) return null
+  const northAngle = Number(lotPlantMap.value.northAngleDeg)
+  if (Number.isFinite(northAngle)) {
+    return ((northAngle + 90) % 360 + 360) % 360
+  }
+  return Number.isFinite(lotPlantMap.value.sunPathAngleDeg)
+    ? lotPlantMap.value.sunPathAngleDeg
+    : null
+})
+
 const PANORAMA_MEDIA_TAGS = ['lot_panorama_360', 'panorama_360', 'panorama-360', 'panorama 360']
+
+const buildPanoramaProxyUrl = (url?: string | null) => {
+  const trimmed = String(url || '').trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('/')) return trimmed
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed
+  return `/api/panorama-image?url=${encodeURIComponent(trimmed)}`
+}
 
 const isPanoramaMedia = (media: any) => {
   const caption = String(media?.caption || '').toLowerCase()
@@ -1022,7 +1050,7 @@ const isPanoramaMedia = (media: any) => {
   return false
 }
 
-const panoramaImageUrl = computed(() => {
+const rawPanoramaImageUrl = computed(() => {
   if (details.value?.panoramaUrl) return details.value.panoramaUrl
 
   const medias = Array.isArray(details.value?.medias) ? details.value.medias : []
@@ -1030,10 +1058,12 @@ const panoramaImageUrl = computed(() => {
   return taggedPanorama?.url || null
 })
 
+const panoramaImageUrl = computed(() => buildPanoramaProxyUrl(rawPanoramaImageUrl.value))
+
 const galleryMedias = computed(() => {
   const medias = Array.isArray(details.value?.medias) ? details.value.medias : []
   const explicitPanoramaUrl = details.value?.panoramaUrl || null
-  const panoramaUrl = panoramaImageUrl.value
+  const panoramaUrl = rawPanoramaImageUrl.value
 
   return medias.filter((m: any) => {
     if (!m?.url) return false
@@ -1043,6 +1073,35 @@ const galleryMedias = computed(() => {
     return true
   })
 })
+
+const hasTechnicalSheet = computed(() => Boolean(
+  details.value?.areaM2
+  || details.value?.frontage
+  || details.value?.depth
+  || details.value?.sideLeft
+  || details.value?.sideRight
+  || details.value?.slope
+  || details.value?.notes
+))
+
+const hasSimulator = computed(() => Boolean(project.value?.showPaymentConditions))
+const hasFinanceTable = computed(() => Boolean(details.value?.paymentConditions))
+
+const sectionNavItems = computed(() => {
+  const items = [
+    { id: 'hero', href: '#hero', title: 'Início', shortLabel: 'Início', mobileLabel: 'Início', visible: true },
+    { id: 'ficha', href: '#ficha', title: 'Ficha Técnica Detalhada', shortLabel: 'Ficha', mobileLabel: 'Ficha', visible: hasTechnicalSheet.value },
+    { id: 'localizacao', href: '#localizacao', title: 'Localização no Loteamento', shortLabel: 'Planta', mobileLabel: 'Mapa', visible: Boolean(lotPlantMap.value) },
+    { id: 'galeria', href: '#galeria', title: 'Galeria de Imagens', shortLabel: 'Galeria', mobileLabel: 'Galeria', visible: galleryMedias.value.length > 0 },
+    { id: 'vista-360', href: '#vista-360', title: 'Vista 360° do Lote', shortLabel: '360°', mobileLabel: '360°', visible: Boolean(lotPanorama.value) },
+    { id: 'simulador', href: '#simulador', title: 'Simulador Financeiro', shortLabel: 'Simular', mobileLabel: 'Simular', visible: hasSimulator.value },
+    { id: 'financiamento', href: '#financiamento', title: 'Condições de Aquisição', shortLabel: 'Tabela', mobileLabel: 'Tabela', visible: hasFinanceTable.value },
+  ]
+
+  return items.filter(item => item.visible)
+})
+
+const stickySectionNavItems = computed(() => sectionNavItems.value.filter(item => item.id !== 'hero'))
 
 const reservationFeeValue = computed(() => {
   if (!project.value) return 500
@@ -1058,6 +1117,31 @@ const lotSideMetrics = computed(() => {
   const raw = details.value?.sideMetricsJson
   if (!Array.isArray(raw) || raw.length === 0) return []
   return raw
+})
+
+const terrainLotData = computed(() => {
+  if (!lot.value) return null
+  const current = lot.value as any
+  return {
+    ...current,
+    frontEdgeIndex: current.frontEdgeIndex ?? current.metaJson?.frontEdgeIndex ?? null,
+    frontAngleDeg: current.frontAngleDeg ?? current.metaJson?.frontAngleDeg ?? null,
+  }
+})
+
+const showTerrainPreset3d = computed(() => {
+  if (!details.value) return false
+
+  return Boolean(
+    details.value.areaM2
+    || details.value.frontage
+    || details.value.depth
+    || details.value.sideLeft
+    || details.value.sideRight
+    || lotSideMetrics.value.length
+    || (Array.isArray((lot.value as any)?.polygon) && (lot.value as any).polygon.length >= 3)
+    || (Array.isArray((lot.value as any)?.geometryJson?.points) && (lot.value as any).geometryJson.points.length >= 6)
+  )
 })
 
 const statusClass = computed(() => {
@@ -1825,7 +1909,7 @@ function disablePanoramaInteraction() {
 const activeSection = ref('hero')
 
 const handleScroll = () => {
-  const sections = ['hero', 'galeria', 'localizacao', 'vista-360', 'ficha', 'simulador', 'financiamento']
+  const sections = sectionNavItems.value.map(item => item.id)
   for (const sectionId of [...sections].reverse()) {
     const el = document.getElementById(sectionId)
     if (el) {
@@ -2336,6 +2420,7 @@ async function submitReservation() {
 .gallery-tile:hover img { transform: scale(1.05); }
 
 /* Specs Grid V4 */
+.terrain-preset-v4 { margin-bottom: 24px; }
 .specs-grid-v4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .spec-entry { background: #f5f5f7; padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 4px; }
 .spec-entry .s-label { font-size: 11px; font-weight: 600; color: var(--v4-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -2740,8 +2825,14 @@ async function submitReservation() {
   width: auto;
   min-width: 280px;
   max-width: 92vw;
+  overflow-x: auto;
+  scrollbar-width: none;
   z-index: 1000;
   box-shadow: 0 12px 30px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+.v4-sticky-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .v4-nav-item {
@@ -2753,6 +2844,10 @@ async function submitReservation() {
   border-radius: 100px;
   transition: all 0.2s;
   white-space: nowrap;
+}
+
+.v4-nav-item.is-active {
+  background: rgba(255,255,255,0.14);
 }
 
 .v4-nav-cta {

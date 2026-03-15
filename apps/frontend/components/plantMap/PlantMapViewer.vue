@@ -43,7 +43,7 @@
         <!-- Sun path line -->
         <SunPathLine
           :enabled="plantMap.sunPathEnabled"
-          :angle-deg="plantMap.sunPathAngleDeg"
+          :angle-deg="effectiveSunPathAngleDeg"
           :show-labels="plantMap.sunPathLabelEnabled"
           :width="imgNaturalW"
           :height="imgNaturalH"
@@ -69,6 +69,8 @@
         </template>
       </svg>
     </div>
+
+    <NorthCompassOverlay :angle-deg="northAngleDeg" />
 
     <!-- Zoom controls -->
     <div class="plant-map-viewer__controls" v-if="showControls">
@@ -126,6 +128,7 @@ import { usePublicPlantMap } from '~/composables/plantMap/usePlantMapApi'
 import HotspotPin from './HotspotPin.vue'
 import HotspotPopover from './HotspotPopover.vue'
 import SunPathLine from './SunPathLine.vue'
+import NorthCompassOverlay from './NorthCompassOverlay.vue'
 import { useTracking } from '~/composables/useTracking'
 
 const props = withDefaults(defineProps<{
@@ -146,6 +149,9 @@ const props = withDefaults(defineProps<{
 })
 
 const tracking = useTracking()
+const normalizeAngle = (angle: number) => ((angle % 360) + 360) % 360
+const northAngleDeg = computed(() => normalizeAngle(props.plantMap.northAngleDeg ?? (props.plantMap.sunPathAngleDeg - 90)))
+const effectiveSunPathAngleDeg = computed(() => normalizeAngle(northAngleDeg.value + 90))
 
 // ── Zoom/pan ─────────────────────────────────────────────
 const {

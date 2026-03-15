@@ -802,6 +802,7 @@ model PlantMap {
   imageUrl            String
   imageWidth          Int?
   imageHeight         Int?
+  northAngleDeg       Float    @default(270)
   sunPathEnabled      Boolean  @default(false)
   sunPathAngleDeg     Float    @default(0)
   sunPathLabelEnabled Boolean  @default(true)

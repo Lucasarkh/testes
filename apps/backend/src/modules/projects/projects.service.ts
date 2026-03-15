@@ -397,6 +397,8 @@ export class ProjectsService {
           id: l.id,
           name: l.label,
           code: l.code,
+          frontEdgeIndex: l.frontEdgeIndex ?? l.metaJson?.frontEdgeIndex ?? null,
+          frontAngleDeg: l.frontAngleDeg ?? l.metaJson?.frontAngleDeg ?? null,
           lotDetails: {
             areaM2:
               override?.areaM2 ??
@@ -452,6 +454,7 @@ export class ProjectsService {
             id: true,
             name: true,
             code: true,
+            metaJson: true,
             lotDetails: {
               select: {
                 id: true,
@@ -503,7 +506,11 @@ export class ProjectsService {
         minPrice: (minAgg as any)._min?.price ?? null,
         minArea: (minAgg as any)._min?.areaM2 ?? null
       };
-      teaserLots = teaser;
+      teaserLots = teaser.map((lot: any) => ({
+        ...lot,
+        frontEdgeIndex: lot.metaJson?.frontEdgeIndex ?? null,
+        frontAngleDeg: lot.metaJson?.frontAngleDeg ?? null,
+      }));
     }
 
     return this.hydratePublicProjectAssets({ ...project, lotSummary, teaserLots });
@@ -812,6 +819,7 @@ export class ProjectsService {
           id: true,
           name: true,
           code: true,
+          metaJson: true,
           lotDetails: {
             select: {
               id: true,
@@ -866,6 +874,8 @@ export class ProjectsService {
       data: await Promise.all(
         data.map(async (lot) => ({
           ...lot,
+          frontEdgeIndex: (lot as any).metaJson?.frontEdgeIndex ?? null,
+          frontAngleDeg: (lot as any).metaJson?.frontAngleDeg ?? null,
           lotDetails: await this.hydratePublicLotDetailsAssets(lot.lotDetails)
         }))
       ),

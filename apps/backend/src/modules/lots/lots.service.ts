@@ -68,6 +68,14 @@ export class LotsService {
     lot: any,
     project: { slug: string; customDomain: string | null; name: string }
   ) {
+    const rawFrontEdgeIndex = Number(lot?.mapElement?.metaJson?.frontEdgeIndex);
+    const rawFrontAngleDeg = Number(lot?.mapElement?.metaJson?.frontAngleDeg);
+    const frontEdgeIndex = Number.isInteger(rawFrontEdgeIndex)
+      ? rawFrontEdgeIndex
+      : null;
+    const frontAngleDeg = Number.isFinite(rawFrontAngleDeg)
+      ? ((rawFrontAngleDeg % 360) + 360) % 360
+      : null;
     const publicPageUrl = this.buildLotPublicPageUrl(project, lot);
     const lotLabelRaw =
       lot?.lotNumber || lot?.mapElement?.code || lot?.mapElement?.name || lot?.id;
@@ -81,6 +89,8 @@ export class LotsService {
 
     return {
       ...lot,
+      frontEdgeIndex,
+      frontAngleDeg,
       publicPageUrl,
       qrCodeUrl: this.buildLotQrCodeUrl(trackedQrUrl),
       shareText: `Saiba mais sobre o lote ${lotLabel} do ${project.name}`

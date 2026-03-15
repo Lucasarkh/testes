@@ -24,6 +24,13 @@ export class CreatePlantMapDto {
   @IsNumber()
   imageHeight?: number;
 
+  @ApiPropertyOptional({ minimum: 0, maximum: 359, default: 270 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(359)
+  northAngleDeg?: number;
+
   @ApiPropertyOptional({ default: false })
   @IsOptional()
   @IsBoolean()
