@@ -12,6 +12,32 @@ import {
 export class StripeAdapter implements IPaymentGateway {
   private readonly logger = new Logger(StripeAdapter.name);
 
+  private getPaymentMethodTypes(keys: {
+    paymentMethodTypes?: unknown;
+  }): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] {
+    const allowed: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = [
+      'card',
+      'boleto',
+      'pix'
+    ];
+
+    if (!Array.isArray(keys.paymentMethodTypes)) {
+      return ['card'];
+    }
+
+    const sanitized = keys.paymentMethodTypes.filter(
+      (
+        method
+      ): method is Stripe.Checkout.SessionCreateParams.PaymentMethodType =>
+        typeof method === 'string' &&
+        allowed.includes(
+          method as Stripe.Checkout.SessionCreateParams.PaymentMethodType
+        )
+    );
+
+    return sanitized.length > 0 ? sanitized : ['card'];
+  }
+
   private getStripe(secretKey: string): Stripe {
     return new Stripe(secretKey, {
       apiVersion: '2025-01-27.acacia' as any // latest stable or dynamic
@@ -19,13 +45,13 @@ export class StripeAdapter implements IPaymentGateway {
   }
 
   async createSession(
-    keys: { secretKey: string },
+    keys: { secretKey: string; paymentMethodTypes?: unknown },
     data: CreatePaymentDto
   ): Promise<PaymentGatewayResponse> {
     const stripe = this.getStripe(keys.secretKey);
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'boleto', 'pix'], // boleto + pix for Brazilian Stripe accounts
+      payment_method_types: this.getPaymentMethodTypes(keys),
       line_items: [
         {
           price_data: {

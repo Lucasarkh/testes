@@ -25,6 +25,28 @@ const REQUIRED_KEYS: Record<string, string[]> = {
   PAGSEGURO: ['token']
 };
 
+const NON_SECRET_KEYS = ['isSandbox'] as const;
+
+function normalizeSubmittedKeys(keysJson: any): Record<string, any> {
+  if (!keysJson || typeof keysJson !== 'object') {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(keysJson).filter(([, value]) => {
+      if (typeof value === 'boolean') {
+        return true;
+      }
+
+      if (typeof value === 'string') {
+        return value.trim().length > 0;
+      }
+
+      return value !== undefined && value !== null;
+    })
+  );
+}
+
 function validateKeysJson(provider: string, keysJson: any): void {
   const required = REQUIRED_KEYS[provider] || [];
   const missing = required.filter((k) => !keysJson?.[k]?.toString().trim());
@@ -45,18 +67,41 @@ export class PaymentConfigController {
     private readonly encryption: EncryptionService
   ) {}
 
+  private serializeConfig(cfg: any) {
+    const decryptedKeys = this.encryption.decryptJson(cfg.keysJson) || {};
+    const configuredKeys = Object.fromEntries(
+      Object.keys(REQUIRED_KEYS[cfg.provider] || []).map((index) => {
+        const key = (REQUIRED_KEYS[cfg.provider] || [])[Number(index)];
+        return [key, Boolean(decryptedKeys?.[key]?.toString().trim())];
+      })
+    );
+
+    const visibleKeys = Object.fromEntries(
+      NON_SECRET_KEYS.filter((key) => typeof decryptedKeys?.[key] === 'boolean').map(
+        (key) => [key, decryptedKeys[key]]
+      )
+    );
+
+    return {
+      ...cfg,
+      keysJson: Object.keys(visibleKeys).length > 0 ? visibleKeys : null,
+      configuredKeys,
+      webhookSecretConfigured: Boolean(cfg.webhookSecret),
+      webhookSecret: undefined
+    };
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all payment gateways for the tenant' })
   async listConfigs(@Req() req: any) {
     const configs = await this.prisma.paymentConfig.findMany({
-      where: { tenantId: req.user.tenantId }
+      where: { tenantId: req.user.tenantId },
+      include: {
+        projects: { select: { id: true } }
+      }
     });
 
-    // Never expose the raw keys to the client — return masked placeholders.
-    return configs.map((cfg) => ({
-      ...cfg,
-      keysJson: cfg.keysJson ? { _masked: true } : null
-    }));
+    return configs.map((cfg) => this.serializeConfig(cfg));
   }
 
   @Post()
@@ -75,7 +120,10 @@ export class PaymentConfigController {
     if (!body.name?.trim()) {
       throw new BadRequestException('Nome do perfil é obrigatório.');
     }
-    validateKeysJson(body.provider, body.keysJson);
+
+    const normalizedKeys = normalizeSubmittedKeys(body.keysJson);
+    validateKeysJson(body.provider, normalizedKeys);
+    const normalizedWebhookSecret = body.webhookSecret?.trim() || null;
 
     // Prevent duplicate provider for same tenant
     const duplicate = await this.prisma.paymentConfig.findFirst({
@@ -97,8 +145,8 @@ export class PaymentConfigController {
         name: body.name,
         provider: body.provider,
         isActive: body.isActive,
-        keysJson: this.encryption.encryptJson(body.keysJson) as any,
-        webhookSecret: body.webhookSecret
+        keysJson: this.encryption.encryptJson(normalizedKeys) as any,
+        webhookSecret: normalizedWebhookSecret
       }
     });
   }
@@ -127,12 +175,12 @@ export class PaymentConfigController {
     const effectiveProvider = body.provider || existing.provider;
     if (body.keysJson || body.provider) {
       const storedKeys = this.encryption.decryptJson(existing.keysJson) || {};
+      const submittedKeys = normalizeSubmittedKeys(body.keysJson);
       const effectiveKeys = body.keysJson
-        ? { ...storedKeys, ...body.keysJson }
+        ? { ...storedKeys, ...submittedKeys }
         : storedKeys;
       validateKeysJson(effectiveProvider, effectiveKeys);
 
-      // Update flags in body.keysJson so it persists correctly
       if (body.keysJson) {
         body.keysJson = effectiveKeys;
       }
@@ -150,7 +198,9 @@ export class PaymentConfigController {
         ...(body.keysJson !== undefined && {
           keysJson: this.encryption.encryptJson(body.keysJson) as any
         }),
-        webhookSecret: body.webhookSecret
+        ...(typeof body.webhookSecret === 'string' && body.webhookSecret.trim()
+          ? { webhookSecret: body.webhookSecret.trim() }
+          : {})
       }
     });
   }
@@ -178,14 +228,16 @@ export class PaymentConfigController {
     }
 
     const allGateways = await this.prisma.paymentConfig.findMany({
-      where: { tenantId: req.user.tenantId }
+      where: { tenantId: req.user.tenantId },
+      include: {
+        projects: { select: { id: true } }
+      }
     });
 
     const activeIds = project.paymentGateways.map((g) => g.id);
 
     return allGateways.map((g) => ({
-      ...g,
-      keysJson: g.keysJson ? { _masked: true } : null,
+      ...this.serializeConfig(g),
       isEnabledForProject: activeIds.includes(g.id)
     }));
   }

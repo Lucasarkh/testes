@@ -34,6 +34,44 @@ export class PaymentService {
     private readonly encryption: EncryptionService
   ) {}
 
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'object' && error !== null) {
+      const maybeError = error as {
+        message?: unknown;
+        response?: {
+          data?: unknown;
+        };
+      };
+
+      if (typeof maybeError.response?.data === 'string') {
+        return maybeError.response.data;
+      }
+
+      if (
+        typeof maybeError.response?.data === 'object' &&
+        maybeError.response?.data !== null
+      ) {
+        const responseData = maybeError.response.data as Record<string, unknown>;
+
+        for (const key of ['message', 'error_description', 'description']) {
+          if (typeof responseData[key] === 'string') {
+            return responseData[key] as string;
+          }
+        }
+      }
+
+      if (typeof maybeError.message === 'string') {
+        return maybeError.message;
+      }
+    }
+
+    return 'Erro desconhecido ao criar sessão de pagamento';
+  }
+
   private getGateway(provider: PaymentProvider): IPaymentGateway {
     switch (provider) {
       case PaymentProvider.STRIPE:
@@ -183,8 +221,9 @@ export class PaymentService {
         checkoutUrl: paymentUrl
       };
     } catch (error) {
-      this.logger.error(`Error creating payment session: ${error.message}`);
-      throw new BadRequestException('Error creating payment session');
+      const message = this.getErrorMessage(error);
+      this.logger.error(`Error creating payment session: ${message}`);
+      throw new BadRequestException(message);
     }
   }
 
@@ -203,24 +242,33 @@ export class PaymentService {
       }
     });
 
-    if (!config || !config.isActive) {
+    if (!config) {
       this.logger.warn(
         `Webhook received for inactive or non-existent project config for project: ${projectId}`
       );
-      return { received: true };
+      return { received: true }; // graceful — do not crash on bad config
     }
 
     const gateway = this.getGateway(provider);
-
-    // Decrypt gateway credentials before passing to adapter.
     const keysJson = this.encryption.decryptJson(config.keysJson);
     if (!keysJson) {
       this.logger.warn(`Failed to decrypt keysJson for project: ${projectId}`);
       return { received: true }; // graceful — do not crash on bad config
     }
 
+    const gatewayKeys = config.webhookSecret
+      ? {
+          ...keysJson,
+          webhookSecret: config.webhookSecret
+        }
+      : keysJson;
+
     try {
-      const result = await gateway.handleWebhook(keysJson, payload, signature);
+      const result = await gateway.handleWebhook(
+        gatewayKeys,
+        payload,
+        signature
+      );
 
       if (result.status === WebhookPaymentStatus.PAID) {
         await this.handleSuccessfulPayment(result.externalId, provider);
@@ -230,7 +278,9 @@ export class PaymentService {
 
       return { processed: true };
     } catch (err) {
-      this.logger.error(`Error processing webhook: ${err.message}`);
+      this.logger.error(
+        `Error processing webhook: ${this.getErrorMessage(err)}`
+      );
       throw err;
     }
   }

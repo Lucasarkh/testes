@@ -53,15 +53,11 @@ export class WebhooksController {
     @Req() req: Request
   ) {
     const signature = req.headers['stripe-signature'] as string;
-    // Note: To verify Stripe signature with raw body,
-    // we need to set a specific middleware for this route
-    // or use a custom property if the raw body is already populated
+    const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
 
-    // For now processing based on payload directly,
-    // but in production signature verification should be enabled
     return this.paymentService.processWebhook(
       projectId,
-      req.body,
+      rawBody && signature ? rawBody : req.body,
       PaymentProvider.STRIPE,
       signature
     );

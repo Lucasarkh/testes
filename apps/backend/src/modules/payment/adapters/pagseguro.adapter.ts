@@ -61,7 +61,7 @@ export class PagSeguroAdapter implements IPaymentGateway {
     )?.href;
 
     return {
-      externalId: response.data.id,
+      externalId: data.orderId,
       paymentUrl: checkoutLink || ''
     };
   }
@@ -85,7 +85,8 @@ export class PagSeguroAdapter implements IPaymentGateway {
     const rawStatus = payload.charges?.[0]?.status || payload.status;
     const status = statusMapping[rawStatus] || WebhookPaymentStatus.PENDING;
 
-    const externalId = payload.id || payload.reference_id || '';
+    const externalId =
+      payload.reference_id || payload.charges?.[0]?.reference_id || payload.id || '';
 
     return {
       externalId,
