@@ -1,6 +1,6 @@
 /* ─── Main Map Editor Composable ───────────────── */
 import { ref, computed, shallowRef, watch, type Ref } from 'vue'
-import { useApi } from '../useApi'
+import { useApi } from '../composables/useApi'
 import type Konva from 'konva'
 import type {
   MapElementData,
@@ -141,14 +141,18 @@ export function useMapEditor(projectId: string) {
   function undo() {
     if (historyIndex.value <= 0) return
     historyIndex.value--
-    elements.value = JSON.parse(history.value[historyIndex.value])
+    const snapshot = history.value[historyIndex.value]
+    if (!snapshot) return
+    elements.value = JSON.parse(snapshot)
     dirty.value = true
   }
 
   function redo() {
     if (historyIndex.value >= history.value.length - 1) return
     historyIndex.value++
-    elements.value = JSON.parse(history.value[historyIndex.value])
+    const snapshot = history.value[historyIndex.value]
+    if (!snapshot) return
+    elements.value = JSON.parse(snapshot)
     dirty.value = true
   }
 
@@ -212,7 +216,15 @@ export function useMapEditor(projectId: string) {
   function updateElement(id: string, patch: Partial<MapElementData>) {
     const idx = elements.value.findIndex(e => e.id === id)
     if (idx < 0) return
-    elements.value[idx] = { ...elements.value[idx], ...patch }
+    const current = elements.value[idx]
+    if (!current) return
+    elements.value[idx] = {
+      ...current,
+      ...patch,
+      type: patch.type ?? current.type,
+      geometryType: patch.geometryType ?? current.geometryType,
+      geometryJson: patch.geometryJson ?? current.geometryJson,
+    }
     elements.value = [...elements.value]
     pushHistory()
   }
@@ -222,7 +234,15 @@ export function useMapEditor(projectId: string) {
     for (const { id, patch } of updates) {
       const idx = elements.value.findIndex(e => e.id === id)
       if (idx >= 0) {
-        elements.value[idx] = { ...elements.value[idx], ...patch }
+        const current = elements.value[idx]
+        if (!current) continue
+        elements.value[idx] = {
+          ...current,
+          ...patch,
+          type: patch.type ?? current.type,
+          geometryType: patch.geometryType ?? current.geometryType,
+          geometryJson: patch.geometryJson ?? current.geometryJson,
+        }
       }
     }
     elements.value = [...elements.value]

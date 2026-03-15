@@ -198,8 +198,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { SmartTool, EditorStep } from '../../composables/map/types'
-import { SMART_TOOLS, EDITOR_STEPS } from '../../composables/map/types'
+import type { SmartTool, EditorStep } from './types'
+import { SMART_TOOLS, EDITOR_STEPS } from './types'
 
 const props = defineProps<{
   smartTool: SmartTool
@@ -230,10 +230,10 @@ defineEmits<{
 
 const batchPrefix = ref('Quadra A - Lote')
 
-const navTools = computed(() => SMART_TOOLS.filter(t => t.category === 'navigate'))
-const lotTools = computed(() => SMART_TOOLS.filter(t => t.category === 'lots'))
-const infraTools = computed(() => SMART_TOOLS.filter(t => t.category === 'infrastructure'))
-const otherTools = computed(() => SMART_TOOLS.filter(t => t.category === 'other'))
+const navTools = computed(() => SMART_TOOLS.filter((tool) => tool.category === 'navigate'))
+const lotTools = computed(() => SMART_TOOLS.filter((tool) => tool.category === 'lots'))
+const infraTools = computed(() => SMART_TOOLS.filter((tool) => tool.category === 'infrastructure'))
+const otherTools = computed(() => SMART_TOOLS.filter((tool) => tool.category === 'other'))
 </script>
 
 <style scoped>

@@ -14,12 +14,48 @@ const canLoadProjectsCatalog = computed(() => {
 })
 const router = useRouter()
 
-const realtors = ref([])
-const projects = ref([])
+type RealtorProject = {
+  id: string
+  name: string
+  slug: string
+}
+
+type RealtorRecord = {
+  id: string
+  name: string
+  phone: string
+  creci?: string | null
+  code: string
+  projects?: RealtorProject[]
+  user?: {
+    email: string
+  } | null
+  isPending?: boolean
+  notes?: string | null
+}
+
+type RealtorPayload = {
+  name: string
+  phone: string
+  creci: string
+  code: string
+  projectIds: string[]
+  accountEmail?: string
+  accountPassword?: string
+}
+
+type ApiError = {
+  data?: {
+    message?: string
+  }
+}
+
+const realtors = ref<RealtorRecord[]>([])
+const projects = ref<RealtorProject[]>([])
 const loading = ref(true)
 const showModal = ref(false)
 const showInviteModal = ref(false)
-const editingRealtor = ref(null)
+const editingRealtor = ref<RealtorRecord | null>(null)
 const approvingId = ref<string | null>(null)
 
 const emailError = ref('')
@@ -45,7 +81,7 @@ const form = ref({
   phone: '',
   creci: '',
   code: '',
-  projectIds: [],
+  projectIds: [] as string[],
   accountEmail: '',
   accountPassword: ''
 })
@@ -148,19 +184,21 @@ async function saveRealtor() {
   }
 
   try {
-    const payload = {
+    const payload: RealtorPayload = {
       ...form.value,
       phone: form.value.phone.replace(/\D/g, '')
     }
 
-    // Don't send empty account fields
-    if (!payload.accountEmail) delete payload.accountEmail
-    if (!payload.accountPassword) delete payload.accountPassword
+    if (!payload.accountEmail) {
+      payload.accountEmail = undefined
+    }
+    if (!payload.accountPassword) {
+      payload.accountPassword = undefined
+    }
 
     if (editingRealtor.value) {
-      // Remove account fields on edit (cannot change via this form)
-      delete payload.accountEmail
-      delete payload.accountPassword
+      payload.accountEmail = undefined
+      payload.accountPassword = undefined
       await patch(`/realtor-links/${editingRealtor.value.id}`, payload)
       toast.success('Corretor atualizado com sucesso')
     } else {
@@ -175,7 +213,7 @@ async function saveRealtor() {
     codeAvailable.value = false
     fetchData()
   } catch (error) {
-    toast.error(error?.data?.message || 'Erro ao salvar corretor')
+    toast.error((error as ApiError)?.data?.message || 'Erro ao salvar corretor')
   }
 }
 
@@ -203,7 +241,7 @@ function openCreate() {
   showModal.value = true
 }
 
-function openEdit(realtor) {
+function openEdit(realtor: RealtorRecord) {
   if (!canWriteRealtors.value) return
   editingRealtor.value = realtor
   form.value = {
@@ -211,7 +249,7 @@ function openEdit(realtor) {
     phone: realtor.phone,
     creci: realtor.creci || '',
     code: realtor.code,
-    projectIds: realtor.projects?.map(p => p.id) || [],
+    projectIds: realtor.projects?.map((project) => project.id) || [],
     accountEmail: '',
     accountPassword: ''
   }
@@ -223,9 +261,9 @@ function openEdit(realtor) {
   showModal.value = true
 }
 
-function getProjectNames(realtor) {
+function getProjectNames(realtor: RealtorRecord) {
   if (!realtor.projects || realtor.projects.length === 0) return 'Todos'
-  return realtor.projects.map(p => p.name).join(', ')
+  return realtor.projects.map((project) => project.name).join(', ')
 }
 
 function isPendingRealtor(realtor: any) {
@@ -240,21 +278,22 @@ async function approvePendingRealtor(realtor: any) {
     toast.success('Solicitação aprovada. Corretor ativado com sucesso.')
     await fetchData()
   } catch (error) {
-    toast.error(error?.data?.message || 'Erro ao aprovar solicitação do corretor')
+    toast.error((error as ApiError)?.data?.message || 'Erro ao aprovar solicitação do corretor')
   } finally {
     approvingId.value = null
   }
 }
 
-function copyLink(realtor, project = null) {
+function copyLink(realtor: RealtorRecord, project: RealtorProject | null = null) {
   let url = ''
+  const linkedProjects = realtor.projects ?? []
   
   if (project) {
     url = `${window.location.origin}/${project.slug}?c=${realtor.code}`
-  } else if (realtor.projects?.length > 0) {
+  } else if (linkedProjects.length > 0) {
     // If no specific project provided, copy the first one
-    const p = realtor.projects[0]
-    url = `${window.location.origin}/${p.slug}?c=${realtor.code}`
+    const p = linkedProjects[0]
+    url = p ? `${window.location.origin}/${p.slug}?c=${realtor.code}` : `${window.location.origin}/p?c=${realtor.code}`
   } else {
     // Fallback if no projects
     url = `${window.location.origin}/p?c=${realtor.code}`

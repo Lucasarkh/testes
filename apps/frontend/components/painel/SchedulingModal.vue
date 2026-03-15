@@ -109,7 +109,7 @@
                     <input v-model="form.leadEmail" type="email" placeholder="E-mail" class="form-control-alt">
                   </div>
                   <div class="form-group">
-                    <input :value="form.leadPhone" @input="form.leadPhone = applyPhoneMask($event.target.value)" type="text" placeholder="Celular/WhatsApp" class="form-control-alt">
+                    <input :value="form.leadPhone" @input="onLeadPhoneInput" type="text" placeholder="Celular/WhatsApp" class="form-control-alt">
                   </div>
                 </div>
               </div>
@@ -554,8 +554,20 @@ const canLoadProjectsCatalog = computed(() => {
 
 const saving = ref(false);
 const loadingLeads = ref(false);
-const projects = ref([]);
-const leads = ref([]);
+type ProjectOption = {
+  id: string;
+  name: string;
+};
+
+type LeadOption = {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+};
+
+const projects = ref<ProjectOption[]>([]);
+const leads = ref<LeadOption[]>([]);
 const leadSearch = ref('');
 const selectedLeadName = ref('');
 
@@ -568,6 +580,16 @@ const form = ref({
   leadPhone: '',
   notes: ''
 });
+
+const applyPhoneMask = (value: string) => value.replace(/\D/g, '').slice(0, 11)
+  .replace(/(\d{2})(\d)/, '($1) $2')
+  .replace(/(\d{5})(\d)/, '$1-$2');
+
+const getInputValue = (event: Event) => (event.target as HTMLInputElement | null)?.value ?? '';
+
+const onLeadPhoneInput = (event: Event) => {
+  form.value.leadPhone = applyPhoneMask(getInputValue(event));
+};
 
 onMounted(async () => {
   if (!canLoadProjectsCatalog.value) {
@@ -608,7 +630,7 @@ const onLeadSearch = () => {
     }, 400);
 }
 
-const selectLead = (lead: any) => {
+const selectLead = (lead: LeadOption) => {
     form.value.leadId = lead.id;
     selectedLeadName.value = lead.name;
     leadSearch.value = '';

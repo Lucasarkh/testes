@@ -144,7 +144,7 @@ function getLastTierQty(plan: any): number {
   if (lastTierQty.value[plan.projectCount] === undefined) {
     lastTierQty.value[plan.projectCount] = plan.projectCount
   }
-  return lastTierQty.value[plan.projectCount]
+  return lastTierQty.value[plan.projectCount] ?? plan.projectCount
 }
 
 function setLastTierQty(plan: any, val: number) {

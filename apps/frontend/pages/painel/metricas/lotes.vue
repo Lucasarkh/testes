@@ -134,7 +134,7 @@ const statusClass = (status: string) => {
             </thead>
             <tbody>
               <tr v-for="(lot, idx) in data.lots" :key="lot.code">
-                <td class="col-rank">{{ idx + 1 }}</td>
+                <td class="col-rank">{{ Number(idx) + 1 }}</td>
                 <td class="col-lot">
                   <span class="lot-code">{{ lot.code }}</span>
                   <span class="lot-name">{{ lot.name }}</span>

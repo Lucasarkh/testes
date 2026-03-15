@@ -133,7 +133,7 @@ const maxDurationBucket = computed(() => {
           <div class="stat-icon icon-blue">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
-          <CommonAppTooltip text="Total de sessões (visitas) registradas no período selecionado." position="bottom"><span class="stat-label">Sessões no Período</span></CommonAppTooltip>
+          <CommonAppTooltip text="Total de janelas reais de visita abertas no período. Sessões retomadas após longa ausência contam como uma nova visita." position="bottom"><span class="stat-label">Sessões no Período</span></CommonAppTooltip>
           <span class="stat-value text-blue">{{ data.summary.currentSessions }}</span>
         </div>
         <div class="stat-card">
@@ -236,7 +236,7 @@ const maxDurationBucket = computed(() => {
         <div class="engagement-summary">
           <div class="engagement-stat">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <CommonAppTooltip text="Média de tempo que os visitantes permanecem ativos no site por sessão." position="bottom"><span class="engagement-stat-label">Tempo médio por sessão:</span></CommonAppTooltip>
+            <CommonAppTooltip text="Média de tempo com atividade observável por sessão. A métrica considera navegação e permanência com aba visível, sem reaproveitar períodos longos de inatividade." position="bottom"><span class="engagement-stat-label">Tempo médio por sessão:</span></CommonAppTooltip>
             <span class="engagement-stat-value">{{ avgSessionDuration }}</span>
           </div>
         </div>
@@ -245,7 +245,7 @@ const maxDurationBucket = computed(() => {
       <div class="two-col-grid">
         <!-- Duration Distribution -->
         <div class="details-card">
-          <h3><CommonAppTooltip text="Como as sessões se distribuem por faixas de duração. Mostra o engajamento dos visitantes." position="right">Distribuição de Duração das Sessões</CommonAppTooltip></h3>
+          <h3><CommonAppTooltip text="Como as sessões se distribuem por faixas de atividade observada. Serve para entender profundidade real de navegação, não apenas abas abertas esquecidas." position="right">Distribuição de Duração das Sessões</CommonAppTooltip></h3>
           <div v-if="data.engagement?.durationDistribution?.length" class="duration-chart">
             <div v-for="bucket in data.engagement.durationDistribution" :key="bucket.label" class="duration-row">
               <span class="duration-label">{{ bucket.label }}</span>

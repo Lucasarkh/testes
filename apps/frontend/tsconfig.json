@@ -1,6 +1,7 @@
 {
   // https://nuxt.com/docs/guide/concepts/typescript
   "files": [],
+  "exclude": ["__tests__/**"],
   "compilerOptions": {
     "types": ["node"],
     "skipLibCheck": true,

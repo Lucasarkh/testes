@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
-import type { LotGridConfig } from '../../composables/map/types'
+import type { LotGridConfig } from './types'
 
 const props = defineProps<{
   initialConfig: LotGridConfig

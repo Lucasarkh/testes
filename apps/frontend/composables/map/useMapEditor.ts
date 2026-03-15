@@ -1,11 +1,12 @@
 /* ─── LEGO-Style Map Editor Composable ─────────────────── */
-import { ref, computed, shallowRef } from 'vue'
+import { ref, computed } from 'vue'
 import { useApi } from '../useApi'
 import type {
-  MapElementData, MapElementType, Point, StyleJson,
+  GeometryJson,
+  MapElementData, MapElementType, Point,
   EditorMode, EditorStep, LotGridConfig, TileDefinition,
 } from './types'
-import { DEFAULT_STYLE, TILE_CATALOG, getTileById } from './types'
+import { DEFAULT_STYLE, getTileById } from './types'
 
 export function useMapEditor(projectId: string) {
   const { fetchApi } = useApi()
@@ -125,15 +126,34 @@ export function useMapEditor(projectId: string) {
   function undo() {
     if (historyIndex.value <= 0) return
     historyIndex.value--
-    elements.value = JSON.parse(history.value[historyIndex.value])
+    const snapshot = history.value[historyIndex.value]
+    if (!snapshot) return
+    elements.value = JSON.parse(snapshot)
     dirty.value = true
   }
 
   function redo() {
     if (historyIndex.value >= history.value.length - 1) return
     historyIndex.value++
-    elements.value = JSON.parse(history.value[historyIndex.value])
+    const snapshot = history.value[historyIndex.value]
+    if (!snapshot) return
+    elements.value = JSON.parse(snapshot)
     dirty.value = true
+  }
+
+  function mergeMapElement(
+    current: MapElementData,
+    patch: Partial<MapElementData>,
+  ): MapElementData {
+    return {
+      ...current,
+      ...patch,
+      type: patch.type ?? current.type,
+      geometryType: patch.geometryType ?? current.geometryType,
+      geometryJson: (patch.geometryJson ?? current.geometryJson) as GeometryJson,
+      styleJson: patch.styleJson ?? current.styleJson,
+      metaJson: patch.metaJson ?? current.metaJson,
+    }
   }
 
   /* ── CRUD ──────────────────────────────────── */
@@ -234,7 +254,9 @@ export function useMapEditor(projectId: string) {
   function updateElement(id: string, patch: Partial<MapElementData>) {
     const idx = elements.value.findIndex(e => e.id === id)
     if (idx < 0) return
-    elements.value[idx] = { ...elements.value[idx], ...patch }
+    const current = elements.value[idx]
+    if (!current) return
+    elements.value[idx] = mergeMapElement(current, patch)
     elements.value = [...elements.value]
     pushHistory()
   }
@@ -242,7 +264,10 @@ export function useMapEditor(projectId: string) {
   function updateElements(updates: { id: string; patch: Partial<MapElementData> }[]) {
     for (const { id, patch } of updates) {
       const idx = elements.value.findIndex(e => e.id === id)
-      if (idx >= 0) elements.value[idx] = { ...elements.value[idx], ...patch }
+      if (idx < 0) continue
+      const current = elements.value[idx]
+      if (!current) continue
+      elements.value[idx] = mergeMapElement(current, patch)
     }
     elements.value = [...elements.value]
     pushHistory()
@@ -359,7 +384,7 @@ export function useMapEditor(projectId: string) {
       const next = new Set(selectedIds.value)
       if (next.has(id)) {
         next.delete(id)
-        if (selectedId.value === id) selectedId.value = next.size > 0 ? [...next][0] : null
+        if (selectedId.value === id) selectedId.value = Array.from(next)[0] ?? null
       } else {
         next.add(id)
         selectedId.value = id
@@ -387,7 +412,7 @@ export function useMapEditor(projectId: string) {
     })
     const ids = new Set(matched.map(e => e.id!).filter(Boolean))
     selectedIds.value = ids
-    selectedId.value = ids.size > 0 ? [...ids][0] : null
+    selectedId.value = Array.from(ids)[0] ?? null
   }
 
   function moveElements(ids: string[], dx: number, dy: number) {
@@ -396,10 +421,13 @@ export function useMapEditor(projectId: string) {
       const idx = elements.value.findIndex(e => e.id === id)
       if (idx < 0) continue
       const el = elements.value[idx]
+      if (!el) continue
       const g = el.geometryJson
       const newX = Math.round(((g.x ?? 0) + dx) / cs) * cs
       const newY = Math.round(((g.y ?? 0) + dy) / cs) * cs
-      elements.value[idx] = { ...el, geometryJson: { ...g, x: newX, y: newY } }
+      elements.value[idx] = mergeMapElement(el, {
+        geometryJson: { ...g, x: newX, y: newY },
+      })
     }
     elements.value = [...elements.value]
     pushHistory()
@@ -418,6 +446,7 @@ export function useMapEditor(projectId: string) {
   function findElementAt(pos: Point): MapElementData | null {
     for (let i = elements.value.length - 1; i >= 0; i--) {
       const el = elements.value[i]
+      if (!el) continue
       const g = el.geometryJson
       if (g.x != null && g.y != null && g.width != null && g.height != null) {
         if (pos.x >= g.x && pos.x <= g.x + g.width && pos.y >= g.y && pos.y <= g.y + g.height) {
@@ -492,7 +521,7 @@ export function useMapEditor(projectId: string) {
   return {
     // State
     elements, selectedId, selectedIds, selected, editorMode, editorStep,
-    dirty, saving, loading, mapBaseImageUrl,
+    dirty, saving, loading,
     activeTileId, activeTile, placementRotation, ghostPos, cellSize,
     stageScale, stagePos, lotElements, stats, drawingHint,
 

@@ -8,9 +8,9 @@ export function useMetricsFilters() {
   const projects = ref<any[]>([])
   const today = ref(getTodayInBrasilia())
 
-  function getQueryValue(value: string | string[] | undefined) {
-    if (Array.isArray(value)) return value[0] || undefined
-    return value
+  function getQueryValue(value: string | null | Array<string | null> | undefined) {
+    if (Array.isArray(value)) return value.find((entry): entry is string => !!entry) || undefined
+    return value ?? undefined
   }
 
   function isValidDateInput(value: string) {

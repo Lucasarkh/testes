@@ -168,8 +168,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { MapElementData, StyleJson } from '../../composables/map/types'
-import { MAP_ELEMENT_LABELS } from '../../composables/map/types'
+import type { MapElementData, StyleJson } from './types'
+import { MAP_ELEMENT_LABELS } from './types'
 
 const props = defineProps<{ element: MapElementData | null }>()
 const emit = defineEmits<{

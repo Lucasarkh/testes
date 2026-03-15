@@ -677,7 +677,9 @@ const renderedVisibleHotspots = computed(() => {
   if (idx === -1) return visibleHotspots.value
   const ordered = visibleHotspots.value.slice()
   const [hovered] = ordered.splice(idx, 1)
-  ordered.push(hovered)
+  if (hovered) {
+    ordered.push(hovered)
+  }
   return ordered
 })
 
@@ -854,28 +856,36 @@ let lastTouchDist = 0
 
 const onTouchStart = (e: TouchEvent) => {
   if (e.touches.length === 2) {
+    const firstTouch = e.touches[0]
+    const secondTouch = e.touches[1]
+    if (!firstTouch || !secondTouch) return
     lastTouchDist = Math.hypot(
-      e.touches[1].clientX - e.touches[0].clientX,
-      e.touches[1].clientY - e.touches[0].clientY,
+      secondTouch.clientX - firstTouch.clientX,
+      secondTouch.clientY - firstTouch.clientY,
     )
   } else if (e.touches.length === 1 && (editorMode.value === 'view' || editorMode.value === 'move')) {
+    const touch = e.touches[0]
+    if (!touch) return
     isPanning = true
-    panStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    panStart = { x: touch.clientX, y: touch.clientY }
     panOffsetStart = { ...offset.value }
   }
 }
 
 const onTouchMove = (e: TouchEvent) => {
   if (e.touches.length === 2) {
+    const firstTouch = e.touches[0]
+    const secondTouch = e.touches[1]
+    if (!firstTouch || !secondTouch || !canvasWrapEl.value) return
     const dist = Math.hypot(
-      e.touches[1].clientX - e.touches[0].clientX,
-      e.touches[1].clientY - e.touches[0].clientY,
+      secondTouch.clientX - firstTouch.clientX,
+      secondTouch.clientY - firstTouch.clientY,
     )
     const delta = (dist - lastTouchDist) / 200
     lastTouchDist = dist
-    const rect = canvasWrapEl.value!.getBoundingClientRect()
-    const cx = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left
-    const cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top
+    const rect = canvasWrapEl.value.getBoundingClientRect()
+    const cx = ((firstTouch.clientX + secondTouch.clientX) / 2) - rect.left
+    const cy = ((firstTouch.clientY + secondTouch.clientY) / 2) - rect.top
     const minS = Math.max(rect.width / imgW.value, rect.height / imgH.value)
     const newScale = Math.min(10, Math.max(minS, scale.value + delta * scale.value))
     const ratio = newScale / scale.value
@@ -884,8 +894,10 @@ const onTouchMove = (e: TouchEvent) => {
     offset.value = clampOffset(newScale, newX, newY)
     scale.value = newScale
   } else if (e.touches.length === 1 && isPanning) {
-    const newX = panOffsetStart.x + e.touches[0].clientX - panStart.x
-    const newY = panOffsetStart.y + e.touches[0].clientY - panStart.y
+    const touch = e.touches[0]
+    if (!touch) return
+    const newX = panOffsetStart.x + touch.clientX - panStart.x
+    const newY = panOffsetStart.y + touch.clientY - panStart.y
     offset.value = clampOffset(scale.value, newX, newY)
   }
 }
@@ -927,7 +939,9 @@ const updateHotspotPosByMouse = (clientX: number, clientY: number) => {
   const { x, y } = clientToNormalized(clientX, clientY)
   const idx = localHotspots.value.findIndex((h) => h.id === draggingHotspotId)
   if (idx !== -1) {
-    localHotspots.value[idx] = { ...localHotspots.value[idx], x, y }
+    const current = localHotspots.value[idx]
+    if (!current) return
+    localHotspots.value[idx] = { ...current, x, y }
   }
 }
 
@@ -1074,9 +1088,12 @@ const generateBatch = async () => {
     let padding = 0
 
     if (match) {
-      prefix = match[1]
-      padding = match[2].length
-      nextNum = parseInt(match[2], 10)
+      const [, matchedPrefix, matchedNumber] = match
+      if (matchedPrefix && matchedNumber) {
+        prefix = matchedPrefix
+        padding = matchedNumber.length
+        nextNum = parseInt(matchedNumber, 10)
+      }
     }
 
     // Check existing hotspots to continue sequence if needed
@@ -1084,7 +1101,7 @@ const generateBatch = async () => {
       .map(hs => {
         const hsLabel = hs.label || hs.title
         const m = hsLabel.match(new RegExp(`^${prefix}(\\d+)$`))
-        return m ? parseInt(m[1], 10) : null
+        return m?.[1] ? parseInt(m[1], 10) : null
       })
       .filter((n): n is number => n !== null)
 
@@ -1141,7 +1158,7 @@ const deleteSelectedHotspots = async () => {
   if (!confirm(confirmText)) return
 
   const results = await Promise.allSettled(ids.map((id) => api.deleteHotspot(id)))
-  const deletedIds = ids.filter((_, idx) => results[idx].status === 'fulfilled')
+  const deletedIds = ids.filter((_, idx) => results[idx]?.status === 'fulfilled')
   const failedCount = results.length - deletedIds.length
 
   if (deletedIds.length) {

@@ -232,8 +232,9 @@ function assignmentLabel(code: InviteCode) {
   if (code.projectAssignmentMode === 'ALL') return 'Vincula automaticamente em todos os empreendimentos.'
   if (code.projectAssignmentMode === 'SELECTED') {
     if (!code.projects?.length) return 'Vincula automaticamente em projetos selecionados.'
+    const firstProject = code.projects[0]
     return code.projects.length === 1
-      ? `Vincula automaticamente em ${code.projects[0].name}.`
+      ? `Vincula automaticamente em ${firstProject?.name || 'um empreendimento'}.`
       : `Vincula automaticamente em ${code.projects.length} empreendimentos selecionados.`
   }
   return 'Nao vincula o corretor a nenhum empreendimento automaticamente.'

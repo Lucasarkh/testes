@@ -52,7 +52,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     label = 'Mapa do Empreendimento';
   } else if (!label) {
     const parts = to.path.split('/').filter(Boolean);
-    label = parts.length > 0 ? parts[parts.length - 1] : to.path;
+    label = parts.length > 0 ? (parts[parts.length - 1] || to.path) : to.path;
   }
 
   // Ensure label is never a route name

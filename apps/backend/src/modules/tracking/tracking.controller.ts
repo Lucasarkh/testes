@@ -12,6 +12,7 @@ import {
 import {
   CreateSessionDto,
   CreateEventDto,
+  TouchSessionDto,
   TrackingReportQueryDto
 } from './dto/tracking.dto';
 import { TrackingService } from './tracking.service';
@@ -71,12 +72,51 @@ export class TrackingController {
   }
 
   @Post('event')
-  async trackEvent(@Body() dto: CreateEventDto, @Req() req: Request) {
+  async trackEvent(
+    @Body() dto: CreateEventDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
     // Also check for cookie if body is missing sessionId
     if (!dto.sessionId) {
       dto.sessionId = req.cookies?.['tracking_visit_id'] || req.cookies?.['tracking_session_id'];
     }
-    return this.trackingService.trackEvent(dto);
+
+    const trackedEvent = await this.trackingService.trackEvent(dto);
+
+    if (dto.sessionId) {
+      res.cookie('tracking_visit_id', dto.sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 60 * 1000
+      });
+    }
+
+    return trackedEvent;
+  }
+
+  @Post('session/ping')
+  async touchSession(
+    @Body() dto: TouchSessionDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    if (!dto.sessionId) {
+      dto.sessionId =
+        req.cookies?.['tracking_visit_id'] || req.cookies?.['tracking_session_id'];
+    }
+
+    const session = await this.trackingService.touchSession(dto.sessionId);
+
+    res.cookie('tracking_visit_id', session.sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 60 * 1000
+    });
+
+    return session;
   }
 
   @Get('stats')

@@ -13,21 +13,47 @@ const authStore = useAuthStore()
 const canWritePayments = computed(() => authStore.canWriteFeature('payments'))
 const writePermissionHint = 'Disponível apenas para usuários com permissão de edição'
 
-const configs = ref([])
+type PaymentProvider = 'STRIPE' | 'ASAAS' | 'MERCADO_PAGO' | 'PAGAR_ME' | 'PAGSEGURO'
+
+type PaymentKeys = {
+  secretKey: string
+  apiKey: string
+  accessToken: string
+  token: string
+  isSandbox: boolean
+}
+
+type PaymentConfigRecord = {
+  id: string
+  name: string
+  provider: PaymentProvider
+  keysJson?: Partial<PaymentKeys>
+  isActive: boolean
+  webhookSecret?: string | null
+  projects?: Array<{ id: string }>
+}
+
+type ApiError = {
+  data?: {
+    message?: string
+  }
+}
+
+const configs = ref<PaymentConfigRecord[]>([])
 const loading = ref(true)
 const showModal = ref(false)
-const editingConfig = ref(null)
+const editingConfig = ref<PaymentConfigRecord | null>(null)
 
 const form = ref({
   name: '',
-  provider: 'STRIPE',
+  provider: 'STRIPE' as PaymentProvider,
   keysJson: {
     secretKey: '',
     apiKey: '',
     accessToken: '',
     token: '',
     isSandbox: false
-  },
+  } as PaymentKeys,
   isActive: true,
   webhookSecret: ''
 })
@@ -36,7 +62,7 @@ const form = ref({
 watch(showModal, (val) => {
   if (!val) return
   if (!editingConfig.value) {
-    if (window.crypto && window.crypto.getRandomValues) {
+    if (typeof window !== 'undefined' && typeof window.crypto?.getRandomValues === 'function') {
       // Force a re-render of inputs by clearing and resetting
       form.value.keysJson = {
         secretKey: '',
@@ -104,7 +130,7 @@ function validateForm(): boolean {
 
 async function saveConfig() {
   if (!validateForm()) {
-    toast.error(formErrors.value[0])
+    toast.error(formErrors.value[0] || 'Revise os campos obrigatórios.')
     return
   }
   try {
@@ -114,13 +140,10 @@ async function saveConfig() {
     // However, since Backend now merges, we just need to ensure we're not sending empty strings 
     // for fields that were previously masked.
     if (editingConfig.value) {
-      const filteredKeys = { ...payload.keysJson }
-      Object.keys(filteredKeys).forEach(key => {
-        if (!filteredKeys[key]) {
-          delete filteredKeys[key]
-        }
-      })
-      payload.keysJson = filteredKeys
+      const filteredKeys = Object.fromEntries(
+        Object.entries(payload.keysJson).filter(([, value]) => Boolean(value))
+      ) as Partial<PaymentKeys>
+      payload.keysJson = filteredKeys as PaymentKeys
       
       await patch(`/admin/payment-config/${editingConfig.value.id}`, payload)
       toast.success('Configuração atualizada')
@@ -131,7 +154,7 @@ async function saveConfig() {
     showModal.value = false
     fetchData()
   } catch (error) {
-    toast.error(error?.data?.message || 'Erro ao salvar configuração')
+    toast.error((error as ApiError)?.data?.message || 'Erro ao salvar configuração')
   }
 }
 
@@ -165,7 +188,7 @@ function openCreate() {
   showModal.value = true
 }
 
-function openEdit(config) {
+function openEdit(config: PaymentConfigRecord) {
   editingConfig.value = config
   formErrors.value = []
   

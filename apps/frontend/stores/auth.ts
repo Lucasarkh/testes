@@ -12,14 +12,18 @@ type JwtPayload = {
   exp?: number;
 };
 
+const TOKEN_CLOCK_SKEW_SECONDS = 30;
+
 const parseJwtPayload = (token: string): JwtPayload | null => {
   try {
     const parts = token.split('.');
     if (parts.length < 2) return null;
-    const payload = parts[1]
+    const payload = parts[1];
+    if (!payload) return null;
+    const normalizedPayload = payload
       .replace(/-/g, '+')
       .replace(/_/g, '/');
-    const normalized = payload.padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const normalized = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=');
 
     if (import.meta.client) {
       return JSON.parse(atob(normalized));
@@ -30,6 +34,16 @@ const parseJwtPayload = (token: string): JwtPayload | null => {
   } catch {
     return null;
   }
+};
+
+const isTokenExpired = (token: string | null, clockSkewSeconds = TOKEN_CLOCK_SKEW_SECONDS): boolean => {
+  if (!token) return true;
+
+  const payload = parseJwtPayload(token);
+  if (!payload?.exp) return true;
+
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+  return payload.exp <= (nowInSeconds + clockSkewSeconds);
 };
 
 export interface User {
@@ -67,7 +81,7 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   getters: {
-    isLoggedIn: (state) => !!state.accessToken,
+    isLoggedIn: (state) => !!state.accessToken && !isTokenExpired(state.accessToken),
     isSysAdmin: (state) => state.user?.role === 'SYSADMIN',
     isLoteadora: (state) => state.user?.role === 'LOTEADORA',
     isImobiliaria: (state) => state.user?.role === 'IMOBILIARIA',
@@ -90,14 +104,8 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    isTokenExpired(token: string | null, clockSkewSeconds = 30): boolean {
-      if (!token) return true;
-
-      const payload = parseJwtPayload(token);
-      if (!payload?.exp) return true;
-
-      const nowInSeconds = Math.floor(Date.now() / 1000);
-      return payload.exp <= (nowInSeconds + clockSkewSeconds);
+    isTokenExpired(token: string | null, clockSkewSeconds = TOKEN_CLOCK_SKEW_SECONDS): boolean {
+      return isTokenExpired(token, clockSkewSeconds);
     },
 
     ensureSessionIsValid(): boolean {
@@ -134,17 +142,32 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    loadFromStorage() {
-      if (import.meta.client) {
-        this.accessToken = localStorage.getItem('access_token');
-        this.refreshToken = localStorage.getItem('refresh_token');
-        const raw = localStorage.getItem('user');
-        if (raw) {
-          try { this.user = JSON.parse(raw); } catch { this.user = null; }
-        }
-
-        this.ensureSessionIsValid();
+    loadFromStorage(): boolean {
+      if (!import.meta.client) {
+        return this.ensureSessionIsValid();
       }
+
+      const storedAccessToken = localStorage.getItem('access_token');
+
+      if (isTokenExpired(storedAccessToken)) {
+        this.logout();
+        return false;
+      }
+
+      this.accessToken = storedAccessToken;
+      this.refreshToken = localStorage.getItem('refresh_token');
+      this.user = null;
+
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        try {
+          this.user = JSON.parse(raw);
+        } catch {
+          this.user = null;
+        }
+      }
+
+      return this.ensureSessionIsValid();
     },
 
     getDashboardRoute(): string {
@@ -154,8 +177,8 @@ export const useAuthStore = defineStore('auth', {
       if (!hasManagedPanelRestrictions(this.user)) return '/painel';
 
       for (const feature of PANEL_FEATURES) {
-        if (canUserAccessFeature(this.user, feature, 'read')) {
-          return PANEL_FEATURE_DEFAULT_ROUTE[feature];
+        if (canUserAccessFeature(this.user, feature.key, 'read')) {
+          return PANEL_FEATURE_DEFAULT_ROUTE[feature.key];
         }
       }
 

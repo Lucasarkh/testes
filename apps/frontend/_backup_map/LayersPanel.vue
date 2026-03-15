@@ -7,7 +7,7 @@
     <div v-for="(group, type) in groupedElements" :key="type" class="layer-group">
       <div class="layer-group-header" @click="toggleGroup(type as string)">
         <span class="type-icon">{{ icons[type as MapElementType] || '⬡' }}</span>
-        <span class="group-name">{{ labels[type as MapElementType] }} ({{ group.length }})</span>
+        <span class="group-name">{{ labels[type as MapElementType] }} ({{ group?.length || 0 }})</span>
         <span class="expand-icon">{{ expanded[type as string] ? '▾' : '▸' }}</span>
       </div>
       <div v-if="expanded[type as string]" class="layer-items">
@@ -34,8 +34,8 @@
 
 <script setup lang="ts">
 import { reactive, computed } from 'vue'
-import type { MapElementData, MapElementType } from '../../composables/map/types'
-import { MAP_ELEMENT_LABELS } from '../../composables/map/types'
+import type { MapElementData, MapElementType } from './types'
+import { MAP_ELEMENT_LABELS } from './types'
 
 const props = defineProps<{
   elements: MapElementData[]

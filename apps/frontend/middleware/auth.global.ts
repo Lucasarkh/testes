@@ -7,12 +7,9 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   const authStore = useAuthStore();
-
-  if (!authStore.isLoggedIn) {
-    authStore.loadFromStorage();
-  } else {
-    authStore.ensureSessionIsValid();
-  }
+  const hasValidSession = authStore.isLoggedIn
+    ? authStore.ensureSessionIsValid()
+    : authStore.loadFromStorage();
 
   // Public routes: login, root, or any tenant/project page
   const publicRoutes = ['/login'];
@@ -20,14 +17,14 @@ export default defineNuxtRouteMiddleware((to) => {
   const isPublic = publicRoutes.includes(to.path) || !isPainel;
 
   if (isPublic) {
-    if (authStore.isLoggedIn && ['/login'].includes(to.path)) {
+    if (hasValidSession && ['/login'].includes(to.path)) {
       return navigateTo(authStore.getDashboardRoute());
     }
     return;
   }
 
   // All /painel routes require auth
-  if (!authStore.isLoggedIn) {
+  if (!hasValidSession) {
     return navigateTo('/login');
   }
 

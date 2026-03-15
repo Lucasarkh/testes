@@ -37,7 +37,7 @@
           </div>
         </div>
         <div v-if="error" class="alert alert-error">{{ error }}</div>
-        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" :disabled="loading || !!passwordPolicyError || (confirmPassword && confirmPassword !== password)">
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%" :disabled="loading || !!passwordPolicyError || (!!confirmPassword && confirmPassword !== password)">
           {{ loading ? 'Redefinindo...' : 'Redefinir Senha' }}
         </button>
       </form>
@@ -89,9 +89,10 @@ const handleSubmit = async () => {
     }
     success.value = true
   } catch (e) {
-    error.value = e.message === 'Token inválido ou expirado' 
+    const message = e instanceof Error ? e.message : 'Erro ao redefinir senha. Tente novamente.'
+    error.value = message === 'Token inválido ou expirado' 
       ? 'Link expirado ou já utilizado. Solicite um novo link.' 
-      : (e.message || 'Erro ao redefinir senha. Tente novamente.')
+      : message
   } finally {
     loading.value = false
   }

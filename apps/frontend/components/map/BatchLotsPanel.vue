@@ -18,7 +18,7 @@
         v-for="lot in lots"
         :key="lot.id"
         :class="['lot-row', { selected: lot.id === selectedId }]"
-        @click="$emit('select', lot.id)"
+        @click="lot.id && $emit('select', lot.id)"
       >
         <span class="col code">
           <input

@@ -88,7 +88,7 @@
         <button class="v4-lightbox-close" @click="lightboxOpen = false">&times;</button>
         <button v-if="lightboxIdx > 0" class="v4-lightbox-btn v4-prev" @click="lightboxIdx--">&#10094;</button>
         <div class="v4-lightbox-content">
-          <img v-if="lightboxMedia?.type === 'PHOTO'" :src="lightboxMedia.url" :alt="lightboxMedia.caption" />
+          <img v-if="lightboxMedia?.type === 'PHOTO'" :src="lightboxMedia.url" :alt="lightboxMedia.caption || 'Mídia do projeto'" />
           <video v-else :src="lightboxMedia?.url" controls autoplay />
           <div v-if="lightboxMedia?.caption" class="v4-lightbox-caption">{{ lightboxMedia.caption }}</div>
         </div>
@@ -135,7 +135,21 @@ const projectUrl = computed(() => {
 
 const loading = ref(true)
 const error = ref('')
-const project = ref<any>(null)
+
+type ProjectMediaItem = {
+  id: string
+  url: string
+  type: 'PHOTO' | 'VIDEO' | string
+  caption?: string | null
+}
+
+type GalleryProject = {
+  name: string
+  tenant?: { name?: string | null } | null
+  projectMedias?: ProjectMediaItem[] | null
+}
+
+const project = ref<GalleryProject | null>(null)
 
 const page = ref(1)
 const perPage = 16
@@ -144,7 +158,7 @@ const lightboxOpen = ref(false)
 const lightboxIdx = ref(0)
 const lightboxMedia = computed(() => project.value?.projectMedias?.[lightboxIdx.value] ?? null)
 
-const paginatedMedia = computed(() => {
+const paginatedMedia = computed<ProjectMediaItem[]>(() => {
   if (!project.value?.projectMedias) return []
   const start = (page.value - 1) * perPage
   return project.value.projectMedias.slice(start, start + perPage)

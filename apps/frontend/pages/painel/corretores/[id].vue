@@ -23,9 +23,9 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   CANCELED:    { label: 'Cancelado',   color: '#9ca3af', bg: 'rgba(156,163,175,0.12)' },
 }
 
-function statusLabel(s: string) { return statusConfig[s]?.label ?? s }
-function statusColor(s: string) { return statusConfig[s]?.color ?? '#9ca3af' }
-function statusBg(s: string)    { return statusConfig[s]?.bg    ?? 'rgba(156,163,175,0.12)' }
+function statusLabel(s: string | number) { return statusConfig[String(s)]?.label ?? String(s) }
+function statusColor(s: string | number) { return statusConfig[String(s)]?.color ?? '#9ca3af' }
+function statusBg(s: string | number)    { return statusConfig[String(s)]?.bg    ?? 'rgba(156,163,175,0.12)' }
 
 function formatDate(d: string) {
   if (!d) return '-'

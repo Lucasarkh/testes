@@ -74,6 +74,7 @@ export interface CreatePanoramaPayload {
 export interface UpdatePanoramaPayload {
   title?: string
   projection?: PanoramaProjection
+  published?: boolean
   sunPathAngleDeg?: number
   sunPathLabelEnabled?: boolean
   showImplantation?: boolean

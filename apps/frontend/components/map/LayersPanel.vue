@@ -19,7 +19,7 @@
             v-for="el in group.items"
             :key="el.id"
             :class="['layer-item', { selected: el.id === selectedId }]"
-            @click="$emit('select', el.id)"
+            @click="el.id && $emit('select', el.id)"
           >
             <span class="item-name">{{ el.code || el.name || el.metaJson?.tileId || el.type }}</span>
             <span class="item-type">{{ el.metaJson?.tileId ?? el.geometryType }}</span>

@@ -160,7 +160,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import type { MapElementData } from '../../composables/map/types'
+import type { MapElementData } from './types'
 
 const props = defineProps<{
   lots: MapElementData[]

@@ -58,7 +58,7 @@
                 <input v-model="form.leadEmail" type="email" placeholder="E-mail" class="v4-input" required>
              </div>
              <div class="form-group">
-                <input :value="form.leadPhone" @input="form.leadPhone = applyPhoneMask($event.target.value)" type="text" placeholder="WhatsApp" class="v4-input" required>
+                <input :value="form.leadPhone" @input="onLeadPhoneInput" type="text" placeholder="WhatsApp" class="v4-input" required>
              </div>
           </div>
        </div>
@@ -99,6 +99,16 @@ const form = ref({
   scheduledAt: '',
 });
 
+const applyPhoneMask = (value: string) => value.replace(/\D/g, '').slice(0, 11)
+  .replace(/(\d{2})(\d)/, '($1) $2')
+  .replace(/(\d{5})(\d)/, '$1-$2')
+
+const getInputValue = (event: Event) => (event.target as HTMLInputElement | null)?.value ?? ''
+
+const onLeadPhoneInput = (event: Event) => {
+  form.value.leadPhone = applyPhoneMask(getInputValue(event))
+}
+
 const minDate = getTodayInBrasilia();
 
 onMounted(async () => {
@@ -114,6 +124,10 @@ const onDateChange = async () => {
     
     // Day of week check (force local time for consistency with input)
     const [year, month, day] = selectedDate.value.split('-').map(Number);
+  if (!year || !month || !day) {
+    availableSlots.value = [];
+    return;
+  }
     const date = new Date(year, month - 1, day);
     const dayOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][date.getDay()];
     
@@ -197,8 +211,8 @@ const formatDate = (dateStr: string) => {
 }
 
 const formatTime = (dateStr: string) => {
-    const time = dateStr.split('T')[1].substring(0, 5);
-    return time;
+  const [, timePart] = dateStr.split('T');
+  return timePart ? timePart.substring(0, 5) : '';
 }
 
 const resetForm = () => {

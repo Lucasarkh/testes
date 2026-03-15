@@ -105,7 +105,7 @@ const props = withDefaults(defineProps<{
   anchorX: number
   anchorY: number
   /** Teleport destination (defaults to body) */
-  teleportTarget?: string | HTMLElement
+  teleportTarget?: string | HTMLElement | null
 }>(), {
   teleportTarget: 'body',
 })

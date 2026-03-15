@@ -575,7 +575,9 @@ onMounted(() => {
     containerH.value = containerRef.value.clientHeight
     containerRef.value.focus()
     resizeObserver = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect
+      const firstEntry = entries[0]
+      if (!firstEntry) return
+      const { width, height } = firstEntry.contentRect
       containerW.value = width
       containerH.value = height
     })

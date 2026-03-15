@@ -158,11 +158,13 @@ describe('TrackingService', () => {
   });
 
   describe('trackEvent', () => {
-    it('should update lastSeenAt when tracking an event', async () => {
+    it('should update session and visitor lastSeenAt when tracking an event', async () => {
       mockPrisma.trackingSession.findUnique.mockResolvedValue({
         id: 's1',
-        lastSeenAt: new Date()
+        lastSeenAt: new Date(),
+        visitorId: 'v1'
       });
+      mockPrisma.trackingVisitor.update.mockResolvedValue({ id: 'v1' });
       mockPrisma.trackingEvent.findFirst.mockResolvedValue(null);
 
       await service.trackEvent({
@@ -176,6 +178,29 @@ describe('TrackingService', () => {
           data: { lastSeenAt: expect.any(Date) }
         })
       );
+      expect(mockPrisma.trackingVisitor.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'v1' },
+          data: { lastSeenAt: expect.any(Date) }
+        })
+      );
+    });
+
+    it('should reject expired sessions instead of extending them', async () => {
+      const expiredAt = new Date(Date.now() - (31 * 60 * 1000));
+
+      mockPrisma.trackingSession.findUnique.mockResolvedValue({
+        id: 's1',
+        lastSeenAt: expiredAt,
+        visitorId: 'v1'
+      });
+
+      await expect(
+        service.trackEvent({
+          sessionId: 's1',
+          type: 'PAGE_VIEW'
+        } as any)
+      ).rejects.toThrow('Tracking session expired');
     });
   });
 });

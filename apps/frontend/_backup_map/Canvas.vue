@@ -111,7 +111,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import Konva from 'konva'
-import type { MapElementData, EditorTool, Point } from '../../composables/map/types'
+import type { MapElementData, EditorTool, Point } from './types'
 
 const props = defineProps<{
   elements: MapElementData[]
@@ -203,7 +203,10 @@ watch(() => props.mapBaseImageUrl, (url) => {
 const drawingVertices = computed(() => {
   const pts: Point[] = []
   for (let i = 0; i < props.drawingPoints.length; i += 2) {
-    pts.push({ x: props.drawingPoints[i], y: props.drawingPoints[i + 1] })
+    const x = props.drawingPoints[i]
+    const y = props.drawingPoints[i + 1]
+    if (x == null || y == null) continue
+    pts.push({ x, y })
   }
   return pts
 })
@@ -325,7 +328,11 @@ function getCenter(el: MapElementData): Point {
   if (g.points && g.points.length >= 4) {
     let sx = 0, sy = 0, n = g.points.length / 2
     for (let i = 0; i < g.points.length; i += 2) {
-      sx += g.points[i]; sy += g.points[i + 1]
+      const x = g.points[i]
+      const y = g.points[i + 1]
+      if (x == null || y == null) continue
+      sx += x
+      sy += y
     }
     return { x: sx / n, y: sy / n }
   }
@@ -494,7 +501,9 @@ onMounted(() => {
     containerW.value = containerRef.value.clientWidth
     containerH.value = containerRef.value.clientHeight
     resizeObserver = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect
+      const firstEntry = entries[0]
+      if (!firstEntry) return
+      const { width, height } = firstEntry.contentRect
       containerW.value = width
       containerH.value = height
     })

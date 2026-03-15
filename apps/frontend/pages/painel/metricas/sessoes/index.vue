@@ -158,8 +158,8 @@ definePageMeta({
               <th><CommonAppTooltip text="Total de page views registrados dentro da sessão." position="bottom">Páginas</CommonAppTooltip></th>
               <th><CommonAppTooltip text="Total de interações relacionadas a lotes durante a sessão." position="bottom">Lotes</CommonAppTooltip></th>
               <th><CommonAppTooltip text="Quantidade de leads gerados dentro da sessão." position="bottom">Leads</CommonAppTooltip></th>
-              <th><CommonAppTooltip text="Tempo entre o primeiro e o último evento registrados na sessão." position="bottom">Duração</CommonAppTooltip></th>
-              <th><CommonAppTooltip text="Momento de início e última atividade observada na sessão." position="bottom">Última atividade</CommonAppTooltip></th>
+              <th><CommonAppTooltip text="Tempo observado entre o primeiro e o último sinal real de atividade da sessão. A visita não continua contando indefinidamente quando o usuário some por muito tempo." position="bottom">Duração</CommonAppTooltip></th>
+              <th><CommonAppTooltip text="Início da sessão e último momento em que houve atividade efetiva registrada com a sessão ainda válida." position="bottom">Última atividade</CommonAppTooltip></th>
             </tr>
           </thead>
           <tbody>

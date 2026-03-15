@@ -136,7 +136,7 @@
 
     <!-- Delete -->
     <div class="prop-section">
-      <button class="delete-btn" @click="$emit('delete', element.id)">Excluir elemento</button>
+      <button class="delete-btn" @click="element.id && $emit('delete', element.id)">Excluir elemento</button>
     </div>
   </aside>
 

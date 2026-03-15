@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException
+} from '@nestjs/common';
 import { PrismaService } from '@infra/db/prisma.service';
 import {
   CreateSessionDto,
@@ -8,6 +12,8 @@ import {
 import { ProjectStatus, MapElementType, LeadStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
+
+const TRACKING_SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 @Injectable()
 export class TrackingService {
@@ -33,6 +39,53 @@ export class TrackingService {
       return 'mobile';
     }
     return 'desktop';
+  }
+
+  private isSessionExpired(lastSeenAt: Date, now = new Date()): boolean {
+    return now.getTime() - new Date(lastSeenAt).getTime() >= TRACKING_SESSION_TIMEOUT_MS;
+  }
+
+  private buildSessionExpiredException(): ConflictException {
+    return new ConflictException({
+      statusCode: 409,
+      error: 'Conflict',
+      message: 'Tracking session expired',
+      code: 'SESSION_EXPIRED'
+    });
+  }
+
+  private async touchSessionActivity(
+    sessionId: string,
+    visitorId?: string | null,
+    timestamp = new Date()
+  ): Promise<Date> {
+    await this.prisma.trackingSession.update({
+      where: { id: sessionId },
+      data: { lastSeenAt: timestamp }
+    });
+
+    if (visitorId) {
+      await this.prisma.trackingVisitor.update({
+        where: { id: visitorId },
+        data: { lastSeenAt: timestamp }
+      }).catch(() => null);
+    }
+
+    return timestamp;
+  }
+
+  private isBounceSession(params: {
+    pageViews: number;
+    totalEvents: number;
+    totalLeads: number;
+    lotInteractions: number;
+  }): boolean {
+    return (
+      params.pageViews <= 1 &&
+      params.totalEvents <= 1 &&
+      params.totalLeads === 0 &&
+      params.lotInteractions === 0
+    );
   }
 
   /**
@@ -444,18 +497,18 @@ export class TrackingService {
     // Verify session existence
     const session = await this.prisma.trackingSession.findUnique({
       where: { id: dto.sessionId },
-      select: { id: true, lastSeenAt: true }
+      select: { id: true, lastSeenAt: true, visitorId: true }
     });
 
     if (!session) {
       throw new BadRequestException('Invalid session ID');
     }
 
-    // UPDATE: Update lastSeenAt on every event
-    await this.prisma.trackingSession.update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date() }
-    });
+    if (this.isSessionExpired(session.lastSeenAt)) {
+      throw this.buildSessionExpiredException();
+    }
+
+    await this.touchSessionActivity(session.id, session.visitorId);
 
     // DEDUPLICATION: check for similar event in the last 5 seconds to avoid duplicate clicks
     if (dto.type !== 'PAGE_VIEW') {
@@ -484,6 +537,35 @@ export class TrackingService {
         ...dto
       }
     });
+  }
+
+  async touchSession(sessionId: string) {
+    if (!sessionId) {
+      throw new BadRequestException('Invalid session ID');
+    }
+
+    const session = await this.prisma.trackingSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, lastSeenAt: true, visitorId: true }
+    });
+
+    if (!session) {
+      throw new BadRequestException('Invalid session ID');
+    }
+
+    if (this.isSessionExpired(session.lastSeenAt)) {
+      throw this.buildSessionExpiredException();
+    }
+
+    const touchedAt = await this.touchSessionActivity(
+      session.id,
+      session.visitorId
+    );
+
+    return {
+      sessionId: session.id,
+      lastSeenAt: touchedAt.toISOString()
+    };
   }
 
   private async getRealtorContextFromUser(user?: {
@@ -768,6 +850,8 @@ export class TrackingService {
       sessionDurations,
       // Page views per session for bounce rate
       pageViewsPerSession,
+      lotInteractionsPerSession,
+      sessionCountsForBounce,
       sessionsPerVisitor
     ] = await Promise.all([
       this.prisma.trackingVisitor.count({ where: whereVisitor }),
@@ -846,6 +930,19 @@ export class TrackingService {
         by: ['sessionId'],
         where: { ...whereEvent, type: 'PAGE_VIEW' },
         _count: { id: true }
+      }),
+      this.prisma.trackingEvent.groupBy({
+        by: ['sessionId'],
+        where: { ...whereEvent, category: 'LOT' },
+        _count: { id: true }
+      }),
+      this.prisma.trackingSession.findMany({
+        where: whereSession,
+        select: {
+          id: true,
+          _count: { select: { events: true, leads: true } }
+        },
+        take: 5000
       }),
       this.prisma.trackingSession.groupBy({
         by: ['visitorId'],
@@ -1025,16 +1122,28 @@ export class TrackingService {
           )
         : 0;
 
-    // Bounce rate: sessions with only 1 page view
-    const sessionsWithOnePageView = pageViewsPerSession.filter(
-      (p) => p._count.id === 1
+    const pageViewsBySession = new Map(
+      pageViewsPerSession.map((entry) => [entry.sessionId, entry._count.id])
+    );
+    const lotInteractionsBySession = new Map(
+      lotInteractionsPerSession.map((entry) => [entry.sessionId, entry._count.id])
+    );
+
+    const bouncedSessions = sessionCountsForBounce.filter((session) =>
+      this.isBounceSession({
+        pageViews: pageViewsBySession.get(session.id) || 0,
+        totalEvents: session._count.events,
+        totalLeads: session._count.leads,
+        lotInteractions: lotInteractionsBySession.get(session.id) || 0
+      })
     ).length;
-    const totalSessionsWithPageViews = pageViewsPerSession.length;
+
+    const totalSessionsWithPageViews = sessionCountsForBounce.length;
     const bounceRate =
       totalSessionsWithPageViews > 0
         ? parseFloat(
             (
-              (sessionsWithOnePageView / totalSessionsWithPageViews) *
+              (bouncedSessions / totalSessionsWithPageViews) *
               100
             ).toFixed(1)
           )
@@ -2438,7 +2547,12 @@ export class TrackingService {
           lotInteractions: lotInteractionMap.get(session.id) || 0,
           totalEvents: session._count.events,
           totalLeads: session._count.leads,
-          isBounce: pageViews <= 1,
+          isBounce: this.isBounceSession({
+            pageViews,
+            totalEvents: session._count.events,
+            totalLeads: session._count.leads,
+            lotInteractions: lotInteractionMap.get(session.id) || 0
+          }),
           landingPage: session.landingPage,
           deviceType: session.deviceType,
           utmSource: session.utmSource,

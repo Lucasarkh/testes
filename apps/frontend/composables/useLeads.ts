@@ -1,15 +1,19 @@
 import { computed, ref } from 'vue';
 
+type LeadFilters = Record<string, string | number | null | undefined>;
+type LeadStatusValue = string;
+type LeadRecord = Record<string, any> & { id?: string };
+
 export const useLeads = () => {
   const { fetchApi } = useApi();
   const { fromError, success } = useToast();
   const authStore = useAuthStore();
 
   const loading = ref(false);
-  const leads = ref([]);
+  const leads = ref<LeadRecord[]>([]);
   const meta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 10, totalPages: 0, currentPage: 1 });
-  const selectedLead = ref(null);
-  const projects = ref([]);
+  const selectedLead = ref<LeadRecord | null>(null);
+  const projects = ref<any[]>([]);
   const canLoadProjectsCatalog = computed(() => {
     if (!authStore.isLoteadora || !authStore.hasPanelRestrictions) {
       return true;
@@ -32,15 +36,15 @@ export const useLeads = () => {
     }
   };
 
-  const loadLeads = async (filters = {}, page = 1) => {
+  const loadLeads = async (filters: LeadFilters = {}, page = 1) => {
     loading.value = true;
     try {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, val]) => {
-        if (val) params.set(key, val);
+        if (val !== null && val !== undefined && val !== '') params.set(key, String(val));
       });
-      params.set('page', page);
-      params.set('limit', 12);
+      params.set('page', String(page));
+      params.set('limit', '12');
       const res = await fetchApi(`/leads?${params.toString()}`);
       leads.value = res.data;
       meta.value = res.meta;
@@ -51,7 +55,7 @@ export const useLeads = () => {
     }
   };
 
-  const getLead = async (id) => {
+  const getLead = async (id: string) => {
     try {
       const lead = await fetchApi(`/leads/${id}`);
       selectedLead.value = lead;
@@ -61,7 +65,7 @@ export const useLeads = () => {
     }
   };
 
-  const createLead = async (data) => {
+  const createLead = async (data: Record<string, any>) => {
     try {
       const res = await fetchApi('/leads', { method: 'POST', body: data });
       success('Lead cadastrado com sucesso');
@@ -72,7 +76,7 @@ export const useLeads = () => {
     }
   };
 
-  const updateLead = async (id, data) => {
+  const updateLead = async (id: string, data: Record<string, any>) => {
     try {
       const res = await fetchApi(`/leads/${id}`, { method: 'PATCH', body: data });
       success('Lead atualizado com sucesso');
@@ -84,7 +88,7 @@ export const useLeads = () => {
     }
   };
 
-  const updateLeadStatus = async (id, status, notes = '') => {
+  const updateLeadStatus = async (id: string, status: LeadStatusValue, notes = '') => {
     try {
       const updated = await fetchApi(`/leads/${id}/status`, {
         method: 'PATCH',
@@ -99,7 +103,7 @@ export const useLeads = () => {
     }
   };
 
-  const addDocument = async (leadId, doc) => {
+  const addDocument = async (leadId: string, doc: Record<string, any>) => {
     try {
       await fetchApi(`/leads/${leadId}/documents`, { method: 'POST', body: doc });
       success('Documento anexado');
@@ -109,7 +113,7 @@ export const useLeads = () => {
     }
   };
 
-  const addPayment = async (leadId, payment) => {
+  const addPayment = async (leadId: string, payment: Record<string, any>) => {
     try {
       await fetchApi(`/leads/${leadId}/payments`, { method: 'POST', body: payment });
       success('Pagamento adicionado');

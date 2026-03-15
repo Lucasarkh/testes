@@ -330,9 +330,12 @@ const resetQueue = async () => {
 const getInitials = (name: string) => {
   if (!name) return '?'
   const parts = name.split(' ').filter(Boolean)
+  const first = parts[0]?.[0]
+  const last = parts[parts.length - 1]?.[0]
+  if (!first) return '?'
   return parts.length > 1
-    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    : parts[0][0].toUpperCase()
+    ? `${first}${last || first}`.toUpperCase()
+    : first.toUpperCase()
 }
 
 const formatDate = (dateStr: string) => {

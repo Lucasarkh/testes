@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 
 export interface Transform {
   x: number
@@ -158,21 +158,27 @@ export const useZoomPan = (options: UseZoomPanOptions = {}) => {
     Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
 
   const onTouchStart = (e: TouchEvent) => {
-    if (e.touches.length === 1) {
+    const firstTouch = e.touches[0]
+    const secondTouch = e.touches[1]
+
+    if (e.touches.length === 1 && firstTouch) {
       isPanning = true
-      panStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      panStart = { x: firstTouch.clientX, y: firstTouch.clientY }
       transformAtPanStart = { ...transform.value }
-    } else if (e.touches.length === 2) {
+    } else if (e.touches.length === 2 && firstTouch && secondTouch) {
       isPanning = false
-      lastPinchDist = getTouchDist(e.touches[0], e.touches[1])
+      lastPinchDist = getTouchDist(firstTouch, secondTouch)
     }
   }
 
   const onTouchMove = (e: TouchEvent) => {
     e.preventDefault()
-    if (e.touches.length === 1 && isPanning) {
-      const dx = e.touches[0].clientX - panStart.x
-      const dy = e.touches[0].clientY - panStart.y
+    const firstTouch = e.touches[0]
+    const secondTouch = e.touches[1]
+
+    if (e.touches.length === 1 && isPanning && firstTouch) {
+      const dx = firstTouch.clientX - panStart.x
+      const dy = firstTouch.clientY - panStart.y
       const newX = transformAtPanStart.x + dx
       const newY = transformAtPanStart.y + dy
       const clamped = clampOffset(transform.value.scale, newX, newY)
@@ -180,14 +186,14 @@ export const useZoomPan = (options: UseZoomPanOptions = {}) => {
         ...transform.value,
         ...clamped
       }
-    } else if (e.touches.length === 2) {
-      const dist = getTouchDist(e.touches[0], e.touches[1])
+    } else if (e.touches.length === 2 && firstTouch && secondTouch && containerEl.value) {
+      const dist = getTouchDist(firstTouch, secondTouch)
       const delta = (dist - lastPinchDist) / 200
       lastPinchDist = dist
 
-      const rect = containerEl.value!.getBoundingClientRect()
-      const cx = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left
-      const cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top
+      const rect = containerEl.value.getBoundingClientRect()
+      const cx = ((firstTouch.clientX + secondTouch.clientX) / 2) - rect.left
+      const cy = ((firstTouch.clientY + secondTouch.clientY) / 2) - rect.top
       applyZoom(delta, cx, cy)
     }
   }

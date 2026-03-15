@@ -152,7 +152,7 @@
     <LeadsLeadDetailsModal 
       v-if="selectedLead" 
       :lead="selectedLead" 
-      @close="selectedLead = null" 
+      @close="selectedLead = undefined" 
       @refresh="onDetailsRefresh"
       @edit="onDetailsEdit"
     />
@@ -161,6 +161,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+
+type LeadRecord = Record<string, any> & {
+  id?: string
+  name?: string
+}
 
 const { leads, loading, meta, projects, loadLeads, loadProjects, getLead } = useLeads()
 const authStore = useAuthStore()
@@ -191,13 +196,13 @@ watch(viewMode, (newVal) => {
 const filters = ref({ projectId: '', status: '', search: '', realtorLinkId: '' })
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
-const editingLead = ref(null)
-const selectedLead = ref(null)
+const editingLead = ref<LeadRecord | undefined>(undefined)
+const selectedLead = ref<LeadRecord | undefined>(undefined)
 
 // Debounced search
-let searchTimer = null
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(() => filters.value.search, (val) => {
-  clearTimeout(searchTimer)
+  if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => loadLeads(filters.value), 400)
 })
 
@@ -206,31 +211,33 @@ const resetFilters = () => {
   loadLeads()
 }
 
-const viewLead = async (lead) => {
+const viewLead = async (lead: LeadRecord) => {
+  if (!lead.id) return
   const fullLead = await getLead(lead.id)
   selectedLead.value = fullLead
 }
 
-const editLead = (lead) => {
+const editLead = (lead: LeadRecord) => {
   if (!canWriteLeads.value) return
   editingLead.value = lead
   showEditModal.value = true
 }
 
-const onDetailsEdit = (lead) => {
-  selectedLead.value = null
+const onDetailsEdit = (lead: LeadRecord) => {
+  selectedLead.value = undefined
   editLead(lead)
 }
 
 const onDetailsRefresh = async () => {
-  if (selectedLead.value) {
+  if (selectedLead.value?.id) {
     selectedLead.value = await getLead(selectedLead.value.id)
   }
   await loadLeads(filters.value)
 }
 
-const onDeleteLead = async (lead) => {
+const onDeleteLead = async (lead: LeadRecord) => {
   if (!canWriteLeads.value) return
+  if (!lead.id) return
   if (!confirm(`Deseja realmente excluir o lead ${lead.name}?`)) return
   try {
     const { fetchApi } = useApi()

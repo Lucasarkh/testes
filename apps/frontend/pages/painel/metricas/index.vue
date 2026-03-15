@@ -193,7 +193,7 @@ const topicCards = computed(() => [
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div class="stat-content">
-            <CommonAppTooltip text="Número de visitas únicas ao site. Cada sessão representa um visitante acessando o site em um período de tempo." position="bottom"><span class="stat-label">Total de Sessões</span></CommonAppTooltip>
+            <CommonAppTooltip text="Número de sessões reais iniciadas no período. Uma nova sessão surge após 30 minutos de inatividade ou quando a visita é retomada em uma nova janela de navegação." position="bottom"><span class="stat-label">Total de Sessões</span></CommonAppTooltip>
             <span class="stat-value text-blue">{{ metrics.summary.totalSessions }}</span>
           </div>
         </div>
@@ -220,7 +220,7 @@ const topicCards = computed(() => [
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
           </div>
           <div class="stat-content">
-            <CommonAppTooltip text="Média de páginas visualizadas por cada visitante durante uma sessão. Valores altos indicam maior engajamento." position="bottom"><span class="stat-label">Páginas por Sessão</span></CommonAppTooltip>
+            <CommonAppTooltip text="Média de páginas vistas por sessão ativa. Leituras longas sem nova navegação não inflacionam esse número com page views artificiais." position="bottom"><span class="stat-label">Páginas por Sessão</span></CommonAppTooltip>
             <span class="stat-value text-teal">{{ pagesPerSession }}</span>
           </div>
         </div>
@@ -238,7 +238,7 @@ const topicCards = computed(() => [
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div class="stat-content">
-            <CommonAppTooltip text="Duração média que um visitante permanece navegando no site por sessão." position="bottom"><span class="stat-label">Tempo Médio/Sessão</span></CommonAppTooltip>
+            <CommonAppTooltip text="Tempo médio observado entre o primeiro e o último sinal real de atividade da sessão. A aba visível mantém a sessão viva; períodos longos de ausência não são reaproveitados como se fossem navegação contínua." position="bottom"><span class="stat-label">Tempo Médio/Sessão</span></CommonAppTooltip>
             <span class="stat-value text-cyan">{{ avgSessionDuration }}</span>
           </div>
         </div>
@@ -247,7 +247,7 @@ const topicCards = computed(() => [
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
           </div>
           <div class="stat-content">
-            <CommonAppTooltip text="Percentual de visitantes que saíram do site após visualizar apenas uma página, sem interagir. Valores menores são melhores." position="bottom"><span class="stat-label">Taxa de Rejeição</span></CommonAppTooltip>
+            <CommonAppTooltip text="Percentual de sessões sem engajamento relevante: uma página apenas, sem interações adicionais com lotes, ferramentas ou envio de lead. Valores menores são melhores." position="bottom"><span class="stat-label">Taxa de Rejeição</span></CommonAppTooltip>
             <span class="stat-value text-rose">{{ bounceRate }}%</span>
           </div>
         </div>
@@ -297,7 +297,7 @@ const topicCards = computed(() => [
           </div>
           <div class="legend-item">
             <span class="legend-color sessions"></span>
-            <CommonAppTooltip text="Cada sessão representa uma visita única. Um mesmo visitante pode gerar múltiplas sessões em dias diferentes." position="top" :no-icon="true"><strong>Sessões</strong> (Visitantes únicos)</CommonAppTooltip>
+            <CommonAppTooltip text="Cada sessão representa uma janela real de visita. Um mesmo visitante pode gerar múltiplas sessões quando volta depois de um período relevante de inatividade." position="top" :no-icon="true"><strong>Sessões</strong> (Janelas de visita)</CommonAppTooltip>
           </div>
         </div>
       </div>

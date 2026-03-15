@@ -90,6 +90,12 @@ export class CreateEventDto {
   path?: string;
 }
 
+export class TouchSessionDto {
+  @IsOptional()
+  @IsString()
+  sessionId: string;
+}
+
 export class TrackingReportQueryDto {
   @IsOptional()
   @IsString()

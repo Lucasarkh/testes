@@ -134,7 +134,7 @@ definePageMeta({
     <div v-else-if="data" class="dashboard" :class="{ 'loading-overlay': loading }">
       <div class="stats-grid">
         <div class="stat-card">
-          <CommonAppTooltip text="Tempo total observado entre o primeiro e o último evento da sessão." position="bottom"><span class="stat-label">Duração</span></CommonAppTooltip>
+          <CommonAppTooltip text="Tempo total observado entre o primeiro e o último sinal real de atividade desta sessão. Retornos após inatividade longa abrem uma nova sessão, em vez de esticar esta." position="bottom"><span class="stat-label">Duração</span></CommonAppTooltip>
           <span class="stat-value text-blue">{{ formatDuration(data.summary.durationSec) }}</span>
         </div>
         <div class="stat-card">
@@ -164,7 +164,7 @@ definePageMeta({
             <div><dt>Campanha</dt><dd>{{ data.summary.utmCampaign || '(Nenhuma)' }}</dd></div>
             <div><dt>Landing</dt><dd>{{ data.summary.landingPage || '---' }}</dd></div>
             <div><dt>Entrada</dt><dd>{{ formatDateTime(data.summary.firstSeenAt) }}</dd></div>
-            <div><dt>Saída</dt><dd>{{ formatDateTime(data.summary.lastSeenAt) }}</dd></div>
+            <div><dt>Última atividade</dt><dd>{{ formatDateTime(data.summary.lastSeenAt) }}</dd></div>
           </dl>
         </div>
 

@@ -40,7 +40,10 @@ export const usePublicApi = () => {
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: 'Erro na requisição' }))
-      throw new Error(err.message || `Erro ${res.status}`)
+      const error = new Error(err.message || `Erro ${res.status}`) as Error & { status?: number; data?: any }
+      error.status = res.status
+      error.data = err
+      throw error
     }
     const txt = await res.text()
     return txt ? JSON.parse(txt) : null

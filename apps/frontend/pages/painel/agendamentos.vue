@@ -186,7 +186,7 @@
     />
     <PainelSchedulingModal 
       v-if="showCreate" 
-      :initialDate="targetDate"
+      :initialDate="targetDate || undefined"
       @close="showCreate = false" 
       @success="loadSchedulings" 
     />
@@ -211,7 +211,29 @@ const canLoadProjectsCatalog = computed(() => {
 });
 
 const loading = ref(true);
-const projects = ref([]);
+type ProjectOption = {
+  id: string;
+  name: string;
+};
+
+type SchedulingItem = {
+  id: string;
+  scheduledAt: string;
+  status: string;
+  lead?: {
+    name?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null;
+  project?: {
+    name?: string | null;
+  } | null;
+  user?: {
+    name?: string | null;
+  } | null;
+};
+
+const projects = ref<ProjectOption[]>([]);
 const schedulings = ref<any[]>([]);
 const showConfig = ref(false);
 const showCreate = ref(false);
@@ -252,7 +274,7 @@ const loadSchedulings = async () => {
        let data = Array.isArray(res) ? res : (res.data || []);
        
        if (filters.value.status) {
-          schedulings.value = data.filter((s: any) => s.status === filters.value.status);
+         schedulings.value = data.filter((s: SchedulingItem) => s.status === filters.value.status);
        } else {
           schedulings.value = data;
        }

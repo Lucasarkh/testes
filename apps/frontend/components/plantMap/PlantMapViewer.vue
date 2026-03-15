@@ -362,6 +362,7 @@ const renderedVisibleHotspots = computed(() => {
   if (idx === -1) return visibleHotspots.value
   const ordered = visibleHotspots.value.slice()
   const [hovered] = ordered.splice(idx, 1)
+  if (!hovered) return visibleHotspots.value
   ordered.push(hovered)
   return ordered
 })

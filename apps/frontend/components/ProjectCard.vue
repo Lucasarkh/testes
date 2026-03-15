@@ -30,14 +30,26 @@
 </template>
 
 <script setup lang="ts">
-defineProps({
-  project: { type: Object, required: true },
-  showDate: { type: Boolean, default: false }
-})
+type ProjectCardItem = {
+  name: string
+  slug: string
+  createdAt?: string | Date | null
+  bannerImageUrl?: string | null
+  status?: string | null
+  _count?: {
+    leads?: number
+    mapElements?: number
+  } | null
+}
+
+defineProps<{
+  project: ProjectCardItem
+  showDate?: boolean
+}>()
 
 defineEmits(['click'])
 
-const formatDate = (d) => formatDateToBrasilia(d)
+const formatDate = (d: string | Date | null | undefined) => formatDateToBrasilia(d)
 </script>
 
 <style scoped>
