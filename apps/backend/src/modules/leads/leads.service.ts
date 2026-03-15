@@ -196,6 +196,7 @@ export class LeadsService {
     // 2. Attribution from Session
     let attributionData: any = {};
     let sessionRealtorLinkId: string | null = null;
+    let resolvedVisitorId: string | null = dto.visitorId || null;
 
     if (dto.sessionId) {
       const session = await this.prisma.trackingSession.findUnique({
@@ -204,6 +205,7 @@ export class LeadsService {
 
       if (session) {
         sessionRealtorLinkId = session.realtorLinkId;
+        resolvedVisitorId = session.visitorId || resolvedVisitorId;
         attributionData = {
           ftUtmSource: session.ftUtmSource,
           ftUtmMedium: session.ftUtmMedium,
@@ -240,6 +242,7 @@ export class LeadsService {
       realtorCode,
       mapElementId,
       sessionId,
+      visitorId: _visitorId,
       aiChatTranscript: rawTranscript,
       ...leadData
     } = dto;
@@ -289,6 +292,7 @@ export class LeadsService {
         ...leadData,
         ...(validMapElementId ? { mapElementId: validMapElementId } : {}),
         realtorLinkId: realtorLinkId || null,
+        visitorId: resolvedVisitorId,
         sessionId: sessionId || null,
         isRecurrent,
         ...attributionData,
@@ -388,7 +392,7 @@ export class LeadsService {
       realtorLinkId = rl?.id;
     }
 
-    const { realtorCode, mapElementId, sessionId, projectId, ...data } = dto;
+    const { realtorCode, mapElementId, sessionId, visitorId, projectId, ...data } = dto;
 
     const createdLead = await this.prisma.$transaction(async (tx) => {
       // Check lot availability if setting WON/RESERVATION status
@@ -437,6 +441,7 @@ export class LeadsService {
           projectId,
           mapElementId,
           realtorLinkId,
+          visitorId: visitorId || null,
           source:
             user.role === 'CORRETOR'
               ? 'corretor_manual'

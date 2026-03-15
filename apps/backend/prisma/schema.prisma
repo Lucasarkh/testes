@@ -248,6 +248,7 @@ model Tenant {
   panoramas        Panorama[]
   panoramaBeacons  PanoramaBeacon[]
   trackingSessions TrackingSession[]
+  trackingVisitors TrackingVisitor[]
   campanhas         Campaign[]
   paymentGateways   PaymentConfig[]
   aiConfigs         AiConfig[]
@@ -414,6 +415,7 @@ model Project {
   plantMap      PlantMap?
   panoramas     Panorama[]
   trackingSessions TrackingSession[]
+  trackingVisitors TrackingVisitor[]
   campaigns        Campaign[]
   paymentGateways  PaymentConfig[] @relation("ProjectGateways")
 
@@ -542,6 +544,8 @@ model Lead {
   mapElement    MapElement? @relation(fields: [mapElementId], references: [id], onDelete: SetNull)
   realtorLinkId String?
   realtorLink   RealtorLink? @relation(fields: [realtorLinkId], references: [id], onDelete: SetNull)
+  visitorId     String?
+  visitor       TrackingVisitor? @relation(fields: [visitorId], references: [id], onDelete: SetNull)
   sessionId     String?
   session       TrackingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
   name          String
@@ -602,6 +606,7 @@ model Lead {
   @@index([email])
   @@index([phone])
   @@index([cpf])
+  @@index([visitorId])
   @@index([sessionId])
   @@index([realtorLinkId])
   @@index([createdAt(sort: Desc)])
@@ -713,6 +718,7 @@ model RealtorLink {
 
   leads            Lead[]
   trackingSessions TrackingSession[]
+  trackingVisitors TrackingVisitor[]
   distributionLogs LeadDistributionLog[]
 
   @@unique([tenantId, code])
@@ -836,8 +842,63 @@ model PlantHotspot {
 
 // ─── ANALYTICS & TRACKING ────────────────────────────────
 
+model TrackingVisitor {
+  id            String   @id @default(cuid())
+  tenantId      String?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  realtorLinkId String?
+  realtorLink   RealtorLink? @relation(fields: [realtorLinkId], references: [id], onDelete: SetNull)
+  userId        String?
+
+  ip            String?
+  ipHash        String?
+  userAgent     String?
+  deviceType    String?
+  landingPage   String?
+
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ftUtmSource   String?
+  ftUtmMedium   String?
+  ftUtmCampaign String?
+  ftUtmContent  String?
+  ftUtmTerm     String?
+  ftReferrer    String?
+
+  ltUtmSource   String?
+  ltUtmMedium   String?
+  ltUtmCampaign String?
+  ltUtmContent  String?
+  ltUtmTerm     String?
+  ltReferrer    String?
+
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmContent    String?
+  utmTerm       String?
+  referrer      String?
+
+  lastRealtorAt DateTime?
+
+  sessions      TrackingSession[]
+  leads         Lead[]
+
+  @@index([tenantId, projectId])
+  @@index([projectId, lastSeenAt])
+  @@index([tenantId, createdAt])
+  @@index([realtorLinkId])
+}
+
 model TrackingSession {
   id           String   @id @default(cuid())
+  visitorId     String?
+  visitor       TrackingVisitor? @relation(fields: [visitorId], references: [id], onDelete: SetNull)
   tenantId     String?
   tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   projectId    String?
@@ -892,6 +953,7 @@ model TrackingSession {
   @@index([tenantId, projectId])
   @@index([projectId, lastSeenAt])
   @@index([tenantId, createdAt])
+  @@index([visitorId])
   @@index([realtorLinkId]) // For realtor attribution queries
   // Removed standalone @@index([createdAt]) — covered by @@index([tenantId, createdAt])
   // Removed standalone @@index([lastSeenAt]) — rarely queried standalone

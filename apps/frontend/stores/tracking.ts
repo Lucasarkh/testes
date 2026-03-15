@@ -1,8 +1,14 @@
 import { defineStore } from 'pinia';
 
 export const useTrackingStore = defineStore('tracking', () => {
-  const sessionId = useCookie<string | null>('tracking_session_id', {
+  const visitorId = useCookie<string | null>('tracking_visitor_id', {
     maxAge: 60 * 60 * 24 * 30, // 30 days
+    path: '/',
+    sameSite: 'lax',
+  });
+
+  const sessionId = useCookie<string | null>('tracking_visit_id', {
+    maxAge: 60 * 30, // 30 minutes
     path: '/',
     sameSite: 'lax',
   });
@@ -24,6 +30,10 @@ export const useTrackingStore = defineStore('tracking', () => {
 
   const isInitialized = ref(false);
 
+  const setVisitorId = (id: string | null) => {
+    visitorId.value = id;
+  };
+
   const setSessionId = (id: string | null) => {
     sessionId.value = id;
   };
@@ -38,10 +48,12 @@ export const useTrackingStore = defineStore('tracking', () => {
   };
 
   return {
+    visitorId,
     sessionId,
     currentProjectSlug,
     utmParams,
     isInitialized,
+    setVisitorId,
     setSessionId,
     setCurrentProjectSlug,
     loadFromStorage,

@@ -14,10 +14,70 @@ const investmentForm = ref({
   notes: ''
 })
 
+const today = getTodayInBrasilia()
+
 const dateFilter = ref({
   startDate: '', // Default to last 30 days or similar? Empty = All time
   endDate: ''
 })
+
+const startDateMax = computed(() => dateFilter.value.endDate || today)
+const endDateMin = computed(() => dateFilter.value.startDate || undefined)
+
+function isValidDateInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(`${value}T12:00:00`)
+  return !Number.isNaN(parsed.getTime()) && getISODateInBrasilia(parsed) === value
+}
+
+function normalizeCampaignDateRange(changedField: 'startDate' | 'endDate') {
+  let corrected = false
+
+  if (dateFilter.value.startDate) {
+    const normalizedStart = isValidDateInput(dateFilter.value.startDate)
+      ? dateFilter.value.startDate <= today
+        ? dateFilter.value.startDate
+        : today
+      : ''
+
+    if (normalizedStart !== dateFilter.value.startDate) {
+      dateFilter.value.startDate = normalizedStart
+      corrected = true
+    }
+  }
+
+  if (dateFilter.value.endDate) {
+    const normalizedEnd = isValidDateInput(dateFilter.value.endDate)
+      ? dateFilter.value.endDate <= today
+        ? dateFilter.value.endDate
+        : today
+      : ''
+
+    if (normalizedEnd !== dateFilter.value.endDate) {
+      dateFilter.value.endDate = normalizedEnd
+      corrected = true
+    }
+  }
+
+  if (dateFilter.value.startDate && dateFilter.value.endDate && dateFilter.value.startDate > dateFilter.value.endDate) {
+    if (changedField === 'startDate') {
+      dateFilter.value.endDate = dateFilter.value.startDate
+    } else {
+      dateFilter.value.startDate = dateFilter.value.endDate
+    }
+    toast.warn('Intervalo ajustado automaticamente para manter uma faixa válida.')
+    return
+  }
+
+  if (corrected) {
+    toast.info('Datas inválidas ou futuras foram ajustadas automaticamente.')
+  }
+}
+
+function applyDateFilter(changedField: 'startDate' | 'endDate') {
+  normalizeCampaignDateRange(changedField)
+  fetchPerformance()
+}
 
 async function fetchPerformance() {
   loading.value = true
@@ -110,9 +170,9 @@ definePageMeta({
         
         <div class="filters">
           <div class="form-group row-inline">
-            <input type="date" v-model="dateFilter.startDate" class="form-input" @change="fetchPerformance" />
+            <input type="date" v-model="dateFilter.startDate" :max="startDateMax" class="form-input" @change="applyDateFilter('startDate')" />
             <span>até</span>
-            <input type="date" v-model="dateFilter.endDate" class="form-input" @change="fetchPerformance" />
+            <input type="date" v-model="dateFilter.endDate" :min="endDateMin" :max="today" class="form-input" @change="applyDateFilter('endDate')" />
           </div>
         </div>
       </div>
@@ -192,7 +252,7 @@ definePageMeta({
                </div>
                <div class="form-group mt-2">
                  <label>Data</label>
-                 <input type="date" v-model="investmentForm.date" class="form-input" required />
+                 <input type="date" v-model="investmentForm.date" :max="today" class="form-input" required />
                </div>
                <div class="form-group mt-2">
                  <label>Observação (Opcional)</label>

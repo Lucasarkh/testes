@@ -34,13 +34,19 @@ export const useTracking = () => {
 
     try {
       const response = await api.post('/tracking/session', {
+        visitorId: store.visitorId,
         sessionId: store.sessionId, // Send existing session to backend if exists
         ...params,
         ...utms,
       });
 
-      if (response && response.id) {
-        store.setSessionId(response.id);
+      if (response) {
+        if (response.visitorId) {
+          store.setVisitorId(response.visitorId);
+        }
+        if (response.sessionId || response.id) {
+          store.setSessionId(response.sessionId || response.id);
+        }
         if (params.projectSlug) {
           store.setCurrentProjectSlug(params.projectSlug);
         }
@@ -48,7 +54,7 @@ export const useTracking = () => {
       }
     } catch (error) {
       console.error('Failed to init tracking', error);
-      // If initialization fails (probably invalid session ID), clear it to try again on next page
+      // If initialization fails, clear the visit id and keep visitor identity for the next attempt.
       store.setSessionId(null as any);
     }
   };

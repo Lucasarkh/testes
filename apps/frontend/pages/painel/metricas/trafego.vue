@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { fetchApi } = useApi()
 const toast = useToast()
-const { projects, selectedProjectId, startDate, endDate, fetchProjects, buildQueryString } = useMetricsFilters()
+const { projects, selectedProjectId, startDate, startDateMax, endDate, endDateMin, endDateMax, fetchProjects, buildQueryString } = useMetricsFilters()
 
 const data = ref<any>(null)
 const loading = ref(false)
@@ -64,11 +64,11 @@ function formatCurrency(value: number): string {
       <div class="filter-actions">
         <div class="filter-group">
           <label>Data Início:</label>
-          <input type="date" v-model="startDate" class="date-input" />
+          <input type="date" v-model="startDate" :max="startDateMax" class="date-input" />
         </div>
         <div class="filter-group">
           <label>Data Fim:</label>
-          <input type="date" v-model="endDate" class="date-input" />
+          <input type="date" v-model="endDate" :min="endDateMin" :max="endDateMax" class="date-input" />
         </div>
         <div class="filter-group">
           <label>Empreendimento:</label>

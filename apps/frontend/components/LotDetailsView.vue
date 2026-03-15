@@ -1978,6 +1978,7 @@ async function submitLead() {
       mapElementId: lot.value?.id,
       message: leadForm.value.message || `Quero mais informações sobre o lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
+      visitorId: trackingStore.visitorId || undefined,
       sessionId: trackingStore.sessionId || undefined,
       aiChatTranscript: chatStore.getTranscript() || undefined,
     }
@@ -2014,6 +2015,7 @@ async function submitGateLead() {
       mapElementId: lot.value?.id,
       message: `Liberou a tabela de preços do lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
+      visitorId: trackingStore.visitorId || undefined,
       sessionId: trackingStore.sessionId || undefined,
       aiChatTranscript: chatStore.getTranscript() || undefined,
     }

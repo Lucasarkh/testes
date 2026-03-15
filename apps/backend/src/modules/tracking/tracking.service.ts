@@ -130,7 +130,14 @@ export class TrackingService {
   }
 
   async createSession(dto: CreateSessionDto, ip?: string, userAgent?: string) {
-    const { tenantSlug, projectSlug, realtorCode, sessionId, ...data } = dto;
+    const {
+      tenantSlug,
+      projectSlug,
+      realtorCode,
+      sessionId,
+      visitorId,
+      ...data
+    } = dto;
     let { tenantId, projectId } = data;
 
     // Resolve IDs
@@ -195,20 +202,10 @@ export class TrackingService {
 
     if (!utmCampaign) utmCampaign = '(Nenhuma)';
 
-    // 1. Try to find existing session (if it was created in the last 30 days)
-    let session = sessionId
-      ? await this.prisma.trackingSession.findUnique({
-          where: { id: sessionId }
-        })
-      : null;
-
-    // Check expiration (30 days)
-    const thirtyDaysAgo = new Date();
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    if (session && session.lastSeenAt < thirtyDaysAgo) {
-      session = null; // Expired
-    }
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
 
     // 2. Resolve Realtor
     let currentRealtorLinkId: string | null = null;
@@ -222,51 +219,53 @@ export class TrackingService {
       }
     }
 
-    if (session) {
-      // 3. Update Existing Session
-      const isNewAttribution =
-        (utmSource && utmSource !== session.ltUtmSource) ||
-        (utmCampaign && utmCampaign !== session.ltUtmCampaign) ||
-        (currentRealtorLinkId &&
-          currentRealtorLinkId !== session.realtorLinkId);
+    let visitor = visitorId
+      ? await this.prisma.trackingVisitor.findUnique({
+          where: { id: visitorId }
+        })
+      : null;
 
-      // Check realtor attribution window if no new code is provided
-      let realtorIdToUse = currentRealtorLinkId || session.realtorLinkId;
-      let lastRealtorAt = currentRealtorLinkId
-        ? new Date()
-        : session.lastRealtorAt;
+    if (visitor && visitor.lastSeenAt < thirtyDaysAgo) {
+      visitor = null;
+    }
 
-      // If we have a realtor stored but it's older than 30 days and no NEW code was provided
+    if (visitor) {
+      const isNewVisitorAttribution =
+        (utmSource && utmSource !== visitor.ltUtmSource) ||
+        (utmCampaign && utmCampaign !== visitor.ltUtmCampaign) ||
+        (currentRealtorLinkId && currentRealtorLinkId !== visitor.realtorLinkId);
+
+      let visitorRealtorIdToUse = currentRealtorLinkId || visitor.realtorLinkId;
+      let visitorLastRealtorAt = currentRealtorLinkId ? now : visitor.lastRealtorAt;
+
       if (
         !currentRealtorLinkId &&
-        session.realtorLinkId &&
-        session.lastRealtorAt &&
-        session.lastRealtorAt < thirtyDaysAgo
+        visitor.realtorLinkId &&
+        visitor.lastRealtorAt &&
+        visitor.lastRealtorAt < thirtyDaysAgo
       ) {
-        realtorIdToUse = null;
-        lastRealtorAt = null;
+        visitorRealtorIdToUse = null;
+        visitorLastRealtorAt = null;
       }
 
-      session = await this.prisma.trackingSession.update({
-        where: { id: session.id },
+      visitor = await this.prisma.trackingVisitor.update({
+        where: { id: visitor.id },
         data: {
-          lastSeenAt: new Date(),
+          lastSeenAt: now,
+          tenantId: tenantId || visitor.tenantId,
+          projectId: projectId || visitor.projectId,
           userAgent,
           deviceType,
-          ip, // Still store raw IP for legacy, but we have ipHash too
+          ip,
           ipHash: hashedIp,
-          // Fill in tenantId/projectId if session was created without them
-          ...(!session.tenantId && tenantId ? { tenantId } : {}),
-          ...(!session.projectId && projectId ? { projectId } : {}),
-          // Update Last-Touch if it changed
-          ...(isNewAttribution && {
+          landingPage: data.landingPage || visitor.landingPage,
+          ...(isNewVisitorAttribution && {
             ltUtmSource: utmSource,
             ltUtmMedium: utmMedium,
             ltUtmCampaign: utmCampaign,
             ltUtmContent: utmContent,
             ltUtmTerm: utmTerm,
             ltReferrer: referrer,
-            // also update main utm fields for compatibility
             utmSource,
             utmMedium,
             utmCampaign,
@@ -274,13 +273,12 @@ export class TrackingService {
             utmTerm,
             referrer
           }),
-          realtorLinkId: realtorIdToUse,
-          lastRealtorAt
+          realtorLinkId: visitorRealtorIdToUse,
+          lastRealtorAt: visitorLastRealtorAt
         }
       });
     } else {
-      // 4. Create New Session
-      session = await this.prisma.trackingSession.create({
+      visitor = await this.prisma.trackingVisitor.create({
         data: {
           tenantId,
           projectId,
@@ -289,43 +287,143 @@ export class TrackingService {
           userAgent,
           deviceType,
           landingPage: data.landingPage || null,
-          firstSeenAt: new Date(),
-          lastSeenAt: new Date(),
-          // First Touch
+          firstSeenAt: now,
+          lastSeenAt: now,
           ftUtmSource: utmSource,
           ftUtmMedium: utmMedium,
           ftUtmCampaign: utmCampaign,
           ftUtmContent: utmContent,
           ftUtmTerm: utmTerm,
           ftReferrer: referrer,
-          // Last Touch
           ltUtmSource: utmSource,
           ltUtmMedium: utmMedium,
           ltUtmCampaign: utmCampaign,
           ltUtmContent: utmContent,
           ltUtmTerm: utmTerm,
           ltReferrer: referrer,
-          // Compatibility
           utmSource,
           utmMedium,
           utmCampaign,
           utmContent,
           utmTerm,
           referrer,
-          // Realtor
           realtorLinkId: currentRealtorLinkId,
-          lastRealtorAt: currentRealtorLinkId ? new Date() : null
+          lastRealtorAt: currentRealtorLinkId ? now : null
+        }
+      });
+    }
+
+    let session = sessionId
+      ? await this.prisma.trackingSession.findUnique({
+          where: { id: sessionId }
+        })
+      : null;
+
+    if (
+      session &&
+      (session.lastSeenAt < thirtyMinutesAgo ||
+        (session.visitorId && visitor.id && session.visitorId !== visitor.id))
+    ) {
+      session = null;
+    }
+
+    let createdNewSession = false;
+
+    if (session) {
+      const isNewSessionAttribution =
+        (utmSource && utmSource !== session.ltUtmSource) ||
+        (utmCampaign && utmCampaign !== session.ltUtmCampaign) ||
+        (currentRealtorLinkId && currentRealtorLinkId !== session.realtorLinkId);
+
+      let sessionRealtorIdToUse =
+        currentRealtorLinkId || session.realtorLinkId || visitor.realtorLinkId;
+      let sessionLastRealtorAt = currentRealtorLinkId
+        ? now
+        : session.lastRealtorAt || visitor.lastRealtorAt;
+
+      if (
+        !currentRealtorLinkId &&
+        session.realtorLinkId &&
+        session.lastRealtorAt &&
+        session.lastRealtorAt < thirtyDaysAgo
+      ) {
+        sessionRealtorIdToUse = null;
+        sessionLastRealtorAt = null;
+      }
+
+      session = await this.prisma.trackingSession.update({
+        where: { id: session.id },
+        data: {
+          visitorId: visitor.id,
+          lastSeenAt: now,
+          userAgent,
+          deviceType,
+          ip,
+          ipHash: hashedIp,
+          landingPage: session.landingPage || data.landingPage || visitor.landingPage || null,
+          tenantId: tenantId || session.tenantId,
+          projectId: projectId || session.projectId,
+          ...(isNewSessionAttribution && {
+            ltUtmSource: utmSource,
+            ltUtmMedium: utmMedium,
+            ltUtmCampaign: utmCampaign,
+            ltUtmContent: utmContent,
+            ltUtmTerm: utmTerm,
+            ltReferrer: referrer,
+            utmSource,
+            utmMedium,
+            utmCampaign,
+            utmContent,
+            utmTerm,
+            referrer
+          }),
+          realtorLinkId: sessionRealtorIdToUse,
+          lastRealtorAt: sessionLastRealtorAt
+        }
+      });
+    } else {
+      createdNewSession = true;
+      session = await this.prisma.trackingSession.create({
+        data: {
+          visitorId: visitor.id,
+          tenantId,
+          projectId,
+          ip,
+          ipHash: hashedIp,
+          userAgent,
+          deviceType,
+          landingPage: data.landingPage || visitor.landingPage || null,
+          firstSeenAt: now,
+          lastSeenAt: now,
+          ftUtmSource: utmSource,
+          ftUtmMedium: utmMedium,
+          ftUtmCampaign: utmCampaign,
+          ftUtmContent: utmContent,
+          ftUtmTerm: utmTerm,
+          ftReferrer: referrer,
+          ltUtmSource: utmSource,
+          ltUtmMedium: utmMedium,
+          ltUtmCampaign: utmCampaign,
+          ltUtmContent: utmContent,
+          ltUtmTerm: utmTerm,
+          ltReferrer: referrer,
+          utmSource,
+          utmMedium,
+          utmCampaign,
+          utmContent,
+          utmTerm,
+          referrer,
+          realtorLinkId: currentRealtorLinkId || visitor.realtorLinkId,
+          lastRealtorAt: currentRealtorLinkId ? now : visitor.lastRealtorAt
         }
       });
 
-      // Fire-and-forget: check access milestones for new sessions
       if (tenantId && projectId) {
         this.notifications.onNewSession(tenantId, projectId).catch(() => {});
       }
     }
 
-    // Auto-track realtor link click event if code provided
-    if (realtorCode && session.realtorLinkId) {
+    if (realtorCode && session.realtorLinkId && createdNewSession) {
       await this.trackEvent({
         sessionId: session.id,
         type: 'REFERRAL',
@@ -335,7 +433,11 @@ export class TrackingService {
       });
     }
 
-    return session;
+    return {
+      ...session,
+      visitorId: visitor.id,
+      sessionId: session.id
+    };
   }
 
   async trackEvent(dto: CreateEventDto) {
@@ -506,6 +608,62 @@ export class TrackingService {
     };
   }
 
+  private getVisitorWhere(
+    query: TrackingReportQueryDto,
+    context: { realtorLinkId?: string; agencyId?: string } = {}
+  ) {
+    const { tenantId, projectId, startDate, endDate } = query;
+
+    const start = startDate ? new Date(`${startDate}T03:00:00.000Z`) : null;
+    const end = endDate
+      ? new Date(
+          new Date(`${endDate}T03:00:00.000Z`).getTime() +
+            24 * 60 * 60 * 1000 -
+            1
+        )
+      : null;
+
+    return {
+      tenantId,
+      ...(projectId && projectId !== 'all' ? { projectId } : {}),
+      ...(context.realtorLinkId && { realtorLinkId: context.realtorLinkId }),
+      ...(context.agencyId && { realtorLink: { agencyId: context.agencyId } }),
+      ...(start || end
+        ? {
+            lastSeenAt: {
+              ...(start ? { gte: start } : {}),
+              ...(end ? { lte: end } : {})
+            }
+          }
+        : {})
+    };
+  }
+
+  private getPagination(query: TrackingReportQueryDto) {
+    const page = Math.max(Number(query.page || 1), 1);
+    const limit = Math.min(Math.max(Number(query.limit || 25), 1), 100);
+
+    return {
+      page,
+      limit,
+      skip: (page - 1) * limit
+    };
+  }
+
+  private getSessionDurationSec(session: {
+    firstSeenAt: Date;
+    lastSeenAt: Date;
+  }) {
+    return Math.max(
+      0,
+      Math.round(
+        (new Date(session.lastSeenAt).getTime() -
+          new Date(session.firstSeenAt).getTime()) /
+          1000
+      )
+    );
+  }
+
   // Restore individual report methods for the controller
   async getMostAccessedLots(
     query: TrackingReportQueryDto,
@@ -587,11 +745,13 @@ export class TrackingService {
     user?: { id: string; role: string; agencyId?: string }
   ) {
     const context = await this.getRealtorContextFromUser(user);
+    const whereVisitor = this.getVisitorWhere(query, context);
     const whereSession = this.getSessionWhere(query, context);
     const whereEvent = this.getEventWhere(query, context);
     const whereLead = this.getLeadWhere(query, context);
 
     const [
+      totalVisitors,
       totalSessions,
       totalPageViews,
       totalLotClicks,
@@ -607,8 +767,10 @@ export class TrackingService {
       // Engagement metrics - session durations
       sessionDurations,
       // Page views per session for bounce rate
-      pageViewsPerSession
+      pageViewsPerSession,
+      sessionsPerVisitor
     ] = await Promise.all([
+      this.prisma.trackingVisitor.count({ where: whereVisitor }),
       this.prisma.trackingSession.count({ where: whereSession }),
       this.prisma.trackingEvent.count({
         where: { ...whereEvent, type: 'PAGE_VIEW' }
@@ -684,8 +846,20 @@ export class TrackingService {
         by: ['sessionId'],
         where: { ...whereEvent, type: 'PAGE_VIEW' },
         _count: { id: true }
+      }),
+      this.prisma.trackingSession.groupBy({
+        by: ['visitorId'],
+        where: {
+          ...whereSession,
+          visitorId: { not: null }
+        },
+        _count: { id: true }
       })
     ]);
+
+    const returningVisitors = sessionsPerVisitor.filter(
+      (entry) => entry.visitorId && entry._count.id > 1
+    ).length;
 
     // Grouping sessions per day (by lastSeenAt = day of last activity)
     const history: Record<string, { sessions: number; views: number }> = {};
@@ -880,11 +1054,17 @@ export class TrackingService {
 
     return {
       summary: {
+        totalVisitors,
+        returningVisitors,
         totalSessions,
         totalPageViews,
         totalLotClicks,
         totalRealtorClicks,
-        totalLeads
+        totalLeads,
+        avgVisitsPerVisitor:
+          totalVisitors > 0
+            ? parseFloat((totalSessions / totalVisitors).toFixed(1))
+            : 0
       },
       history: Object.keys(history)
         .sort()
@@ -2029,6 +2209,661 @@ export class TrackingService {
       mediums: mediumBreakdown.map((m) => ({
         medium: m.utmMedium || '(none)',
         count: m._count.id
+      }))
+    };
+  }
+
+  async getAudienceMetrics(
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const whereVisitor = this.getVisitorWhere(query, context);
+    const whereSession = this.getSessionWhere(query, context);
+
+    const [
+      totalVisitors,
+      totalSessions,
+      totalLeads,
+      sessionsPerVisitor,
+      deviceBreakdown,
+      sourceBreakdown,
+      landingBreakdown,
+      recentVisitors
+    ] = await Promise.all([
+      this.prisma.trackingVisitor.count({ where: whereVisitor }),
+      this.prisma.trackingSession.count({ where: whereSession }),
+      this.prisma.lead.count({ where: this.getLeadWhere(query, context) }),
+      this.prisma.trackingSession.groupBy({
+        by: ['visitorId'],
+        where: {
+          ...whereSession,
+          visitorId: { not: null }
+        },
+        _count: { id: true }
+      }),
+      this.prisma.trackingVisitor.groupBy({
+        by: ['deviceType'],
+        where: whereVisitor,
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } }
+      }),
+      this.prisma.trackingVisitor.groupBy({
+        by: ['utmSource'],
+        where: whereVisitor,
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 8
+      }),
+      this.prisma.trackingVisitor.groupBy({
+        by: ['landingPage'],
+        where: {
+          ...whereVisitor,
+          landingPage: { not: null }
+        },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 8
+      }),
+      this.prisma.trackingVisitor.findMany({
+        where: whereVisitor,
+        orderBy: { lastSeenAt: 'desc' },
+        take: 5,
+        include: {
+          project: { select: { id: true, name: true } },
+          realtorLink: { select: { id: true, name: true, code: true } },
+          _count: { select: { sessions: true, leads: true } }
+        }
+      })
+    ]);
+
+    const returningVisitors = sessionsPerVisitor.filter(
+      (entry) => entry.visitorId && entry._count.id > 1
+    ).length;
+
+    return {
+      summary: {
+        totalVisitors,
+        returningVisitors,
+        totalSessions,
+        totalLeads,
+        avgVisitsPerVisitor:
+          totalVisitors > 0
+            ? parseFloat((totalSessions / totalVisitors).toFixed(1))
+            : 0,
+        leadRate:
+          totalVisitors > 0
+            ? parseFloat(((totalLeads / totalVisitors) * 100).toFixed(1))
+            : 0
+      },
+      devices: deviceBreakdown.map((entry) => ({
+        label: entry.deviceType || 'desconhecido',
+        count: entry._count.id
+      })),
+      sources: sourceBreakdown.map((entry) => ({
+        label: entry.utmSource || '(Direto)',
+        count: entry._count.id
+      })),
+      landingPages: landingBreakdown.map((entry) => ({
+        label: entry.landingPage || '/',
+        count: entry._count.id
+      })),
+      recentVisitors: recentVisitors.map((visitor) => ({
+        id: visitor.id,
+        firstSeenAt: visitor.firstSeenAt,
+        lastSeenAt: visitor.lastSeenAt,
+        landingPage: visitor.landingPage,
+        deviceType: visitor.deviceType,
+        utmSource: visitor.utmSource,
+        projectName: visitor.project?.name || null,
+        realtorName: visitor.realtorLink?.name || null,
+        sessions: visitor._count.sessions,
+        leads: visitor._count.leads
+      }))
+    };
+  }
+
+  async getSessionsReport(
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const whereSession = this.getSessionWhere(query, context);
+    const { page, limit, skip } = this.getPagination(query);
+
+    const [total, sessions] = await Promise.all([
+      this.prisma.trackingSession.count({ where: whereSession }),
+      this.prisma.trackingSession.findMany({
+        where: whereSession,
+        orderBy: { lastSeenAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          project: { select: { id: true, name: true } },
+          realtorLink: { select: { id: true, name: true, code: true } },
+          visitor: {
+            select: {
+              id: true,
+              firstSeenAt: true,
+              lastSeenAt: true
+            }
+          },
+          _count: { select: { events: true, leads: true } }
+        }
+      })
+    ]);
+
+    const sessionIds = sessions.map((session) => session.id);
+    const visitorIds = Array.from(
+      new Set(
+        sessions
+          .map((session) => session.visitorId)
+          .filter((value): value is string => Boolean(value))
+      )
+    );
+
+    const [pageViewCounts, lotInteractionCounts, visitorSessionCounts] =
+      await Promise.all([
+        sessionIds.length
+          ? this.prisma.trackingEvent.groupBy({
+              by: ['sessionId'],
+              where: { sessionId: { in: sessionIds }, type: 'PAGE_VIEW' },
+              _count: { id: true }
+            })
+          : Promise.resolve([]),
+        sessionIds.length
+          ? this.prisma.trackingEvent.groupBy({
+              by: ['sessionId'],
+              where: { sessionId: { in: sessionIds }, category: 'LOT' },
+              _count: { id: true }
+            })
+          : Promise.resolve([]),
+        visitorIds.length
+          ? this.prisma.trackingSession.groupBy({
+              by: ['visitorId'],
+              where: { visitorId: { in: visitorIds } },
+              _count: { id: true }
+            })
+          : Promise.resolve([])
+      ]);
+
+    const typedPageViewCounts = pageViewCounts as Array<{
+      sessionId: string;
+      _count: { id: number };
+    }>;
+    const typedLotInteractionCounts = lotInteractionCounts as Array<{
+      sessionId: string;
+      _count: { id: number };
+    }>;
+    const typedVisitorSessionCounts = visitorSessionCounts as Array<{
+      visitorId: string | null;
+      _count: { id: number };
+    }>;
+
+    const pageViewMap = new Map<string, number>(
+      typedPageViewCounts.map(
+        (entry): [string, number] => [entry.sessionId, entry._count.id]
+      )
+    );
+    const lotInteractionMap = new Map<string, number>(
+      typedLotInteractionCounts.map(
+        (entry): [string, number] => [entry.sessionId, entry._count.id]
+      )
+    );
+    const visitorSessionMap = new Map<string, number>(
+      typedVisitorSessionCounts
+        .filter((entry) => entry.visitorId)
+        .map((entry): [string, number] => [entry.visitorId as string, entry._count.id])
+    );
+
+    return {
+      summary: {
+        totalSessions: total,
+        page,
+        limit
+      },
+      items: sessions.map((session) => {
+        const pageViews = pageViewMap.get(session.id) || 0;
+        const visitorSessions = session.visitorId
+          ? visitorSessionMap.get(session.visitorId) || 0
+          : 0;
+
+        return {
+          id: session.id,
+          visitorId: session.visitorId,
+          firstSeenAt: session.firstSeenAt,
+          lastSeenAt: session.lastSeenAt,
+          durationSec: this.getSessionDurationSec(session),
+          pageViews,
+          lotInteractions: lotInteractionMap.get(session.id) || 0,
+          totalEvents: session._count.events,
+          totalLeads: session._count.leads,
+          isBounce: pageViews <= 1,
+          landingPage: session.landingPage,
+          deviceType: session.deviceType,
+          utmSource: session.utmSource,
+          utmCampaign: session.utmCampaign,
+          projectName: session.project?.name || null,
+          realtorName: session.realtorLink?.name || null,
+          realtorCode: session.realtorLink?.code || null,
+          visitorSessions,
+          visitorFirstSeenAt: session.visitor?.firstSeenAt || null
+        };
+      }),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: total > 0 ? Math.ceil(total / limit) : 0
+      }
+    };
+  }
+
+  async getSessionDetail(
+    sessionId: string,
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const whereSession = this.getSessionWhere(query, context);
+
+    const session = await this.prisma.trackingSession.findFirst({
+      where: {
+        ...whereSession,
+        id: sessionId
+      },
+      include: {
+        project: { select: { id: true, name: true } },
+        realtorLink: { select: { id: true, name: true, code: true } },
+        visitor: {
+          select: {
+            id: true,
+            firstSeenAt: true,
+            lastSeenAt: true,
+            landingPage: true,
+            utmSource: true,
+            utmCampaign: true,
+            deviceType: true,
+            _count: { select: { sessions: true, leads: true } }
+          }
+        },
+        leads: {
+          orderBy: { createdAt: 'desc' },
+          take: 25,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            status: true,
+            createdAt: true,
+            mapElementId: true
+          }
+        },
+        _count: { select: { events: true, leads: true } }
+      }
+    });
+
+    if (!session) {
+      throw new BadRequestException('Sessao nao encontrada');
+    }
+
+    const [events, pageViews, lotInteractions] = await Promise.all([
+      this.prisma.trackingEvent.findMany({
+        where: { sessionId },
+        orderBy: { timestamp: 'asc' },
+        take: 200
+      }),
+      this.prisma.trackingEvent.count({
+        where: { sessionId, type: 'PAGE_VIEW' }
+      }),
+      this.prisma.trackingEvent.groupBy({
+        by: ['label'],
+        where: { sessionId, category: 'LOT' },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 20
+      })
+    ]);
+
+    return {
+      summary: {
+        id: session.id,
+        visitorId: session.visitorId,
+        firstSeenAt: session.firstSeenAt,
+        lastSeenAt: session.lastSeenAt,
+        durationSec: this.getSessionDurationSec(session),
+        pageViews,
+        totalEvents: session._count.events,
+        totalLeads: session._count.leads,
+        landingPage: session.landingPage,
+        deviceType: session.deviceType,
+        utmSource: session.utmSource,
+        utmCampaign: session.utmCampaign,
+        projectName: session.project?.name || null,
+        realtorName: session.realtorLink?.name || null,
+        realtorCode: session.realtorLink?.code || null,
+        visitorSessions: session.visitor?._count.sessions || 0,
+        visitorLeads: session.visitor?._count.leads || 0
+      },
+      lots: lotInteractions.map((entry) => ({
+        label: entry.label || 'Lote sem identificacao',
+        count: entry._count.id
+      })),
+      leads: session.leads,
+      events: events.map((event) => ({
+        id: event.id,
+        timestamp: event.timestamp,
+        type: event.type,
+        category: event.category,
+        action: event.action,
+        label: event.label,
+        path: event.path,
+        metadata: event.metadata
+      })),
+      visitor: session.visitor
+        ? {
+            id: session.visitor.id,
+            firstSeenAt: session.visitor.firstSeenAt,
+            lastSeenAt: session.visitor.lastSeenAt,
+            landingPage: session.visitor.landingPage,
+            deviceType: session.visitor.deviceType,
+            utmSource: session.visitor.utmSource,
+            utmCampaign: session.visitor.utmCampaign
+          }
+        : null
+    };
+  }
+
+  async getVisitorsReport(
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const whereVisitor = this.getVisitorWhere(query, context);
+    const whereSession = this.getSessionWhere(query, context);
+    const { page, limit, skip } = this.getPagination(query);
+
+    const [total, visitors] = await Promise.all([
+      this.prisma.trackingVisitor.count({ where: whereVisitor }),
+      this.prisma.trackingVisitor.findMany({
+        where: whereVisitor,
+        orderBy: { lastSeenAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          project: { select: { id: true, name: true } },
+          realtorLink: { select: { id: true, name: true, code: true } },
+          sessions: {
+            orderBy: { lastSeenAt: 'desc' },
+            take: 1,
+            select: { id: true, lastSeenAt: true, landingPage: true }
+          },
+          _count: { select: { sessions: true, leads: true } }
+        }
+      })
+    ]);
+
+    const visitorIds = visitors.map((visitor) => visitor.id);
+
+    const [pageViewCounts, lotInteractionCounts] = await Promise.all([
+      visitorIds.length
+        ? this.prisma.trackingEvent.groupBy({
+            by: ['sessionId'],
+            where: {
+              type: 'PAGE_VIEW',
+              session: { visitorId: { in: visitorIds } }
+            },
+            _count: { id: true }
+          })
+        : Promise.resolve([]),
+      visitorIds.length
+        ? this.prisma.trackingEvent.groupBy({
+            by: ['sessionId'],
+            where: {
+              category: 'LOT',
+              session: { visitorId: { in: visitorIds } }
+            },
+            _count: { id: true }
+          })
+        : Promise.resolve([])
+    ]);
+
+    const typedPageViewCounts = pageViewCounts as Array<{
+      sessionId: string;
+      _count: { id: number };
+    }>;
+    const typedLotInteractionCounts = lotInteractionCounts as Array<{
+      sessionId: string;
+      _count: { id: number };
+    }>;
+
+    const latestSessionByVisitor = new Map<
+      string,
+      { id: string; lastSeenAt: Date; landingPage: string | null }
+    >();
+    for (const visitor of visitors) {
+      const latestSession = visitor.sessions[0];
+      if (latestSession) {
+        latestSessionByVisitor.set(visitor.id, latestSession);
+      }
+    }
+
+    const sessionIdsByVisitor = new Map<string, string[]>();
+    for (const visitor of visitors) {
+      sessionIdsByVisitor.set(visitor.id, []);
+    }
+
+    const visitorSessions = visitorIds.length
+      ? await this.prisma.trackingSession.findMany({
+          where: {
+            ...whereSession,
+            visitorId: { in: visitorIds }
+          },
+          select: { id: true, visitorId: true }
+        })
+      : [];
+
+    for (const session of visitorSessions) {
+      if (!session.visitorId) continue;
+      const existing = sessionIdsByVisitor.get(session.visitorId) || [];
+      existing.push(session.id);
+      sessionIdsByVisitor.set(session.visitorId, existing);
+    }
+
+    const pageViewBySession = new Map<string, number>(
+      typedPageViewCounts.map(
+        (entry): [string, number] => [entry.sessionId, entry._count.id]
+      )
+    );
+    const lotBySession = new Map<string, number>(
+      typedLotInteractionCounts.map(
+        (entry): [string, number] => [entry.sessionId, entry._count.id]
+      )
+    );
+
+    return {
+      summary: {
+        totalVisitors: total,
+        page,
+        limit
+      },
+      items: visitors.map((visitor) => {
+        const visitorSessionIds = sessionIdsByVisitor.get(visitor.id) || [];
+        const pageViews = visitorSessionIds.reduce(
+          (sum, currentId) => sum + (pageViewBySession.get(currentId) || 0),
+          0
+        );
+        const lotInteractions = visitorSessionIds.reduce(
+          (sum, currentId) => sum + (lotBySession.get(currentId) || 0),
+          0
+        );
+        const latestSession = latestSessionByVisitor.get(visitor.id);
+
+        return {
+          id: visitor.id,
+          firstSeenAt: visitor.firstSeenAt,
+          lastSeenAt: visitor.lastSeenAt,
+          landingPage: visitor.landingPage,
+          deviceType: visitor.deviceType,
+          utmSource: visitor.utmSource,
+          utmCampaign: visitor.utmCampaign,
+          projectName: visitor.project?.name || null,
+          realtorName: visitor.realtorLink?.name || null,
+          realtorCode: visitor.realtorLink?.code || null,
+          sessions: visitor._count.sessions,
+          leads: visitor._count.leads,
+          pageViews,
+          lotInteractions,
+          lastSessionId: latestSession?.id || null,
+          lastSessionAt: latestSession?.lastSeenAt || null
+        };
+      }),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: total > 0 ? Math.ceil(total / limit) : 0
+      }
+    };
+  }
+
+  async getVisitorDetail(
+    visitorId: string,
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const whereVisitor = this.getVisitorWhere(query, context);
+    const whereSession = this.getSessionWhere(query, context);
+
+    const visitor = await this.prisma.trackingVisitor.findFirst({
+      where: {
+        ...whereVisitor,
+        id: visitorId
+      },
+      include: {
+        project: { select: { id: true, name: true } },
+        realtorLink: { select: { id: true, name: true, code: true } },
+        leads: {
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            status: true,
+            createdAt: true,
+            mapElementId: true,
+            sessionId: true
+          }
+        },
+        _count: { select: { sessions: true, leads: true } }
+      }
+    });
+
+    if (!visitor) {
+      throw new BadRequestException('Visitante nao encontrado');
+    }
+
+    const sessions = await this.prisma.trackingSession.findMany({
+      where: {
+        ...whereSession,
+        visitorId
+      },
+      orderBy: { lastSeenAt: 'desc' },
+      take: 25,
+      include: {
+        project: { select: { id: true, name: true } },
+        realtorLink: { select: { id: true, name: true, code: true } },
+        _count: { select: { events: true, leads: true } }
+      }
+    });
+
+    const sessionIds = sessions.map((session) => session.id);
+
+    const [events, pageViews, lotInteractions] = await Promise.all([
+      this.prisma.trackingEvent.findMany({
+        where: { sessionId: { in: sessionIds } },
+        orderBy: { timestamp: 'desc' },
+        take: 200
+      }),
+      sessionIds.length
+        ? this.prisma.trackingEvent.groupBy({
+            by: ['sessionId'],
+            where: { sessionId: { in: sessionIds }, type: 'PAGE_VIEW' },
+            _count: { id: true }
+          })
+        : Promise.resolve([]),
+      sessionIds.length
+        ? this.prisma.trackingEvent.groupBy({
+            by: ['label'],
+            where: {
+              sessionId: { in: sessionIds },
+              category: 'LOT'
+            },
+            _count: { id: true },
+            orderBy: { _count: { id: 'desc' } },
+            take: 20
+          })
+        : Promise.resolve([])
+    ]);
+
+    const typedPageViews = pageViews as Array<{
+      sessionId: string;
+      _count: { id: number };
+    }>;
+
+    const pageViewMap = new Map<string, number>(
+      typedPageViews.map(
+        (entry): [string, number] => [entry.sessionId, entry._count.id]
+      )
+    );
+
+    return {
+      summary: {
+        id: visitor.id,
+        firstSeenAt: visitor.firstSeenAt,
+        lastSeenAt: visitor.lastSeenAt,
+        landingPage: visitor.landingPage,
+        deviceType: visitor.deviceType,
+        utmSource: visitor.utmSource,
+        utmCampaign: visitor.utmCampaign,
+        referrer: visitor.referrer,
+        projectName: visitor.project?.name || null,
+        realtorName: visitor.realtorLink?.name || null,
+        realtorCode: visitor.realtorLink?.code || null,
+        totalSessions: visitor._count.sessions,
+        totalLeads: visitor._count.leads
+      },
+      sessions: sessions.map((session) => ({
+        id: session.id,
+        firstSeenAt: session.firstSeenAt,
+        lastSeenAt: session.lastSeenAt,
+        durationSec: this.getSessionDurationSec(session),
+        pageViews: pageViewMap.get(session.id) || 0,
+        totalEvents: session._count.events,
+        totalLeads: session._count.leads,
+        landingPage: session.landingPage,
+        projectName: session.project?.name || null,
+        realtorName: session.realtorLink?.name || null
+      })),
+      lots: lotInteractions.map((entry) => ({
+        label: entry.label || 'Lote sem identificacao',
+        count: entry._count.id
+      })),
+      leads: visitor.leads,
+      events: events.map((event) => ({
+        id: event.id,
+        sessionId: event.sessionId,
+        timestamp: event.timestamp,
+        type: event.type,
+        category: event.category,
+        action: event.action,
+        label: event.label,
+        path: event.path,
+        metadata: event.metadata
       }))
     };
   }

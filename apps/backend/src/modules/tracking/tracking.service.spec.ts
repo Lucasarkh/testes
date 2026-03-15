@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrackingService } from './tracking.service';
 import { PrismaService } from '@infra/db/prisma.service';
-import { BadRequestException } from '@nestjs/common';
+import { NotificationsService } from '@modules/notifications/notifications.service';
 
 describe('TrackingService', () => {
   let service: TrackingService;
@@ -17,8 +17,14 @@ describe('TrackingService', () => {
       findUnique: jest.fn(),
       update: jest.fn()
     },
+    trackingVisitor: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn()
+    },
     trackingEvent: {
-      create: jest.fn()
+      create: jest.fn(),
+      findFirst: jest.fn()
     },
     realtorLink: {
       findFirst: jest.fn(),
@@ -33,7 +39,13 @@ describe('TrackingService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TrackingService,
-        { provide: PrismaService, useValue: mockPrisma }
+        { provide: PrismaService, useValue: mockPrisma },
+        {
+          provide: NotificationsService,
+          useValue: {
+            onNewSession: jest.fn().mockResolvedValue(undefined)
+          }
+        }
       ]
     }).compile();
 
@@ -52,6 +64,9 @@ describe('TrackingService', () => {
       };
 
       const mockProject = { id: 'p1', tenantId: 't1', slug: 'test-project' };
+      mockPrisma.trackingVisitor.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'v1', ...data })
+      );
       mockPrisma.project.findFirst.mockResolvedValue(mockProject);
       mockPrisma.trackingSession.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 's1', ...data })
@@ -64,6 +79,7 @@ describe('TrackingService', () => {
       );
 
       expect(session.id).toBe('s1');
+      expect(session.visitorId).toBe('v1');
       expect(session.ftUtmSource).toBe('google');
       expect(session.ltUtmSource).toBe('google');
       expect(session.landingPage).toBe(dto.landingPage);
@@ -76,14 +92,27 @@ describe('TrackingService', () => {
         ftUtmSource: 'google',
         ltUtmSource: 'google',
         lastSeenAt: new Date(),
+        realtorLinkId: null,
+        visitorId: 'v1'
+      };
+      const existingVisitor = {
+        id: 'v1',
+        ftUtmSource: 'google',
+        ltUtmSource: 'google',
+        lastSeenAt: new Date(),
         realtorLinkId: null
       };
 
       const dto = {
         sessionId: 's1',
+        visitorId: 'v1',
         utmSource: 'facebook'
       };
 
+      mockPrisma.trackingVisitor.findUnique.mockResolvedValue(existingVisitor);
+      mockPrisma.trackingVisitor.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...existingVisitor, ...data })
+      );
       mockPrisma.trackingSession.findUnique.mockResolvedValue(existingSession);
       mockPrisma.trackingSession.update.mockImplementation(({ data }) =>
         Promise.resolve({ ...existingSession, ...data })
@@ -101,17 +130,28 @@ describe('TrackingService', () => {
 
       const existingSession = {
         id: 's1',
+        visitorId: 'v1',
+        realtorLinkId: 'r1',
+        lastRealtorAt: thirtyDaysAgo,
+        lastSeenAt: new Date()
+      };
+      const existingVisitor = {
+        id: 'v1',
         realtorLinkId: 'r1',
         lastRealtorAt: thirtyDaysAgo,
         lastSeenAt: new Date()
       };
 
+      mockPrisma.trackingVisitor.findUnique.mockResolvedValue(existingVisitor);
+      mockPrisma.trackingVisitor.update.mockImplementation(({ data }) =>
+        Promise.resolve({ ...existingVisitor, ...data })
+      );
       mockPrisma.trackingSession.findUnique.mockResolvedValue(existingSession);
       mockPrisma.trackingSession.update.mockImplementation(({ data }) =>
         Promise.resolve({ ...existingSession, ...data })
       );
 
-      const session = await service.createSession({ sessionId: 's1' } as any);
+      const session = await service.createSession({ sessionId: 's1', visitorId: 'v1' } as any);
 
       expect(session.realtorLinkId).toBeNull(); // Cleared because > 30 days
     });
@@ -123,6 +163,7 @@ describe('TrackingService', () => {
         id: 's1',
         lastSeenAt: new Date()
       });
+      mockPrisma.trackingEvent.findFirst.mockResolvedValue(null);
 
       await service.trackEvent({
         sessionId: 's1',

@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Param,
   Query,
   Req,
   Res,
@@ -30,10 +31,18 @@ export class TrackingController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
-    // 1. Prioritize body sessionId, then cookie sessionId
-    const cookieSessionId = req.cookies?.['tracking_session_id'];
-    if (!dto.sessionId && cookieSessionId) {
-      dto.sessionId = cookieSessionId;
+    const cookieVisitorId = req.cookies?.['tracking_visitor_id'];
+    const cookieVisitId = req.cookies?.['tracking_visit_id'];
+    const legacyCookieSessionId = req.cookies?.['tracking_session_id'];
+
+    if (!dto.visitorId && cookieVisitorId) {
+      dto.visitorId = cookieVisitorId;
+    }
+    if (!dto.visitorId && legacyCookieSessionId) {
+      dto.visitorId = legacyCookieSessionId;
+    }
+    if (!dto.sessionId && cookieVisitId) {
+      dto.sessionId = cookieVisitId;
     }
 
     const ip = req.ip || (req.headers['x-forwarded-for'] as string);
@@ -44,12 +53,18 @@ export class TrackingController {
       userAgent
     );
 
-    // 2. Set Cookie (HttpOnly, 30 days)
-    res.cookie('tracking_session_id', session.id, {
+    res.cookie('tracking_visitor_id', session.visitorId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    });
+
+    res.cookie('tracking_visit_id', session.sessionId || session.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 60 * 1000 // 30 minutes
     });
 
     return session;
@@ -59,7 +74,7 @@ export class TrackingController {
   async trackEvent(@Body() dto: CreateEventDto, @Req() req: Request) {
     // Also check for cookie if body is missing sessionId
     if (!dto.sessionId) {
-      dto.sessionId = req.cookies?.['tracking_session_id'];
+      dto.sessionId = req.cookies?.['tracking_visit_id'] || req.cookies?.['tracking_session_id'];
     }
     return this.trackingService.trackEvent(dto);
   }
@@ -139,6 +154,17 @@ export class TrackingController {
     return this.trackingService.getTrafficMetrics(query, user);
   }
 
+  @Get('metrics/audience')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getAudienceMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getAudienceMetrics(query, user);
+  }
+
   @Get('metrics')
   @UseGuards(AuthGuard('jwt'), TenantGuard)
   async getMetrics(
@@ -192,5 +218,51 @@ export class TrackingController {
   ) {
     query.tenantId = tenantId;
     return this.trackingService.getLeadSources(query, user);
+  }
+
+  @Get('report/sessions')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getSessionReport(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getSessionsReport(query, user);
+  }
+
+  @Get('report/sessions/:id')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getSessionReportDetail(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getSessionDetail(id, query, user);
+  }
+
+  @Get('report/visitors')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getVisitorReport(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getVisitorsReport(query, user);
+  }
+
+  @Get('report/visitors/:id')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getVisitorReportDetail(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getVisitorDetail(id, query, user);
   }
 }

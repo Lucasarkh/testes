@@ -1892,6 +1892,7 @@ async function submitLead() {
       mapElementId: leadForm.value.mapElementId || undefined,
       message: leadForm.value.message || undefined,
       realtorCode: corretorCode || undefined,
+      visitorId: trackingStore.visitorId || undefined,
       sessionId: trackingStore.sessionId || undefined,
       aiChatTranscript: chatStore.getTranscript() || undefined,
     }

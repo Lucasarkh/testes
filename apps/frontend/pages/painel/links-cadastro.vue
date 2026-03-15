@@ -40,6 +40,14 @@ const showModal = ref(false)
 const saving = ref(false)
 const copiedId = ref<string | null>(null)
 const editingCodeId = ref<string | null>(null)
+const originalExpiresAt = ref('')
+const today = computed(() => getTodayInBrasilia())
+const expiresAtMin = computed(() => {
+  if (form.value.expiresAt && form.value.expiresAt < today.value) {
+    return form.value.expiresAt
+  }
+  return today.value
+})
 
 const form = ref({
   description: '',
@@ -87,6 +95,7 @@ async function fetchCodes() {
 
 function openModal() {
   editingCodeId.value = null
+  originalExpiresAt.value = ''
   form.value = {
     description: '',
     role: 'CORRETOR',
@@ -100,6 +109,7 @@ function openModal() {
 
 function openEditModal(code: InviteCode) {
   editingCodeId.value = code.id
+  originalExpiresAt.value = code.expiresAt ? new Date(code.expiresAt).toISOString().slice(0, 10) : ''
   form.value = {
     description: code.description || '',
     role: code.role as 'CORRETOR' | 'IMOBILIARIA',
@@ -116,6 +126,7 @@ function openEditModal(code: InviteCode) {
 function closeModal() {
   showModal.value = false
   editingCodeId.value = null
+  originalExpiresAt.value = ''
 }
 
 watch(() => form.value.role, (role) => {
@@ -134,6 +145,15 @@ watch(() => form.value.projectAssignmentMode, (mode) => {
 async function saveCode() {
   if (form.value.role === 'CORRETOR' && form.value.projectAssignmentMode === 'SELECTED' && form.value.projectIds.length === 0) {
     toastError('Selecione ao menos um empreendimento ou escolha "Nenhum" ou "Todos".')
+    return
+  }
+
+  if (
+    form.value.expiresAt &&
+    form.value.expiresAt < today.value &&
+    form.value.expiresAt !== originalExpiresAt.value
+  ) {
+    toastError('A expiração deve ser hoje ou uma data futura.')
     return
   }
 
@@ -400,7 +420,7 @@ onMounted(fetchCodes)
               </div>
               <div class="form-group">
                 <label class="form-label">Expira em (opcional)</label>
-                <input v-model="form.expiresAt" type="date" class="form-input" />
+                <input v-model="form.expiresAt" :min="expiresAtMin" type="date" class="form-input" />
               </div>
             </div>
           </div>

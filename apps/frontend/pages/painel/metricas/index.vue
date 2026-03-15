@@ -2,21 +2,24 @@
 const { fetchApi } = useApi()
 const toast = useToast()
 const auth = useAuthStore()
-const { projects, selectedProjectId, startDate, endDate, fetchProjects, buildQueryString } = useMetricsFilters()
+const { projects, selectedProjectId, startDate, startDateMax, endDate, endDateMin, endDateMax, fetchProjects, buildQueryString } = useMetricsFilters()
 
 const metrics = ref<any>(null)
 const brokerMetrics = ref<any>(null)
+const audienceMetrics = ref<any>(null)
 const loadingMetrics = ref(false)
 
 async function fetchMetrics() {
   loadingMetrics.value = true
   try {
-    const [metricsRes, brokersRes] = await Promise.all([
+    const [metricsRes, brokersRes, audienceRes] = await Promise.all([
       fetchApi(`/tracking/metrics?${buildQueryString()}`),
-      fetchApi(`/tracking/metrics/brokers?${buildQueryString()}`)
+      fetchApi(`/tracking/metrics/brokers?${buildQueryString()}`),
+      fetchApi(`/tracking/metrics/audience?${buildQueryString()}`)
     ])
     metrics.value = metricsRes
     brokerMetrics.value = brokersRes
+    audienceMetrics.value = audienceRes
   } catch {
     toast.error('Erro ao carregar métricas')
   } finally {
@@ -74,7 +77,32 @@ const bounceRate = computed(() => {
   return metrics.value?.engagement?.bounceRate?.toFixed(1) || '0'
 })
 
+const returningRate = computed(() => {
+  if (!audienceMetrics.value?.summary?.totalVisitors) return '0'
+  return ((audienceMetrics.value.summary.returningVisitors / audienceMetrics.value.summary.totalVisitors) * 100).toFixed(1)
+})
+
 const topicCards = computed(() => [
+  {
+    title: 'Explorador de Sessões',
+    subtitle: 'Jornada por visita, páginas, lotes e leads da sessão',
+    route: '/painel/metricas/sessoes',
+    icon: 'pulse',
+    color: 'cyan',
+    highlight: audienceMetrics.value?.summary?.avgVisitsPerVisitor !== undefined
+      ? `${audienceMetrics.value.summary.avgVisitsPerVisitor} visitas por visitante`
+      : null
+  },
+  {
+    title: 'Explorador de Visitantes',
+    subtitle: 'Recorrência, origem e histórico consolidado por visitante',
+    route: '/painel/metricas/visitantes',
+    icon: 'personas',
+    color: 'amber',
+    highlight: audienceMetrics.value?.summary?.returningVisitors !== undefined
+      ? `${audienceMetrics.value.summary.returningVisitors} recorrentes`
+      : null
+  },
   {
     title: 'Métricas de Lotes',
     subtitle: 'Visualizações, reservas e leads por lote',
@@ -139,11 +167,11 @@ const topicCards = computed(() => [
       <div class="filter-actions">
         <div class="filter-group">
           <label>Data Início:</label>
-          <input type="date" v-model="startDate" class="date-input" />
+          <input type="date" v-model="startDate" :max="startDateMax" class="date-input" />
         </div>
         <div class="filter-group">
           <label>Data Fim:</label>
-          <input type="date" v-model="endDate" class="date-input" />
+          <input type="date" v-model="endDate" :min="endDateMin" :max="endDateMax" class="date-input" />
         </div>
         <div class="filter-group">
           <label>Empreendimento:</label>
@@ -167,6 +195,24 @@ const topicCards = computed(() => [
           <div class="stat-content">
             <CommonAppTooltip text="Número de visitas únicas ao site. Cada sessão representa um visitante acessando o site em um período de tempo." position="bottom"><span class="stat-label">Total de Sessões</span></CommonAppTooltip>
             <span class="stat-value text-blue">{{ metrics.summary.totalSessions }}</span>
+          </div>
+        </div>
+        <div v-if="!auth.isCorretor" class="stat-card">
+          <div class="stat-icon sessions">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="stat-content">
+            <CommonAppTooltip text="Visitantes únicos identificados no período, mesmo quando retornam em várias sessões." position="bottom"><span class="stat-label">Total de Visitantes</span></CommonAppTooltip>
+            <span class="stat-value text-sky">{{ metrics.summary.totalVisitors }}</span>
+          </div>
+        </div>
+        <div v-if="!auth.isCorretor" class="stat-card">
+          <div class="stat-icon duration">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7a4 4 0 1 1 8 0c0 1.4-.67 2.64-1.71 3.37A5 5 0 0 1 18 15v1a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-1a5 5 0 0 1 3.71-4.83A3.98 3.98 0 0 1 8 7Z"/></svg>
+          </div>
+          <div class="stat-content">
+            <CommonAppTooltip text="Quantidade e taxa de visitantes que voltaram em mais de uma sessão dentro do período." position="bottom"><span class="stat-label">Visitantes Retornantes</span></CommonAppTooltip>
+            <span class="stat-value text-cyan">{{ metrics.summary.returningVisitors }} ({{ returningRate }}%)</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -272,6 +318,10 @@ const topicCards = computed(() => [
             <svg v-if="card.icon === 'globe'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <!-- Office -->
             <svg v-if="card.icon === 'office'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 20v-8h10v8"/><path d="M7 8h.01"/><path d="M12 8h.01"/><path d="M17 8h.01"/></svg>
+            <!-- Pulse -->
+            <svg v-if="card.icon === 'pulse'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 7-4-14-3 7H2"/></svg>
+            <!-- Personas -->
+            <svg v-if="card.icon === 'personas'" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div class="topic-content">
             <h3>{{ card.title }}</h3>

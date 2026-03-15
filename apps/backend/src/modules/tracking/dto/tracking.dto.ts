@@ -1,9 +1,13 @@
-import { IsString, IsOptional, IsObject, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsNumber, IsNumberString } from 'class-validator';
 
 export class CreateSessionDto {
   @IsOptional()
   @IsString()
   sessionId?: string;
+
+  @IsOptional()
+  @IsString()
+  visitorId?: string;
 
   @IsOptional()
   @IsString()
@@ -102,4 +106,12 @@ export class TrackingReportQueryDto {
   @IsOptional()
   @IsString()
   endDate?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  page?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  limit?: string;
 }

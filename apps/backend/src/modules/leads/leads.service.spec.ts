@@ -56,6 +56,7 @@ describe('LeadsService', () => {
         id: 's1',
         ftUtmSource: 'google',
         ltUtmSource: 'facebook',
+        visitorId: 'v1',
         realtorLinkId: 'r1'
       };
 
@@ -77,6 +78,7 @@ describe('LeadsService', () => {
       expect(lead.isRecurrent).toBe(true);
       expect(lead.ftUtmSource).toBe('google');
       expect(lead.ltUtmSource).toBe('facebook');
+      expect(lead.visitorId).toBe('v1');
       expect(lead.realtorLinkId).toBe('r1');
       expect(mockPrisma.leadHistory.create).toHaveBeenCalled();
     });

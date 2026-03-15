@@ -43,6 +43,11 @@ export class CreateLeadDto {
   @IsString()
   sessionId?: string;
 
+  @ApiPropertyOptional({ description: 'ID persistente do visitante' })
+  @IsOptional()
+  @IsString()
+  visitorId?: string;
+
   @ApiPropertyOptional({ description: 'JSON da conversa com o chatbot de IA' })
   @IsOptional()
   @IsString()

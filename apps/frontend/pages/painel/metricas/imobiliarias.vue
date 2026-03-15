@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { fetchApi } = useApi()
 const toast = useToast()
-const { projects, selectedProjectId, startDate, endDate, fetchProjects, buildQueryString } = useMetricsFilters()
+const { projects, selectedProjectId, startDate, startDateMax, endDate, endDateMin, endDateMax, fetchProjects, buildQueryString } = useMetricsFilters()
 
 const data = ref<any>(null)
 const loading = ref(false)
@@ -47,11 +47,11 @@ definePageMeta({
       <div class="filter-actions">
         <div class="filter-group">
           <label>Data Início:</label>
-          <input v-model="startDate" type="date" class="date-input" />
+          <input v-model="startDate" type="date" :max="startDateMax" class="date-input" />
         </div>
         <div class="filter-group">
           <label>Data Fim:</label>
-          <input v-model="endDate" type="date" class="date-input" />
+          <input v-model="endDate" type="date" :min="endDateMin" :max="endDateMax" class="date-input" />
         </div>
         <div class="filter-group">
           <label>Empreendimento:</label>
