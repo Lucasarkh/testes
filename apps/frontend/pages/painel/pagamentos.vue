@@ -135,19 +135,22 @@ async function saveConfig() {
   }
   try {
     const payload = { ...form.value }
-
-    // If we're editing, we only want to send the keys that actually have NEW content.
-    // However, since Backend now merges, we just need to ensure we're not sending empty strings 
-    // for fields that were previously masked.
+    // Se estiver editando, só envie a chave se foi alterada
     if (editingConfig.value) {
       const filteredKeys = Object.fromEntries(
-        Object.entries(payload.keysJson).filter(([, value]) => Boolean(value))
+        Object.entries(payload.keysJson).filter(([k, value]) => {
+          // Se estava mascarado e continua vazio, não envia
+          if (payload._maskedKeys && payload._maskedKeys[k] && !value) return false
+          // Se não estava mascarado, envia se não vazio
+          return Boolean(value)
+        })
       ) as Partial<PaymentKeys>
       payload.keysJson = filteredKeys as PaymentKeys
-      
+      delete payload._maskedKeys
       await patch(`/admin/payment-config/${editingConfig.value.id}`, payload)
       toast.success('Configuração atualizada')
     } else {
+      delete payload._maskedKeys
       await post('/admin/payment-config', payload)
       toast.success('Configuração criada')
     }
@@ -191,7 +194,6 @@ function openCreate() {
 function openEdit(config: PaymentConfigRecord) {
   editingConfig.value = config
   formErrors.value = []
-  
   // Ensure keysJson is initialized even if empty in DB
   const baseKeys = {
     secretKey: '',
@@ -200,14 +202,23 @@ function openEdit(config: PaymentConfigRecord) {
     token: '',
     isSandbox: false
   }
-
+  // Se vier _masked, marca como já cadastrada
+  const keysJson = { ...baseKeys, ...(config.keysJson || {}) }
+  const maskedKeys: Record<string, boolean> = {}
+  Object.keys(baseKeys).forEach((k) => {
+    if (config.keysJson && typeof config.keysJson[k] === 'object' && config.keysJson[k]._masked) {
+      maskedKeys[k] = true
+      keysJson[k] = ''
+    }
+  })
   form.value = {
     name: config.name,
     provider: config.provider,
-    keysJson: { ...baseKeys, ...(config.keysJson || {}) },
+    keysJson,
     isActive: config.isActive,
     webhookSecret: config.webhookSecret || ''
   }
+  form.value._maskedKeys = maskedKeys
   showModal.value = true
 }
 
@@ -346,7 +357,11 @@ onMounted(fetchData)
           <div v-if="form.provider === 'STRIPE'">
             <div class="form-group">
               <label class="form-label">Secret Key (sk_...)</label>
-              <AppPasswordInput v-model="form.keysJson.secretKey" placeholder="Insira sua Secret Key do Stripe" required autocomplete="new-password" />
+              <AppPasswordInput
+                v-model="form.keysJson.secretKey"
+                :placeholder="form._maskedKeys?.secretKey ? 'Chave já cadastrada' : 'Insira sua Secret Key do Stripe'"
+                autocomplete="new-password"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">Webhook Signing Secret (whsec_...)</label>
@@ -357,7 +372,11 @@ onMounted(fetchData)
           <div v-if="form.provider === 'ASAAS'">
             <div class="form-group">
               <label class="form-label">API Key ($...)</label>
-              <AppPasswordInput v-model="form.keysJson.apiKey" placeholder="Access Token do Asaas" required autocomplete="new-password" />
+              <AppPasswordInput
+                v-model="form.keysJson.apiKey"
+                :placeholder="form._maskedKeys?.apiKey ? 'Chave já cadastrada' : 'Access Token do Asaas'"
+                autocomplete="new-password"
+              />
             </div>
             <div class="flex items-center gap-2 mt-2">
               <input type="checkbox" v-model="form.keysJson.isSandbox" id="chkAsaasSandbox" />
@@ -368,21 +387,33 @@ onMounted(fetchData)
           <div v-if="form.provider === 'MERCADO_PAGO'">
             <div class="form-group">
               <label class="form-label">Access Token (APP_USR-...)</label>
-              <AppPasswordInput v-model="form.keysJson.accessToken" required autocomplete="new-password" />
+              <AppPasswordInput
+                v-model="form.keysJson.accessToken"
+                :placeholder="form._maskedKeys?.accessToken ? 'Chave já cadastrada' : ''"
+                autocomplete="new-password"
+              />
             </div>
           </div>
 
           <div v-if="form.provider === 'PAGAR_ME'">
             <div class="form-group">
               <label class="form-label">Secret Key (ak_...)</label>
-              <AppPasswordInput v-model="form.keysJson.secretKey" required autocomplete="new-password" />
+              <AppPasswordInput
+                v-model="form.keysJson.secretKey"
+                :placeholder="form._maskedKeys?.secretKey ? 'Chave já cadastrada' : ''"
+                autocomplete="new-password"
+              />
             </div>
           </div>
 
           <div v-if="form.provider === 'PAGSEGURO'">
             <div class="form-group">
               <label class="form-label">Token de Acesso</label>
-              <AppPasswordInput v-model="form.keysJson.token" required autocomplete="new-password" />
+              <AppPasswordInput
+                v-model="form.keysJson.token"
+                :placeholder="form._maskedKeys?.token ? 'Chave já cadastrada' : ''"
+                autocomplete="new-password"
+              />
             </div>
             <div class="flex items-center gap-2 mt-2">
               <input type="checkbox" v-model="form.keysJson.isSandbox" id="chkPagSeguroSandbox" />
