@@ -148,8 +148,47 @@ export class S3Service {
 
   /** Extract the S3 key from a full public URL. */
   keyFromUrl(url: string): string | null {
-    const prefix = `https://${this.bucketName}.s3.${this.region}.amazonaws.com/`;
-    if (url.startsWith(prefix)) return url.slice(prefix.length);
+    const trimmed = String(url || '').trim();
+    if (!trimmed) return null;
+
+    try {
+      const parsed = new URL(trimmed);
+      const host = parsed.hostname.toLowerCase();
+      const bucket = this.bucketName.toLowerCase();
+      const region = this.region.toLowerCase();
+      const pathname = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
+
+      const virtualHostedHosts = new Set([
+        `${bucket}.s3.${region}.amazonaws.com`,
+        `${bucket}.s3-${region}.amazonaws.com`,
+        `${bucket}.s3.amazonaws.com`
+      ]);
+
+      if (parsed.protocol === 's3:' && host === bucket) {
+        return pathname || null;
+      }
+
+      if (virtualHostedHosts.has(host)) {
+        return pathname || null;
+      }
+
+      const pathStyleHosts = new Set([
+        `s3.${region}.amazonaws.com`,
+        `s3-${region}.amazonaws.com`,
+        's3.amazonaws.com'
+      ]);
+
+      if (pathStyleHosts.has(host)) {
+        const expectedPrefix = `${bucket}/`;
+        if (!pathname.toLowerCase().startsWith(expectedPrefix)) {
+          return null;
+        }
+        return pathname.slice(expectedPrefix.length) || null;
+      }
+    } catch {
+      return null;
+    }
+
     return null;
   }
 }

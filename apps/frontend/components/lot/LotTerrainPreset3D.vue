@@ -55,7 +55,7 @@
 
     <div class="lot-terrain-3d__summary">
       <span class="lot-terrain-3d__pill">{{ slopeText }}</span>
-      <span v-if="displayArea" class="lot-terrain-3d__pill">{{ displayArea }} m2</span>
+      <span v-if="displayArea" class="lot-terrain-3d__pill">{{ displayArea }} m²</span>
       <span class="lot-terrain-3d__pill">{{ geometryModeLabel }}</span>
     </div>
 
