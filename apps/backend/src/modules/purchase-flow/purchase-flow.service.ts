@@ -467,6 +467,41 @@ export class PurchaseFlowService {
     };
   }
 
+  async createAccessSessionForLead(leadId: string) {
+    const process = await this.loadProcessByLeadIdForAnyTenant(leadId);
+
+    if (process.cancelledAt) {
+      throw new BadRequestException('Esta reserva nao esta mais ativa.');
+    }
+
+    const sessionEmail =
+      process.clients.find((item: any) => item.role === PurchasePartyRole.PRIMARY)?.email ||
+      process.lead.email;
+    const sessionPhone =
+      process.clients.find((item: any) => item.role === PurchasePartyRole.PRIMARY)?.phone ||
+      process.lead.phone;
+
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+    await this.prisma.purchaseAccessSession.create({
+      data: {
+        processId: process.id,
+        email: sessionEmail || 'cliente@lotio.local',
+        phone: sessionPhone || null,
+        tokenHash: this.hashValue(token),
+        expiresAt
+      }
+    });
+
+    return {
+      token,
+      expiresAt,
+      reservation: this.buildReservationSummary(process),
+      currentRouteStep: STEP_ROUTE_MAP[process.currentStep]
+    };
+  }
+
   async getActiveReservationByAccessToken(token?: string) {
     const process = await this.getProcessFromAccessToken(token);
     return this.buildReservationSummary(process);
@@ -1031,6 +1066,17 @@ export class PurchaseFlowService {
   private async loadProcessById(processId: string) {
     const process = await this.prisma.purchaseProcess.findUnique({
       where: { id: processId },
+      include: this.flowInclude()
+    });
+    if (!process) {
+      throw new NotFoundException('Processo de compra nao encontrado.');
+    }
+    return process;
+  }
+
+  private async loadProcessByLeadIdForAnyTenant(leadId: string) {
+    const process = await this.prisma.purchaseProcess.findUnique({
+      where: { leadId },
       include: this.flowInclude()
     });
     if (!process) {

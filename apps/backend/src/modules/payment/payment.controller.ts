@@ -6,18 +6,23 @@ import {
   Param,
   Header,
   Req,
+  Res,
   HttpCode,
   Logger
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { PaymentProvider } from '@prisma/client';
+import { PurchaseFlowService } from '@modules/purchase-flow/purchase-flow.service';
 
 @ApiTags('Payment')
 @Controller('payment')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly purchaseFlowService: PurchaseFlowService
+  ) {}
 
   @Post('reserve')
   @ApiOperation({ summary: 'Start a reservation payment' })
@@ -37,8 +42,21 @@ export class PaymentController {
   @Get(':paymentId/status')
   @ApiOperation({ summary: 'Check or sync reservation payment status' })
   @ApiResponse({ status: 200, description: 'Payment status resolved' })
-  async getReservationStatus(@Param('paymentId') paymentId: string) {
-    return this.paymentService.getReservationStatus(paymentId);
+  async getReservationStatus(
+    @Param('paymentId') paymentId: string,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.paymentService.getReservationStatus(paymentId);
+
+    if (result?.status === 'PAID' && result?.token) {
+      res.cookie(
+        this.purchaseFlowService.getAccessCookieName(),
+        result.token,
+        this.purchaseFlowService.getAccessCookieOptions()
+      );
+    }
+
+    return result;
   }
 
   @Post('cancel')

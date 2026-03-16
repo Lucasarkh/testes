@@ -339,7 +339,10 @@ export class PaymentService {
       paymentId: payment.id,
       status: effectiveStatus,
       leadStatus: effectiveLeadStatus,
-      returnPath
+      returnPath,
+      ...(effectiveStatus === 'PAID'
+        ? await this.purchaseFlow.createAccessSessionForLead(payment.leadId)
+        : {})
     };
   }
 

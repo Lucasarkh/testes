@@ -859,7 +859,8 @@ async function handlePaymentReturn() {
 
     if (result.status === 'PAID') {
       toastSuccess('Pagamento confirmado. Reserva atualizada.')
-      window.location.replace(currentLotPath.value)
+      const nextStep = String(result.currentRouteStep || 'cadastro-cliente')
+      window.location.replace(`/fluxo-compra/${nextStep}`)
       return
     }
 
