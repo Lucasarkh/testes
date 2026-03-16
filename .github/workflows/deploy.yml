@@ -151,6 +151,9 @@ jobs:
 
             echo "Latest logs from backend:"
             docker logs --tail=50 lotio_backend
+
+            echo "Removing dangling Docker images from previous deploys..."
+            docker image prune -f
             
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -n 20
 
@@ -244,6 +247,9 @@ jobs:
 
             echo "Latest logs from frontend:"
             docker logs --tail=20 lotio_frontend
+
+            echo "Removing dangling Docker images from previous deploys..."
+            docker image prune -f
 
             docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -n 20
 
