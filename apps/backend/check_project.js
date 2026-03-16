@@ -1,1 +1,0 @@
-const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); prisma.project.findFirst({ where: { slug: 'residencial-paranapanema' }, include: { aiConfig: true } }).then(p => console.log(JSON.stringify(p, null, 2))).catch(e => console.error(e.message)).finally(() => prisma.$disconnect())

@@ -105,25 +105,6 @@
                     <span class="hp-value">{{ formatCurrencyToBrasilia(details?.price || details?.paymentConditions?.price) }}</span>
                   </div>
                 </div>
-
-                <div class="quick-metrics-v4">
-                  <div class="q-item" v-if="details?.block || details?.lotNumber || details?.paymentConditions?.setor">
-                    <span class="q-val">{{ details?.block ? `${details.block} ${details.lotNumber || ''}` : details?.paymentConditions?.setor }}</span>
-                    <span class="q-unit">Quadra / Lote</span>
-                  </div>
-                  <div class="q-item" v-if="details?.areaM2">
-                    <span class="q-val">{{ details?.areaM2 }}</span>
-                    <span class="q-unit">m² totais</span>
-                  </div>
-                  <div class="q-item" v-if="details?.pricePerM2">
-                    <span class="q-val">{{ formatCurrencyToBrasilia(details?.pricePerM2) }}</span>
-                    <span class="q-unit">valor do m²</span>
-                  </div>
-                  <div class="q-item" v-if="details?.slope">
-                    <span class="q-val">{{ slopeLabel(details?.slope) }}</span>
-                    <span class="q-unit">topografia</span>
-                  </div>
-                </div>
               </section>
 
             <!-- Specification -->

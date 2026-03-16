@@ -53,35 +53,6 @@
       <div class="lot-terrain-3d__hint">Arraste para orbitar</div>
     </div>
 
-    <div class="lot-terrain-3d__summary">
-      <span class="lot-terrain-3d__pill">{{ slopeText }}</span>
-      <span v-if="displayArea" class="lot-terrain-3d__pill">{{ displayArea }} m²</span>
-      <span class="lot-terrain-3d__pill">{{ geometryModeLabel }}</span>
-    </div>
-
-    <div class="lot-terrain-3d__metrics">
-      <div class="lot-terrain-3d__metric">
-        <span class="lot-terrain-3d__metric-label">Frente</span>
-        <strong>{{ formatMeters(terrainSpec.frontage) }}</strong>
-      </div>
-      <div class="lot-terrain-3d__metric">
-        <span class="lot-terrain-3d__metric-label">Fundo</span>
-        <strong>{{ formatMeters(terrainSpec.backWidth) }}</strong>
-      </div>
-      <div class="lot-terrain-3d__metric">
-        <span class="lot-terrain-3d__metric-label">Profundidade real</span>
-        <strong>{{ formatMeters(terrainSpec.depth) }}</strong>
-      </div>
-      <div class="lot-terrain-3d__metric">
-        <span class="lot-terrain-3d__metric-label">Lateral esquerda</span>
-        <strong>{{ formatMeters(terrainSpec.sideLeft) }}</strong>
-      </div>
-      <div class="lot-terrain-3d__metric">
-        <span class="lot-terrain-3d__metric-label">Lateral direita</span>
-        <strong>{{ formatMeters(terrainSpec.sideRight) }}</strong>
-      </div>
-    </div>
-
     <p class="lot-terrain-3d__footnote">
       *Esse modelo é gerado automaticamente com base nos dados disponíveis de medida. Pode não condizer com o formato real do lote e deve ser usado apenas para fins de visualização aproximada. Para informações precisas, consulte a planta oficial ou as medidas fornecidas pela loteadora.
     </p>
