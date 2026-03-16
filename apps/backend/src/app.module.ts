@@ -35,6 +35,7 @@ import { NearbyModule } from '@modules/nearby/nearby.module';
 import { SupportModule } from '@modules/support/support.module';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
 import { LeadDistributionModule } from '@modules/lead-distribution/lead-distribution.module';
+import { PurchaseFlowModule } from '@modules/purchase-flow/purchase-flow.module';
 import { AppController } from './app.controller';
 import { TermsGuard } from './common/guards/terms.guard';
 import { PanelPermissionGuard } from './common/guards/panel-permission.guard';
@@ -89,7 +90,8 @@ import { PanelPermissionGuard } from './common/guards/panel-permission.guard';
     BillingModule,
     SupportModule,
     NotificationsModule,
-    LeadDistributionModule
+    LeadDistributionModule,
+    PurchaseFlowModule
   ],
   controllers: [AppController],
   providers: [

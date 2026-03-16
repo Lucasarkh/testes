@@ -132,6 +132,58 @@ enum PlantHotspotLinkType {
   NONE
 }
 
+enum PurchaseStep {
+  RESERVA_CRIADA
+  PAGAMENTO_RESERVA_CONFIRMADO
+  CADASTRO_CLIENTE
+  CADASTRO_CONJUGE
+  UPLOAD_DOCUMENTOS
+  SIMULACAO_PAGAMENTO
+  CONFIRMACAO_CONDICOES
+  GERAR_CONTRATO
+  ASSINAR_CONTRATO
+  VENDA_CONFIRMADA
+}
+
+enum PurchasePartyRole {
+  PRIMARY
+  SPOUSE
+}
+
+enum PurchaseDocumentType {
+  RG
+  CPF
+  COMPROVANTE_RESIDENCIA
+  CERTIDAO_CASAMENTO
+}
+
+enum PurchaseFunnelEventType {
+  RESERVA_CRIADA
+  PAGAMENTO_RESERVA
+  CADASTRO_INICIADO
+  CADASTRO_CONCLUIDO
+  DOCUMENTOS_ENVIADOS
+  SIMULACAO_APROVADA
+  CONTRATO_GERADO
+  CONTRATO_ASSINADO
+  VENDA_CONFIRMADA
+}
+
+enum DigitalSignatureProvider {
+  MANUAL
+  CLICKSIGN
+  DOCUSIGN
+  ZAPSIGN
+}
+
+enum ContractEnvelopeStatus {
+  DRAFT
+  GENERATED
+  SENT_FOR_SIGNATURE
+  SIGNED
+  CANCELLED
+}
+
 // ─── BILLING ENUMS ───────────────────────────────────────
 
 enum BillingStatus {
@@ -430,6 +482,11 @@ model Project {
   aiEnabled        Boolean       @default(false)
   aiConfigId       String?
   aiConfig         AiConfig?     @relation(fields: [aiConfigId], references: [id], onDelete: SetNull)
+  purchaseFlowConfig PurchaseFlowConfig?
+  purchaseProcesses  PurchaseProcess[]
+  purchasePaymentTables PurchasePaymentTable[]
+  contractTemplates  ContractTemplate[]
+  purchaseFunnelEvents PurchaseFunnelEvent[]
   schedulingConfig SchedulingConfig?
   distributionConfig LeadDistributionConfig?
   distributionLogs   LeadDistributionLog[]
@@ -598,6 +655,8 @@ model Lead {
   history       LeadHistory[]
   schedulings   Scheduling[]
   distributionLog LeadDistributionLog?
+  purchaseProcess PurchaseProcess?
+  purchaseFunnelEvents PurchaseFunnelEvent[]
 
   @@index([tenantId, projectId])
   @@index([tenantId, status])            // Pipeline dashboard: filter by tenant + status
@@ -694,6 +753,256 @@ model LeadHistory {
   createdAt   DateTime    @default(now())
 
   @@index([leadId])
+}
+
+model PurchaseFlowConfig {
+  id        String   @id @default(cuid())
+  tenantId  String
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requireSpouseWhenMaritalStatus String[] @default(["CASADO", "UNIAO_ESTAVEL"])
+  signatureProvider DigitalSignatureProvider @default(MANUAL)
+  signatureProviderConfig Json?
+  autoGenerateContract Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fieldRequirements    PurchaseFieldRequirement[]
+  documentRequirements PurchaseDocumentRequirement[]
+
+  @@index([tenantId, projectId])
+}
+
+model PurchaseFieldRequirement {
+  id        String   @id @default(cuid())
+  configId  String
+  config    PurchaseFlowConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  field     String
+  label     String?
+  required  Boolean  @default(true)
+  sortOrder Int      @default(0)
+
+  @@unique([configId, field])
+}
+
+model PurchaseDocumentRequirement {
+  id           String   @id @default(cuid())
+  configId     String
+  config       PurchaseFlowConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+  documentType PurchaseDocumentType
+  required     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+
+  @@unique([configId, documentType])
+}
+
+model PurchasePaymentTable {
+  id               String   @id @default(cuid())
+  tenantId         String
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name             String
+  entryMinPercent  Decimal  @default(10) @db.Decimal(5, 2)
+  maxInstallments  Int
+  correctionIndex  String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  conditions       PurchasePaymentCondition[]
+  selectedInProcesses PurchaseProcess[] @relation("SelectedPurchasePaymentTable")
+
+  @@index([tenantId, projectId])
+}
+
+model PurchasePaymentCondition {
+  id                 String   @id @default(cuid())
+  tableId            String
+  table              PurchasePaymentTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  numberInstallments Int
+  entryAmount        Decimal  @db.Decimal(12, 2)
+  installmentAmount  Decimal  @db.Decimal(12, 2)
+  totalAmount        Decimal? @db.Decimal(12, 2)
+
+  selectedInProcesses PurchaseProcess[] @relation("SelectedPurchasePaymentCondition")
+
+  @@unique([tableId, numberInstallments])
+}
+
+model ContractTemplate {
+  id              String   @id @default(cuid())
+  tenantId        String
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title           String
+  contentTemplate String   @db.Text
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  selectedInProcesses PurchaseProcess[] @relation("SelectedContractTemplate")
+  generatedContracts  PurchaseGeneratedContract[]
+
+  @@index([tenantId, projectId])
+}
+
+model PurchaseProcess {
+  id                         String   @id @default(cuid())
+  tenantId                   String
+  projectId                  String
+  project                    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  leadId                     String   @unique
+  lead                       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  currentStep                PurchaseStep @default(RESERVA_CRIADA)
+  cadastroClienteCompleto    Boolean  @default(false)
+  cadastroConjugeCompleto    Boolean  @default(false)
+  documentosEnviados         Boolean  @default(false)
+  simulacaoAprovada          Boolean  @default(false)
+  condicoesConfirmadas       Boolean  @default(false)
+  contratoGerado             Boolean  @default(false)
+  contratoAssinado           Boolean  @default(false)
+  vendaConfirmada            Boolean  @default(false)
+  requiresSpouse             Boolean  @default(false)
+  selectedPaymentTableId     String?
+  selectedPaymentTable       PurchasePaymentTable? @relation("SelectedPurchasePaymentTable", fields: [selectedPaymentTableId], references: [id], onDelete: SetNull)
+  selectedPaymentConditionId String?
+  selectedPaymentCondition   PurchasePaymentCondition? @relation("SelectedPurchasePaymentCondition", fields: [selectedPaymentConditionId], references: [id], onDelete: SetNull)
+  selectedContractTemplateId String?
+  selectedContractTemplate   ContractTemplate? @relation("SelectedContractTemplate", fields: [selectedContractTemplateId], references: [id], onDelete: SetNull)
+  simulationSnapshot         Json?
+  reservationExpiresAt       DateTime?
+  startedAt                  DateTime @default(now())
+  completedAt                DateTime?
+  cancelledAt                DateTime?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  clients       PurchaseClientProfile[]
+  documents     PurchaseDocument[]
+  contracts     PurchaseGeneratedContract[]
+  stepTimelines PurchaseStepSla[]
+  funnelEvents  PurchaseFunnelEvent[]
+  accessCodes   PurchaseAccessCode[]
+  accessSessions PurchaseAccessSession[]
+
+  @@index([tenantId, projectId])
+  @@index([currentStep])
+}
+
+model PurchaseClientProfile {
+  id            String   @id @default(cuid())
+  processId     String
+  process       PurchaseProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  role          PurchasePartyRole
+  name          String?
+  cpf           String?
+  rg            String?
+  maritalStatus String?
+  occupation    String?
+  monthlyIncome Decimal? @db.Decimal(12, 2)
+  address       String?
+  addressCity   String?
+  addressState  String?
+  addressZip    String?
+  email         String?
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([processId, role])
+}
+
+model PurchaseDocument {
+  id           String   @id @default(cuid())
+  processId    String
+  process      PurchaseProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  role         PurchasePartyRole @default(PRIMARY)
+  documentType PurchaseDocumentType
+  fileName     String?
+  fileUrl      String
+  mimeType     String?
+  uploadedAt   DateTime @default(now())
+
+  @@index([processId, role])
+  @@index([documentType])
+}
+
+model PurchaseGeneratedContract {
+  id                String   @id @default(cuid())
+  processId         String
+  process           PurchaseProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  templateId        String?
+  template          ContractTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  status            ContractEnvelopeStatus @default(DRAFT)
+  signatureProvider DigitalSignatureProvider @default(MANUAL)
+  signatureRequestId String?
+  renderedText      String?  @db.Text
+  renderedHtml      String?  @db.Text
+  pdfUrl            String?
+  signedAt          DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([processId, status])
+}
+
+model PurchaseStepSla {
+  id              String   @id @default(cuid())
+  processId       String
+  process         PurchaseProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  step            PurchaseStep
+  startedAt       DateTime @default(now())
+  finishedAt      DateTime?
+  durationSeconds Int?
+
+  @@unique([processId, step])
+}
+
+model PurchaseFunnelEvent {
+  id        String   @id @default(cuid())
+  tenantId  String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  processId String?
+  process   PurchaseProcess? @relation(fields: [processId], references: [id], onDelete: SetNull)
+  eventType PurchaseFunnelEventType
+  step      PurchaseStep?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, projectId, eventType])
+  @@index([processId, createdAt(sort: Desc)])
+}
+
+model PurchaseAccessCode {
+  id        String   @id @default(cuid())
+  processId String
+  process   PurchaseProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  email     String
+  phone     String?
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([processId, createdAt(sort: Desc)])
+  @@index([email, phone])
+}
+
+model PurchaseAccessSession {
+  id          String   @id @default(cuid())
+  processId   String
+  process     PurchaseProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  email       String
+  phone       String?
+  tokenHash   String
+  expiresAt   DateTime
+  lastAccessAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([processId])
+  @@index([email, phone])
 }
 
 model RealtorLink {

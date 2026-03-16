@@ -35,6 +35,7 @@
               <p v-if="project.description" class="v4-hero-desc text-balance">{{ project.description }}</p>
               <div class="v4-hero-actions">
                 <a href="#planta" class="v4-btn-primary v4-hero-btn" @click="tracking.trackClick('Botão: Ver Planta Interativa')">Ver Planta Interativa</a>
+                <NuxtLink to="/sou-cliente" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Sou Cliente')">Sou cliente</NuxtLink>
                 <a v-if="schedulingConfig?.enabled" href="#agendamento" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Agendar Visita')">Agendar Visita</a>
                 <a href="#contato" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Solicitar Informações')">Solicitar informações</a>
               </div>

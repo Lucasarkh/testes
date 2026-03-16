@@ -20,6 +20,7 @@ import {
 } from './dto/manual-lead.dto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
 import { LeadDistributionService } from '@modules/lead-distribution/lead-distribution.service';
+import { PurchaseFlowService } from '@modules/purchase-flow/purchase-flow.service';
 import OpenAI from 'openai';
 import axios from 'axios';
 
@@ -29,7 +30,8 @@ export class LeadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly leadDistribution: LeadDistributionService
+    private readonly leadDistribution: LeadDistributionService,
+    private readonly purchaseFlow: PurchaseFlowService
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -41,6 +43,7 @@ export class LeadsService {
       where: {
         status: 'RESERVATION',
         reservedAt: { not: null },
+        purchaseProcess: null,
         project: { reservationExpiryHours: { gt: 0 } }
       },
       include: {
@@ -487,6 +490,10 @@ export class LeadsService {
         this.logger.error('Notification onNewLead (manual)', e.message)
       );
 
+    if (createdLead.status === 'RESERVATION') {
+      await this.purchaseFlow.activateManualReservation(createdLead.id);
+    }
+
     return createdLead;
   }
 
@@ -827,6 +834,8 @@ export class LeadsService {
             e.message
           )
         );
+
+      await this.purchaseFlow.activateManualReservation(id);
     }
 
     return updatedLead;

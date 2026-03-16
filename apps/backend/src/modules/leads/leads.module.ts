@@ -4,9 +4,10 @@ import { LeadsController } from './leads.controller';
 import { PublicLeadsController } from './public-leads.controller';
 import { NotificationsModule } from '@modules/notifications/notifications.module';
 import { LeadDistributionModule } from '@modules/lead-distribution/lead-distribution.module';
+import { PurchaseFlowModule } from '@modules/purchase-flow/purchase-flow.module';
 
 @Module({
-  imports: [NotificationsModule, LeadDistributionModule],
+  imports: [NotificationsModule, LeadDistributionModule, PurchaseFlowModule],
   controllers: [LeadsController, PublicLeadsController],
   providers: [LeadsService],
   exports: [LeadsService]

@@ -18,6 +18,7 @@ import {
 } from './interfaces/payment-gateway.interface';
 import { PaymentProvider } from '@prisma/client';
 import { NotificationsService } from '@modules/notifications/notifications.service';
+import { PurchaseFlowService } from '@modules/purchase-flow/purchase-flow.service';
 
 @Injectable()
 export class PaymentService {
@@ -31,7 +32,8 @@ export class PaymentService {
     private readonly pagarMe: PagarMeAdapter,
     private readonly pagSeguro: PagSeguroAdapter,
     private readonly notifications: NotificationsService,
-    private readonly encryption: EncryptionService
+    private readonly encryption: EncryptionService,
+    private readonly purchaseFlow: PurchaseFlowService
   ) {}
 
   private getErrorMessage(error: unknown): string {
@@ -117,6 +119,8 @@ export class PaymentService {
     if (!lead || !lead.project) {
       throw new NotFoundException('Lead or Project not found');
     }
+
+    await this.purchaseFlow.ensureProcessForLead(leadId);
 
     // 0. Check Lot availability
     if (lead.mapElement?.lotDetails) {
@@ -496,6 +500,8 @@ export class PaymentService {
           e.message
         )
       );
+
+    await this.purchaseFlow.activateReservationPaymentConfirmed(payment.leadId);
   }
 
   private async handleFailedPayment(

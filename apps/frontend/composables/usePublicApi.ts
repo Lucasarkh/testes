@@ -53,5 +53,6 @@ export const usePublicApi = () => {
     fetchPublic,
     get: (url: string, options: any = {}) => fetchPublic(url, { ...options, method: 'GET' }),
     post: (url: string, body?: any, options: any = {}) => fetchPublic(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
+    put: (url: string, body?: any, options: any = {}) => fetchPublic(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
   }
 }

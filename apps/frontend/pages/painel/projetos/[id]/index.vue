@@ -134,6 +134,10 @@
               <span class="sidebar-icon"><i class="bi bi-image-fill" aria-hidden="true"></i></span>
               <span class="sidebar-label">Panorama 360°</span>
             </NuxtLink>
+            <NuxtLink :to="`/painel/projetos/${projectId}/pos-reserva`" class="sidebar-tool-link sidebar-tool-link--primary">
+              <span class="sidebar-icon"><i class="bi bi-file-earmark-text-fill" aria-hidden="true"></i></span>
+              <span class="sidebar-label">Fluxo Pós-Reserva</span>
+            </NuxtLink>
           </div>
           <nav class="sidebar-nav">
             <div v-for="group in sidebarGroups" :key="group.id" class="sidebar-group">

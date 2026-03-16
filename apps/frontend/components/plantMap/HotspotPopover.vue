@@ -160,8 +160,11 @@ const metaEntries = computed<MetaEntry[]>(() => {
 
   const entries: MetaEntry[] = []
   const normalizedTitle = (props.hotspot?.title ?? '').trim().toLowerCase()
+  const hiddenKeys = new Set(['frontAngleDeg'])
 
   for (const [key, val] of Object.entries(meta as Record<string, unknown>)) {
+    if (hiddenKeys.has(key)) continue
+
     if (key === 'lotInfo' && val && typeof val === 'object' && !Array.isArray(val)) {
       const lotInfo = val as Record<string, unknown>
       const block = typeof lotInfo.block === 'string' ? lotInfo.block.trim() : ''
