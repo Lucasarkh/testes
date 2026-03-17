@@ -87,8 +87,8 @@ services:
     container_name: lotio_rabbitmq
     restart: unless-stopped
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+      - "${RABBITMQ_PORT:-127.0.0.1:5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-127.0.0.1:15672}:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Defina RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?Defina RABBITMQ_PASS}
@@ -105,6 +105,27 @@ services:
       resources:
         limits:
           memory: 512M
+
+  # ── Redis Commander (UI do Redis) ────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: lotio_redis_commander
+    restart: unless-stopped
+    ports:
+      - "${REDIS_COMMANDER_PORT:-127.0.0.1:8081}:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:${REDIS_PASSWORD}
+      HTTP_USER: ${REDIS_COMMANDER_USER:-admin}
+      HTTP_PASSWORD: ${REDIS_COMMANDER_PASS:?Defina REDIS_COMMANDER_PASS}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   # ── Frontend (Nuxt SSR) ───────────────────────
   frontend:
@@ -212,7 +233,7 @@ services:
     container_name: lotio_prometheus
     restart: unless-stopped
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "${PROMETHEUS_PORT:-127.0.0.1:9090}:9090"
     volumes:
       - ./prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -229,12 +250,12 @@ services:
     container_name: lotio_grafana
     restart: unless-stopped
     ports:
-      - "${GRAFANA_PORT:-4000}:3000"
+      - "${GRAFANA_PORT:-127.0.0.1:4000}:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASS:?Defina GRAFANA_PASS}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:4000}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://grafana.lotio.com.br}
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
@@ -252,7 +273,7 @@ services:
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lotio}?sslmode=disable"
     ports:
-      - "${PG_EXPORTER_PORT:-9187}:9187"
+      - "${PG_EXPORTER_PORT:-127.0.0.1:9187}:9187"
     networks:
       - app_network
     depends_on:

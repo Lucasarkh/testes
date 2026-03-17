@@ -1,0 +1,155 @@
+{
+  email contato@lotio.com.br
+
+  on_demand_tls {
+    ask http://127.0.0.1:8080/api/internal/tls/allow-host
+  }
+
+  servers {
+    trusted_proxies static private_ranges
+  }
+}
+
+(proxy_backend) {
+  reverse_proxy 127.0.0.1:8080 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    transport http {
+      dial_timeout 10s
+      response_header_timeout 30s
+    }
+  }
+}
+
+(proxy_frontend) {
+  reverse_proxy 127.0.0.1:3000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    transport http {
+      dial_timeout 10s
+      response_header_timeout 30s
+    }
+  }
+}
+
+www.lotio.com.br {
+  redir https://lotio.com.br{uri} 308
+}
+
+http:// {
+  redir https://{host}{uri} 308
+}
+
+lotio.com.br {
+  encode zstd gzip
+
+  request_body {
+    max_size 10MB
+  }
+
+  @api path /api /api/*
+  handle @api {
+    import proxy_backend
+  }
+
+  @socket path /socket.io /socket.io/*
+  handle @socket {
+    import proxy_backend
+  }
+
+  handle {
+    import proxy_frontend
+  }
+}
+
+grafana.lotio.com.br {
+  encode zstd gzip
+
+  basicauth {
+    admin $2a$14$ico7/wtPM..IVCAt/PuW5evczWywVdf4pBRnC0B8BTh5wBPB5V4Li
+  }
+
+  reverse_proxy 127.0.0.1:4000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    transport http {
+      dial_timeout 10s
+      response_header_timeout 30s
+    }
+  }
+}
+
+rabbit.lotio.com.br {
+  encode zstd gzip
+
+  basicauth {
+    admin $2a$14$ico7/wtPM..IVCAt/PuW5evczWywVdf4pBRnC0B8BTh5wBPB5V4Li
+  }
+
+  reverse_proxy 127.0.0.1:15672 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    transport http {
+      dial_timeout 10s
+      response_header_timeout 30s
+    }
+  }
+}
+
+redis.lotio.com.br {
+  encode zstd gzip
+
+  basicauth {
+    admin $2a$14$ico7/wtPM..IVCAt/PuW5evczWywVdf4pBRnC0B8BTh5wBPB5V4Li
+  }
+
+  reverse_proxy 127.0.0.1:8081 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-Host {host}
+    transport http {
+      dial_timeout 10s
+      response_header_timeout 30s
+    }
+  }
+}
+
+https:// {
+  tls {
+    on_demand
+  }
+
+  encode zstd gzip
+
+  request_body {
+    max_size 10MB
+  }
+
+  @api path /api /api/*
+  handle @api {
+    import proxy_backend
+  }
+
+  @socket path /socket.io /socket.io/*
+  handle @socket {
+    import proxy_backend
+  }
+
+  handle {
+    import proxy_frontend
+  }
+}
