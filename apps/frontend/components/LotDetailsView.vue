@@ -601,20 +601,11 @@
       </div>
     </div>
 
-      <!-- Lightbox (Keep original logic) -->
-      <div v-if="lightboxOpen" class="v4-lightbox" @click.self="lightboxOpen = false">
-        <button class="v4-lightbox-close" @click="lightboxOpen = false">&times;</button>
-
-        <button v-if="lightboxIdx > 0" class="v4-lightbox-btn v4-prev" @click="lightboxIdx--">&#10094;</button>
-
-        <div class="v4-lightbox-content">
-          <img v-if="lightboxMedia?.type === 'PHOTO'" :src="lightboxMedia.url" :alt="lightboxMedia.caption" />
-          <video v-else :src="lightboxMedia?.url" controls autoplay />
-          <div v-if="lightboxMedia?.caption" class="v4-lightbox-caption">{{ lightboxMedia.caption }}</div>
-        </div>
-
-        <button v-if="lightboxIdx < (galleryMedias.length || 1) - 1" class="v4-lightbox-btn v4-next" @click="lightboxIdx++">&#10095;</button>
-      </div>
+      <CommonMediaLightbox
+        v-model="lightboxOpen"
+        :items="galleryMedias"
+        :initial-index="lightboxIdx"
+      />
 
       <nav class="v4-sticky-nav">
         <a
@@ -1898,7 +1889,6 @@ watch(() => reservationForm.value.cpf, (v) => { if (v) reservationForm.value.cpf
 
 const lightboxOpen = ref(false)
 const lightboxIdx = ref(0)
-const lightboxMedia = computed(() => galleryMedias.value?.[lightboxIdx.value] ?? null)
 
 const isTouchMobile = ref(false)
 const plantMapInteractionEnabled = ref(false)
@@ -2764,17 +2754,6 @@ async function submitReservation() {
   padding: 0 8px;
   text-align: center;
 }
-
-/* Lightbox V4 */
-.v4-lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; }
-.v4-lightbox-btn { position: absolute; background: none; border: none; color: white; font-size: 40px; cursor: pointer; padding: 20px; opacity: 0.5; transition: 0.2s; }
-.v4-lightbox-btn:hover { opacity: 1; }
-.v4-prev { left: 20px; }
-.v4-next { right: 20px; }
-.v4-lightbox-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 32px; cursor: pointer; z-index: 2100; }
-.v4-lightbox-content { max-width: 90%; max-height: 80%; }
-.v4-lightbox-content img, .v4-lightbox-content video { max-width: 100%; max-height: 100%; border-radius: 12px; }
-.v4-lightbox-caption { margin-top: 10px; color: rgba(255,255,255,0.92); font-size: 14px; text-align: center; }
 
 .lot-plant-map-frame {
   height: 500px;

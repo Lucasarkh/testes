@@ -289,6 +289,9 @@ importers:
       primeicons:
         specifier: ^7.0.0
         version: 7.0.0
+      swiper:
+        specifier: ^12.1.2
+        version: 12.1.2
       three:
         specifier: ^0.183.2
         version: 0.183.2
@@ -6432,6 +6435,10 @@ packages:
     engines: {node: '>= v0.10.32'}
     peerDependencies:
       express: '>=4.0.0 || >=5.0.0-beta'
+
+  swiper@12.1.2:
+    resolution: {integrity: sha512-4gILrI3vXZqoZh71I1PALqukCFgk+gpOwe1tOvz5uE9kHtl2gTDzmYflYCwWvR4LOvCrJi6UEEU+gnuW5BtkgQ==}
+    engines: {node: '>= 4.7.0'}
 
   symbol-observable@4.0.0:
     resolution: {integrity: sha512-b19dMThMV4HVFynSAM1++gBHAbk2Tc/osgLIBZMKsyqh34jb2e8Os7T6ZW/Bt3pJFdBTd2JwAnAAEQV7rSNvcQ==}
@@ -14233,6 +14240,8 @@ snapshots:
     dependencies:
       express: 5.2.1
       swagger-ui-dist: 5.31.1
+
+  swiper@12.1.2: {}
 
   symbol-observable@4.0.0: {}
 

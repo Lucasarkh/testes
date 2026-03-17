@@ -83,17 +83,11 @@
         </div>
       </footer>
 
-      <!-- Lightbox -->
-      <div v-if="lightboxOpen" class="v4-lightbox" @click.self="lightboxOpen = false">
-        <button class="v4-lightbox-close" @click="lightboxOpen = false">&times;</button>
-        <button v-if="lightboxIdx > 0" class="v4-lightbox-btn v4-prev" @click="lightboxIdx--">&#10094;</button>
-        <div class="v4-lightbox-content">
-          <img v-if="lightboxMedia?.type === 'PHOTO'" :src="lightboxMedia.url" :alt="lightboxMedia.caption || 'Mídia do projeto'" />
-          <video v-else :src="lightboxMedia?.url" controls autoplay />
-          <div v-if="lightboxMedia?.caption" class="v4-lightbox-caption">{{ lightboxMedia.caption }}</div>
-        </div>
-        <button v-if="lightboxIdx < (project.projectMedias?.length || 1) - 1" class="v4-lightbox-btn v4-next" @click="lightboxIdx++">&#10095;</button>
-      </div>
+      <CommonMediaLightbox
+        v-model="lightboxOpen"
+        :items="project.projectMedias || []"
+        :initial-index="lightboxIdx"
+      />
     </template>
   </div>
 </template>
@@ -156,7 +150,6 @@ const perPage = 16
 
 const lightboxOpen = ref(false)
 const lightboxIdx = ref(0)
-const lightboxMedia = computed(() => project.value?.projectMedias?.[lightboxIdx.value] ?? null)
 
 const paginatedMedia = computed<ProjectMediaItem[]>(() => {
   if (!project.value?.projectMedias) return []
@@ -292,17 +285,6 @@ onMounted(async () => {
   background: #0071e3; color: white; border: none; padding: 12px 24px; border-radius: 980px; font-size: 17px; font-weight: 500; cursor: pointer; transition: all 0.2s;
 }
 .v4-btn-primary:hover { background: #0077ed; transform: scale(1.02); }
-
-/* Lightbox V4 */
-.v4-lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; }
-.v4-lightbox-btn { position: absolute; background: none; border: none; color: white; font-size: 40px; cursor: pointer; padding: 20px; opacity: 0.5; transition: 0.2s; }
-.v4-lightbox-btn:hover { opacity: 1; }
-.v4-prev { left: 20px; }
-.v4-next { right: 20px; }
-.v4-lightbox-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 32px; cursor: pointer; z-index: 2100; }
-.v4-lightbox-content { max-width: 90%; max-height: 80%; text-align: center; }
-.v4-lightbox-content img, .v4-lightbox-content video { max-width: 100%; max-height: 100%; border-radius: 12px; }
-.v4-lightbox-caption { color: white; margin-top: 16px; font-size: 17px; }
 
 .v4-footer { padding: 48px 0; border-top: 1px solid #d2d2d7; background: #f5f5f7; margin-top: 80px; }
 .v4-footer-tenant { font-weight: 600; font-size: 17px; margin-bottom: 4px; display: block; }

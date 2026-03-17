@@ -605,17 +605,11 @@
         </div>
       </footer>
 
-      <!-- Lightbox -->
-      <div v-if="lightboxOpen" class="v4-lightbox" @click.self="lightboxOpen = false">
-        <button class="v4-lightbox-close" @click="lightboxOpen = false">&times;</button>
-        <button v-if="lightboxIdx > 0" class="v4-lightbox-btn v4-prev" @click="lightboxIdx--">&#10094;</button>
-        <div class="v4-lightbox-content">
-          <img v-if="lightboxMedia?.type === 'PHOTO'" :src="lightboxMedia.url" :alt="lightboxMedia.caption" />
-          <video v-else :src="lightboxMedia?.url" controls autoplay />
-          <div v-if="lightboxMedia?.caption" class="v4-lightbox-caption">{{ lightboxMedia.caption }}</div>
-        </div>
-        <button v-if="lightboxIdx < (project.projectMedias?.length || 1) - 1" class="v4-lightbox-btn v4-next" @click="lightboxIdx++">&#10095;</button>
-      </div>
+      <CommonMediaLightbox
+        v-model="lightboxOpen"
+        :items="project.projectMedias || []"
+        :initial-index="lightboxIdx"
+      />
 
       <!-- Sticky mobile CTA -->
       <nav class="v4-sticky-nav">
@@ -1071,7 +1065,6 @@ const lotsPerPage = 12 // Used in pagination on units page if needed, but for in
 
 const lightboxOpen = ref(false)
 const lightboxIdx = ref(0)
-const lightboxMedia = computed(() => project.value?.projectMedias?.[lightboxIdx.value] ?? null)
 
 const isTouchMobile = ref(false)
 const plantMapInteractionEnabled = ref(false)
@@ -3726,16 +3719,6 @@ function openLightbox(idx: number) {
 @media (max-width: 768px) {
   .v4-nav-cta { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
 }
-
-/* Lightbox V4 */
-.v4-lightbox { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center; }
-.v4-lightbox-btn { position: absolute; background: none; border: none; color: white; font-size: 40px; cursor: pointer; padding: 20px; opacity: 0.5; transition: 0.2s; }
-.v4-lightbox-btn:hover { opacity: 1; }
-.v4-prev { left: 20px; }
-.v4-next { right: 20px; }
-.v4-lightbox-close { position: absolute; top: 20px; right: 20px; background: none; border: none; color: white; font-size: 32px; cursor: pointer; z-index: 2100; }
-.v4-lightbox-content { max-width: 90%; max-height: 80%; }
-.v4-lightbox-content img, .v4-lightbox-content video { max-width: 100%; max-height: 100%; border-radius: 12px; }
 
 @keyframes spinner { to { transform: rotate(360deg); } }
 .loading-spinner { width: 32px; height: 32px; border: 3px solid rgba(0, 113, 227, 0.1); border-top-color: var(--v4-primary); border-radius: 50%; animation: spinner 1s linear infinite; }
