@@ -14,8 +14,8 @@
             <i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i>
             <span class="back-nav-label">Voltar ao Projeto</span>
           </NuxtLink>
-          <h1>Fluxo Pos-Reserva</h1>
-          <p>Configure exigencias, simulacoes, contratos e acompanhe a conversao da reserva em venda.</p>
+          <h1>Reservas</h1>
+          <p>Centralize o acompanhamento da reserva, organize contratos e execute as acoes operacionais sem espalhar atalhos pelo painel.</p>
         </div>
 
         <button class="btn btn-primary" :disabled="saving" @click="saveConfig">
@@ -45,6 +45,81 @@
           <strong>{{ metrics.summary.contractSignedRate }}%</strong>
         </article>
       </div>
+
+      <section class="card purchase-admin-card purchase-admin-card--full">
+        <div class="purchase-admin-card__header purchase-admin-card__header--split">
+          <div>
+            <h2>Central de reservas</h2>
+            <p>Edite dados da reserva, libere o lote, cancele a reserva ou confirme a venda sem sair deste menu.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" :disabled="reservationsLoading" @click="loadReservations">
+            {{ reservationsLoading ? 'Atualizando...' : 'Atualizar lista' }}
+          </button>
+        </div>
+
+        <div v-if="reservationsLoading" class="purchase-admin-empty">Carregando reservas...</div>
+        <div v-else-if="!reservations.length" class="purchase-admin-empty">Nenhuma reserva encontrada para este projeto.</div>
+        <div v-else class="purchase-admin-reservation-list">
+          <article
+            v-for="reservation in reservations"
+            :key="reservation.leadId"
+            class="purchase-admin-reservation-card"
+          >
+            <div class="purchase-admin-reservation-card__main">
+              <div>
+                <p class="purchase-admin-reservation-card__eyebrow">{{ reservation.projectName }}</p>
+                <h3>{{ reservation.customerName || 'Cliente sem nome' }}</h3>
+                <p>
+                  Lote {{ reservation.lotCode || 'Nao definido' }}
+                  <span v-if="reservation.block">· Quadra {{ reservation.block }}</span>
+                </p>
+              </div>
+              <span class="purchase-admin-reservation-status" :class="reservation.cancelledAt ? 'is-cancelled' : 'is-active'">
+                {{ reservation.cancelledAt ? 'Encerrada' : 'Ativa' }}
+              </span>
+            </div>
+
+            <div class="purchase-admin-reservation-meta">
+              <span><strong>E-mail:</strong> {{ reservation.customerEmail || '—' }}</span>
+              <span><strong>WhatsApp:</strong> {{ reservation.customerPhone || '—' }}</span>
+              <span><strong>Status:</strong> {{ formatLeadStatus(reservation.leadStatus) }}</span>
+              <span><strong>Etapa:</strong> {{ formatStepLabel(reservation.currentStep) }}</span>
+              <span><strong>Expira em:</strong> {{ formatReservationExpiry(reservation.reservationExpiresAt) }}</span>
+              <span><strong>Contrato:</strong> {{ formatContractStatus(reservation.contractStatus) }}</span>
+            </div>
+
+            <div class="purchase-admin-reservation-actions">
+              <button class="btn btn-secondary btn-sm" type="button" @click="openReservationEditor(reservation)">
+                Editar reserva
+              </button>
+              <button
+                class="btn btn-outline btn-sm"
+                type="button"
+                :disabled="reservationActingLeadId === reservation.leadId || !reservation.actions?.canRelease"
+                @click="runReservationAction(reservation, 'release', 'Reserva liberada com sucesso.')"
+              >
+                {{ reservationActingLeadId === reservation.leadId ? 'Processando...' : 'Liberar reserva' }}
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                type="button"
+                :disabled="reservationActingLeadId === reservation.leadId || !reservation.actions?.canCancel"
+                @click="runReservationAction(reservation, 'cancel', 'Reserva cancelada com sucesso.')"
+              >
+                Cancelar reserva
+              </button>
+              <button
+                class="btn btn-success btn-sm"
+                type="button"
+                :disabled="reservationActingLeadId === reservation.leadId || !reservation.actions?.canConfirmSale"
+                @click="confirmSaleReservation(reservation)"
+              >
+                Confirmar venda
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
 
       <div class="purchase-admin-grid">
         <section class="card purchase-admin-card">
@@ -216,18 +291,70 @@
         </section>
       </div>
     </template>
+
+    <div v-if="editingReservation" class="modal-overlay">
+      <div class="modal" style="max-width: 560px;">
+        <div class="modal-header" style="margin-bottom: 16px;">
+          <h3>Editar reserva</h3>
+          <button class="modal-close" @click="closeReservationEditor">✕</button>
+        </div>
+        <div class="modal-body purchase-admin-edit-modal">
+          <label class="purchase-admin-label-group">
+            <span>Nome do cliente</span>
+            <input v-model="reservationForm.name" class="form-input" />
+          </label>
+          <label class="purchase-admin-label-group">
+            <span>E-mail</span>
+            <input v-model="reservationForm.email" class="form-input" type="email" />
+          </label>
+          <label class="purchase-admin-label-group">
+            <span>WhatsApp</span>
+            <input v-model="reservationForm.phone" class="form-input" />
+          </label>
+          <label class="purchase-admin-label-group">
+            <span>CPF</span>
+            <input v-model="reservationForm.cpf" class="form-input" />
+          </label>
+          <label class="purchase-admin-label-group">
+            <span>Expiracao da reserva</span>
+            <input v-model="reservationForm.reservationExpiresAt" class="form-input" type="datetime-local" />
+          </label>
+
+          <div class="purchase-admin-edit-modal__actions">
+            <button class="btn btn-ghost btn-sm" type="button" @click="closeReservationEditor">Fechar</button>
+            <button class="btn btn-primary btn-sm" type="button" :disabled="savingReservationEdit" @click="saveReservationEdit">
+              {{ savingReservationEdit ? 'Salvando...' : 'Salvar reserva' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 const route = useRoute()
 const projectId = route.params.id as string
-const { get, put } = useApi()
+const { get, put, patch } = useApi()
 const { success: toastSuccess, fromError: toastFromError } = useToast()
 
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
+const reservationsLoading = ref(false)
+const reservations = ref<any[]>([])
+const reservationActingLeadId = ref('')
+const editingReservation = ref<any | null>(null)
+const savingReservationEdit = ref(false)
+
+const reservationForm = reactive({
+  leadId: '',
+  name: '',
+  email: '',
+  phone: '',
+  cpf: '',
+  reservationExpiresAt: '',
+})
 
 const metrics = reactive({
   summary: {
@@ -359,10 +486,22 @@ async function loadPage() {
     hydrateConfig(configResponse)
     metrics.summary = metricsResponse.summary
     metrics.abandonmentByStep = metricsResponse.abandonmentByStep || []
+    await loadReservations()
   } catch (e: any) {
-    error.value = e.message || 'Falha ao carregar configuracoes do fluxo.'
+    error.value = e.message || 'Falha ao carregar a central de reservas.'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReservations() {
+  reservationsLoading.value = true
+  try {
+    reservations.value = await get(`/purchase-flow/reservations?projectId=${projectId}`)
+  } catch (e: any) {
+    toastFromError(e, 'Falha ao carregar reservas')
+  } finally {
+    reservationsLoading.value = false
   }
 }
 
@@ -465,9 +604,116 @@ async function saveConfig() {
     hydrateConfig(response)
     toastSuccess('Configuracao do fluxo salva com sucesso.')
   } catch (e: any) {
-    toastFromError(e, 'Falha ao salvar fluxo pos-reserva')
+    toastFromError(e, 'Falha ao salvar configuracao de reservas')
   } finally {
     saving.value = false
+  }
+}
+
+function formatLeadStatus(status: string) {
+  const labels: Record<string, string> = {
+    RESERVATION: 'Reserva ativa',
+    NEGOTIATING: 'Em negociacao',
+    WON: 'Venda confirmada',
+    CANCELLED: 'Cancelada',
+    ABANDONED: 'Expirada',
+  }
+  return labels[status] || formatStepLabel(status)
+}
+
+function formatContractStatus(status?: string | null) {
+  if (!status) return 'Nao gerado'
+  return formatStepLabel(status)
+}
+
+function formatReservationExpiry(value?: string | null) {
+  if (!value) return 'Sem prazo ativo'
+  return new Date(value).toLocaleString('pt-BR')
+}
+
+function toDatetimeLocal(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  const offset = date.getTimezoneOffset()
+  const localDate = new Date(date.getTime() - offset * 60000)
+  return localDate.toISOString().slice(0, 16)
+}
+
+function openReservationEditor(reservation: any) {
+  editingReservation.value = reservation
+  reservationForm.leadId = reservation.leadId
+  reservationForm.name = reservation.customerName || ''
+  reservationForm.email = reservation.customerEmail || ''
+  reservationForm.phone = reservation.customerPhone || ''
+  reservationForm.cpf = reservation.cpf || ''
+  reservationForm.reservationExpiresAt = toDatetimeLocal(reservation.reservationExpiresAt)
+}
+
+function closeReservationEditor() {
+  editingReservation.value = null
+  reservationForm.leadId = ''
+  reservationForm.name = ''
+  reservationForm.email = ''
+  reservationForm.phone = ''
+  reservationForm.cpf = ''
+  reservationForm.reservationExpiresAt = ''
+}
+
+async function saveReservationEdit() {
+  if (!reservationForm.leadId) return
+  savingReservationEdit.value = true
+  try {
+    await patch(`/purchase-flow/reservations/${reservationForm.leadId}`, {
+      name: reservationForm.name || undefined,
+      email: reservationForm.email || undefined,
+      phone: reservationForm.phone || undefined,
+      cpf: reservationForm.cpf || undefined,
+      reservationExpiresAt: reservationForm.reservationExpiresAt
+        ? new Date(reservationForm.reservationExpiresAt).toISOString()
+        : null,
+    })
+    toastSuccess('Reserva atualizada com sucesso.')
+    closeReservationEditor()
+    await loadPage()
+  } catch (e: any) {
+    toastFromError(e, 'Falha ao atualizar reserva')
+  } finally {
+    savingReservationEdit.value = false
+  }
+}
+
+async function runReservationAction(reservation: any, action: 'release' | 'cancel', successMessage: string) {
+  const confirmations: Record<typeof action, string> = {
+    release: `Deseja liberar a reserva de ${reservation.customerName || 'este cliente'}?`,
+    cancel: `Deseja cancelar a reserva de ${reservation.customerName || 'este cliente'}?`,
+  }
+
+  if (!window.confirm(confirmations[action])) return
+
+  reservationActingLeadId.value = reservation.leadId
+  try {
+    await patch(`/purchase-flow/reservations/${reservation.leadId}/${action}`, {})
+    toastSuccess(successMessage)
+    await loadPage()
+  } catch (e: any) {
+    toastFromError(e, 'Falha ao executar a acao da reserva')
+  } finally {
+    reservationActingLeadId.value = ''
+  }
+}
+
+async function confirmSaleReservation(reservation: any) {
+  if (!window.confirm(`Confirmar a venda da reserva de ${reservation.customerName || 'este cliente'}?`)) return
+
+  reservationActingLeadId.value = reservation.leadId
+  try {
+    await patch(`/purchase-flow/reservations/${reservation.leadId}/confirm-sale`, {})
+    toastSuccess('Venda confirmada com sucesso.')
+    await loadPage()
+  } catch (e: any) {
+    toastFromError(e, 'Falha ao confirmar a venda')
+  } finally {
+    reservationActingLeadId.value = ''
   }
 }
 
@@ -547,10 +793,21 @@ definePageMeta({
   gap: 20px;
 }
 
+.purchase-admin-card--full {
+  grid-column: 1 / -1;
+}
+
 .purchase-admin-card__header h2,
 .purchase-admin-card__header h3,
 .purchase-admin-card__header h4 {
   margin: 0;
+}
+
+.purchase-admin-card__header--split {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .purchase-admin-card__header p {
@@ -674,6 +931,92 @@ definePageMeta({
   gap: 12px;
 }
 
+.purchase-admin-reservation-list {
+  display: grid;
+  gap: 16px;
+}
+
+.purchase-admin-reservation-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.purchase-admin-reservation-card__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.purchase-admin-reservation-card__eyebrow {
+  margin: 0 0 8px;
+  color: var(--color-surface-400);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.purchase-admin-reservation-card h3 {
+  margin: 0 0 4px;
+}
+
+.purchase-admin-reservation-card p {
+  margin: 0;
+  color: var(--color-surface-300);
+}
+
+.purchase-admin-reservation-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.purchase-admin-reservation-status.is-active {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+.purchase-admin-reservation-status.is-cancelled {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+
+.purchase-admin-reservation-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 16px;
+  color: var(--color-surface-300);
+  font-size: 0.92rem;
+}
+
+.purchase-admin-reservation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.purchase-admin-edit-modal {
+  display: grid;
+  gap: 14px;
+}
+
+.purchase-admin-edit-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .purchase-admin-abandonment__item {
   display: flex;
   align-items: center;
@@ -710,6 +1053,17 @@ definePageMeta({
   .purchase-admin-subgrid,
   .purchase-admin-condition-row,
   .purchase-admin-inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-admin-card__header--split,
+  .purchase-admin-reservation-card__main,
+  .purchase-admin-reservation-actions,
+  .purchase-admin-edit-modal__actions {
+    flex-direction: column;
+  }
+
+  .purchase-admin-reservation-meta {
     grid-template-columns: 1fr;
   }
 }

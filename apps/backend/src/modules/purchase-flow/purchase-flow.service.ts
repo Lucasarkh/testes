@@ -9,6 +9,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@infra/db/prisma.service';
 import { S3Service } from '@infra/s3/s3.service';
 import { EmailQueueService } from '@infra/email-queue/email-queue.service';
+import { WhapiService } from '@infra/whapi/whapi.service';
 import {
   ContractEnvelopeStatus,
   DigitalSignatureProvider,
@@ -32,6 +33,9 @@ import {
   GenerateContractDto,
   ManualContractSignatureDto,
   PurchaseMetricsQueryDto,
+  PurchaseReservationsQueryDto,
+  ReservationActionDto,
+  UpdateReservationAdminDto,
   UpdatePurchaseFlowConfigDto
 } from './dto/purchase-flow.dto';
 
@@ -90,7 +94,8 @@ export class PurchaseFlowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3: S3Service,
-    private readonly emailQueue: EmailQueueService
+    private readonly emailQueue: EmailQueueService,
+    private readonly whapi: WhapiService
   ) {}
 
   getAccessCookieName() {
@@ -236,6 +241,34 @@ export class PurchaseFlowService {
     return this.buildFlowResponse(process);
   }
 
+  async listReservations(tenantId: string, query: PurchaseReservationsQueryDto) {
+    const processes = await this.prisma.purchaseProcess.findMany({
+      where: {
+        tenantId,
+        ...(query.projectId ? { projectId: query.projectId } : {})
+      },
+      include: {
+        project: true,
+        lead: {
+          include: {
+            mapElement: {
+              include: { lotDetails: true }
+            }
+          }
+        },
+        clients: true,
+        contracts: {
+          take: 1,
+          orderBy: { createdAt: 'desc' }
+        },
+        selectedPaymentTable: true
+      },
+      orderBy: [{ cancelledAt: 'asc' }, { updatedAt: 'desc' }]
+    });
+
+    return processes.map((process) => this.buildReservationAdminSummary(process));
+  }
+
   async getMetrics(tenantId: string, query: PurchaseMetricsQueryDto) {
     const where = {
       tenantId,
@@ -317,16 +350,23 @@ export class PurchaseFlowService {
     });
     if (!lead) throw new NotFoundException('Lead não encontrado.');
 
+    const now = new Date();
+    const reservationExpiresAt =
+      lead.project.reservationExpiryHours > 0
+        ? new Date(now.getTime() + lead.project.reservationExpiryHours * 3600000)
+        : null;
+
     const process = await this.prisma.purchaseProcess.create({
       data: {
         tenantId: lead.tenantId,
         projectId: lead.projectId,
         leadId: lead.id,
         currentStep: PurchaseStep.RESERVA_CRIADA,
+        reservationExpiresAt,
         stepTimelines: {
           create: {
             step: PurchaseStep.RESERVA_CRIADA,
-            startedAt: new Date()
+            startedAt: now
           }
         }
       }
@@ -353,10 +393,8 @@ export class PurchaseFlowService {
     if (!lead) throw new NotFoundException('Lead não encontrado.');
 
     const now = new Date();
-    const reservationExpiresAt =
-      lead.project.reservationExpiryHours > 0
-        ? new Date(now.getTime() + lead.project.reservationExpiryHours * 3600000)
-        : null;
+    // Reservas com pagamento confirmado não devem ter expiração
+    const reservationExpiresAt = null;
 
     await this.finishStepTimeline(process.id, PurchaseStep.RESERVA_CRIADA);
     await this.ensureStepTimeline(process.id, PurchaseStep.PAGAMENTO_RESERVA_CONFIRMADO, now, now);
@@ -392,32 +430,77 @@ export class PurchaseFlowService {
       throw new NotFoundException('Nenhuma reserva ativa encontrada para os dados informados.');
     }
 
-    const code = randomInt(100000, 999999).toString();
+    const primaryContact = this.getPrimaryContact(process);
+    const whatsappPhone = primaryContact.phone || process.lead.phone;
+    const normalizedWhatsappPhone = this.normalizeWhatsappPhone(whatsappPhone);
+
+    if (!normalizedWhatsappPhone) {
+      throw new BadRequestException('Nao foi possivel validar esta reserva porque o WhatsApp do titular nao esta disponivel.');
+    }
+
+    if (!this.whapi.isEnabled()) {
+      throw new BadRequestException('A verificacao por WhatsApp nao esta disponivel no momento.');
+    }
+
+    const emailCode = randomInt(100000, 999999).toString();
+    const whatsappCode = randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
-    await this.prisma.purchaseAccessCode.create({
-      data: {
+    await this.prisma.purchaseAccessCode.updateMany({
+      where: {
         processId: process.id,
-        email: dto.email.toLowerCase(),
-        phone: dto.phone || null,
-        codeHash: this.hashValue(code),
-        expiresAt
-      }
+        usedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      data: { usedAt: new Date() }
+    });
+
+    await this.prisma.purchaseAccessCode.createMany({
+      data: [
+        {
+          processId: process.id,
+          email: dto.email.toLowerCase(),
+          phone: null,
+          codeHash: this.hashValue(emailCode),
+          expiresAt
+        },
+        {
+          processId: process.id,
+          email: dto.email.toLowerCase(),
+          phone: normalizedWhatsappPhone,
+          codeHash: this.hashValue(whatsappCode),
+          expiresAt
+        }
+      ]
     });
 
     const recipientName =
-      process.clients.find((item) => item.role === PurchasePartyRole.PRIMARY)?.name ||
-      process.lead.name ||
-      'Cliente';
+      primaryContact.name || process.lead.name || 'Cliente';
 
     await this.emailQueue.queueSystemNotificationEmail(
       dto.email.toLowerCase(),
       recipientName,
-      'Codigo para continuar sua compra',
-      `Seu codigo para retomar o fluxo de compra e ${code}. Ele expira em ${OTP_TTL_MINUTES} minutos.`
+      'Codigo para acompanhar sua reserva',
+      `Seu codigo de verificacao por e-mail e ${emailCode}. Ele expira em ${OTP_TTL_MINUTES} minutos.`
     );
 
-    return { ok: true, expiresAt };
+    const whatsappSent = await this.whapi.sendText(
+      normalizedWhatsappPhone,
+      `${recipientName}, seu codigo de verificacao da reserva e ${whatsappCode}. Ele expira em ${OTP_TTL_MINUTES} minutos.`
+    );
+
+    if (!whatsappSent) {
+      throw new BadRequestException('Nao foi possivel enviar o codigo por WhatsApp. Tente novamente em instantes.');
+    }
+
+    return {
+      ok: true,
+      expiresAt,
+      channels: {
+        email: this.maskEmail(dto.email),
+        whatsapp: this.maskPhone(whatsappPhone || normalizedWhatsappPhone)
+      }
+    };
   }
 
   async verifyOtp(dto: CustomerOtpVerifyDto) {
@@ -426,18 +509,42 @@ export class PurchaseFlowService {
       throw new NotFoundException('Nenhuma reserva ativa encontrada para os dados informados.');
     }
 
-    const codeRecord = await this.prisma.purchaseAccessCode.findFirst({
+    const normalizedWhatsappPhone = this.normalizeWhatsappPhone(
+      this.getPrimaryContact(process).phone || process.lead.phone
+    );
+
+    if (!normalizedWhatsappPhone) {
+      throw new BadRequestException('Nao foi possivel validar o codigo de WhatsApp desta reserva.');
+    }
+
+    const emailCodeRecord = await this.prisma.purchaseAccessCode.findFirst({
       where: {
         processId: process.id,
         email: dto.email.toLowerCase(),
-        phone: dto.phone || null,
+        phone: null,
         usedAt: null,
         expiresAt: { gt: new Date() }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    if (!codeRecord || codeRecord.codeHash !== this.hashValue(dto.code)) {
+    const whatsappCodeRecord = await this.prisma.purchaseAccessCode.findFirst({
+      where: {
+        processId: process.id,
+        email: dto.email.toLowerCase(),
+        phone: normalizedWhatsappPhone,
+        usedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (
+      !emailCodeRecord ||
+      !whatsappCodeRecord ||
+      emailCodeRecord.codeHash !== this.hashValue(dto.emailCode) ||
+      whatsappCodeRecord.codeHash !== this.hashValue(dto.whatsappCode)
+    ) {
       throw new UnauthorizedException('Codigo invalido ou expirado.');
     }
 
@@ -446,14 +553,18 @@ export class PurchaseFlowService {
 
     await this.prisma.$transaction([
       this.prisma.purchaseAccessCode.update({
-        where: { id: codeRecord.id },
+        where: { id: emailCodeRecord.id },
+        data: { usedAt: new Date() }
+      }),
+      this.prisma.purchaseAccessCode.update({
+        where: { id: whatsappCodeRecord.id },
         data: { usedAt: new Date() }
       }),
       this.prisma.purchaseAccessSession.create({
         data: {
           processId: process.id,
           email: dto.email.toLowerCase(),
-          phone: dto.phone || null,
+          phone: normalizedWhatsappPhone,
           tokenHash: this.hashValue(token),
           expiresAt
         }
@@ -465,6 +576,147 @@ export class PurchaseFlowService {
       expiresAt,
       reservation: this.buildReservationSummary(process)
     };
+  }
+
+  async updateReservationAdmin(
+    tenantId: string,
+    leadId: string,
+    dto: UpdateReservationAdminDto
+  ) {
+    const process = await this.loadProcessByLeadId(leadId, tenantId);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.lead.update({
+        where: { id: process.leadId },
+        data: {
+          ...(dto.name !== undefined && { name: dto.name || process.lead.name }),
+          ...(dto.email !== undefined && { email: dto.email ? dto.email.toLowerCase() : null }),
+          ...(dto.phone !== undefined && { phone: dto.phone || null }),
+          ...(dto.cpf !== undefined && { cpf: dto.cpf || null })
+        }
+      });
+
+      const primaryPayload = {
+        ...(dto.name !== undefined && { name: dto.name || null }),
+        ...(dto.email !== undefined && { email: dto.email ? dto.email.toLowerCase() : null }),
+        ...(dto.phone !== undefined && { phone: dto.phone || null }),
+        ...(dto.cpf !== undefined && { cpf: dto.cpf || null })
+      };
+
+      if (Object.keys(primaryPayload).length > 0) {
+        await tx.purchaseClientProfile.upsert({
+          where: {
+            processId_role: {
+              processId: process.id,
+              role: PurchasePartyRole.PRIMARY
+            }
+          },
+          create: {
+            processId: process.id,
+            role: PurchasePartyRole.PRIMARY,
+            ...primaryPayload
+          },
+          update: primaryPayload
+        });
+      }
+
+      if (dto.reservationExpiresAt !== undefined) {
+        await tx.purchaseProcess.update({
+          where: { id: process.id },
+          data: {
+            reservationExpiresAt: dto.reservationExpiresAt
+              ? new Date(dto.reservationExpiresAt)
+              : null
+          }
+        });
+      }
+    });
+
+    return this.getProcessForAdmin(tenantId, leadId);
+  }
+
+  async releaseReservation(
+    tenantId: string,
+    leadId: string,
+    dto?: ReservationActionDto
+  ) {
+    const process = await this.loadProcessByLeadId(leadId, tenantId);
+    this.ensureReservationCanBeManaged(process);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.purchaseProcess.update({
+        where: { id: process.id },
+        data: {
+          cancelledAt: new Date(),
+          reservationExpiresAt: null
+        }
+      });
+
+      await tx.lead.update({
+        where: { id: process.leadId },
+        data: {
+          status: LeadStatus.NEGOTIATING,
+          reservedAt: null,
+          notes: this.mergeNotes(process.lead.notes, dto?.notes)
+        }
+      });
+
+      await tx.leadHistory.create({
+        data: {
+          leadId: process.leadId,
+          fromStatus: process.lead.status,
+          toStatus: LeadStatus.NEGOTIATING,
+          notes: dto?.notes || 'Reserva liberada manualmente pela central de reservas.',
+          createdBy: 'SYSTEM_PURCHASE_FLOW'
+        }
+      });
+
+      await this.releaseLotIfPossible(tx, process.lead.mapElementId, process.leadId);
+    });
+
+    return this.getProcessForAdmin(tenantId, leadId);
+  }
+
+  async cancelReservation(
+    tenantId: string,
+    leadId: string,
+    dto?: ReservationActionDto
+  ) {
+    const process = await this.loadProcessByLeadId(leadId, tenantId);
+    this.ensureReservationCanBeManaged(process);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.purchaseProcess.update({
+        where: { id: process.id },
+        data: {
+          cancelledAt: new Date(),
+          reservationExpiresAt: null
+        }
+      });
+
+      await tx.lead.update({
+        where: { id: process.leadId },
+        data: {
+          status: LeadStatus.CANCELLED,
+          reservedAt: null,
+          notes: this.mergeNotes(process.lead.notes, dto?.notes)
+        }
+      });
+
+      await tx.leadHistory.create({
+        data: {
+          leadId: process.leadId,
+          fromStatus: process.lead.status,
+          toStatus: LeadStatus.CANCELLED,
+          notes: dto?.notes || 'Reserva cancelada manualmente pela central de reservas.',
+          createdBy: 'SYSTEM_PURCHASE_FLOW'
+        }
+      });
+
+      await this.releaseLotIfPossible(tx, process.lead.mapElementId, process.leadId);
+    });
+
+    return this.getProcessForAdmin(tenantId, leadId);
   }
 
   async createAccessSessionForLead(leadId: string) {
@@ -1133,6 +1385,44 @@ export class PurchaseFlowService {
     };
   }
 
+  private buildReservationAdminSummary(process: any) {
+    const primaryClient = process.clients.find((item: any) => item.role === PurchasePartyRole.PRIMARY) || null;
+    const lot = process.lead.mapElement?.lotDetails;
+    const latestContract = process.contracts?.[0] || null;
+
+    return {
+      leadId: process.leadId,
+      processId: process.id,
+      projectId: process.projectId,
+      projectName: process.project.name,
+      currentStep: process.currentStep,
+      routeStep: STEP_ROUTE_MAP[process.currentStep],
+      leadStatus: process.lead.status,
+      customerName: primaryClient?.name || process.lead.name,
+      customerEmail: primaryClient?.email || process.lead.email,
+      customerPhone: primaryClient?.phone || process.lead.phone,
+      cpf: primaryClient?.cpf || process.lead.cpf || null,
+      lotCode: process.lead.mapElement?.code || lot?.lotNumber || null,
+      block: lot?.block || null,
+      reservationExpiresAt: process.reservationExpiresAt,
+      startedAt: process.startedAt,
+      updatedAt: process.updatedAt,
+      cancelledAt: process.cancelledAt,
+      completedAt: process.completedAt,
+      paymentTableName:
+        process.selectedPaymentTable?.name ||
+        process.simulationSnapshot?.paymentTableName ||
+        null,
+      contractStatus: latestContract?.status || null,
+      actions: {
+        canEdit: !process.cancelledAt,
+        canRelease: !process.cancelledAt && process.lead.status === LeadStatus.RESERVATION,
+        canCancel: !process.cancelledAt && process.lead.status === LeadStatus.RESERVATION,
+        canConfirmSale: !process.cancelledAt && process.lead.status !== LeadStatus.WON
+      }
+    };
+  }
+
   private async buildFlowResponse(process: any) {
     const config = await this.ensureDefaultConfig(process.tenantId, process.projectId);
     const paymentTables = await this.prisma.purchasePaymentTable.findMany({
@@ -1501,6 +1791,64 @@ export class PurchaseFlowService {
 
   private hashValue(value: string) {
     return createHash('sha256').update(value).digest('hex');
+  }
+
+  private getPrimaryContact(process: any) {
+    return process.clients.find((item: any) => item.role === PurchasePartyRole.PRIMARY) || {};
+  }
+
+  private normalizeWhatsappPhone(phone?: string | null) {
+    if (!phone) return null;
+    const normalized = this.whapi.normalizePhone(phone);
+    return normalized;
+  }
+
+  private maskEmail(email: string) {
+    const [localPart, domain = ''] = email.split('@');
+    if (!localPart) return email;
+    const visibleLocal = localPart.slice(0, 2);
+    return `${visibleLocal}${'*'.repeat(Math.max(localPart.length - 2, 1))}@${domain}`;
+  }
+
+  private maskPhone(phone: string) {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 4) return phone;
+    const suffix = digits.slice(-4);
+    return `WhatsApp final ${suffix}`;
+  }
+
+  private mergeNotes(currentNotes?: string | null, extraNotes?: string | null) {
+    if (!extraNotes?.trim()) return currentNotes || null;
+    return `${currentNotes || ''}\n${extraNotes}`.trim();
+  }
+
+  private ensureReservationCanBeManaged(process: any) {
+    if (process.cancelledAt) {
+      throw new BadRequestException('Esta reserva ja foi encerrada.');
+    }
+
+    if (process.lead.status === LeadStatus.WON) {
+      throw new BadRequestException('Esta reserva ja foi convertida em venda e nao pode ser alterada.');
+    }
+  }
+
+  private async releaseLotIfPossible(tx: any, mapElementId?: string | null, leadId?: string) {
+    if (!mapElementId) return;
+
+    const othersCount = await tx.lead.count({
+      where: {
+        mapElementId,
+        status: { in: [LeadStatus.RESERVATION, LeadStatus.WON] },
+        ...(leadId ? { id: { not: leadId } } : {})
+      }
+    });
+
+    if (othersCount === 0) {
+      await tx.lotDetails.updateMany({
+        where: { mapElementId },
+        data: { status: 'AVAILABLE' }
+      });
+    }
   }
 
   private escapeHtml(value: string) {

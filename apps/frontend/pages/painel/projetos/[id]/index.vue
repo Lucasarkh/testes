@@ -136,7 +136,7 @@
             </NuxtLink>
             <NuxtLink :to="`/painel/projetos/${projectId}/pos-reserva`" class="sidebar-tool-link sidebar-tool-link--primary">
               <span class="sidebar-icon"><i class="bi bi-file-earmark-text-fill" aria-hidden="true"></i></span>
-              <span class="sidebar-label">Fluxo Pós-Reserva</span>
+              <span class="sidebar-label">Reservas</span>
             </NuxtLink>
           </div>
           <nav class="sidebar-nav">
@@ -1077,7 +1077,7 @@
                      <button class="btn btn-sm btn-dark" style="background: var(--glass-bg-heavy); color: #fff; border: none;" @click="openEditLot(l)">Editar Dados</button>
                      <button class="btn btn-sm btn-outline" @click="shareLot(l)">Compartilhar</button>
                      <button class="btn btn-sm btn-outline" @click="openLotQrModal(l)">QR Code</button>
-                     <button v-if="l.status === 'RESERVED'" class="btn btn-sm btn-warning" @click="openReservationModal(l)">Ver Reserva</button>
+                     <button v-if="l.status === 'RESERVED'" class="btn btn-sm btn-warning" @click="openReservationModal(l)">Abrir Reservas</button>
                      <a v-if="publicUrl && l.mapElement" :href="`/${project.slug}/${l.mapElement.code}`" target="_blank" class="btn btn-sm btn-outline">Ver Página</a>
                   </div>
                 </td>
@@ -1126,12 +1126,9 @@
               </div>
               <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px; padding-top:16px; border-top: 1px solid var(--glass-border-subtle);">
                 <button class="btn btn-ghost btn-sm" @click="viewingReservation = null">Fechar</button>
-                <button class="btn btn-danger btn-sm" :disabled="!authStore.canEdit || reservationActing" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="handleReservationAction('RELEASE')">
-                  {{ reservationActing ? '...' : 'Liberar Lote' }}
-                </button>
-                <button class="btn btn-success btn-sm" :disabled="!authStore.canEdit || reservationActing" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="handleReservationAction('WON')">
-                  {{ reservationActing ? '...' : 'Confirmar Venda' }}
-                </button>
+                <NuxtLink class="btn btn-primary btn-sm" :to="`/painel/projetos/${projectId}/pos-reserva`">
+                  Ir para Reservas
+                </NuxtLink>
               </div>
             </div>
             <div v-else class="text-center py-4 text-muted">Nenhum dado de reserva encontrado.</div>
@@ -1962,8 +1959,6 @@ const lotQrModal = ref<null | {
 const viewingReservation = ref<any>(null)
 const reservationData = ref<any>(null)
 const reservationLoading = ref(false)
-const reservationActing = ref(false)
-
 const openReservationModal = async (lot: any) => {
   viewingReservation.value = lot
   reservationData.value = null
@@ -1982,39 +1977,6 @@ const reservationExpiry = (createdAt: string) => {
   if (!project.value?.reservationExpiryHours) return '—'
   const expiry = new Date(new Date(createdAt).getTime() + project.value.reservationExpiryHours * 3600000)
   return formatDateTimeToBrasilia(expiry.toISOString())
-}
-
-const handleReservationAction = async (newStatus: 'WON' | 'CANCELLED' | 'RELEASE') => {
-  if (!authStore.canEdit) return
-  if (!reservationData.value) return
-  reservationActing.value = true
-  try {
-    if (newStatus === 'RELEASE') {
-      // Step 1: free the lot without touching the lead status
-      await fetchApi(`/projects/${projectId}/lots/${viewingReservation.value.mapElementId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ status: 'AVAILABLE' }),
-      })
-      // Step 2: keep lead alive by moving it back to NEGOTIATING
-      await fetchApi(`/leads/${reservationData.value.id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'NEGOTIATING' }),
-      })
-    } else {
-      await fetchApi(`/leads/${reservationData.value.id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
-      })
-    }
-    viewingReservation.value = null
-    reservationData.value = null
-    await loadLotsPaginated(lotsMeta.value.currentPage)
-    toastSuccess(newStatus === 'WON' ? 'Venda confirmada!' : 'Lote liberado com sucesso.')
-  } catch (e: any) {
-    toastFromError(e)
-  } finally {
-    reservationActing.value = false
-  }
 }
 
 const newTag = ref('')

@@ -18,6 +18,9 @@ import { PurchaseFlowService } from './purchase-flow.service';
 import {
   ConfirmSaleDto,
   PurchaseMetricsQueryDto,
+  PurchaseReservationsQueryDto,
+  ReservationActionDto,
+  UpdateReservationAdminDto,
   UpdatePurchaseFlowConfigDto
 } from './dto/purchase-flow.dto';
 
@@ -56,6 +59,45 @@ export class PurchaseFlowController {
     return this.service.getMetrics(tenantId, query);
   }
 
+  @Get('reservations')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  listReservations(
+    @TenantId() tenantId: string,
+    @Query() query: PurchaseReservationsQueryDto
+  ) {
+    return this.service.listReservations(tenantId, query);
+  }
+
+  @Patch('reservations/:leadId')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  updateReservation(
+    @TenantId() tenantId: string,
+    @Param('leadId') leadId: string,
+    @Body() dto: UpdateReservationAdminDto
+  ) {
+    return this.service.updateReservationAdmin(tenantId, leadId, dto);
+  }
+
+  @Patch('reservations/:leadId/release')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  releaseReservation(
+    @TenantId() tenantId: string,
+    @Param('leadId') leadId: string,
+    @Body() dto: ReservationActionDto
+  ) {
+    return this.service.releaseReservation(tenantId, leadId, dto);
+  }
+
+  @Patch('reservations/:leadId/cancel')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  cancelReservation(
+    @TenantId() tenantId: string,
+    @Param('leadId') leadId: string,
+    @Body() dto: ReservationActionDto
+  ) {
+    return this.service.cancelReservation(tenantId, leadId, dto);
+  }
+
   @Get('processes/:leadId')
   @Roles('LOTEADORA', 'SYSADMIN', 'IMOBILIARIA', 'CORRETOR')
   getProcess(
@@ -68,6 +110,16 @@ export class PurchaseFlowController {
   @Patch('processes/:leadId/confirm-sale')
   @Roles('LOTEADORA', 'SYSADMIN')
   confirmSale(
+    @TenantId() tenantId: string,
+    @Param('leadId') leadId: string,
+    @Body() dto: ConfirmSaleDto
+  ) {
+    return this.service.confirmSale(tenantId, leadId, dto);
+  }
+
+  @Patch('reservations/:leadId/confirm-sale')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  confirmSaleFromReservations(
     @TenantId() tenantId: string,
     @Param('leadId') leadId: string,
     @Body() dto: ConfirmSaleDto

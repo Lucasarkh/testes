@@ -3,10 +3,10 @@
     <section class="purchase-hero">
       <div class="purchase-shell purchase-hero__content">
         <div>
-          <p class="purchase-eyebrow">Fluxo pos-reserva</p>
-          <h1>Continue sua compra sem perder o andamento.</h1>
+          <p class="purchase-eyebrow">Acompanhe sua reserva</p>
+          <h1>Sua compra continua daqui, com validacao em duas etapas.</h1>
           <p class="purchase-hero__text">
-            Recupere sua reserva com codigo por e-mail, envie documentos, escolha a simulacao e acompanhe a geracao do contrato.
+            Valide seu acesso por e-mail e WhatsApp, acompanhe o andamento da reserva e conclua as proximas etapas com a mesma identidade do loteamento.
           </p>
         </div>
 
@@ -35,8 +35,8 @@
         <article class="purchase-state-card">
           <div class="purchase-state-card__header">
             <p class="purchase-kicker">Sou cliente</p>
-            <h2>Encontre sua reserva ativa</h2>
-            <p>Informe o mesmo e-mail usado na reserva. Se quiser, inclua o telefone para restringir ainda mais a busca.</p>
+            <h2>Acompanhe sua reserva</h2>
+            <p>Informe o e-mail usado na reserva. Vamos enviar um codigo por e-mail e outro por WhatsApp antes de liberar seus dados.</p>
           </div>
 
           <form class="purchase-form" @submit.prevent="requestOtp">
@@ -44,24 +44,34 @@
               <span>E-mail</span>
               <input v-model="otpForm.email" type="email" placeholder="cliente@exemplo.com" required />
             </label>
-            <label class="purchase-field">
-              <span>Telefone</span>
-              <input v-model="otpForm.phone" type="text" placeholder="(11) 99999-0000" />
-            </label>
             <button class="purchase-button purchase-button--primary" type="submit" :disabled="submittingOtp">
-              {{ submittingOtp ? 'Enviando codigo...' : 'Enviar codigo de acesso' }}
+              {{ submittingOtp ? 'Enviando codigos...' : 'Continuar com verificacao' }}
             </button>
           </form>
 
           <div v-if="otpRequested" class="purchase-otp-box">
-            <p>Codigo enviado. Digite abaixo para abrir o fluxo de compra salvo.</p>
+            <p>Enviamos dois codigos para confirmar que esta reserva pertence a voce.</p>
+            <div class="purchase-delivery-grid">
+              <div class="purchase-delivery-pill">
+                <span>E-mail</span>
+                <strong>{{ otpDelivery.email }}</strong>
+              </div>
+              <div class="purchase-delivery-pill">
+                <span>WhatsApp</span>
+                <strong>{{ otpDelivery.whatsapp }}</strong>
+              </div>
+            </div>
             <form class="purchase-form purchase-form--compact" @submit.prevent="verifyOtp">
               <label class="purchase-field">
-                <span>Codigo</span>
-                <input v-model="otpForm.code" type="text" maxlength="6" placeholder="000000" required />
+                <span>Codigo recebido por e-mail</span>
+                <input v-model="otpForm.emailCode" type="text" maxlength="6" placeholder="000000" required />
+              </label>
+              <label class="purchase-field">
+                <span>Codigo recebido por WhatsApp</span>
+                <input v-model="otpForm.whatsappCode" type="text" maxlength="6" placeholder="000000" required />
               </label>
               <button class="purchase-button" type="submit" :disabled="verifyingOtp">
-                {{ verifyingOtp ? 'Validando...' : 'Validar codigo' }}
+                {{ verifyingOtp ? 'Validando acesso...' : 'Validar e abrir reserva' }}
               </button>
             </form>
           </div>
@@ -70,12 +80,12 @@
         </article>
 
         <aside class="purchase-state-card purchase-benefits-card">
-          <p class="purchase-kicker">O que voce consegue fazer aqui</p>
+          <p class="purchase-kicker">Seguranca e continuidade</p>
           <ul class="purchase-benefits-list">
-            <li>Retomar o processo exatamente da ultima etapa salva.</li>
-            <li>Preencher dados do titular e do conjugue quando exigido.</li>
-            <li>Enviar documentos por upload direto e seguro.</li>
-            <li>Escolher a condicao de pagamento e aprovar o contrato.</li>
+            <li>Retomar sua reserva exatamente da etapa em que ela parou.</li>
+            <li>Validar seu acesso sem expor dados da compra antes do 2FA.</li>
+            <li>Enviar documentos e confirmar condicoes com clareza operacional.</li>
+            <li>Avancar com contrato e assinatura em um ambiente unico e seguro.</li>
           </ul>
         </aside>
       </div>
@@ -108,6 +118,14 @@
             <p><strong>E-mail:</strong> {{ flow.lead?.email || 'Nao informado' }}</p>
             <p v-if="countdownLabel"><strong>Expiracao:</strong> {{ countdownLabel }}</p>
           </div>
+
+          <NuxtLink
+            v-if="flow.project?.slug"
+            :to="`/${flow.project.slug}`"
+            class="purchase-inline-link purchase-inline-link--block"
+          >
+            Voltar ao loteamento
+          </NuxtLink>
 
           <button class="purchase-button purchase-button--ghost" type="button" @click="logoutCustomer">
             Sair deste dispositivo
@@ -404,11 +422,15 @@ const conditionsAccepted = ref(false)
 const selectedPaymentTableId = ref('')
 const selectedPaymentConditionId = ref('')
 const contractSignerName = ref('')
+const otpDelivery = reactive({
+  email: '',
+  whatsapp: '',
+})
 
 const otpForm = reactive({
   email: '',
-  phone: '',
-  code: '',
+  emailCode: '',
+  whatsappCode: '',
 })
 
 const customerForm = reactive<Record<string, any>>({
@@ -624,12 +646,13 @@ async function requestOtp() {
   submittingOtp.value = true
   clearMessages()
   try {
-    await publicApi.post('/cliente/otp/request', {
+    const response = await publicApi.post('/cliente/otp/request', {
       email: otpForm.email,
-      phone: otpForm.phone || undefined,
     })
     otpRequested.value = true
-    successMessage.value = 'Codigo enviado para o e-mail informado.'
+    otpDelivery.email = response?.channels?.email || otpForm.email
+    otpDelivery.whatsapp = response?.channels?.whatsapp || 'WhatsApp cadastrado'
+    successMessage.value = 'Codigos enviados. Valide os dois canais para continuar.'
   } catch (error: any) {
     errorMessage.value = error.message || 'Nao foi possivel enviar o codigo.'
   } finally {
@@ -643,8 +666,8 @@ async function verifyOtp() {
   try {
     await publicApi.post('/cliente/otp/verify', {
       email: otpForm.email,
-      phone: otpForm.phone || undefined,
-      code: otpForm.code,
+      emailCode: otpForm.emailCode,
+      whatsappCode: otpForm.whatsappCode,
     })
     successMessage.value = 'Acesso liberado. Carregando processo salvo...'
     await loadFlow(true)
@@ -800,7 +823,10 @@ async function logoutCustomer() {
   await publicApi.post('/cliente/logout', {})
   flow.value = null
   otpRequested.value = false
-  otpForm.code = ''
+  otpForm.emailCode = ''
+  otpForm.whatsappCode = ''
+  otpDelivery.email = ''
+  otpDelivery.whatsapp = ''
   clearMessages()
   if (route.path !== '/sou-cliente') {
     await router.replace('/sou-cliente')
@@ -968,6 +994,34 @@ onMounted(() => {
 .purchase-progress-list {
   display: grid;
   gap: 12px;
+}
+
+.purchase-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.purchase-delivery-pill {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.purchase-delivery-pill span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8b5e34;
+}
+
+.purchase-delivery-pill strong {
+  color: #172033;
 }
 
 .purchase-benefits-list {
@@ -1324,6 +1378,10 @@ onMounted(() => {
 @media (max-width: 720px) {
   .purchase-hero {
     padding-top: 72px;
+  }
+
+  .purchase-delivery-grid {
+    grid-template-columns: 1fr;
   }
 
   .purchase-shell {

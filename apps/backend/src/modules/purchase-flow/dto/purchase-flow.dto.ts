@@ -3,6 +3,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -157,7 +158,11 @@ export class CustomerOtpRequestDto {
 export class CustomerOtpVerifyDto extends CustomerOtpRequestDto {
   @IsString()
   @IsNotEmpty()
-  code: string;
+  emailCode: string;
+
+  @IsString()
+  @IsNotEmpty()
+  whatsappCode: string;
 }
 
 export class CustomerProfileDto {
@@ -280,6 +285,40 @@ export class PurchaseMetricsQueryDto {
   @IsOptional()
   @IsString()
   projectId?: string;
+}
+
+export class PurchaseReservationsQueryDto {
+  @IsOptional()
+  @IsString()
+  projectId?: string;
+}
+
+export class ReservationActionDto {
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class UpdateReservationAdminDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  cpf?: string;
+
+  @IsOptional()
+  @IsDateString()
+  reservationExpiresAt?: string;
 }
 
 export class ConfirmSaleDto {

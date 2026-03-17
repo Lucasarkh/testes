@@ -103,6 +103,7 @@ const PANEL_ROUTE_FEATURE_MAP: Array<{ prefix: string; feature: PanelFeatureKey 
   { prefix: '/painel/ai', feature: 'ai' },
   { prefix: '/painel/metricas', feature: 'metrics' },
   { prefix: '/painel/leads', feature: 'leads' },
+  { prefix: '/painel/reservas', feature: 'projects' },
   { prefix: '/painel/projetos', feature: 'projects' },
 ];
 

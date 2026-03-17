@@ -66,6 +66,11 @@
             <span v-if="!sidebarCollapsed">Projetos</span>
           </NuxtLink>
 
+          <NuxtLink v-if="authStore.canReadFeature('projects')" to="/painel/reservas" class="nav-item" :title="sidebarCollapsed ? 'Reservas' : undefined">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 7V3.5A1.5 1.5 0 019.5 2h5A1.5 1.5 0 0116 3.5V7"/><path d="M5 7h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/><path d="M9 12h6"/><path d="M12 9v6"/></svg>
+            <span v-if="!sidebarCollapsed">Reservas</span>
+          </NuxtLink>
+
           <NuxtLink v-if="authStore.canReadFeature('leads')" to="/painel/leads" class="nav-item" :title="sidebarCollapsed ? 'Leads' : undefined">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
             <span v-if="!sidebarCollapsed">Leads</span>

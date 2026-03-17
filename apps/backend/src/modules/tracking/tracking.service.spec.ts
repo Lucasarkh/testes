@@ -155,6 +155,43 @@ describe('TrackingService', () => {
 
       expect(session.realtorLinkId).toBeNull(); // Cleared because > 30 days
     });
+
+    it('should treat internal referrer as direct instead of referral', async () => {
+      const dto = {
+        projectSlug: 'test-project',
+        referrer: 'https://www.lotio.com.br/test-project',
+        landingPage: 'https://test-project.lotio.com.br/L-01'
+      };
+
+      const mockProject = {
+        id: 'p1',
+        tenantId: 't1',
+        slug: 'test-project',
+        customDomain: null,
+        tenant: {
+          id: 't1',
+          slug: 'tenant-1',
+          customDomain: null,
+          isActive: true
+        }
+      };
+
+      mockPrisma.project.findFirst.mockResolvedValue(mockProject);
+      mockPrisma.trackingVisitor.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'v1', ...data })
+      );
+      mockPrisma.trackingSession.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 's1', ...data })
+      );
+
+      const session = await service.createSession(dto as any, '1.2.3.4', 'Mozilla/5.0');
+
+      expect(session.ftUtmSource).toBe('Direto');
+      expect(session.ltUtmSource).toBe('Direto');
+      expect(session.ftReferrer).toBeNull();
+      expect(session.ltReferrer).toBeNull();
+      expect(session.referrer).toBeNull();
+    });
   });
 
   describe('trackEvent', () => {

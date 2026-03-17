@@ -22,6 +22,84 @@ export class TrackingService {
     private readonly notifications: NotificationsService
   ) {}
 
+  private normalizeHost(host?: string | null): string | null {
+    if (!host) return null;
+
+    return host
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/:\d+$/, '')
+      .replace(/\/$/, '')
+      .replace(/\.$/, '')
+      .replace(/^www\./, '');
+  }
+
+  private extractHostname(value?: string | null): string | null {
+    if (!value) return null;
+
+    try {
+      return this.normalizeHost(new URL(value).hostname);
+    } catch {
+      try {
+        return this.normalizeHost(new URL(`https://${value}`).hostname);
+      } catch {
+        return this.normalizeHost(value);
+      }
+    }
+  }
+
+  private isSameOrSubdomain(host: string, domain: string): boolean {
+    return host === domain || host.endsWith(`.${domain}`);
+  }
+
+  private isInternalReferrer(params: {
+    referrer?: string | null;
+    landingPage?: string | null;
+    projectSlug?: string | null;
+    projectCustomDomain?: string | null;
+    tenantCustomDomain?: string | null;
+  }): boolean {
+    const referrerHost = this.extractHostname(params.referrer);
+    if (!referrerHost) return false;
+
+    const mainDomain = this.normalizeHost(process.env.MAIN_DOMAIN || 'lotio.com.br');
+    const landingHost = this.extractHostname(params.landingPage);
+    const projectCustomDomain = this.normalizeHost(params.projectCustomDomain);
+    const tenantCustomDomain = this.normalizeHost(params.tenantCustomDomain);
+    const normalizedProjectSlug = params.projectSlug?.trim().toLowerCase() || null;
+
+    if (referrerHost === 'localhost' || referrerHost === '127.0.0.1') {
+      return true;
+    }
+
+    if (landingHost && this.isSameOrSubdomain(referrerHost, landingHost)) {
+      return true;
+    }
+
+    if (mainDomain && this.isSameOrSubdomain(referrerHost, mainDomain)) {
+      return true;
+    }
+
+    if (projectCustomDomain && this.isSameOrSubdomain(referrerHost, projectCustomDomain)) {
+      return true;
+    }
+
+    if (tenantCustomDomain && this.isSameOrSubdomain(referrerHost, tenantCustomDomain)) {
+      return true;
+    }
+
+    if (
+      normalizedProjectSlug &&
+      mainDomain &&
+      this.isSameOrSubdomain(referrerHost, `${normalizedProjectSlug}.${mainDomain}`)
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
   private hashIp(ip: string): string {
     return crypto.createHash('sha256').update(ip).digest('hex');
   }
@@ -192,6 +270,8 @@ export class TrackingService {
       ...data
     } = dto;
     let { tenantId, projectId } = data;
+    let resolvedProject: { slug: string; customDomain?: string | null } | null = null;
+    let resolvedTenant: { customDomain?: string | null } | null = null;
 
     // Resolve IDs
     if (!projectId && projectSlug) {
@@ -202,6 +282,8 @@ export class TrackingService {
       if (project) {
         projectId = project.id;
         tenantId = project.tenantId;
+        resolvedProject = project;
+        resolvedTenant = project.tenant;
       }
     }
 
@@ -211,6 +293,7 @@ export class TrackingService {
       });
       if (tenant) {
         tenantId = tenant.id;
+        resolvedTenant = tenant;
       }
     }
 
@@ -223,7 +306,19 @@ export class TrackingService {
     let utmCampaign = data.utmCampaign;
     const utmContent = data.utmContent || null;
     const utmTerm = data.utmTerm || null;
-    const referrer = data.referrer || null;
+    let referrer = data.referrer || null;
+
+    if (
+      this.isInternalReferrer({
+        referrer,
+        landingPage: data.landingPage,
+        projectSlug: resolvedProject?.slug || projectSlug || null,
+        projectCustomDomain: resolvedProject?.customDomain || null,
+        tenantCustomDomain: resolvedTenant?.customDomain || null
+      })
+    ) {
+      referrer = null;
+    }
 
     if (!utmSource) {
       if (referrer) {
