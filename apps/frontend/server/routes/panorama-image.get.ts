@@ -7,6 +7,8 @@ const collectAllowedHosts = (event: Parameters<typeof defineEventHandler>[0] ext
     requestUrl.origin,
     runtimeConfig.public.siteUrl,
     runtimeConfig.public.apiBase,
+    runtimeConfig.public.assetBase,
+    'https://img.lotio.com.br',
   ]
 
   const hosts = new Set<string>()

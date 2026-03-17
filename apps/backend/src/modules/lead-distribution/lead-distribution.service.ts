@@ -4,12 +4,25 @@ import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import { DistributionLogQueryDto } from './dto/distribution-log-query.dto';
 import { UpdateDistributionConfigDto } from './dto/update-distribution-config.dto';
 import { QueueQueryDto } from './dto/queue-query.dto';
+import { S3Service } from '@infra/s3/s3.service';
 
 @Injectable()
 export class LeadDistributionService {
   private readonly logger = new Logger(LeadDistributionService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service
+  ) {}
+
+  private normalizeBrokerPhoto<T extends { photoUrl?: string | null }>(
+    broker: T
+  ): T {
+    return {
+      ...broker,
+      photoUrl: this.s3.resolvePublicAssetUrl(broker.photoUrl) || broker.photoUrl
+    };
+  }
 
   // ─── Config Management ────────────────────────────────────────────────────
 
@@ -229,7 +242,12 @@ export class LeadDistributionService {
     ]);
 
     return {
-      data,
+      data: data.map((entry) => ({
+        ...entry,
+        realtorLink: entry.realtorLink
+          ? this.normalizeBrokerPhoto(entry.realtorLink)
+          : entry.realtorLink
+      })),
       meta: {
         totalItems,
         itemCount: data.length,
@@ -243,7 +261,7 @@ export class LeadDistributionService {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private async getEligibleBrokers(projectId: string, tenantId: string) {
-    return this.prisma.realtorLink.findMany({
+    const brokers = await this.prisma.realtorLink.findMany({
       where: {
         tenantId,
         enabled: true,
@@ -253,5 +271,7 @@ export class LeadDistributionService {
       select: { id: true, name: true, code: true, photoUrl: true },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }]
     });
+
+    return brokers.map((broker) => this.normalizeBrokerPhoto(broker));
   }
 }

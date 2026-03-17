@@ -55,6 +55,10 @@ export class ProjectsService {
     const key = this.s3.keyFromUrl(trimmed);
     if (!key) return trimmed;
 
+    if (this.s3.hasPublicAssetBaseUrl()) {
+      return this.s3.publicAssetUrl(key);
+    }
+
     try {
       return await this.s3.presignedDownloadUrl(key, 60 * 60 * 24);
     } catch (error: any) {
@@ -85,6 +89,50 @@ export class ProjectsService {
       panoramaUrl: await this.toPublicAssetUrl(lotDetails.panoramaUrl),
       medias
     };
+  }
+
+  private async hydrateProjectAssets<T extends Record<string, any> | null>(
+    project: T
+  ): Promise<T> {
+    if (!project) return project;
+
+    const logos = Array.isArray(project.logos)
+      ? await Promise.all(
+          project.logos.map(async (logo: any) => ({
+            ...logo,
+            url: await this.toPublicAssetUrl(logo?.url)
+          }))
+        )
+      : project.logos;
+
+    const projectMedias = Array.isArray(project.projectMedias)
+      ? await Promise.all(
+          project.projectMedias.map(async (media: any) => ({
+            ...media,
+            url: await this.toPublicAssetUrl(media?.url)
+          }))
+        )
+      : project.projectMedias;
+
+    return {
+      ...project,
+      ogLogoUrl: await this.toPublicAssetUrl(project.ogLogoUrl),
+      bannerImageUrl: await this.toPublicAssetUrl(project.bannerImageUrl),
+      bannerImageTabletUrl: await this.toPublicAssetUrl(
+        project.bannerImageTabletUrl
+      ),
+      bannerImageMobileUrl: await this.toPublicAssetUrl(
+        project.bannerImageMobileUrl
+      ),
+      logos,
+      projectMedias,
+      plantMap: project.plantMap
+        ? {
+            ...project.plantMap,
+            imageUrl: await this.toPublicAssetUrl(project.plantMap.imageUrl)
+          }
+        : project.plantMap
+    } as T;
   }
 
   private async hydratePublicLegacyMapData<T>(mapData: T): Promise<T> {
@@ -150,24 +198,6 @@ export class ProjectsService {
   private async hydratePublicProjectAssets<T extends Record<string, any>>(
     project: T
   ): Promise<T> {
-    const logos = Array.isArray(project.logos)
-      ? await Promise.all(
-          project.logos.map(async (logo: any) => ({
-            ...logo,
-            url: await this.toPublicAssetUrl(logo?.url)
-          }))
-        )
-      : [];
-
-    const projectMedias = Array.isArray(project.projectMedias)
-      ? await Promise.all(
-          project.projectMedias.map(async (media: any) => ({
-            ...media,
-            url: await this.toPublicAssetUrl(media?.url)
-          }))
-        )
-      : [];
-
     const teaserLots = Array.isArray(project.teaserLots)
       ? await Promise.all(
           project.teaserLots.map(async (lot: any) => ({
@@ -179,20 +209,10 @@ export class ProjectsService {
 
     const mapData = await this.hydratePublicLegacyMapData(project.mapData);
 
+    const hydratedProject = await this.hydrateProjectAssets(project);
+
     return {
-      ...project,
-      ogLogoUrl: await this.toPublicAssetUrl(project.ogLogoUrl),
-      bannerImageUrl: await this.toPublicAssetUrl(project.bannerImageUrl),
-      bannerImageTabletUrl: await this.toPublicAssetUrl(project.bannerImageTabletUrl),
-      bannerImageMobileUrl: await this.toPublicAssetUrl(project.bannerImageMobileUrl),
-      logos,
-      projectMedias,
-      plantMap: project.plantMap
-        ? {
-            ...project.plantMap,
-            imageUrl: await this.toPublicAssetUrl(project.plantMap.imageUrl)
-          }
-        : project.plantMap,
+      ...hydratedProject,
       mapData,
       teaserLots
     };
@@ -267,7 +287,7 @@ export class ProjectsService {
     ]);
 
     return {
-      data,
+      data: await Promise.all(data.map((project) => this.hydrateProjectAssets(project))),
       meta: {
         totalItems,
         itemCount: data.length,
@@ -294,7 +314,7 @@ export class ProjectsService {
       }
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
-    return project;
+    return this.hydrateProjectAssets(project);
   }
 
   async checkSlugAvailability(slug: string, excludeId?: string) {
@@ -951,7 +971,7 @@ export class ProjectsService {
 
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
-    return project;
+    return this.hydrateProjectAssets(project);
   }
 
   async update(
@@ -1141,7 +1161,7 @@ export class ProjectsService {
       });
     }
 
-    return updated;
+    return this.hydrateProjectAssets(updated);
   }
 
   async publish(tenantId: string, id: string) {

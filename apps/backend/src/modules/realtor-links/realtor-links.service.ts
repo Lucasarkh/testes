@@ -51,11 +51,16 @@ export class RealtorLinksService {
     profileImageUrl: string | null;
     avatarUrl: string | null;
   } {
+    const photoUrl = this.s3.resolvePublicAssetUrl(
+      (link.photoUrl as string | null | undefined) ?? null
+    );
+
     return {
       ...link,
+      photoUrl,
       isPending: this.isPendingRequest(link.notes),
-      profileImageUrl: (link.photoUrl as string | null | undefined) ?? null,
-      avatarUrl: (link.photoUrl as string | null | undefined) ?? null
+      profileImageUrl: photoUrl,
+      avatarUrl: photoUrl
     };
   }
 
@@ -445,7 +450,8 @@ export class RealtorLinksService {
       `realtors/${link.id}/profile-photo`,
       file.originalname
     );
-    const photoUrl = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const photoUrl = this.s3.publicAssetUrl(key);
 
     const updated = await this.prisma.realtorLink.update({
       where: { id: link.id },
@@ -511,10 +517,12 @@ export class RealtorLinksService {
       throw new NotFoundException(
         'Link de corretor não encontrado ou desabilitado.'
       );
+    const photoUrl = this.s3.resolvePublicAssetUrl(link.photoUrl) || link.photoUrl;
     return {
       ...link,
-      profileImageUrl: link.photoUrl,
-      avatarUrl: link.photoUrl
+      photoUrl,
+      profileImageUrl: photoUrl,
+      avatarUrl: photoUrl
     };
   }
 

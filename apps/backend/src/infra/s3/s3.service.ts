@@ -20,10 +20,15 @@ export class S3Service {
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
   private readonly region: string;
+  private readonly assetBaseUrl: string | null;
 
   constructor(private configService: ConfigService) {
     this.region = this.configService.get('AWS_REGION', 'us-east-1');
     this.bucketName = this.configService.get('AWS_S3_BUCKET', 'lot-uploads');
+    this.assetBaseUrl = this.normalizeBaseUrl(
+      this.configService.get('ASSET_CDN_BASE_URL') ||
+        this.configService.get('ASSET_BASE_URL')
+    );
 
     this.s3Client = new S3Client({
       region: this.region,
@@ -36,8 +41,40 @@ export class S3Service {
 
   // ── helpers ──────────────────────────────────────────────
 
+  private normalizeBaseUrl(value?: string | null): string | null {
+    const trimmed = String(value || '').trim().replace(/\/+$/g, '');
+    if (!trimmed) return null;
+
+    try {
+      return new URL(trimmed).toString().replace(/\/+$/g, '');
+    } catch {
+      this.logger.warn(`Ignoring invalid asset base URL: ${trimmed}`);
+      return null;
+    }
+  }
+
   private publicUrl(key: string): string {
     return `https://${this.bucketName}.s3.${this.region}.amazonaws.com/${key}`;
+  }
+
+  hasPublicAssetBaseUrl(): boolean {
+    return Boolean(this.assetBaseUrl);
+  }
+
+  publicAssetUrl(key: string): string {
+    const normalizedKey = String(key || '').replace(/^\/+/, '');
+    if (!this.assetBaseUrl) return this.publicUrl(normalizedKey);
+    return `${this.assetBaseUrl}/${normalizedKey}`;
+  }
+
+  resolvePublicAssetUrl(url?: string | null): string | null {
+    const trimmed = String(url || '').trim();
+    if (!trimmed) return null;
+
+    const key = this.keyFromUrl(trimmed);
+    if (!key) return trimmed;
+
+    return this.publicAssetUrl(key);
   }
 
   /**
@@ -157,6 +194,29 @@ export class S3Service {
       const bucket = this.bucketName.toLowerCase();
       const region = this.region.toLowerCase();
       const pathname = decodeURIComponent(parsed.pathname).replace(/^\/+/, '');
+
+      if (this.assetBaseUrl) {
+        const assetBase = new URL(this.assetBaseUrl);
+        const assetHost = assetBase.hostname.toLowerCase();
+        const assetBasePath = decodeURIComponent(assetBase.pathname).replace(
+          /^\/+|\/+$/g,
+          ''
+        );
+
+        if (host === assetHost) {
+          if (!assetBasePath) {
+            return pathname || null;
+          }
+
+          const lowerPathname = pathname.toLowerCase();
+          const lowerBasePath = assetBasePath.toLowerCase();
+          const expectedPrefix = `${lowerBasePath}/`;
+
+          if (lowerPathname.startsWith(expectedPrefix)) {
+            return pathname.slice(assetBasePath.length + 1) || null;
+          }
+        }
+      }
 
       const virtualHostedHosts = new Set([
         `${bucket}.s3.${region}.amazonaws.com`,

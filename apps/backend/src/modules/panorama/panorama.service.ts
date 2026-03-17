@@ -22,10 +22,31 @@ export class PanoramaService {
     private readonly s3: S3Service
   ) {}
 
+  private normalizePanoramaAssets<T extends Record<string, any> | null>(
+    panorama: T
+  ): T {
+    if (!panorama) return panorama;
+
+    return {
+      ...panorama,
+      implantationUrl:
+        this.s3.resolvePublicAssetUrl(panorama.implantationUrl) ||
+        panorama.implantationUrl,
+      snapshots: Array.isArray(panorama.snapshots)
+        ? panorama.snapshots.map((snapshot: any) => ({
+            ...snapshot,
+            imageUrl:
+              this.s3.resolvePublicAssetUrl(snapshot.imageUrl) ||
+              snapshot.imageUrl
+          }))
+        : panorama.snapshots
+    } as T;
+  }
+
   // ── Panorama CRUD ──────────────────────────────────────
 
   async findAllByProject(tenantId: string, projectId: string) {
-    return this.prisma.panorama.findMany({
+    const panoramas = await this.prisma.panorama.findMany({
       where: { projectId, tenantId },
       include: {
         snapshots: { orderBy: { sortOrder: 'asc' } },
@@ -33,10 +54,12 @@ export class PanoramaService {
       },
       orderBy: { createdAt: 'asc' }
     });
+
+    return panoramas.map((panorama) => this.normalizePanoramaAssets(panorama));
   }
 
   async findByProjectPublic(projectId: string, _isPreview = false) {
-    return this.prisma.panorama.findMany({
+    const panoramas = await this.prisma.panorama.findMany({
       where: {
         projectId
       },
@@ -48,6 +71,8 @@ export class PanoramaService {
       },
       orderBy: { createdAt: 'asc' }
     });
+
+    return panoramas.map((panorama) => this.normalizePanoramaAssets(panorama));
   }
 
   async findOne(tenantId: string, panoramaId: string) {
@@ -59,7 +84,7 @@ export class PanoramaService {
       }
     });
     if (!panorama) throw new NotFoundException('Panorama não encontrado.');
-    return panorama;
+    return this.normalizePanoramaAssets(panorama);
   }
 
   async create(tenantId: string, projectId: string, dto: CreatePanoramaDto) {
@@ -68,7 +93,7 @@ export class PanoramaService {
     });
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
-    return this.prisma.panorama.create({
+    const created = await this.prisma.panorama.create({
       data: {
         tenantId,
         projectId,
@@ -82,12 +107,14 @@ export class PanoramaService {
       },
       include: { snapshots: true, beacons: true }
     });
+
+    return this.normalizePanoramaAssets(created);
   }
 
   async update(tenantId: string, panoramaId: string, dto: UpdatePanoramaDto) {
     const panorama = await this._findPanorama(tenantId, panoramaId);
 
-    return this.prisma.panorama.update({
+    const updated = await this.prisma.panorama.update({
       where: { id: panorama.id },
       data: dto,
       include: {
@@ -95,6 +122,8 @@ export class PanoramaService {
         beacons: { orderBy: { createdAt: 'asc' } }
       }
     });
+
+    return this.normalizePanoramaAssets(updated);
   }
 
   async remove(tenantId: string, panoramaId: string) {
@@ -138,7 +167,7 @@ export class PanoramaService {
       dto.sortOrder = (maxSort._max.sortOrder ?? -1) + 1;
     }
 
-    return this.prisma.panoramaSnapshot.create({
+    const created = await this.prisma.panoramaSnapshot.create({
       data: {
         panoramaId: panorama.id,
         imageUrl: dto.imageUrl,
@@ -149,6 +178,11 @@ export class PanoramaService {
         sortOrder: dto.sortOrder
       }
     });
+
+    return {
+      ...created,
+      imageUrl: this.s3.resolvePublicAssetUrl(created.imageUrl) || created.imageUrl
+    };
   }
 
   async updateSnapshot(
@@ -158,13 +192,18 @@ export class PanoramaService {
   ) {
     const snapshot = await this._findSnapshot(tenantId, snapshotId);
 
-    return this.prisma.panoramaSnapshot.update({
+    const updated = await this.prisma.panoramaSnapshot.update({
       where: { id: snapshot.id },
       data: {
         ...dto,
         date: dto.date ? new Date(dto.date) : undefined
       }
     });
+
+    return {
+      ...updated,
+      imageUrl: this.s3.resolvePublicAssetUrl(updated.imageUrl) || updated.imageUrl
+    };
   }
 
   async removeSnapshot(tenantId: string, snapshotId: string) {
@@ -206,7 +245,8 @@ export class PanoramaService {
       `projects/${projectId}/panorama/${panoramaId}`,
       file.originalname
     );
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
     return { imageUrl: url };
   }
 
@@ -235,7 +275,8 @@ export class PanoramaService {
       `projects/${projectId}/panorama/${panoramaId}/implantation`,
       file.originalname
     );
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
     return { implantationUrl: url };
   }
 

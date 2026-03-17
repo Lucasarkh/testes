@@ -23,6 +23,17 @@ export class PlantMapService {
     @Inject('REDIS_SERVICE') private readonly redis: any
   ) {}
 
+  private normalizePlantMapAssets<T extends { imageUrl?: string | null } | null>(
+    plantMap: T
+  ): T {
+    if (!plantMap) return plantMap;
+
+    return {
+      ...plantMap,
+      imageUrl: this.s3.resolvePublicAssetUrl(plantMap.imageUrl) || plantMap.imageUrl
+    } as T;
+  }
+
   // ── PlantMap CRUD ──────────────────────────────────────
 
   async findByProject(tenantId: string, projectId: string) {
@@ -61,7 +72,7 @@ export class PlantMapService {
     const hotspotsWithTags = await this._attachTagsToHotspots(
       plantMap.hotspots
     );
-    return { ...plantMap, hotspots: hotspotsWithTags };
+    return this.normalizePlantMapAssets({ ...plantMap, hotspots: hotspotsWithTags });
   }
 
   /** Public access — no tenantId check (project uniqueness ensures isolation) */
@@ -99,7 +110,7 @@ export class PlantMapService {
     const hotspotsWithTags = await this._attachTagsToHotspots(
       plantMap.hotspots
     );
-    return { ...plantMap, hotspots: hotspotsWithTags };
+    return this.normalizePlantMapAssets({ ...plantMap, hotspots: hotspotsWithTags });
   }
 
   /**
@@ -194,7 +205,7 @@ export class PlantMapService {
       );
     }
 
-    return this.prisma.plantMap.create({
+    const created = await this.prisma.plantMap.create({
       data: {
         tenantId,
         projectId,
@@ -202,16 +213,20 @@ export class PlantMapService {
       },
       include: { hotspots: true }
     });
+
+    return this.normalizePlantMapAssets(created);
   }
 
   async update(tenantId: string, plantMapId: string, dto: UpdatePlantMapDto) {
     const plantMap = await this._findMap(tenantId, plantMapId);
 
-    return this.prisma.plantMap.update({
+    const updated = await this.prisma.plantMap.update({
       where: { id: plantMap.id },
       data: dto,
       include: { hotspots: { orderBy: { createdAt: 'asc' } } }
     });
+
+    return this.normalizePlantMapAssets(updated);
   }
 
   async remove(tenantId: string, plantMapId: string) {
@@ -252,7 +267,8 @@ export class PlantMapService {
       `projects/${projectId}/plant-map`,
       file.originalname
     );
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
     return { imageUrl: url };
   }
 

@@ -3,10 +3,28 @@ import { PrismaService } from '@/infra/db/prisma.service';
 import { BulkMapElementsDto, MapElementDto } from './dto/map-element.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { LotStatus, SlopeType } from '@prisma/client';
+import { S3Service } from '@infra/s3/s3.service';
 
 @Injectable()
 export class MapElementsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly s3: S3Service
+  ) {}
+
+  private normalizeElementAssets<T extends Record<string, any>>(element: T): T {
+    return {
+      ...element,
+      lotDetails: element?.lotDetails
+        ? {
+            ...element.lotDetails,
+            panoramaUrl:
+              this.s3.resolvePublicAssetUrl(element.lotDetails.panoramaUrl) ||
+              element.lotDetails.panoramaUrl
+          }
+        : element?.lotDetails
+    } as T;
+  }
 
   private ensureProjectEditable(project: { slug: string | null }) {
     if ((project.slug || '').toLowerCase().startsWith('archived-')) {
@@ -61,11 +79,13 @@ export class MapElementsService {
   }
 
   async findAllByProject(tenantId: string, projectId: string) {
-    return this.prisma.mapElement.findMany({
+    const elements = await this.prisma.mapElement.findMany({
       where: { tenantId, projectId },
       include: { lotDetails: true },
       orderBy: { createdAt: 'asc' }
     });
+
+    return elements.map((element) => this.normalizeElementAssets(element));
   }
 
   async findOne(tenantId: string, id: string) {
@@ -74,7 +94,7 @@ export class MapElementsService {
       include: { lotDetails: true }
     });
     if (!el) throw new NotFoundException('Elemento não encontrado.');
-    return el;
+    return this.normalizeElementAssets(el);
   }
 
   /**
@@ -241,10 +261,12 @@ export class MapElementsService {
         await Promise.all(lotPromises);
 
         // Return a full list for frontend acknowledgment (optional, but consistent with return type)
-        return tx.mapElement.findMany({
+        const elements = await tx.mapElement.findMany({
           where: { tenantId, projectId },
           include: { lotDetails: true }
         });
+
+        return elements.map((element) => this.normalizeElementAssets(element));
       },
       {
         timeout: 30000 // Increase timeout for massive map saves

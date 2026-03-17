@@ -115,6 +115,7 @@ services:
       args:
         NUXT_PUBLIC_API_BASE: ${FRONTEND_API_URL:-https://lotio.com.br}
         NUXT_PUBLIC_SITE_URL: ${FRONTEND_URL:-https://www.lotio.com.br}
+        NUXT_PUBLIC_ASSET_BASE: ${NUXT_PUBLIC_ASSET_BASE:-https://img.lotio.com.br}
         NUXT_PUBLIC_FB_APP_ID: ${NUXT_PUBLIC_FB_APP_ID:-}
     container_name: lotio_frontend
     restart: always
@@ -124,6 +125,7 @@ services:
       NODE_ENV: production
       NUXT_PUBLIC_API_BASE: ${FRONTEND_API_URL:-https://lotio.com.br}
       NUXT_PUBLIC_SITE_URL: ${FRONTEND_URL:-https://www.lotio.com.br}
+      NUXT_PUBLIC_ASSET_BASE: ${NUXT_PUBLIC_ASSET_BASE:-https://img.lotio.com.br}
       NUXT_PUBLIC_FB_APP_ID: ${NUXT_PUBLIC_FB_APP_ID:-}
     networks:
       - app_network
@@ -162,6 +164,7 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-lot-uploads}
+      ASSET_CDN_BASE_URL: ${ASSET_CDN_BASE_URL:-https://img.lotio.com.br}
       # SendPulse
       SENDPULSE_CLIENT_ID: ${SENDPULSE_CLIENT_ID:-}
       SENDPULSE_CLIENT_SECRET: ${SENDPULSE_CLIENT_SECRET:-}

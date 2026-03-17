@@ -12,6 +12,7 @@ import {
 import { ProjectStatus, MapElementType, LeadStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
+import { S3Service } from '@infra/s3/s3.service';
 
 const TRACKING_SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -19,8 +20,18 @@ const TRACKING_SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 export class TrackingService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notifications: NotificationsService
+    private readonly notifications: NotificationsService,
+    private readonly s3: S3Service
   ) {}
+
+  private normalizeBrokerPhoto<T extends { photoUrl?: string | null }>(
+    broker: T
+  ): T {
+    return {
+      ...broker,
+      photoUrl: this.s3.resolvePublicAssetUrl(broker.photoUrl) || broker.photoUrl
+    };
+  }
 
   private normalizeHost(host?: string | null): string | null {
     if (!host) return null;
@@ -2063,7 +2074,8 @@ export class TrackingService {
           id: rl.id,
           name: rl.name,
           code: rl.code,
-          photoUrl: rl.photoUrl,
+          photoUrl:
+            this.s3.resolvePublicAssetUrl(rl.photoUrl) || rl.photoUrl,
           sessions,
           leads,
           conversionRate:

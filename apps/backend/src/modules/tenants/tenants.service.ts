@@ -365,7 +365,15 @@ export class TenantsService {
       }
     });
     if (!tenant) throw new NotFoundException('Tenant não encontrado');
-    return tenant;
+    return {
+      ...tenant,
+      logos: Array.isArray(tenant.logos)
+        ? tenant.logos.map((logo) => ({
+            ...logo,
+            url: this.s3.resolvePublicAssetUrl(logo.url) || logo.url
+          }))
+        : tenant.logos
+    };
   }
 
   async updateProfile(tenantId: string, dto: UpdateTenantProfileDto) {
@@ -427,7 +435,8 @@ export class TenantsService {
     await this.findSelf(tenantId);
     const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
     const key = `tenants/${tenantId}/logos/${uuidv4()}${ext}`;
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
     return this.prisma.tenantLogo.create({
       data: { tenantId, url },
       select: { id: true, url: true, label: true, sortOrder: true }
@@ -441,7 +450,7 @@ export class TenantsService {
     if (!logo) throw new NotFoundException('Logo não encontrado');
     // Delete from S3
     try {
-      const key = logo.url.split('.amazonaws.com/').pop();
+      const key = this.s3.keyFromUrl(logo.url);
       if (key) await this.s3.delete(key);
     } catch {
       /* ignore S3 cleanup errors */

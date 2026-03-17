@@ -12,7 +12,7 @@
       <!-- Active snapshot image -->
       <img
         v-if="activeSnapshot"
-        :src="activeSnapshot.imageUrl"
+        :src="activeSnapshotDisplayUrl"
         class="panorama-image"
         draggable="false"
         @load="onImageLoad"
@@ -143,6 +143,27 @@ const selectedBeacon = ref<PanoramaBeacon | null>(null)
 
 const activeSnapshot = ref<PanoramaSnapshot | null>(null)
 
+function buildPanoramaProxyUrl(url?: string | null) {
+  const trimmed = String(url || '').trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('/')) {
+    return trimmed
+  }
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+  return `/panorama-image?url=${encodeURIComponent(trimmed)}`
+}
+
+const activeSnapshotDisplayUrl = computed(() => {
+  const imageUrl = activeSnapshot.value?.imageUrl || ''
+  if (!imageUrl) return ''
+  if (props.panorama.projection === 'EQUIRECTANGULAR') {
+    return buildPanoramaProxyUrl(imageUrl)
+  }
+  return imageUrl
+})
+
 // ── Fullscreen ──────────────────────────────────────
 
 async function toggleFullscreen() {
@@ -196,10 +217,13 @@ function initPannellum() {
   const rect = containerRef.value?.getBoundingClientRect()
   const aspectRatio = rect?.height ? rect.width / rect.height : 16 / 9
   const initialHfov = aspectRatio < 1 ? 112 : aspectRatio < 1.4 ? 104 : 98
+  const panoramaUrl = activeSnapshotDisplayUrl.value
+
+  if (!panoramaUrl) return
 
   pviewer = (window as any).pannellum.viewer(elementId, {
     type: 'equirectangular',
-    panorama: activeSnapshot.value.imageUrl + (activeSnapshot.value.imageUrl.includes('?') ? '&' : '?') + 'nocache=' + Date.now(),
+    panorama: panoramaUrl + (panoramaUrl.includes('?') ? '&' : '?') + 'nocache=' + Date.now(),
     hfov: initialHfov,
     minHfov: 50,
     maxHfov: 120,

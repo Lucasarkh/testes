@@ -20,6 +20,27 @@ export class UploadService {
     private readonly s3: S3Service
   ) {}
 
+  private normalizeProjectAssets<T extends Record<string, any> | null>(
+    project: T
+  ): T {
+    if (!project) return project;
+
+    return {
+      ...project,
+      ogLogoUrl:
+        this.s3.resolvePublicAssetUrl(project.ogLogoUrl) || project.ogLogoUrl,
+      bannerImageUrl:
+        this.s3.resolvePublicAssetUrl(project.bannerImageUrl) ||
+        project.bannerImageUrl,
+      bannerImageTabletUrl:
+        this.s3.resolvePublicAssetUrl(project.bannerImageTabletUrl) ||
+        project.bannerImageTabletUrl,
+      bannerImageMobileUrl:
+        this.s3.resolvePublicAssetUrl(project.bannerImageMobileUrl) ||
+        project.bannerImageMobileUrl
+    } as T;
+  }
+
   // ── Project Banner ──────────────────────────────────────
 
   async uploadBannerImage(
@@ -52,7 +73,8 @@ export class UploadService {
       `projects/${projectId}/banner/${device}`,
       file.originalname
     );
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
 
     return this.updateProjectBannerField(projectId, bannerField, url);
   }
@@ -73,7 +95,7 @@ export class UploadService {
       | string
       | null
       | undefined;
-    if (!previousUrl) return project;
+    if (!previousUrl) return this.normalizeProjectAssets(project);
 
     const oldKey = this.s3.keyFromUrl(previousUrl);
     if (oldKey) await this.s3.delete(oldKey).catch(() => {});
@@ -109,7 +131,8 @@ export class UploadService {
       `projects/${projectId}/og-logo`,
       file.originalname
     );
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
 
     await this.prisma.$executeRaw(
       Prisma.sql`UPDATE "Project" SET "ogLogoUrl" = ${url}, "updatedAt" = NOW() WHERE "id" = ${projectId}`
@@ -119,7 +142,7 @@ export class UploadService {
       where: { id: projectId }
     });
     if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
-    return refreshed;
+    return this.normalizeProjectAssets(refreshed);
   }
 
   async removeOgLogo(tenantId: string, projectId: string) {
@@ -145,7 +168,7 @@ export class UploadService {
       where: { id: projectId }
     });
     if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
-    return refreshed;
+    return this.normalizeProjectAssets(refreshed);
   }
 
   // ── Project footer logos (Realizacao e Propriedade) ───
@@ -153,11 +176,16 @@ export class UploadService {
   async listFooterLogos(tenantId: string, projectId: string) {
     await this.ensureProjectExists(tenantId, projectId);
 
-    return this.prisma.projectLogo.findMany({
+    const logos = await this.prisma.projectLogo.findMany({
       where: { tenantId, projectId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       select: { id: true, url: true, label: true, sortOrder: true }
     });
+
+    return logos.map((logo) => ({
+      ...logo,
+      url: this.s3.resolvePublicAssetUrl(logo.url) || logo.url
+    }));
   }
 
   async uploadFooterLogo(
@@ -174,7 +202,8 @@ export class UploadService {
       `projects/${projectId}/footer-logos`,
       file.originalname
     );
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
 
     const count = await this.prisma.projectLogo.count({
       where: { tenantId, projectId }
@@ -232,7 +261,8 @@ export class UploadService {
       ? `projects/${projectId}/lots/${lotDetailsId}`
       : `projects/${projectId}/media`;
     const key = this.s3.buildKey(tenantId, folder, file.originalname);
-    const url = await this.s3.upload(file.buffer, key, file.mimetype);
+    await this.s3.upload(file.buffer, key, file.mimetype);
+    const url = this.s3.publicAssetUrl(key);
 
     const type: MediaType = file.mimetype.startsWith('video/')
       ? 'VIDEO'
@@ -244,10 +274,15 @@ export class UploadService {
   }
 
   async listMedia(tenantId: string, projectId: string) {
-    return this.prisma.projectMedia.findMany({
+    const medias = await this.prisma.projectMedia.findMany({
       where: { tenantId, projectId, lotDetailsId: null },
       orderBy: { createdAt: 'desc' }
     });
+
+    return medias.map((media) => ({
+      ...media,
+      url: this.s3.resolvePublicAssetUrl(media.url) || media.url
+    }));
   }
 
   async removeMedia(tenantId: string, mediaId: string) {
@@ -346,10 +381,12 @@ export class UploadService {
     value: string | null
   ) {
     if (field === 'bannerImageUrl') {
-      return this.prisma.project.update({
+      const updated = await this.prisma.project.update({
         where: { id: projectId },
         data: { bannerImageUrl: value }
       });
+
+      return this.normalizeProjectAssets(updated);
     }
 
     if (field === 'bannerImageTabletUrl') {
@@ -366,7 +403,7 @@ export class UploadService {
       where: { id: projectId }
     });
     if (!refreshed) throw new NotFoundException('Projeto não encontrado.');
-    return refreshed;
+    return this.normalizeProjectAssets(refreshed);
   }
 
   private async ensureProjectExists(tenantId: string, projectId: string) {

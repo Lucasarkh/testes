@@ -1,6 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 const configuredSiteUrl = process.env.NUXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://www.lotio.com.br'
 const siteUrl = configuredSiteUrl.replace(/\/+$/, '')
+const configuredAssetBase = process.env.NUXT_PUBLIC_ASSET_BASE || process.env.ASSET_CDN_BASE_URL || 'https://img.lotio.com.br'
+const assetBase = configuredAssetBase.replace(/\/+$/, '')
 const ogImageUrl = `${siteUrl}/img/og-image.png`
 const facebookAppId = process.env.NUXT_PUBLIC_FB_APP_ID
 const defaultTitle = 'Lotio - Plataforma de inteligência comercial para loteamentos'
@@ -60,7 +62,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://lotio.com.br',
-      siteUrl
+      siteUrl,
+      assetBase
     }
   },
   vite: {
