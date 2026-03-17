@@ -7,12 +7,21 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
   Request,
-  NotFoundException
+  NotFoundException,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags
+} from '@nestjs/swagger';
 import { TenantGuard } from '@common/guards/tenant.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
@@ -91,6 +100,34 @@ export class RealtorLinksController {
   @ApiOperation({ summary: 'Atualizar link do corretor logado' })
   updateMe(@Request() req: any, @Body() dto: UpdateRealtorLinkDto) {
     return this.service.updateMe(req.user.id, dto);
+  }
+
+  @Post('me/photo')
+  @Roles('CORRETOR')
+  @ApiOperation({ summary: 'Enviar ou substituir a foto do corretor logado' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' }
+      },
+      required: ['file']
+    }
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  uploadMyPhoto(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    return this.service.uploadMyPhoto(req.user.id, file);
+  }
+
+  @Delete('me/photo')
+  @Roles('CORRETOR')
+  @ApiOperation({ summary: 'Remover a foto do corretor logado' })
+  removeMyPhoto(@Request() req: any) {
+    return this.service.removeMyPhoto(req.user.id);
   }
 
   @Post('me/request-access')

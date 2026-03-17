@@ -12,6 +12,37 @@
         <h2 style="margin-bottom: 16px;">Dados Pessoais</h2>
         
         <form v-if="authStore.user?.role === 'CORRETOR'" @submit.prevent="handleUpdateRealtor">
+          <div class="realtor-photo-section">
+            <input
+              ref="realtorPhotoInput"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              style="display: none"
+              @change="handleRealtorPhotoSelected"
+            />
+
+            <div class="realtor-photo-avatar">
+              <img v-if="realtorPhotoUrl" :src="realtorPhotoUrl" alt="Foto do corretor" />
+              <span v-else>{{ realtorPhotoInitial }}</span>
+            </div>
+
+            <div class="realtor-photo-actions">
+              <div>
+                <h3 class="realtor-photo-title">Foto de Perfil</h3>
+                <p class="realtor-photo-help">Essa foto aparece quando o cliente acessa seu link de corretor.</p>
+              </div>
+
+              <div class="realtor-photo-buttons">
+                <button type="button" class="btn btn-secondary" :disabled="photoUploading || photoRemoving" @click="openRealtorPhotoPicker">
+                  {{ photoUploading ? 'Enviando...' : (realtorPhotoUrl ? 'Trocar Foto' : 'Enviar Foto') }}
+                </button>
+                <button v-if="realtorPhotoUrl" type="button" class="btn btn-ghost" :disabled="photoUploading || photoRemoving" @click="removeRealtorPhoto">
+                  {{ photoRemoving ? 'Removendo...' : 'Remover' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Nome</label>
             <input v-model="realtorForm.name" class="form-input" required />
@@ -158,7 +189,7 @@ import {
 } from '~/utils/passwordPolicy'
 
 const authStore = useAuthStore()
-const { fetchApi } = useApi()
+const { fetchApi, uploadApi } = useApi()
 const toast = useToast()
 const { maskPhone, unmask } = useMasks()
 
@@ -174,12 +205,20 @@ const passwordPolicyError = computed(() => getPasswordPolicyError(passForm.value
 // Realtor-specific state
 const realtorLoading = ref(false)
 const realtorError = ref('')
+const photoUploading = ref(false)
+const photoRemoving = ref(false)
+const realtorPhotoUrl = ref('')
+const realtorPhotoInput = ref(null)
 const realtorForm = ref({
   name: '',
   phone: '',
   email: '',
   creci: '',
   code: ''
+})
+const realtorPhotoInitial = computed(() => {
+  const name = realtorForm.value.name?.trim() || authStore.user?.name || ''
+  return name ? name.charAt(0).toUpperCase() : '?'
 })
 
 // 2FA state
@@ -219,6 +258,7 @@ watch(() => realtorForm.value.phone, (newVal) => {
 async function fetchRealtorData() {
   try {
     const data = await fetchApi('/realtor-links/me')
+    realtorPhotoUrl.value = data.photoUrl || data.profileImageUrl || data.avatarUrl || ''
     realtorForm.value = {
       name: data.name || '',
       phone: maskPhone(data.phone || ''),
@@ -228,6 +268,46 @@ async function fetchRealtorData() {
     }
   } catch (err) {
     console.error('Falha ao carregar dados do corretor', err)
+  }
+}
+
+function openRealtorPhotoPicker() {
+  realtorPhotoInput.value?.click()
+}
+
+async function handleRealtorPhotoSelected(event) {
+  const target = event.target
+  const file = target?.files?.[0]
+  if (!file) return
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  photoUploading.value = true
+  realtorError.value = ''
+  try {
+    const data = await uploadApi('/realtor-links/me/photo', formData)
+    realtorPhotoUrl.value = data.photoUrl || data.profileImageUrl || data.avatarUrl || ''
+    toast.success('Foto atualizada com sucesso!')
+  } catch (err) {
+    realtorError.value = err?.data?.message || err?.message || 'Erro ao enviar a foto.'
+  } finally {
+    photoUploading.value = false
+    if (target) target.value = ''
+  }
+}
+
+async function removeRealtorPhoto() {
+  photoRemoving.value = true
+  realtorError.value = ''
+  try {
+    await fetchApi('/realtor-links/me/photo', { method: 'DELETE' })
+    realtorPhotoUrl.value = ''
+    toast.success('Foto removida com sucesso!')
+  } catch (err) {
+    realtorError.value = err?.data?.message || err?.message || 'Erro ao remover a foto.'
+  } finally {
+    photoRemoving.value = false
   }
 }
 
@@ -396,6 +476,64 @@ async function handleUpdateEmpresa() {
 
 .empresa-card { margin-top: 1.5rem; }
 
+.realtor-photo-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg, 16px);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.04));
+}
+
+.realtor-photo-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--color-primary-400, #60a5fa);
+  font-size: 2rem;
+  font-weight: 700;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.realtor-photo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.realtor-photo-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.realtor-photo-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.realtor-photo-help {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-surface-400);
+}
+
+.realtor-photo-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .empresa-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -403,6 +541,14 @@ async function handleUpdateEmpresa() {
 }
 @media (max-width: 640px) {
   .empresa-grid { grid-template-columns: 1fr; }
+  .realtor-photo-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .realtor-photo-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 </style>

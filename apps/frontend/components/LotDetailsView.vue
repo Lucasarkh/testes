@@ -463,7 +463,7 @@
               <!-- Broker Profile -->
               <div class="broker-info-v4" v-if="corretor">
                 <div class="b-avatar">
-                  <img v-if="corretor.avatarUrl" :src="corretor.avatarUrl" :alt="corretor.name" />
+                  <img v-if="corretor.photoUrl || corretor.avatarUrl || corretor.profileImageUrl" :src="corretor.photoUrl || corretor.avatarUrl || corretor.profileImageUrl" :alt="corretor.name" />
                   <div v-else class="b-initial">{{ corretor.name?.charAt(0) }}</div>
                 </div>
                 <div class="b-text">

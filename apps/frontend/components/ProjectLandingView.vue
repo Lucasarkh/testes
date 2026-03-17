@@ -69,7 +69,7 @@
           <div class="v4-trust-inner">
             <div class="v4-trust-person">
               <div class="v4-trust-avatar">
-                <img v-if="corretor.profileImageUrl" :src="corretor.profileImageUrl" :alt="corretor.name" />
+                <img v-if="corretor.photoUrl || corretor.profileImageUrl || corretor.avatarUrl" :src="corretor.photoUrl || corretor.profileImageUrl || corretor.avatarUrl" :alt="corretor.name" />
                 <span v-else class="v4-avatar-placeholder">{{ corretor.name[0] }}</span>
               </div>
               <div class="v4-trust-info">

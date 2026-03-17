@@ -5,6 +5,7 @@ import {
   BadRequestException
 } from '@nestjs/common';
 import { PrismaService } from '@infra/db/prisma.service';
+import { S3Service } from '@infra/s3/s3.service';
 import { CreateRealtorLinkDto } from './dto/create-realtor-link.dto';
 import { UpdateRealtorLinkDto } from './dto/update-realtor-link.dto';
 import * as bcrypt from 'bcrypt';
@@ -12,12 +13,15 @@ import { NotificationType, UserRole } from '@prisma/client';
 import { NotificationsService } from '@modules/notifications/notifications.service';
 
 const PENDING_REQUEST_MARKER = '[PENDING_APPROVAL_REQUEST]';
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 
 @Injectable()
 export class RealtorLinksService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly s3: S3Service
   ) {}
 
   private isPendingRequest(notes?: string | null) {
@@ -42,11 +46,29 @@ export class RealtorLinksService {
 
   private toRealtorLinkResponse<T extends Record<string, any>>(
     link: T
-  ): T & { isPending: boolean } {
+  ): T & {
+    isPending: boolean;
+    profileImageUrl: string | null;
+    avatarUrl: string | null;
+  } {
     return {
       ...link,
-      isPending: this.isPendingRequest(link.notes)
+      isPending: this.isPendingRequest(link.notes),
+      profileImageUrl: (link.photoUrl as string | null | undefined) ?? null,
+      avatarUrl: (link.photoUrl as string | null | undefined) ?? null
     };
+  }
+
+  private validatePhoto(file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado.');
+    if (!ALLOWED_PHOTO_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Tipo não permitido. Aceitos: ${ALLOWED_PHOTO_TYPES.join(', ')}`
+      );
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      throw new BadRequestException('Arquivo muito grande. Máximo: 10 MB');
+    }
   }
 
   private async buildUniqueCode(tenantId: string, baseName: string) {
@@ -74,6 +96,7 @@ export class RealtorLinksService {
 
   async create(tenantId: string, dto: CreateRealtorLinkDto, currentUser?: any) {
     const { projectIds, accountEmail, accountPassword, ...data } = dto;
+    delete (data as any).photoUrl;
     const existing = await this.prisma.realtorLink.findUnique({
       where: { tenantId_code: { tenantId, code: dto.code } }
     });
@@ -371,6 +394,7 @@ export class RealtorLinksService {
       notes,
       ...data
     } = dto as any;
+    delete data.photoUrl;
 
     if (data.code && data.code !== link.code) {
       const conflict = await this.prisma.realtorLink.findFirst({
@@ -401,6 +425,68 @@ export class RealtorLinksService {
     });
   }
 
+  async uploadMyPhoto(userId: string, file: Express.Multer.File) {
+    this.validatePhoto(file);
+
+    const link = await this.prisma.realtorLink.findUnique({
+      where: { userId },
+      select: { id: true, tenantId: true, photoUrl: true }
+    });
+    if (!link)
+      throw new NotFoundException('Perfil de corretor não encontrado.');
+
+    if (link.photoUrl) {
+      const oldKey = this.s3.keyFromUrl(link.photoUrl);
+      if (oldKey) await this.s3.delete(oldKey).catch(() => {});
+    }
+
+    const key = this.s3.buildKey(
+      link.tenantId,
+      `realtors/${link.id}/profile-photo`,
+      file.originalname
+    );
+    const photoUrl = await this.s3.upload(file.buffer, key, file.mimetype);
+
+    const updated = await this.prisma.realtorLink.update({
+      where: { id: link.id },
+      data: { photoUrl },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } },
+        _count: { select: { leads: true } }
+      }
+    });
+
+    return this.toRealtorLinkResponse(updated);
+  }
+
+  async removeMyPhoto(userId: string) {
+    const link = await this.prisma.realtorLink.findUnique({
+      where: { userId },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } },
+        _count: { select: { leads: true } }
+      }
+    });
+    if (!link)
+      throw new NotFoundException('Perfil de corretor não encontrado.');
+
+    if (link.photoUrl) {
+      const oldKey = this.s3.keyFromUrl(link.photoUrl);
+      if (oldKey) await this.s3.delete(oldKey).catch(() => {});
+    }
+
+    const updated = await this.prisma.realtorLink.update({
+      where: { id: link.id },
+      data: { photoUrl: null },
+      include: {
+        projects: { select: { id: true, name: true, slug: true } },
+        _count: { select: { leads: true } }
+      }
+    });
+
+    return this.toRealtorLinkResponse(updated);
+  }
+
   /** Public – resolve realtor by project slug + code for the public page */
   async findPublic(projectSlug: string, code: string) {
     const project = await this.prisma.project.findUnique({
@@ -425,11 +511,16 @@ export class RealtorLinksService {
       throw new NotFoundException(
         'Link de corretor não encontrado ou desabilitado.'
       );
-    return link;
+    return {
+      ...link,
+      profileImageUrl: link.photoUrl,
+      avatarUrl: link.photoUrl
+    };
   }
 
   async update(tenantId: string, id: string, dto: UpdateRealtorLinkDto) {
     const { projectIds, ...data } = dto;
+    delete (data as any).photoUrl;
     const link = await this.prisma.realtorLink.findFirst({
       where: { id, tenantId }
     });
