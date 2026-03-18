@@ -281,68 +281,73 @@
       <div v-if="isMobileViewport && isMobileFormOpen" class="lp-mobile-modal" @click.self="closeMobileForm">
         <div class="lp-mobile-sheet">
           <div class="lp-mobile-sheet-header">
-            <strong>Solicitar demonstração</strong>
+            <div class="lp-mobile-sheet-heading">
+              <strong>Solicitar demonstração</strong>
+              <span>Preencha e nossa equipe retorna com contexto do seu cenário.</span>
+            </div>
             <button type="button" class="lp-mobile-close" @click="closeMobileForm">Fechar</button>
           </div>
 
-          <div v-if="submitted" class="lp-form-success">
-            <div class="lp-success-icon">✓</div>
-            <h3>Solicitação enviada</h3>
-            <p>Nossa equipe comercial entra em contato em até 1 dia útil para mostrar a plataforma no seu contexto.</p>
-            <button v-if="settings?.contactWhatsapp" class="lp-btn-whatsapp" @click="openWhatsapp">
-              Falar agora no WhatsApp
-            </button>
+          <div class="lp-mobile-sheet-body">
+            <div v-if="submitted" class="lp-form-success lp-form-success--mobile">
+              <div class="lp-success-icon">✓</div>
+              <h3>Solicitação enviada</h3>
+              <p>Nossa equipe comercial entra em contato em até 1 dia útil para mostrar a plataforma no seu contexto.</p>
+              <button v-if="settings?.contactWhatsapp" class="lp-btn-whatsapp" @click="openWhatsapp">
+                Falar agora no WhatsApp
+              </button>
+            </div>
+
+            <form v-else class="lp-form lp-form--mobile" @submit.prevent="submitForm">
+              <div class="lp-form-header">
+                <h2 class="lp-form-title">Solicitar demonstração comercial</h2>
+                <p class="lp-form-subtitle">Preencha em menos de 30 segundos.</p>
+              </div>
+
+              <div class="lp-field">
+                <label>Nome completo</label>
+                <input v-model="form.name" type="text" placeholder="Seu nome" required />
+              </div>
+              <div class="lp-field">
+                <label>E-mail</label>
+                <input v-model="form.email" type="email" placeholder="seu@email.com" required />
+              </div>
+              <div class="lp-field">
+                <label>WhatsApp</label>
+                <input
+                  :value="form.phone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  required
+                  @input="form.phone = applyPhoneMask($event.target.value)"
+                />
+              </div>
+              <div class="lp-field">
+                <label>Empresa / Empreendimento</label>
+                <input v-model="form.company" type="text" placeholder="Nome da empresa ou projeto" />
+              </div>
+              <div class="lp-field">
+                <label>Seu perfil</label>
+                <select v-model="form.role">
+                  <option value="">Selecione</option>
+                  <option>Diretor / Proprietário</option>
+                  <option>Gerente Comercial</option>
+                  <option>Corretor de Imóveis</option>
+                  <option>Gerente de Marketing</option>
+                  <option>Responsável de TI</option>
+                  <option>Outro</option>
+                </select>
+              </div>
+              <div class="lp-field">
+                <label>O que você precisa resolver? (opcional)</label>
+                <textarea v-model="form.message" rows="3" placeholder="Descreva rapidamente seu cenário."></textarea>
+              </div>
+
+              <button type="submit" class="lp-btn-primary lp-btn-primary--full" :disabled="submitting">
+                {{ submitting ? 'Enviando...' : 'Quero ver na prática' }}
+              </button>
+            </form>
           </div>
-
-          <form v-else class="lp-form lp-form--mobile" @submit.prevent="submitForm">
-            <div class="lp-form-header">
-              <h2 class="lp-form-title">Solicitar demonstração comercial</h2>
-              <p class="lp-form-subtitle">Preencha em menos de 30 segundos.</p>
-            </div>
-
-            <div class="lp-field">
-              <label>Nome completo</label>
-              <input v-model="form.name" type="text" placeholder="Seu nome" required />
-            </div>
-            <div class="lp-field">
-              <label>E-mail</label>
-              <input v-model="form.email" type="email" placeholder="seu@email.com" required />
-            </div>
-            <div class="lp-field">
-              <label>WhatsApp</label>
-              <input
-                :value="form.phone"
-                type="tel"
-                placeholder="(11) 99999-9999"
-                required
-                @input="form.phone = applyPhoneMask($event.target.value)"
-              />
-            </div>
-            <div class="lp-field">
-              <label>Empresa / Empreendimento</label>
-              <input v-model="form.company" type="text" placeholder="Nome da empresa ou projeto" />
-            </div>
-            <div class="lp-field">
-              <label>Seu perfil</label>
-              <select v-model="form.role">
-                <option value="">Selecione</option>
-                <option>Diretor / Proprietário</option>
-                <option>Gerente Comercial</option>
-                <option>Corretor de Imóveis</option>
-                <option>Gerente de Marketing</option>
-                <option>Responsável de TI</option>
-                <option>Outro</option>
-              </select>
-            </div>
-            <div class="lp-field">
-              <label>O que você precisa resolver? (opcional)</label>
-              <textarea v-model="form.message" rows="3" placeholder="Descreva rapidamente seu cenário."></textarea>
-            </div>
-
-            <button type="submit" class="lp-btn-primary lp-btn-primary--full" :disabled="submitting">
-              {{ submitting ? 'Enviando...' : 'Quero ver na prática' }}
-            </button>
-          </form>
         </div>
       </div>
     </transition>
@@ -1187,7 +1192,7 @@ const scrollToForm = () => {
   position: fixed;
   right: 16px;
   bottom: 16px;
-  z-index: 40;
+  z-index: 960;
   padding: 14px 18px;
   background: #0d8f61;
   color: #fff;
@@ -1197,15 +1202,20 @@ const scrollToForm = () => {
 .lp-mobile-modal {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 1200;
   display: grid;
   align-items: end;
+  padding: max(16px, env(safe-area-inset-top)) 12px 0;
   background: rgba(10, 18, 14, 0.48);
 }
 
 .lp-mobile-sheet {
-  max-height: 92vh;
-  overflow: auto;
+  width: min(100%, 560px);
+  max-height: min(820px, calc(100dvh - max(16px, env(safe-area-inset-top)) - 12px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   border-radius: 26px 26px 0 0;
   background: #fbf9f4;
   box-shadow: 0 -24px 60px rgba(15, 33, 25, 0.22);
@@ -1226,10 +1236,29 @@ const scrollToForm = () => {
   color: #173127;
 }
 
+.lp-mobile-sheet-heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lp-mobile-sheet-heading span {
+  color: #52645b;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.lp-mobile-sheet-body {
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .lp-mobile-close {
   padding: 10px 12px;
   background: rgba(23, 49, 39, 0.06);
   color: #173127;
+  flex: 0 0 auto;
 }
 
 .lp-modal-fade-enter-active,
@@ -1318,6 +1347,10 @@ const scrollToForm = () => {
     padding: var(--lp-space-3);
   }
 
+  .lp-form-card {
+    display: none;
+  }
+
   .lp-section-head,
   .lp-gallery-copy {
     margin-bottom: var(--lp-space-4);
@@ -1348,7 +1381,25 @@ const scrollToForm = () => {
   }
 
   .lp-mobile-sheet {
-    max-height: 88vh;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - 8px);
+    border-radius: 24px 24px 0 0;
+  }
+
+  .lp-mobile-sheet-header {
+    align-items: flex-start;
+    padding: 16px 16px 14px;
+  }
+
+  .lp-mobile-sheet-body {
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .lp-form--mobile {
+    gap: 14px;
+  }
+
+  .lp-form-success--mobile {
+    padding: var(--lp-space-4) var(--lp-space-3) calc(var(--lp-space-4) + env(safe-area-inset-bottom));
   }
 
   .lp-card {
@@ -1362,6 +1413,10 @@ const scrollToForm = () => {
   .lp-mobile-sheet-header strong {
     font-size: 1rem;
     line-height: 1.2;
+  }
+
+  .lp-mobile-close {
+    padding: 10px;
   }
 }
 </style>
