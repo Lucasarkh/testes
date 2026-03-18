@@ -71,10 +71,6 @@ lotio.com.br {
 grafana.lotio.com.br {
   encode zstd gzip
 
-  basicauth {
-    admin $2a$14$ico7/wtPM..IVCAt/PuW5evczWywVdf4pBRnC0B8BTh5wBPB5V4Li
-  }
-
   reverse_proxy 127.0.0.1:4000 {
     header_up Host {host}
     header_up X-Real-IP {remote_host}
@@ -91,10 +87,6 @@ grafana.lotio.com.br {
 rabbit.lotio.com.br {
   encode zstd gzip
 
-  basicauth {
-    admin $2a$14$ico7/wtPM..IVCAt/PuW5evczWywVdf4pBRnC0B8BTh5wBPB5V4Li
-  }
-
   reverse_proxy 127.0.0.1:15672 {
     header_up Host {host}
     header_up X-Real-IP {remote_host}
@@ -110,10 +102,6 @@ rabbit.lotio.com.br {
 
 redis.lotio.com.br {
   encode zstd gzip
-
-  basicauth {
-    admin $2a$14$ico7/wtPM..IVCAt/PuW5evczWywVdf4pBRnC0B8BTh5wBPB5V4Li
-  }
 
   reverse_proxy 127.0.0.1:8081 {
     header_up Host {host}
