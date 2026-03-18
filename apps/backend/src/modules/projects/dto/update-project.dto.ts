@@ -6,7 +6,11 @@ import {
   IsString
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ProjectStatus, ReservationFeeType } from '@prisma/client';
+import {
+  PreLaunchCaptureMode,
+  ProjectStatus,
+  ReservationFeeType
+} from '@prisma/client';
 import { Type } from 'class-transformer';
 
 export class UpdateProjectDto {
@@ -234,6 +238,15 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsBoolean()
   preLaunchEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    enum: PreLaunchCaptureMode,
+    description:
+      'Define se o pré-lançamento usa fila de preferência ou reserva direta para lotes disponíveis'
+  })
+  @IsOptional()
+  @IsEnum(PreLaunchCaptureMode)
+  preLaunchCaptureMode?: PreLaunchCaptureMode;
 
   @ApiPropertyOptional({
     description: 'Ativar/desativar seção de proximidades'

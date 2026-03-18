@@ -497,7 +497,7 @@
                     <button @click="() => { bookingMode = true; priorityQueueSuccess = false; tracking.trackClick(bookingPrimaryClickLabel, 'CONVERSION'); }" class="cta-reserve-v4">
                       {{ bookingCtaLabel }}
                     </button>
-                    <div v-if="!isPreLaunchMode" class="reserve-fee">
+                    <div v-if="bookingFlowMode === 'RESERVATION'" class="reserve-fee">
                       Taxa de reserva: {{ formatCurrencyToBrasilia(reservationFeeValue) }}
                     </div>
                     <p class="reserve-disclaimer">{{ bookingDisclaimerText }}</p>
@@ -518,7 +518,7 @@
                       <div class="f-field">
                         <input v-model="reservationForm.phone" type="tel" placeholder="WhatsApp" required />
                       </div>
-                      <div v-if="!isPreLaunchMode" class="f-field">
+                      <div v-if="bookingFlowMode === 'RESERVATION'" class="f-field">
                         <input v-model="reservationForm.cpf" type="text" placeholder="CPF" required />
                       </div>
                       <div class="f-checkbox">
@@ -1138,58 +1138,103 @@ const sectionNavItems = computed(() => {
 const stickySectionNavItems = computed(() => sectionNavItems.value.filter(item => item.id !== 'hero'))
 
 const isPreLaunchMode = computed(() => project.value?.preLaunchEnabled === true)
+const preLaunchCaptureMode = computed(() =>
+  project.value?.preLaunchCaptureMode === 'RESERVATION' ? 'RESERVATION' : 'QUEUE'
+)
+const isPreLaunchReservationMode = computed(() =>
+  isPreLaunchMode.value && preLaunchCaptureMode.value === 'RESERVATION'
+)
+const canJoinPreLaunchQueue = computed(() => {
+  if (!isPreLaunchMode.value) return false
+  if (details.value?.status === 'SOLD') return false
+  if (!isPreLaunchReservationMode.value) return details.value?.status === 'AVAILABLE'
+  return details.value?.status === 'RESERVED'
+})
+const canStartReservation = computed(() => {
+  if (details.value?.status !== 'AVAILABLE') return false
+  if ((project.value?.paymentGateways?.length ?? 0) === 0) return false
+  return !isPreLaunchMode.value || isPreLaunchReservationMode.value
+})
+const bookingFlowMode = computed(() => (canJoinPreLaunchQueue.value ? 'QUEUE' : 'RESERVATION'))
 
 const showBookingSection = computed(() => {
-  if (details.value?.status !== 'AVAILABLE') return false
-  return isPreLaunchMode.value || (project.value?.paymentGateways?.length ?? 0) > 0
+  return canJoinPreLaunchQueue.value || canStartReservation.value
 })
 
 const bookingPrimaryClickLabel = computed(() =>
-  isPreLaunchMode.value ? 'Botão: Abrir Fila de Preferencia' : 'Botão: Abrir Reserva Online'
+  bookingFlowMode.value === 'QUEUE' ? 'Botão: Abrir Fila de Preferencia' : 'Botão: Abrir Reserva Online'
 )
 
 const bookingIntroTitle = computed(() =>
-  isPreLaunchMode.value ? 'PRÉ-LANÇAMENTO · ACESSO ANTECIPADO EXCLUSIVO' : 'Reserva Online Garantida'
+  bookingFlowMode.value === 'QUEUE'
+    ? 'PRÉ-LANÇAMENTO · ACESSO ANTECIPADO EXCLUSIVO'
+    : isPreLaunchReservationMode.value
+      ? 'PRÉ-LANÇAMENTO · RESERVA ANTECIPADA DISPONÍVEL'
+      : 'Reserva Online Garantida'
 )
 
 const bookingIntroDescription = computed(() =>
-  isPreLaunchMode.value
-    ? 'Entre na fila de preferência deste lote para garantir atendimento prioritário, acesso antecipado às condições comerciais e aviso antes da abertura oficial do lançamento.'
-    : 'Reserve este lote agora mesmo e garanta sua unidade.'
+  bookingFlowMode.value === 'QUEUE'
+    ? details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+      ? 'Este lote já está em reserva antecipada. Entre na fila de preferência para manter prioridade caso a unidade seja liberada ou surjam novas condições comerciais.'
+      : 'Entre na fila de preferência deste lote para garantir atendimento prioritário, acesso antecipado às condições comerciais e aviso antes da abertura oficial do lançamento.'
+    : isPreLaunchReservationMode.value
+      ? 'Reserve este lote ainda no pré-lançamento e garanta atendimento prioritário, acesso antecipado e bloqueio imediato da unidade após a confirmação.'
+      : 'Reserve este lote agora mesmo e garanta sua unidade.'
 )
 
 const bookingCtaLabel = computed(() =>
-  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Reservar Lote'
+  bookingFlowMode.value === 'QUEUE' ? 'Entrar na fila de preferência' : 'Reservar Lote'
 )
 
 const bookingDisclaimerText = computed(() =>
-  isPreLaunchMode.value
-    ? 'Cadastro exclusivo para clientes que querem acesso antecipado e prioridade neste lote.'
-    : '*Sujeito a análise de crédito.'
+  bookingFlowMode.value === 'QUEUE'
+    ? details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+      ? 'Enquanto este lote estiver reservado, novos interessados entram na fila com prioridade registrada.'
+      : 'Cadastro exclusivo para clientes que querem acesso antecipado e prioridade neste lote.'
+    : isPreLaunchReservationMode.value
+      ? '*Reserva antecipada sujeita à confirmação do pagamento e às regras comerciais do pré-lançamento.'
+      : '*Sujeito a análise de crédito.'
 )
 
 const bookingFormTitle = computed(() =>
-  isPreLaunchMode.value ? 'Dados para o acesso antecipado' : 'Dados da Reserva'
+  bookingFlowMode.value === 'QUEUE'
+    ? details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+      ? 'Dados para entrar na fila deste lote'
+      : 'Dados para o acesso antecipado'
+    : isPreLaunchReservationMode.value
+      ? 'Dados da reserva antecipada'
+      : 'Dados da Reserva'
 )
 
 const bookingTermsLabel = computed(() =>
-  isPreLaunchMode.value
+  bookingFlowMode.value === 'QUEUE'
     ? 'Aceito os termos de pré-lançamento e políticas de privacidade e estou ciente de que meu cadastro entrará na fila de preferência do empreendimento.'
-    : 'Aceito os termos de reserva e politicas de privacidade e estou ciente de que a reserva esta sujeita a analise de credito da loteadora.'
+    : isPreLaunchReservationMode.value
+      ? 'Aceito os termos de reserva antecipada e políticas de privacidade e estou ciente de que a reserva depende da confirmação do pagamento e das regras do pré-lançamento.'
+      : 'Aceito os termos de reserva e politicas de privacidade e estou ciente de que a reserva esta sujeita a analise de credito da loteadora.'
 )
 
 const bookingSubmitLabel = computed(() =>
-  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Ir para Pagamento'
+  bookingFlowMode.value === 'QUEUE' ? 'Entrar na fila de preferência' : 'Ir para Pagamento'
 )
 
 const bookingSuccessTitle = computed(() =>
-  isPreLaunchMode.value ? 'Seu acesso antecipado foi registrado!' : 'Solicitação Enviada!'
+  bookingFlowMode.value === 'QUEUE'
+    ? 'Seu acesso antecipado foi registrado!'
+    : isPreLaunchReservationMode.value
+      ? 'Reserva antecipada iniciada!'
+      : 'Solicitação Enviada!'
 )
 
 const bookingSuccessMessage = computed(() =>
-  isPreLaunchMode.value
-    ? 'Recebemos seus dados com prioridade. Você já está na fila de preferência deste lote e nossa equipe vai avisar você antes da abertura oficial com as condições exclusivas do pré-lançamento.'
-    : 'O corretor entrará em contato em breve via WhatsApp ou e-mail.'
+  bookingFlowMode.value === 'QUEUE'
+    ? details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+      ? 'Recebemos seus dados com prioridade. Você entrou na fila deste lote reservado e nossa equipe avisará você caso a unidade seja liberada ou avance para a próxima etapa comercial.'
+      : 'Recebemos seus dados com prioridade. Você já está na fila de preferência deste lote e nossa equipe vai avisar você antes da abertura oficial com as condições exclusivas do pré-lançamento.'
+    : isPreLaunchReservationMode.value
+      ? 'Sua reserva antecipada foi iniciada. Complete o pagamento para bloquear este lote ainda no pré-lançamento.'
+      : 'O corretor entrará em contato em breve via WhatsApp ou e-mail.'
 )
 
 const reservationFeeValue = computed(() => {
@@ -2212,7 +2257,7 @@ async function submitGateLead() {
 }
 
 async function submitReservation() {
-  if (!isPreLaunchMode.value && !validateCpf(reservationForm.value.cpf)) {
+  if (bookingFlowMode.value === 'RESERVATION' && !validateCpf(reservationForm.value.cpf)) {
     bookingError.value = 'CPF inválido'
     return
   }
@@ -2237,11 +2282,15 @@ async function submitReservation() {
       name: reservationForm.value.name,
       email: reservationForm.value.email,
       phone: unmask(reservationForm.value.phone),
-      ...(isPreLaunchMode.value ? {} : { cpf: unmask(reservationForm.value.cpf) }),
+      ...(bookingFlowMode.value === 'RESERVATION' ? { cpf: unmask(reservationForm.value.cpf) } : {}),
       mapElementId: lot.value?.id,
-      message: isPreLaunchMode.value
-        ? `PRE-LANCAMENTO: Entrou na fila de preferência do lote ${lotCode.value}`
-        : `RESERVA ONLINE: Intenção de compra do lote ${lotCode.value}`,
+      message: bookingFlowMode.value === 'QUEUE'
+        ? details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+          ? `PRE-LANCAMENTO: Entrou na fila de preferência do lote reservado ${lotCode.value}`
+          : `PRE-LANCAMENTO: Entrou na fila de preferência do lote ${lotCode.value}`
+        : isPreLaunchReservationMode.value
+          ? `PRE-LANCAMENTO: Iniciou reserva antecipada do lote ${lotCode.value}`
+          : `RESERVA ONLINE: Intenção de compra do lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
       visitorId: trackingStore.visitorId || undefined,
       sessionId: trackingStore.sessionId || undefined,
@@ -2253,12 +2302,21 @@ async function submitReservation() {
       body: JSON.stringify(leadBody),
     })
 
-    if (isPreLaunchMode.value) {
-      tracking.trackLeadSubmit('FORM', { lotCode: lotCode.value, source: 'priority_queue' })
+    if (bookingFlowMode.value === 'QUEUE') {
+      tracking.trackLeadSubmit('FORM', {
+        lotCode: lotCode.value,
+        source: details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+          ? 'pre_launch_reserved_queue'
+          : 'priority_queue'
+      })
       priorityQueueSuccess.value = true
       bookingMode.value = false
       bookingLoading.value = false
-      toastSuccess('Você entrou na fila de preferência!')
+      toastSuccess(
+        details.value?.status === 'RESERVED' && isPreLaunchReservationMode.value
+          ? 'Você entrou na fila deste lote reservado!'
+          : 'Você entrou na fila de preferência!'
+      )
       reservationForm.value = {
         name: '',
         email: '',

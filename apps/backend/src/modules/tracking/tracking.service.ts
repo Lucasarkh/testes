@@ -13,6 +13,7 @@ import {
   ProjectStatus,
   MapElementType,
   LeadStatus,
+  PreLaunchCaptureMode,
   PreLaunchQueueStatus
 } from '@prisma/client';
 import * as crypto from 'crypto';
@@ -1594,7 +1595,55 @@ export class TrackingService {
           select: {
             id: true,
             name: true,
-            preLaunchEnabled: true
+            preLaunchEnabled: true,
+            preLaunchCaptureMode: true
+          }
+        },
+        mapElement: {
+          select: {
+            id: true,
+            code: true,
+            name: true
+          }
+        },
+        realtorLink: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      }
+    });
+
+    const reservationLeads = await this.prisma.lead.findMany({
+      where: {
+        tenantId: query.tenantId as string,
+        status: { in: [LeadStatus.RESERVATION, LeadStatus.WON] },
+        reservedAt: { not: null },
+        project: {
+          preLaunchEnabled: true,
+          preLaunchCaptureMode: PreLaunchCaptureMode.RESERVATION,
+          ...(query.projectId && query.projectId !== 'all'
+            ? { id: query.projectId }
+            : {})
+        },
+        ...(context.realtorLinkId ? { realtorLinkId: context.realtorLinkId } : {}),
+        ...(context.agencyId ? { realtorLink: { agencyId: context.agencyId } } : {})
+      },
+      select: {
+        id: true,
+        status: true,
+        reservedAt: true,
+        projectId: true,
+        mapElementId: true,
+        realtorLinkId: true,
+        project: {
+          select: {
+            id: true,
+            name: true,
+            preLaunchEnabled: true,
+            preLaunchCaptureMode: true
           }
         },
         mapElement: {
@@ -1617,8 +1666,14 @@ export class TrackingService {
     const currentScopeEntries = entries.filter(
       (entry) => !end || new Date(entry.createdAt) <= end
     );
+    const currentScopeReservations = reservationLeads.filter(
+      (lead) => !end || new Date(lead.reservedAt as Date) <= end
+    );
     const entriesCreatedInPeriod = entries.filter((entry) =>
       this.isWithinRange(entry.createdAt, start, end)
+    );
+    const reservationsInPeriod = reservationLeads.filter((lead) =>
+      this.isWithinRange(lead.reservedAt as Date, start, end)
     );
     const contactedInPeriod = entries.filter((entry) =>
       this.isWithinRange(entry.contactedAt, start, end)
@@ -1654,7 +1709,14 @@ export class TrackingService {
 
     const historyMap = new Map<
       string,
-      { date: string; entries: number; contacted: number; converted: number; removed: number }
+      {
+        date: string;
+        entries: number;
+        reservations: number;
+        contacted: number;
+        converted: number;
+        removed: number;
+      }
     >();
     const historyStart = start || new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
     const historyEnd = end || new Date();
@@ -1665,6 +1727,7 @@ export class TrackingService {
       historyMap.set(key, {
         date: key,
         entries: 0,
+        reservations: 0,
         contacted: 0,
         converted: 0,
         removed: 0
@@ -1676,6 +1739,12 @@ export class TrackingService {
       const key = this.toDateKey(entry.createdAt);
       const bucket = historyMap.get(key);
       if (bucket) bucket.entries += 1;
+    }
+
+    for (const lead of reservationsInPeriod) {
+      const key = this.toDateKey(lead.reservedAt as Date);
+      const bucket = historyMap.get(key);
+      if (bucket) bucket.reservations += 1;
     }
 
     for (const entry of contactedInPeriod) {
@@ -1704,6 +1773,7 @@ export class TrackingService {
       contacted: number;
       converted: number;
       removed: number;
+      reservations: number;
       positions: number[];
     };
 
@@ -1728,6 +1798,7 @@ export class TrackingService {
         contacted: 0,
         converted: 0,
         removed: 0,
+        reservations: 0,
         positions: []
       };
       collection.set(key, created);
@@ -1795,6 +1866,32 @@ export class TrackingService {
       }
     }
 
+    for (const lead of reservationLeads) {
+      const projectName = lead.project?.name || 'Projeto';
+      const lotLabel = lead.mapElement?.code || lead.mapElement?.name || 'Sem lote vinculado';
+      const realtorLabel = lead.realtorLink?.name || 'Sem corretor vinculado';
+
+      const projectBucket = ensureBucket(projectBuckets, lead.projectId, projectName);
+      const lotBucket = ensureBucket(
+        lotBuckets,
+        `${lead.projectId}:${lead.mapElementId || 'general'}`,
+        lotLabel,
+        projectName
+      );
+      const realtorBucket = ensureBucket(
+        realtorBuckets,
+        lead.realtorLinkId || 'unassigned',
+        realtorLabel,
+        lead.realtorLink?.code || null
+      );
+
+      if (this.isWithinRange(lead.reservedAt as Date, start, end)) {
+        projectBucket.reservations += 1;
+        lotBucket.reservations += 1;
+        realtorBucket.reservations += 1;
+      }
+    }
+
     const contactLeadTimes = contactedInPeriod
       .filter((entry) => entry.contactedAt)
       .map(
@@ -1813,6 +1910,7 @@ export class TrackingService {
       );
 
     const totalEntries = entriesCreatedInPeriod.length;
+    const totalReservations = reservationsInPeriod.length;
     const totalContacted = contactedInPeriod.length;
     const totalConverted = convertedInPeriod.length;
     const totalRemoved = removedInPeriod.length;
@@ -1820,7 +1918,11 @@ export class TrackingService {
     return {
       summary: {
         totalEntries,
+        totalReservations,
         activeEntries: activeNowEntries.length,
+        activeReservations: currentScopeReservations.filter(
+          (lead) => lead.status === LeadStatus.RESERVATION
+        ).length,
         contactedEntries: totalContacted,
         convertedEntries: totalConverted,
         removedEntries: totalRemoved,
@@ -1847,16 +1949,21 @@ export class TrackingService {
           projectId,
           label: bucket.label,
           entries: bucket.entries,
+          reservations: bucket.reservations,
           active: bucket.active,
           contacted: bucket.contacted,
           converted: bucket.converted,
           removed: bucket.removed,
           avgQueuePosition: this.average(bucket.positions)
         }))
-        .filter((bucket) => bucket.entries > 0 || bucket.active > 0)
+        .filter(
+          (bucket) =>
+            bucket.entries > 0 || bucket.active > 0 || bucket.reservations > 0
+        )
         .sort((left, right) =>
-          right.entries - left.entries ||
+          right.entries + right.reservations - (left.entries + left.reservations) ||
           right.active - left.active ||
+          right.reservations - left.reservations ||
           right.converted - left.converted
         )
         .slice(0, 8),
@@ -1866,16 +1973,21 @@ export class TrackingService {
           label: bucket.label,
           projectName: bucket.secondaryLabel || 'Projeto',
           entries: bucket.entries,
+          reservations: bucket.reservations,
           active: bucket.active,
           contacted: bucket.contacted,
           converted: bucket.converted,
           removed: bucket.removed,
           avgQueuePosition: this.average(bucket.positions)
         }))
-        .filter((bucket) => bucket.entries > 0 || bucket.active > 0)
+        .filter(
+          (bucket) =>
+            bucket.entries > 0 || bucket.active > 0 || bucket.reservations > 0
+        )
         .sort((left, right) =>
-          right.entries - left.entries ||
+          right.entries + right.reservations - (left.entries + left.reservations) ||
           right.active - left.active ||
+          right.reservations - left.reservations ||
           right.converted - left.converted
         )
         .slice(0, 10),
@@ -1885,15 +1997,20 @@ export class TrackingService {
           label: bucket.label,
           code: bucket.secondaryLabel,
           entries: bucket.entries,
+          reservations: bucket.reservations,
           active: bucket.active,
           contacted: bucket.contacted,
           converted: bucket.converted,
           removed: bucket.removed,
           avgQueuePosition: this.average(bucket.positions)
         }))
-        .filter((bucket) => bucket.entries > 0 || bucket.active > 0)
+        .filter(
+          (bucket) =>
+            bucket.entries > 0 || bucket.active > 0 || bucket.reservations > 0
+        )
         .sort((left, right) =>
-          right.entries - left.entries ||
+          right.entries + right.reservations - (left.entries + left.reservations) ||
+          right.reservations - left.reservations ||
           right.converted - left.converted ||
           right.active - left.active
         )
@@ -1909,6 +2026,9 @@ export class TrackingService {
           entries
             .filter((entry) => entry.project?.preLaunchEnabled)
             .map((entry) => entry.projectId)
+        ).size,
+        reservationModeProjects: new Set(
+          reservationLeads.map((lead) => lead.projectId)
         ).size
       }
     };

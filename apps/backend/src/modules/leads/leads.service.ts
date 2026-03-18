@@ -9,7 +9,12 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@infra/db/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
-import { LeadStatus, PreLaunchQueueStatus, Prisma } from '@prisma/client';
+import {
+  LeadStatus,
+  PreLaunchCaptureMode,
+  PreLaunchQueueStatus,
+  Prisma
+} from '@prisma/client';
 import { LeadsQueryDto } from './dto/leads-query.dto';
 import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import {
@@ -98,6 +103,77 @@ export class LeadsService {
         }
       });
     });
+  }
+
+  private isPreLaunchReservationMode(project: {
+    preLaunchEnabled?: boolean | null;
+    preLaunchCaptureMode?: PreLaunchCaptureMode | string | null;
+  }) {
+    return (
+      project.preLaunchEnabled === true &&
+      project.preLaunchCaptureMode === PreLaunchCaptureMode.RESERVATION
+    );
+  }
+
+  private async findActiveReservationConflictByContact(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    leadLike: {
+      id?: string | null;
+      cpf?: string | null;
+      email?: string | null;
+      phone?: string | null;
+    }
+  ) {
+    const identityFilters: Prisma.LeadWhereInput[] = [];
+
+    if (leadLike.cpf) {
+      identityFilters.push({ cpf: leadLike.cpf });
+    }
+    if (leadLike.email) {
+      identityFilters.push({
+        email: { equals: leadLike.email, mode: 'insensitive' as any }
+      });
+    }
+    if (leadLike.phone) {
+      identityFilters.push({ phone: leadLike.phone });
+    }
+
+    if (!identityFilters.length) {
+      return null;
+    }
+
+    return tx.lead.findFirst({
+      where: {
+        tenantId,
+        status: LeadStatus.RESERVATION,
+        ...(leadLike.id ? { id: { not: leadLike.id } } : {}),
+        OR: identityFilters
+      },
+      select: {
+        id: true,
+        project: { select: { name: true } },
+        mapElement: { select: { code: true, name: true } }
+      }
+    });
+  }
+
+  private buildReservationConflictMessage(conflict: {
+    project?: { name?: string | null } | null;
+    mapElement?: { code?: string | null; name?: string | null } | null;
+  }) {
+    const lotLabel = conflict.mapElement?.code || conflict.mapElement?.name;
+    const projectLabel = conflict.project?.name;
+
+    if (lotLabel && projectLabel) {
+      return `Este cliente já possui uma reserva ativa para o lote ${lotLabel} em ${projectLabel}.`;
+    }
+
+    if (lotLabel) {
+      return `Este cliente já possui uma reserva ativa para o lote ${lotLabel}.`;
+    }
+
+    return 'Este cliente já possui uma reserva ativa em andamento.';
   }
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -319,6 +395,7 @@ export class LeadsService {
     // Validate if mapElementId exists within this project to avoid FK errors
     let validMapElementId: string | undefined;
     let lotCode: string | undefined;
+    let lotStatus: 'AVAILABLE' | 'RESERVED' | 'SOLD' | undefined;
     if (
       mapElementId &&
       typeof mapElementId === 'string' &&
@@ -326,11 +403,18 @@ export class LeadsService {
     ) {
       const exists = await this.prisma.mapElement.findFirst({
         where: { id: mapElementId, projectId: project.id, tenantId },
-        select: { id: true, code: true }
+        select: {
+          id: true,
+          code: true,
+          lotDetails: {
+            select: { status: true }
+          }
+        }
       });
       if (exists) {
         validMapElementId = exists.id;
         lotCode = exists.code || undefined;
+        lotStatus = exists.lotDetails?.status;
       }
     }
 
@@ -406,8 +490,14 @@ export class LeadsService {
       }
     }
 
+    const isReservationMode = this.isPreLaunchReservationMode(project);
+    const shouldCreateQueueEntry =
+      project.preLaunchEnabled === true &&
+      (!validMapElementId ||
+        (lotStatus !== 'SOLD' && (!isReservationMode || lotStatus === 'RESERVED')));
+
     let queueEntry: { id: string; position: number } | null = null;
-    if (project.preLaunchEnabled) {
+    if (shouldCreateQueueEntry) {
       queueEntry = await this.createPreLaunchQueueEntry(
         tenantId,
         project.id,
@@ -434,7 +524,7 @@ export class LeadsService {
         leadPhone: lead.phone,
         lotCode: lotCode ?? null,
         sendLeadWelcome: true,
-        isPreLaunch: project.preLaunchEnabled,
+        isPreLaunch: Boolean(queueEntry),
         queuePosition: queueEntry?.position ?? null
       })
       .catch((e) =>
@@ -501,6 +591,22 @@ export class LeadsService {
           }
 
           if (dto.status === 'RESERVATION') {
+            const reservationConflict = await this.findActiveReservationConflictByContact(
+              tx,
+              tenantId,
+              {
+                cpf: data.cpf || null,
+                email: data.email || null,
+                phone: data.phone || null
+              }
+            );
+
+            if (reservationConflict) {
+              throw new BadRequestException(
+                this.buildReservationConflictMessage(reservationConflict)
+              );
+            }
+
             if (lot.status !== 'AVAILABLE') {
               // Even if it is RESERVED, it might be for another lead.
               // We only allow reservation if it's AVAILABLE.
@@ -814,6 +920,25 @@ export class LeadsService {
     }
 
     const updatedLead = await this.prisma.$transaction(async (tx) => {
+      if (dto.status === 'RESERVATION') {
+        const reservationConflict = await this.findActiveReservationConflictByContact(
+          tx,
+          tenantId,
+          {
+            id: lead.id,
+            cpf: lead.cpf || null,
+            email: lead.email || null,
+            phone: lead.phone || null
+          }
+        );
+
+        if (reservationConflict) {
+          throw new BadRequestException(
+            this.buildReservationConflictMessage(reservationConflict)
+          );
+        }
+      }
+
       const updatedLead = await tx.lead.update({
         where: { id },
         data: {

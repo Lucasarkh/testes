@@ -381,7 +381,8 @@ export class ProjectsService {
         description: dto.description,
         customDomain: dto.customDomain,
         reservationExpiryHours: dto.reservationExpiryHours ?? 24,
-        preLaunchEnabled: dto.preLaunchEnabled ?? false
+        preLaunchEnabled: dto.preLaunchEnabled ?? false,
+        preLaunchCaptureMode: dto.preLaunchCaptureMode ?? 'QUEUE'
       }
     });
 
@@ -1324,6 +1325,9 @@ export class ProjectsService {
         }),
         ...(dto.preLaunchEnabled !== undefined && {
           preLaunchEnabled: dto.preLaunchEnabled
+        }),
+        ...(dto.preLaunchCaptureMode !== undefined && {
+          preLaunchCaptureMode: dto.preLaunchCaptureMode
         }),
         ...(dto.financingDisclaimer !== undefined && {
           financingDisclaimer: dto.financingDisclaimer

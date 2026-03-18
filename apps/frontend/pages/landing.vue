@@ -408,6 +408,7 @@ const canonicalUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, '/landin
 const seoImage = computed(() => resolveSeoImage(siteOrigin.value, '/img/landing/loteamento_desk_topo.png'))
 const seoTitle = 'Lotio | Landing para vender loteamentos com mais contexto e menos atrito'
 const seoDescription = 'Transforme PDF, planilha e atendimento sem contexto em uma operação comercial com mapa interativo, leads identificados e reserva online.'
+const seoImageAlt = 'Tela da landing da Lotio para venda de loteamentos com mapa interativo e contexto comercial'
 const robotsContent = buildRobotsContent(false)
 const seoSchema = computed(() => ([
   {
@@ -438,10 +439,14 @@ useSeoMeta({
   ogType: 'website',
   ogUrl: canonicalUrl,
   ogImage: seoImage,
+  ogSiteName: 'Lotio',
+  ogLocale: 'pt_BR',
+  ogImageAlt: seoImageAlt,
   twitterCard: 'summary_large_image',
   twitterTitle: seoTitle,
   twitterDescription: seoDescription,
   twitterImage: seoImage,
+  twitterImageAlt: seoImageAlt,
   robots: robotsContent,
 })
 

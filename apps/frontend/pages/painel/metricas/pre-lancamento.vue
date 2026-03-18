@@ -86,6 +86,12 @@ const summaryCards = computed(() => {
       tone: 'amber'
     },
     {
+      label: 'Reservas em pré-lançamento',
+      value: formatNumber(summary.totalReservations),
+      hint: 'Reservas confirmadas em projetos configurados com reserva direta no pré-lançamento.',
+      tone: 'gold'
+    },
+    {
       label: 'Contatados',
       value: `${formatNumber(summary.contactedEntries)} (${formatPercent(summary.contactRate)}%)`,
       hint: 'Entradas que já receberam devolutiva dentro do período filtrado.',
@@ -134,6 +140,10 @@ const queueHealth = computed(() => {
       value: formatNumber(summary.activeProjects)
     },
     {
+      label: 'Reservas ativas em pré-lançamento',
+      value: formatNumber(summary.activeReservations)
+    },
+    {
       label: 'Lotes com fila ativa',
       value: formatNumber(summary.activeLots)
     },
@@ -144,13 +154,17 @@ const queueHealth = computed(() => {
     {
       label: 'Projetos ainda com modo ativo',
       value: formatNumber(meta.enabledProjects)
+    },
+    {
+      label: 'Projetos com reserva direta',
+      value: formatNumber(meta.reservationModeProjects)
     }
   ]
 })
 
 const visibleHistory = computed(() => {
   const history = data.value?.history || []
-  const firstMovementIndex = history.findIndex((item: any) => item.entries || item.contacted || item.converted || item.removed)
+  const firstMovementIndex = history.findIndex((item: any) => item.entries || item.reservations || item.contacted || item.converted || item.removed)
 
   if (firstMovementIndex === -1) return []
   return history.slice(firstMovementIndex)
@@ -160,7 +174,7 @@ const historyMaxValue = computed(() => {
   const history = visibleHistory.value || []
   if (!history.length) return 1
 
-  const max = Math.max(...history.map((item: any) => Math.max(item.entries || 0, item.contacted || 0, item.converted || 0, item.removed || 0)))
+  const max = Math.max(...history.map((item: any) => Math.max(item.entries || 0, item.reservations || 0, item.contacted || 0, item.converted || 0, item.removed || 0)))
   return max > 0 ? max : 1
 })
 
@@ -203,7 +217,7 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
     <section class="prelaunch-intro-card">
       <div>
         <strong>PRÉ-LANÇAMENTO, ACESSO ANTECIPADO EXCLUSIVO</strong>
-        <p>Esse painel não mistura sessões, pageviews ou reservas do fluxo padrão. Aqui entram apenas sinais da fila de preferência e seus desdobramentos operacionais.</p>
+        <p>Esse painel não mistura sessões, pageviews ou reservas do fluxo padrão. Aqui entram os sinais da fila de preferência e, quando configurado, as reservas feitas diretamente no pré-lançamento.</p>
       </div>
 
       <NuxtLink to="/painel/leads?view=prelaunch" class="intro-action">
@@ -226,7 +240,7 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
         <div class="section-header">
           <div>
             <h2>Ritmo diário da fila</h2>
-            <p>Entradas, contatos, conversões e saídas acompanhados dia a dia para {{ selectedProjectLabel }}.</p>
+            <p>Entradas, reservas, contatos, conversões e saídas acompanhados dia a dia para {{ selectedProjectLabel }}.</p>
           </div>
         </div>
 
@@ -236,6 +250,10 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
               <div class="bar-group">
                 <span v-if="item.entries" class="bar-value rose">{{ item.entries }}</span>
                 <div v-if="item.entries" class="bar bar-rose" :style="{ height: `${(item.entries / historyMaxValue) * 100}%` }"></div>
+              </div>
+              <div class="bar-group">
+                <span v-if="item.reservations" class="bar-value gold">{{ item.reservations }}</span>
+                <div v-if="item.reservations" class="bar bar-gold" :style="{ height: `${(item.reservations / historyMaxValue) * 100}%` }"></div>
               </div>
               <div class="bar-group">
                 <span v-if="item.contacted" class="bar-value cyan">{{ item.contacted }}</span>
@@ -257,6 +275,7 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
 
         <div class="chart-legend chart-legend--prelaunch">
           <div class="legend-item"><span class="legend-color rose"></span><strong>Entradas</strong></div>
+          <div class="legend-item"><span class="legend-color gold"></span><strong>Reservas</strong></div>
           <div class="legend-item"><span class="legend-color cyan"></span><strong>Contatados</strong></div>
           <div class="legend-item"><span class="legend-color emerald"></span><strong>Convertidos</strong></div>
           <div class="legend-item"><span class="legend-color slate"></span><strong>Removidos</strong></div>
@@ -312,18 +331,18 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
             <div class="metric-table__row metric-table__row--head">
               <span>Empreendimento</span>
               <span>Entradas</span>
+              <span>Reservas</span>
               <span>Fila ativa</span>
               <span>Contatados</span>
               <span>Convertidos</span>
-              <span>Pos. média</span>
             </div>
             <div v-for="item in data.topProjects" :key="item.projectId" class="metric-table__row">
               <span>{{ item.label }}</span>
               <span>{{ formatNumber(item.entries) }}</span>
+              <span>{{ formatNumber(item.reservations) }}</span>
               <span>{{ formatNumber(item.active) }}</span>
               <span>{{ formatNumber(item.contacted) }}</span>
               <span>{{ formatNumber(item.converted) }}</span>
-              <span>{{ formatPercent(item.avgQueuePosition) }}</span>
             </div>
           </div>
           <p v-else class="empty-note">Sem empreendimentos com fila no período.</p>
@@ -345,6 +364,7 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
               </div>
               <div class="ranking-list__metrics">
                 <span>{{ formatNumber(item.entries) }} entradas</span>
+                <span>{{ formatNumber(item.reservations) }} reservas</span>
                 <span>{{ formatNumber(item.active) }} ativos</span>
                 <span>{{ formatNumber(item.converted) }} convertidos</span>
               </div>
@@ -369,6 +389,7 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
               </div>
               <div class="ranking-list__metrics">
                 <span>{{ formatNumber(item.entries) }} entradas</span>
+                <span>{{ formatNumber(item.reservations) }} reservas</span>
                 <span>{{ formatNumber(item.active) }} ativos</span>
                 <span>{{ formatNumber(item.converted) }} convertidos</span>
               </div>
@@ -390,6 +411,9 @@ const hasHistory = computed(() => visibleHistory.value.length > 0)
   --rose-surface: rgba(244, 63, 94, 0.12);
   --rose-border: rgba(244, 63, 94, 0.22);
   --rose-strong: #fb7185;
+  --gold-surface: rgba(245, 158, 11, 0.12);
+  --gold-border: rgba(245, 158, 11, 0.24);
+  --gold-strong: #fbbf24;
   --cyan-surface: rgba(34, 211, 238, 0.12);
   --cyan-border: rgba(34, 211, 238, 0.22);
   --cyan-strong: #67e8f9;
@@ -595,10 +619,11 @@ h1 {
   background: linear-gradient(180deg, var(--rose-surface), transparent), var(--glass-bg);
 }
 
+.stat-card--gold,
 .stat-card--amber,
 .stat-card--orange {
-  border-color: rgba(251, 191, 36, 0.24);
-  background: linear-gradient(180deg, rgba(251, 191, 36, 0.12), transparent), var(--glass-bg);
+  border-color: var(--gold-border);
+  background: linear-gradient(180deg, var(--gold-surface), transparent), var(--glass-bg);
 }
 
 .stat-card--cyan {
@@ -730,6 +755,13 @@ h1 {
 .bar-rose {
   color: var(--rose-strong);
   background: linear-gradient(180deg, #fb7185, #e11d48);
+}
+
+.bar-value.gold,
+.legend-color.gold,
+.bar-gold {
+  color: var(--gold-strong);
+  background: linear-gradient(180deg, #fbbf24, #d97706);
 }
 
 .bar-value.cyan,

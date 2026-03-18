@@ -1,5 +1,6 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PreLaunchCaptureMode } from '@prisma/client';
 
 export class CreateProjectDto {
   @ApiProperty({ example: 'Residencial Parque dos Ipês' })
@@ -43,4 +44,13 @@ export class CreateProjectDto {
   @IsOptional()
   @IsBoolean()
   preLaunchEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    enum: PreLaunchCaptureMode,
+    description:
+      'Define se o pré-lançamento usa fila de preferência ou reserva direta para lotes disponíveis'
+  })
+  @IsOptional()
+  @IsEnum(PreLaunchCaptureMode)
+  preLaunchCaptureMode?: PreLaunchCaptureMode;
 }

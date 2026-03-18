@@ -211,6 +211,11 @@ enum PreLaunchQueueStatus {
   REMOVED
 }
 
+enum PreLaunchCaptureMode {
+  QUEUE
+  RESERVATION
+}
+
 // ─── SUPPORT ENUMS ───────────────────────────────────────
 
 enum TicketStatus {
@@ -465,6 +470,7 @@ model Project {
   reservationFeeValue   Decimal            @default(500) @db.Decimal(12, 2)
   reservationExpiryHours Int               @default(24)
   preLaunchEnabled      Boolean            @default(false)
+  preLaunchCaptureMode  PreLaunchCaptureMode @default(QUEUE)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

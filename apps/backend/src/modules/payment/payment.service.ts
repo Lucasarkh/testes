@@ -16,7 +16,12 @@ import {
   IPaymentGateway,
   WebhookPaymentStatus
 } from './interfaces/payment-gateway.interface';
-import { PaymentProvider } from '@prisma/client';
+import {
+  LeadStatus,
+  PaymentProvider,
+  PreLaunchCaptureMode,
+  Prisma
+} from '@prisma/client';
 import { NotificationsService } from '@modules/notifications/notifications.service';
 import { PurchaseFlowService } from '@modules/purchase-flow/purchase-flow.service';
 
@@ -91,6 +96,61 @@ export class PaymentService {
     }
   }
 
+  private async findActiveReservationConflictByContact(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    leadLike: {
+      id?: string | null;
+      cpf?: string | null;
+      email?: string | null;
+      phone?: string | null;
+    }
+  ) {
+    const identityFilters: Prisma.LeadWhereInput[] = [];
+
+    if (leadLike.cpf) identityFilters.push({ cpf: leadLike.cpf });
+    if (leadLike.email) {
+      identityFilters.push({
+        email: { equals: leadLike.email, mode: 'insensitive' as any }
+      });
+    }
+    if (leadLike.phone) identityFilters.push({ phone: leadLike.phone });
+
+    if (!identityFilters.length) return null;
+
+    return tx.lead.findFirst({
+      where: {
+        tenantId,
+        status: LeadStatus.RESERVATION,
+        ...(leadLike.id ? { id: { not: leadLike.id } } : {}),
+        OR: identityFilters
+      },
+      select: {
+        id: true,
+        project: { select: { name: true } },
+        mapElement: { select: { code: true, name: true } }
+      }
+    });
+  }
+
+  private buildReservationConflictMessage(conflict: {
+    project?: { name?: string | null } | null;
+    mapElement?: { code?: string | null; name?: string | null } | null;
+  }) {
+    const lotLabel = conflict.mapElement?.code || conflict.mapElement?.name;
+    const projectLabel = conflict.project?.name;
+
+    if (lotLabel && projectLabel) {
+      return `Este cliente já possui uma reserva ativa para o lote ${lotLabel} em ${projectLabel}.`;
+    }
+
+    if (lotLabel) {
+      return `Este cliente já possui uma reserva ativa para o lote ${lotLabel}.`;
+    }
+
+    return 'Este cliente já possui uma reserva ativa em andamento.';
+  }
+
   async startReservationPayment(
     leadId: string,
     amount: number,
@@ -120,6 +180,15 @@ export class PaymentService {
       throw new NotFoundException('Lead or Project not found');
     }
 
+    if (
+      lead.project.preLaunchEnabled &&
+      lead.project.preLaunchCaptureMode !== PreLaunchCaptureMode.RESERVATION
+    ) {
+      throw new BadRequestException(
+        'Este empreendimento está em pré-lançamento com fila de preferência ativa.'
+      );
+    }
+
     await this.purchaseFlow.ensureProcessForLead(leadId);
 
     // 0. Check Lot availability
@@ -129,6 +198,21 @@ export class PaymentService {
           'Este lote não está disponível para reserva.'
         );
       }
+    }
+
+    const reservationConflict = await this.prisma.$transaction((tx) =>
+      this.findActiveReservationConflictByContact(tx, lead.tenantId, {
+        id: lead.id,
+        cpf: lead.cpf || null,
+        email: lead.email || null,
+        phone: lead.phone || null
+      })
+    );
+
+    if (reservationConflict) {
+      throw new BadRequestException(
+        this.buildReservationConflictMessage(reservationConflict)
+      );
     }
 
     const gateways = lead.project.paymentGateways;
@@ -420,6 +504,23 @@ export class PaymentService {
     if (payment.status === 'PAID') return; // Already processed
 
     await this.prisma.$transaction(async (tx) => {
+      const reservationConflict = await this.findActiveReservationConflictByContact(
+        tx,
+        payment.lead.tenantId,
+        {
+          id: payment.leadId,
+          cpf: payment.lead.cpf || null,
+          email: payment.lead.email || null,
+          phone: payment.lead.phone || null
+        }
+      );
+
+      if (reservationConflict) {
+        throw new BadRequestException(
+          this.buildReservationConflictMessage(reservationConflict)
+        );
+      }
+
       // 1. Mark payment as PAID
       await tx.leadPayment.update({
         where: { id: payment.id },

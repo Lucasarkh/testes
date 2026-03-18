@@ -20,7 +20,7 @@
               {{ project.status === 'PUBLISHED' ? 'Publicado' : 'Rascunho' }}
             </span>
             <span v-if="project.preLaunchEnabled" class="badge" style="font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: rgba(245, 158, 11, 0.14); color: #fcd34d; border-color: rgba(245, 158, 11, 0.28);">
-              Pré-lançamento ativo
+              Pré-lançamento
             </span>
           </div>
           <h1 style="margin: 0; font-size: 1.75rem; letter-spacing: -0.02em;">{{ project.name }}</h1>
@@ -561,6 +561,74 @@
         </div>
       </section>
 
+      <!-- Pré-lançamento -->
+      <section v-if="activeSection === 'pre-lancamento'" id="pre-lancamento" class="content-section">
+        <div class="card" style="max-width: 800px;">
+          <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span><i class="bi bi-stars" aria-hidden="true"></i></span> Pré-lançamento
+            </h3>
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 24px;">
+              Centralize aqui a operação de pré-lançamento do projeto, definindo se o site público capta interessados em fila ou já permite reserva direta nos lotes disponíveis.
+            </p>
+
+            <div class="form-group" style="display:flex; align-items:flex-start; gap: 12px; margin-bottom: 20px; background: rgba(59, 130, 246, 0.08); padding: 16px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.18);">
+              <input type="checkbox" v-model="editForm.preLaunchEnabled" id="chkPreLaunchEnabled" style="width:20px; height:20px; cursor:pointer; margin-top: 2px;" />
+              <div>
+                <label for="chkPreLaunchEnabled" style="font-weight: 700; cursor:pointer; color: var(--color-surface-100); display: block; margin-bottom: 6px;">Ativar modo de pré-lançamento</label>
+                <p class="text-muted" style="margin: 0; font-size: 0.8rem; line-height: 1.5;">
+                  Quando ativo, o site público passa a operar com comunicação de exclusividade. Você pode escolher entre fila de preferência ou reserva direta para lotes disponíveis.
+                </p>
+              </div>
+            </div>
+
+            <div v-if="editForm.preLaunchEnabled" class="grid grid-cols-2 gap-6" style="margin-bottom: 20px;">
+              <div class="form-group">
+                <label class="form-label">Captura no pré-lançamento</label>
+                <select v-model="editForm.preLaunchCaptureMode" class="form-input">
+                  <option value="QUEUE">Fila de preferência</option>
+                  <option value="RESERVATION">Reserva direta em lotes disponíveis</option>
+                </select>
+                <small class="text-muted">
+                  Em reserva direta, lotes disponíveis seguem para pagamento/reserva e lotes já reservados abrem fila de preferência.
+                </small>
+              </div>
+            </div>
+
+            <div v-if="editForm.preLaunchEnabled" style="padding: 12px 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.18); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: flex-start; gap: 8px;">
+              <span><i class="bi bi-stars" aria-hidden="true"></i></span>
+              <span style="color: #047857;">
+                {{ editForm.preLaunchCaptureMode === 'RESERVATION'
+                  ? 'A comunicação pública passa a vender acesso antecipado. Lotes disponíveis podem ser reservados diretamente e lotes já reservados direcionam o cliente para a fila.'
+                  : 'A reserva online e o pagamento ficam pausados no site público enquanto o pré-lançamento estiver ativo. As configurações comerciais são preservadas e voltam a valer ao desativar este modo.' }}
+              </span>
+            </div>
+
+            <div v-if="editForm.preLaunchEnabled && editForm.preLaunchCaptureMode === 'RESERVATION' && activeConfigs.length === 0 && allConfigs.length > 0" style="padding: 12px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+              <span><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></span>
+              <span style="color: #d97706;">Nenhum gateway de pagamento habilitado para este projeto. Ative um em Pagamentos e Taxas para que a reserva direta funcione durante o pré-lançamento.</span>
+            </div>
+
+            <div style="background: var(--glass-bg-heavy); padding: 16px; border-radius: 8px; border: 1px solid var(--glass-border-subtle);">
+              <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--color-surface-200);">Impacto operacional</h4>
+              <p style="font-size: 0.8rem; margin: 0; color: var(--color-surface-200); line-height: 1.6;">
+                Em modo fila, o checkout público fica suspenso e os interessados entram em lista de prioridade. Em modo reserva direta, a cobrança online continua disponível para lotes livres e os reservados passam a captar fila automaticamente.
+              </p>
+            </div>
+
+            <div class="flex justify-end" style="margin-top: 20px;">
+              <button class="btn btn-primary" @click="saveSettings" :disabled="!authStore.canEdit || savingSettings" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" style="min-width: 220px;">
+                <span v-if="savingSettings">Salvando...</span>
+                <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
+                  <i class="bi bi-floppy-fill" aria-hidden="true"></i>
+                  <span>Salvar Pré-lançamento</span>
+                </span>
+              </button>
+            </div>
+          </fieldset>
+        </div>
+      </section>
+
       <!-- Pagamentos & Taxas -->
       <section v-if="activeSection === 'pagamentos'" id="pagamentos" class="content-section">
         <div class="card" style="max-width: 800px;">
@@ -617,32 +685,21 @@
             </h3>
             <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 24px;">Configure o valor que o cliente deve pagar para reservar um lote online via cartão ou PIX.</p>
 
-            <div class="form-group" style="display:flex; align-items:flex-start; gap: 12px; margin-bottom: 20px; background: rgba(59, 130, 246, 0.08); padding: 16px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.18);">
-              <input type="checkbox" v-model="editForm.preLaunchEnabled" id="chkPreLaunchEnabled" style="width:20px; height:20px; cursor:pointer; margin-top: 2px;" />
-              <div>
-                <label for="chkPreLaunchEnabled" style="font-weight: 700; cursor:pointer; color: var(--color-surface-100); display: block; margin-bottom: 6px;">Ativar modo de pré-lançamento</label>
-                <p class="text-muted" style="margin: 0; font-size: 0.8rem; line-height: 1.5;">
-                  Quando ativo, o site público substitui a reserva online por uma fila de preferência com comunicação de exclusividade.
-                  Os leads e as métricas de acesso continuam sendo capturados normalmente.
-                </p>
-              </div>
-            </div>
-
-            <div v-if="editForm.preLaunchEnabled" style="padding: 12px 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.18); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: flex-start; gap: 8px;">
-              <span><i class="bi bi-stars" aria-hidden="true"></i></span>
-              <span style="color: #047857;">A reserva online e o pagamento ficam pausados no site público enquanto o pré-lançamento estiver ativo. As configurações abaixo são preservadas e voltam a valer ao desativar este modo.</span>
+            <div v-if="editForm.preLaunchEnabled && editForm.preLaunchCaptureMode !== 'RESERVATION'" style="padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.18); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+              <span><i class="bi bi-lock-fill" aria-hidden="true"></i></span>
+              <span style="color: #60a5fa;">Os valores de reserva ficam preservados enquanto o pré-lançamento estiver em modo fila. Para editar essa operação, acesse a aba Pré-lançamento.</span>
             </div>
 
             <!-- Guard: no gateways active -->
-            <div v-if="!editForm.preLaunchEnabled && activeConfigs.length === 0 && allConfigs.length > 0" style="padding: 12px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+            <div v-if="(!editForm.preLaunchEnabled || editForm.preLaunchCaptureMode === 'RESERVATION') && activeConfigs.length === 0 && allConfigs.length > 0" style="padding: 12px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
               <span><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></span>
-              <span style="color: #d97706;">Nenhum gateway de pagamento habilitado para este projeto. Ative um acima para que a reserva online funcione.</span>
+              <span style="color: #d97706;">Nenhum gateway de pagamento habilitado para este projeto. Ative um acima para que a reserva online funcione, inclusive no pré-lançamento com reserva direta.</span>
             </div>
             
             <div class="grid grid-cols-2 gap-6">
               <div class="form-group">
                 <label class="form-label">Tipo de Cobrança</label>
-                <select v-model="editForm.reservationFeeType" class="form-input" :disabled="editForm.preLaunchEnabled">
+                <select v-model="editForm.reservationFeeType" class="form-input" :disabled="editForm.preLaunchEnabled && editForm.preLaunchCaptureMode !== 'RESERVATION'">
                   <option value="FIXED">Valor Fixo (R$)</option>
                   <option value="PERCENTAGE">Porcentagem do Valor do Lote (%)</option>
                 </select>
@@ -651,7 +708,7 @@
                 <label class="form-label">
                   {{ editForm.reservationFeeType === 'FIXED' ? 'Valor da Reserva (R$)' : 'Porcentagem da Reserva (%)' }}
                 </label>
-                <input v-model.number="editForm.reservationFeeValue" type="number" step="0.01" class="form-input" :disabled="editForm.preLaunchEnabled"
+                <input v-model.number="editForm.reservationFeeValue" type="number" step="0.01" class="form-input" :disabled="editForm.preLaunchEnabled && editForm.preLaunchCaptureMode !== 'RESERVATION'"
                        :placeholder="editForm.reservationFeeType === 'FIXED' ? 'Ex: 500.00' : 'Ex: 0.5'" />
                 <small v-if="editForm.reservationFeeType === 'PERCENTAGE'" style="color: var(--color-surface-400); font-size: 0.75rem;">
                   Ex: 0.5 = 0,5% do valor total do lote.
@@ -662,7 +719,7 @@
             <div class="grid grid-cols-2 gap-6" style="margin-top: 16px;">
               <div class="form-group">
                 <label class="form-label">Tempo de Expiração da Reserva (Horas)</label>
-                <input v-model.number="editForm.reservationExpiryHours" type="number" class="form-input" :disabled="editForm.preLaunchEnabled" placeholder="Ex: 24" />
+                <input v-model.number="editForm.reservationExpiryHours" type="number" class="form-input" :disabled="editForm.preLaunchEnabled && editForm.preLaunchCaptureMode !== 'RESERVATION'" placeholder="Ex: 24" />
                 <small class="text-muted">Tempo que o lote ficará reservado aguardando confirmação (manual ou pagamento). Padrão: 24h.</small>
               </div>
             </div>
@@ -2602,6 +2659,7 @@ const editForm = ref<any>({
   showPaymentConditions: false,
   customDomain: '',
   preLaunchEnabled: false,
+  preLaunchCaptureMode: 'QUEUE',
   reservationFeeType: 'FIXED',
   reservationFeeValue: 500,
   reservationExpiryHours: 24,
@@ -3852,6 +3910,7 @@ const configurationSections = computed<SidebarSectionItem[]>(() => {
   const sections: SidebarSectionItem[] = [
     { id: 'configuracoes', icon: 'bi bi-gear-fill', label: 'Dados Gerais' },
     { id: 'movimento-loteamento', icon: 'bi bi-broadcast-pin', label: 'Movimento do Loteamento' },
+    { id: 'pre-lancamento', icon: 'bi bi-stars', label: 'Pré-lançamento' },
     { id: 'pub-pricing', icon: 'bi bi-cash-coin', label: 'Preços e Condições (Topo)' },
     { id: 'financeiro', icon: 'bi bi-calculator-fill', label: 'Simulação Financeira' },
   ]
@@ -4170,6 +4229,7 @@ const loadProject = async () => {
       showPaymentConditions: p.showPaymentConditions ?? false,
       customDomain: p.customDomain || '',
       preLaunchEnabled: p.preLaunchEnabled ?? false,
+      preLaunchCaptureMode: p.preLaunchCaptureMode || 'QUEUE',
       reservationFeeType: p.reservationFeeType || 'FIXED',
       reservationFeeValue: p.reservationFeeValue ?? 500,
       reservationExpiryHours: p.reservationExpiryHours ?? 24,

@@ -63,11 +63,11 @@
         </div>
       </section>
 
-      <div v-if="isPreLaunchMode" class="v4-prelaunch-bar">
+      <div v-if="showPreLaunchBar" class="v4-prelaunch-bar">
         <div class="v4-container">
           <div class="v4-prelaunch-inner">
             <div class="v4-prelaunch-copy">
-              <span class="v4-prelaunch-kicker">Pré-lançamento ativo</span>
+              <span class="v4-prelaunch-kicker">Pré-lançamento</span>
               <strong class="v4-prelaunch-title">Acesso antecipado exclusivo e fila de preferência liberados</strong>
               <p class="v4-prelaunch-text">
                 Entre na fila agora para receber atendimento prioritário, condições antecipadas e aviso antes da abertura oficial.
@@ -75,6 +75,15 @@
               </p>
             </div>
             <div class="v4-prelaunch-actions">
+              <button
+                v-if="isTouchMobile"
+                type="button"
+                class="v4-prelaunch-dismiss"
+                aria-label="Fechar aviso de pré-lançamento"
+                @click="dismissPreLaunchBar"
+              >
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+              </button>
               <a href="#contato" class="v4-prelaunch-btn" @click="tracking.trackClick(preLaunchBarTrackingLabel)">
                 {{ preLaunchBarCtaLabel }}
               </a>
@@ -84,7 +93,7 @@
       </div>
 
       <!-- Trust bar -->
-      <div v-if="corretor" class="v4-trust-bar" :class="{ 'v4-trust-bar--with-prelaunch': isPreLaunchMode }">
+      <div v-if="corretor" class="v4-trust-bar" :class="{ 'v4-trust-bar--with-prelaunch': showPreLaunchBar }">
         <div class="v4-container">
           <div class="v4-trust-inner">
             <div class="v4-trust-person">
@@ -192,6 +201,15 @@
           >
             Desativar interacao do mapa
           </button>
+          <div v-if="(project?.lotSummary?.available ?? 0) > 0" class="v4-plant-map-actions">
+            <NuxtLink
+              :to="unitsUrl"
+              class="v4-btn-primary v4-plant-map-btn"
+              @click="tracking.trackClick('Botão: Ver todos os lotes na planta')"
+            >
+              Ver todos os lotes
+            </NuxtLink>
+          </div>
         </div>
       </section>
 
@@ -2239,6 +2257,13 @@ const availableLots = computed(() => project.value?.lotSummary?.available ?? 0)
 const reservedLots = computed(() => project.value?.lotSummary?.reserved ?? 0)
 const soldLots = computed(() => project.value?.lotSummary?.sold ?? 0)
 const isPreLaunchMode = computed(() => project.value?.preLaunchEnabled === true)
+const preLaunchBarDismissed = ref(false)
+const showPreLaunchBar = computed(() => isPreLaunchMode.value && (!isTouchMobile.value || !preLaunchBarDismissed.value))
+
+function dismissPreLaunchBar() {
+  preLaunchBarDismissed.value = true
+  tracking.trackClick('Barra Fixa: Fechar aviso mobile', 'PRE_LAUNCH')
+}
 
 const heroTagLabel = computed(() =>
   isPreLaunchMode.value ? 'PRÉ-LANÇAMENTO · ACESSO ANTECIPADO EXCLUSIVO' : project.value?.tenant?.name || 'Vendas Iniciadas'
@@ -4517,7 +4542,29 @@ function openLightbox(idx: number) {
 }
 
 .v4-prelaunch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-shrink: 0;
+}
+
+.v4-prelaunch-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.v4-prelaunch-dismiss:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
 }
 
 .v4-prelaunch-btn {
@@ -4540,6 +4587,18 @@ function openLightbox(idx: number) {
   transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.2);
   box-shadow: 0 10px 24px rgba(2, 6, 23, 0.16);
+}
+
+.v4-plant-map-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.v4-plant-map-btn {
+  min-width: 280px;
+  text-decoration: none;
+  text-align: center;
 }
 
 .v4-trust-bar {
@@ -5563,6 +5622,22 @@ function openLightbox(idx: number) {
 
   .v4-prelaunch-btn {
     width: 100%;
+  }
+
+  .v4-prelaunch-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .v4-prelaunch-dismiss {
+    align-self: flex-end;
+    width: 36px;
+    height: 36px;
+  }
+
+  .v4-plant-map-btn {
+    width: 100%;
+    min-width: 0;
   }
 
   .v4-sticky-nav {

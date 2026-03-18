@@ -13,6 +13,8 @@ import {
 
 type PublicProject = {
   name?: string
+  preLaunchEnabled?: boolean
+  preLaunchCaptureMode?: 'QUEUE' | 'RESERVATION'
   ogLogoUrl?: string
   bannerImageUrl?: string
   bannerImageTabletUrl?: string
@@ -100,13 +102,47 @@ const lotData = computed(() => {
 const seoLotLabel = computed(
   () => lotData.value?.lotDetails?.lotNumber || lotData.value?.code || lotData.value?.name || lotCode.value || 'Lote',
 )
+const isPreLaunchMode = computed(() => projectData.value?.preLaunchEnabled === true)
+const isPreLaunchReservationMode = computed(() => projectData.value?.preLaunchCaptureMode === 'RESERVATION')
 const seoProjectName = computed(() => projectData.value?.name || 'Empreendimento')
-const seoTitle = computed(() => `Saiba mais sobre o lote ${seoLotLabel.value} do ${seoProjectName.value}`)
+const seoTitle = computed(() => {
+  if (isPreLaunchMode.value && isPreLaunchReservationMode.value) {
+    return `Lote ${seoLotLabel.value} no pre-lancamento do ${seoProjectName.value} | Reserva antecipada exclusiva`
+  }
+  if (isPreLaunchMode.value) {
+    return `Lote ${seoLotLabel.value} no pre-lancamento do ${seoProjectName.value} | Acesso antecipado exclusivo`
+  }
+
+  return `Saiba mais sobre o lote ${seoLotLabel.value} do ${seoProjectName.value}`
+})
 const seoDescription = computed(
-  () => `Saiba mais sobre o lote ${seoLotLabel.value} do ${seoProjectName.value}. Veja detalhes, valor e condicoes de pagamento.`,
+  () => {
+    if (isPreLaunchMode.value && isPreLaunchReservationMode.value) {
+      return `Saiba como reservar antecipadamente o lote ${seoLotLabel.value} no ${seoProjectName.value}. Se a unidade ja estiver comprometida, o cliente pode entrar na fila de preferencia do pre-lancamento.`
+    }
+
+    if (isPreLaunchMode.value) {
+      return `Entre na fila de preferencia do lote ${seoLotLabel.value} no ${seoProjectName.value} e receba atendimento prioritario, acesso antecipado e condicoes exclusivas antes da abertura oficial do lancamento.`
+    }
+
+    return `Saiba mais sobre o lote ${seoLotLabel.value} do ${seoProjectName.value}. Veja detalhes, valor e condicoes de pagamento.`
+  },
 )
 const seoImage = computed(() => {
   const lotMedia = lotData.value?.lotDetails?.medias?.find((media) => !!media?.url)?.url || ''
+
+  if (isPreLaunchMode.value) {
+    return resolveSeoImage(
+      siteOrigin.value,
+      projectData.value?.ogLogoUrl,
+      projectData.value?.bannerImageUrl,
+      projectData.value?.bannerImageTabletUrl,
+      projectData.value?.bannerImageMobileUrl,
+      lotMedia,
+      '/img/og-image.png',
+    )
+  }
+
   return resolveSeoImage(
     siteOrigin.value,
     projectData.value?.ogLogoUrl,
@@ -131,7 +167,7 @@ const seoSchema = computed(() => ([
   {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: `Lote ${seoLotLabel.value}`,
+    name: isPreLaunchMode.value ? `Fila de preferencia do lote ${seoLotLabel.value}` : `Lote ${seoLotLabel.value}`,
     description: seoDescription.value,
     image: seoImage.value,
     brand: seoProjectName.value,

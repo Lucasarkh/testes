@@ -15,11 +15,17 @@ import {
 type PublicProject = {
   name?: string
   description?: string
+  preLaunchEnabled?: boolean
+  preLaunchCaptureMode?: 'QUEUE' | 'RESERVATION'
   ogLogoUrl?: string
   bannerImageUrl?: string
   bannerImageTabletUrl?: string
   bannerImageMobileUrl?: string
 }
+
+const isPreLaunchReservationMode = computed(
+  () => projectData.value?.preLaunchEnabled && projectData.value?.preLaunchCaptureMode === 'RESERVATION'
+)
 
 const tenantStore = useTenantStore()
 const route = useRoute()
@@ -46,17 +52,38 @@ const { data: projectData } = await useAsyncData<PublicProject | null>(
 )
 
 const seoTitle = computed(() => {
+  if (isPreLaunchReservationMode.value && projectData.value?.name) {
+    return `Pre-lancamento ${projectData.value.name} - Reserva antecipada exclusiva | Lotio`
+  }
+  if (projectData.value?.preLaunchEnabled && projectData.value?.name) {
+    return `Pre-lancamento ${projectData.value.name} - Acesso antecipado exclusivo | Lotio`
+  }
   if (projectData.value?.name) {
     return `Loteamento ${projectData.value.name} - Lotio`
   }
   return 'Empreendimento - Lotio'
 })
 const seoDescription = computed(
-  () =>
-    projectData.value?.description
-    || (projectData.value?.name
-      ? `Conheca o empreendimento ${projectData.value.name} e veja os lotes disponiveis.`
-      : 'Conheca os empreendimentos disponiveis na Lotio.'),
+  () => {
+    if (isPreLaunchReservationMode.value) {
+      if (projectData.value?.name) {
+        return `Conheca o pre-lancamento ${projectData.value.name} com reserva antecipada para lotes disponiveis e fila de preferencia para unidades ja disputadas.`
+      }
+      return 'Conheca o pre-lancamento com reserva antecipada para lotes disponiveis e fila de preferencia para unidades ja disputadas.'
+    }
+
+    if (projectData.value?.preLaunchEnabled) {
+      if (projectData.value?.name) {
+        return `Entre na fila de preferencia do ${projectData.value.name} e garanta atendimento prioritario, acesso antecipado e condicoes exclusivas antes da abertura oficial do lancamento.`
+      }
+      return 'Entre na fila de preferencia e garanta acesso antecipado exclusivo antes da abertura oficial do lancamento.'
+    }
+
+    return projectData.value?.description
+      || (projectData.value?.name
+        ? `Conheca o empreendimento ${projectData.value.name} e veja os lotes disponiveis.`
+        : 'Conheca os empreendimentos disponiveis na Lotio.')
+  },
 )
 const seoImage = computed(
   () =>
