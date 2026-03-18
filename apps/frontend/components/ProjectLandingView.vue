@@ -64,6 +64,14 @@
       </section>
 
       <div v-if="showPreLaunchBar" class="v4-prelaunch-bar">
+        <button
+          type="button"
+          class="v4-prelaunch-dismiss"
+          aria-label="Fechar aviso de pré-lançamento"
+          @click="dismissPreLaunchBar"
+        >
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
         <div class="v4-container">
           <div class="v4-prelaunch-inner">
             <div class="v4-prelaunch-copy">
@@ -75,15 +83,6 @@
               </p>
             </div>
             <div class="v4-prelaunch-actions">
-              <button
-                v-if="isTouchMobile"
-                type="button"
-                class="v4-prelaunch-dismiss"
-                aria-label="Fechar aviso de pré-lançamento"
-                @click="dismissPreLaunchBar"
-              >
-                <i class="bi bi-x-lg" aria-hidden="true"></i>
-              </button>
               <a href="#contato" class="v4-prelaunch-btn" @click="tracking.trackClick(preLaunchBarTrackingLabel)">
                 {{ preLaunchBarCtaLabel }}
               </a>
@@ -2258,7 +2257,7 @@ const reservedLots = computed(() => project.value?.lotSummary?.reserved ?? 0)
 const soldLots = computed(() => project.value?.lotSummary?.sold ?? 0)
 const isPreLaunchMode = computed(() => project.value?.preLaunchEnabled === true)
 const preLaunchBarDismissed = ref(false)
-const showPreLaunchBar = computed(() => isPreLaunchMode.value && (!isTouchMobile.value || !preLaunchBarDismissed.value))
+const showPreLaunchBar = computed(() => isPreLaunchMode.value && !preLaunchBarDismissed.value)
 
 function dismissPreLaunchBar() {
   preLaunchBarDismissed.value = true
@@ -4517,6 +4516,7 @@ function openLightbox(idx: number) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .v4-prelaunch-kicker {
@@ -4549,6 +4549,10 @@ function openLightbox(idx: number) {
 }
 
 .v4-prelaunch-dismiss {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4564,7 +4568,6 @@ function openLightbox(idx: number) {
 
 .v4-prelaunch-dismiss:hover {
   background: rgba(255, 255, 255, 0.16);
-  transform: translateY(-1px);
 }
 
 .v4-prelaunch-btn {
@@ -5630,9 +5633,15 @@ function openLightbox(idx: number) {
   }
 
   .v4-prelaunch-dismiss {
-    align-self: flex-end;
+    top: 8px;
+    transform: initial;
+    right: 12px;
     width: 36px;
     height: 36px;
+  }
+
+  .v4-prelaunch-copy {
+    padding-right: 44px;
   }
 
   .v4-plant-map-btn {
