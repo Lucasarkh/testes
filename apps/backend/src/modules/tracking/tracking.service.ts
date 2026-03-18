@@ -852,6 +852,52 @@ export class TrackingService {
     );
   }
 
+  private asNonEmptyString(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private normalizeLotLabel(label?: string | null): string | null {
+    const raw = this.asNonEmptyString(label);
+    if (!raw) return null;
+
+    const normalized = raw
+      .replace(/^(Lote\s*:?[\s-]*|lote\s*:?[\s-]*)/i, '')
+      .trim();
+
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private extractLotTrackingRefs(metadata: unknown): {
+    mapElementId: string | null;
+    lotCode: string | null;
+  } {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      return { mapElementId: null, lotCode: null };
+    }
+
+    const payload = metadata as Record<string, unknown>;
+
+    return {
+      mapElementId:
+        this.asNonEmptyString(payload.lotId) ??
+        this.asNonEmptyString(payload.mapElementId),
+      lotCode: this.normalizeLotLabel(
+        this.asNonEmptyString(payload.lotCode) ?? undefined
+      )
+    };
+  }
+
+  private computeLotActivityScore(
+    views: number,
+    leads: number,
+    reservations: number
+  ): number {
+    return views + leads * 4 + reservations * 6;
+  }
+
   // Restore individual report methods for the controller
   async getMostAccessedLots(
     query: TrackingReportQueryDto,
@@ -1341,6 +1387,343 @@ export class TrackingService {
         bounceRate,
         avgPagesPerSession
       }
+    };
+  }
+
+  async getProjectHeatmapReport(
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    if (!query.projectId || query.projectId === 'all') {
+      throw new BadRequestException(
+        'projectId é obrigatório para o relatório de mapa de calor.'
+      );
+    }
+
+    const context = await this.getRealtorContextFromUser(user);
+    const whereEvent = this.getEventWhere(query, context, undefined, 'LOT');
+    const whereLead = this.getLeadWhere(query, context);
+
+    const [plantMapRecord, lotEvents, leadGroups, reservationGroups] =
+      await Promise.all([
+        this.prisma.plantMap.findUnique({
+          where: { projectId: query.projectId },
+          include: {
+            hotspots: {
+              orderBy: { createdAt: 'asc' },
+              select: {
+                id: true,
+                type: true,
+                title: true,
+                description: true,
+                x: true,
+                y: true,
+                label: true,
+                labelEnabled: true,
+                labelOffsetX: true,
+                labelOffsetY: true,
+                linkType: true,
+                linkId: true,
+                linkUrl: true,
+                loteStatus: true,
+                metaJson: true,
+                createdAt: true,
+                updatedAt: true
+              }
+            }
+          }
+        }),
+        this.prisma.trackingEvent.findMany({
+          where: whereEvent,
+          select: {
+            label: true,
+            metadata: true
+          }
+        }),
+        this.prisma.lead.groupBy({
+          by: ['mapElementId'],
+          where: {
+            ...(whereLead as any),
+            mapElementId: { not: null }
+          },
+          _count: { id: true }
+        }),
+        this.prisma.lead.groupBy({
+          by: ['mapElementId'],
+          where: {
+            ...(whereLead as any),
+            mapElementId: { not: null },
+            status: { in: [LeadStatus.RESERVATION, LeadStatus.WON] }
+          },
+          _count: { id: true }
+        })
+      ]);
+
+    const plantMap = plantMapRecord
+      ? {
+          ...plantMapRecord,
+          imageUrl:
+            this.s3.resolvePublicAssetUrl(plantMapRecord.imageUrl) ||
+            plantMapRecord.imageUrl
+        }
+      : null;
+
+    const hotspotLotIds = new Set<string>(
+      (plantMap?.hotspots || [])
+        .filter((hotspot) => hotspot.linkType === 'LOTE_PAGE' && hotspot.linkId)
+        .map((hotspot) => hotspot.linkId as string)
+    );
+
+    const leadMap = new Map<string, number>();
+    for (const group of leadGroups) {
+      if (!group.mapElementId) continue;
+      leadMap.set(group.mapElementId, group._count.id);
+    }
+
+    const reservationMap = new Map<string, number>();
+    for (const group of reservationGroups) {
+      if (!group.mapElementId) continue;
+      reservationMap.set(group.mapElementId, group._count.id);
+    }
+
+    const lotEventBuckets = new Map<
+      string,
+      { mapElementId: string | null; lotCode: string | null; views: number }
+    >();
+
+    for (const event of lotEvents) {
+      const refs = this.extractLotTrackingRefs(event.metadata);
+      const normalizedLabel = this.normalizeLotLabel(event.label);
+      const lotCode = refs.lotCode || normalizedLabel;
+
+      if (!refs.mapElementId && !lotCode) continue;
+
+      const key = refs.mapElementId
+        ? `id:${refs.mapElementId}`
+        : `code:${lotCode?.toLowerCase()}`;
+
+      const current = lotEventBuckets.get(key);
+      if (current) {
+        current.views += 1;
+        continue;
+      }
+
+      lotEventBuckets.set(key, {
+        mapElementId: refs.mapElementId,
+        lotCode,
+        views: 1
+      });
+    }
+
+    const mapElementIds = new Set<string>([...hotspotLotIds]);
+    const lotCodes = new Set<string>();
+
+    for (const bucket of lotEventBuckets.values()) {
+      if (bucket.mapElementId) {
+        if (hotspotLotIds.has(bucket.mapElementId)) {
+          mapElementIds.add(bucket.mapElementId);
+        }
+        continue;
+      }
+
+      if (bucket.lotCode) {
+        lotCodes.add(bucket.lotCode);
+      }
+    }
+
+    const elementFilters: Array<Record<string, unknown>> = [];
+    if (mapElementIds.size > 0) {
+      elementFilters.push({ id: { in: Array.from(mapElementIds) } });
+    }
+    if (lotCodes.size > 0) {
+      elementFilters.push({ code: { in: Array.from(lotCodes) } });
+    }
+
+    const elements = elementFilters.length
+      ? await this.prisma.mapElement.findMany({
+          where: {
+            tenantId: query.tenantId as string,
+            projectId: query.projectId,
+            OR: elementFilters
+          },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            lotDetails: {
+              select: {
+                status: true,
+                block: true,
+                lotNumber: true
+              }
+            }
+          }
+        })
+      : [];
+
+    const elementById = new Map(elements.map((element) => [element.id, element]));
+    const elementByCode = new Map(
+      elements
+        .map((element) => [this.normalizeLotLabel(element.code), element] as const)
+        .filter(
+          (
+            entry
+          ): entry is [string, (typeof elements)[number]] => Boolean(entry[0])
+        )
+    );
+
+    const viewsByMapElementId = new Map<string, number>();
+
+    for (const bucket of lotEventBuckets.values()) {
+      const resolvedElement = bucket.mapElementId
+        ? elementById.get(bucket.mapElementId)
+        : bucket.lotCode
+          ? elementByCode.get(bucket.lotCode)
+          : null;
+
+      if (!resolvedElement) {
+        continue;
+      }
+
+      if (!hotspotLotIds.has(resolvedElement.id)) {
+        continue;
+      }
+
+      const currentViews = viewsByMapElementId.get(resolvedElement.id) || 0;
+      viewsByMapElementId.set(resolvedElement.id, currentViews + bucket.views);
+      mapElementIds.add(resolvedElement.id);
+    }
+
+    const hotspotByMapElementId = new Map(
+      (plantMap?.hotspots || [])
+        .filter((hotspot) => hotspot.linkType === 'LOTE_PAGE' && hotspot.linkId)
+        .map((hotspot) => [hotspot.linkId as string, hotspot])
+    );
+
+    const lots = Array.from(mapElementIds)
+      .map((mapElementId) => {
+        const element = elementById.get(mapElementId);
+        const hotspot = hotspotByMapElementId.get(mapElementId);
+        const hotspotMeta =
+          hotspot?.metaJson && typeof hotspot.metaJson === 'object'
+            ? (hotspot.metaJson as Record<string, any>)
+            : {};
+        const hotspotLotInfo =
+          hotspotMeta.lotInfo && typeof hotspotMeta.lotInfo === 'object'
+            ? hotspotMeta.lotInfo
+            : {};
+
+        const block =
+          this.asNonEmptyString(element?.lotDetails?.block) ||
+          this.asNonEmptyString(hotspotLotInfo.block);
+        const lotNumber =
+          this.asNonEmptyString(element?.lotDetails?.lotNumber) ||
+          this.asNonEmptyString(hotspotLotInfo.lotNumber);
+        const codeBase =
+          this.asNonEmptyString(element?.code) ||
+          this.normalizeLotLabel(hotspot?.label) ||
+          this.asNonEmptyString(hotspot?.title) ||
+          mapElementId;
+        const code = [block, lotNumber].filter(Boolean).join(' ').trim() || codeBase;
+        const name =
+          this.asNonEmptyString(element?.name) ||
+          this.asNonEmptyString(hotspot?.title) ||
+          code;
+        const views = viewsByMapElementId.get(mapElementId) || 0;
+        const leads = hotspot ? (leadMap.get(mapElementId) || 0) : 0;
+        const reservations = hotspot ? (reservationMap.get(mapElementId) || 0) : 0;
+        const activityScore = this.computeLotActivityScore(
+          views,
+          leads,
+          reservations
+        );
+
+        return {
+          mapElementId,
+          hotspotId: hotspot?.id || null,
+          code,
+          name,
+          x: hotspot?.x ?? null,
+          y: hotspot?.y ?? null,
+          hasHotspot: Boolean(hotspot),
+          views,
+          leads,
+          reservations,
+          status: element?.lotDetails?.status || hotspot?.loteStatus || null,
+          activityScore,
+          conversionRate:
+            views > 0 ? Number((leads / views).toFixed(3)) : 0,
+          label: hotspot?.label || code,
+          title: hotspot?.title || name
+        };
+      })
+      .sort((left, right) => {
+        if (right.activityScore !== left.activityScore) {
+          return right.activityScore - left.activityScore;
+        }
+        if (right.views !== left.views) {
+          return right.views - left.views;
+        }
+        return right.leads - left.leads;
+      });
+
+    const totalLotViews = lots.reduce((sum, lot) => sum + lot.views, 0);
+    const totalLotLeads = lots.reduce((sum, lot) => sum + lot.leads, 0);
+    const totalReservations = lots.reduce(
+      (sum, lot) => sum + lot.reservations,
+      0
+    );
+    const trackedLots = lots.filter(
+      (lot) => lot.views > 0 || lot.leads > 0 || lot.reservations > 0
+    );
+    const lotsWithHotspot = trackedLots.filter((lot) => lot.hasHotspot).length;
+    const avgViewsPerTrackedLot =
+      trackedLots.length > 0
+        ? Number((totalLotViews / trackedLots.length).toFixed(1))
+        : 0;
+
+    const lotMetricsByMapElementId = new Map(
+      lots.map((lot) => [lot.mapElementId, lot])
+    );
+
+    return {
+      summary: {
+        totalLotViews,
+        totalLotLeads,
+        totalReservations,
+        totalTrackedLots: trackedLots.length,
+        totalPlantLots: hotspotLotIds.size,
+        lotsWithHotspot,
+        lotsWithoutHotspot: 0,
+        avgViewsPerTrackedLot,
+        lotLeadConversionRate:
+          totalLotViews > 0
+            ? Number(((totalLotLeads / totalLotViews) * 100).toFixed(1))
+            : 0
+      },
+      plantMap: plantMap
+        ? {
+            ...plantMap,
+            hotspots: plantMap.hotspots.map((hotspot) => {
+              if (hotspot.linkType !== 'LOTE_PAGE' || !hotspot.linkId) {
+                return {
+                  ...hotspot,
+                  lotMetrics: null
+                };
+              }
+
+              const lotMetrics = lotMetricsByMapElementId.get(hotspot.linkId) || null;
+
+              return {
+                ...hotspot,
+                loteStatus: lotMetrics?.status || hotspot.loteStatus,
+                lotMetrics
+              };
+            })
+          }
+        : null,
+      lots,
+      unmappedLots: []
     };
   }
 

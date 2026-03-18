@@ -104,6 +104,14 @@ export function useMetricsFilters() {
   }
 
   function ensureSelectedProjectIsAvailable(showFeedback = false) {
+    if (projects.value.length === 1) {
+      const onlyProject = projects.value[0]
+      if (onlyProject?.id && selectedProjectId.value !== onlyProject.id) {
+        selectedProjectId.value = onlyProject.id
+      }
+      return
+    }
+
     if (selectedProjectId.value === 'all') return
     if (projects.value.some(project => project.id === selectedProjectId.value)) return
 

@@ -205,6 +205,17 @@ export class TrackingController {
     return this.trackingService.getAudienceMetrics(query, user);
   }
 
+  @Get('metrics/project-heatmap')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getProjectHeatmapReport(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getProjectHeatmapReport(query, user);
+  }
+
   @Get('metrics')
   @UseGuards(AuthGuard('jwt'), TenantGuard)
   async getMetrics(

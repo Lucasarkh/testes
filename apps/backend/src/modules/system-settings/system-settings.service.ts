@@ -1,10 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/infra/db/prisma.service';
 import { LeadStatus } from '@prisma/client';
+import { WhapiService } from '@infra/whapi/whapi.service';
 
 @Injectable()
 export class SystemSettingsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(SystemSettingsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private readonly whapi: WhapiService
+  ) {}
 
   async getPublicSettings() {
     const s = await this.prisma.systemSetting.findFirst();
@@ -40,12 +46,19 @@ export class SystemSettingsService {
     phone?: string;
     message?: string;
   }) {
-    return this.prisma.systemLead.create({
+    const lead = await this.prisma.systemLead.create({
       data: {
         ...dto,
         status: LeadStatus.NEW
       }
     });
+
+    this.notifyLandingLeadWhatsapp(lead).catch((error: unknown) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to notify landing lead on WhatsApp: ${detail}`);
+    });
+
+    return lead;
   }
 
   async findAllLeads() {
@@ -106,5 +119,52 @@ export class SystemSettingsService {
     });
 
     return JSON.parse(value);
+  }
+
+  private async notifyLandingLeadWhatsapp(lead: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    message: string | null;
+    createdAt: Date;
+  }) {
+    const settings = await this.prisma.systemSetting.findFirst({
+      select: { contactWhatsapp: true }
+    });
+
+    if (!settings?.contactWhatsapp) {
+      this.logger.warn(
+        `Landing lead ${lead.id} was created without a configured contactWhatsapp destination.`
+      );
+      return;
+    }
+
+    const submittedAt = lead.createdAt.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+
+    const messageLines = [
+      'Novo contato na landing do Lotio.',
+      `Nome: ${lead.name}`,
+      lead.email ? `E-mail: ${lead.email}` : null,
+      lead.phone ? `WhatsApp: ${lead.phone}` : null,
+      lead.message ? `Mensagem: ${lead.message}` : null,
+      `Recebido em: ${submittedAt}`,
+      `Lead ID: ${lead.id}`
+    ].filter((line): line is string => Boolean(line));
+
+    const sent = await this.whapi.sendText(
+      settings.contactWhatsapp,
+      messageLines.join('\n')
+    );
+
+    if (!sent) {
+      this.logger.warn(
+        `Landing lead ${lead.id} WhatsApp notification was not sent successfully.`
+      );
+    }
   }
 }

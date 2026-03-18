@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import ProjectHeatmapReport from '~/components/painel/metrics/ProjectHeatmapReport.vue'
+
 const { fetchApi } = useApi()
 const toast = useToast()
 const auth = useAuthStore()
@@ -7,19 +9,28 @@ const { projects, selectedProjectId, startDate, startDateMax, endDate, endDateMi
 const metrics = ref<any>(null)
 const brokerMetrics = ref<any>(null)
 const audienceMetrics = ref<any>(null)
+const projectHeatmap = ref<any>(null)
 const loadingMetrics = ref(false)
+
+const hasSpecificProjectSelected = computed(() => selectedProjectId.value && selectedProjectId.value !== 'all')
+const selectedProject = computed(() => projects.value.find((project: any) => project.id === selectedProjectId.value) || null)
+const canAggregateAllProjects = computed(() => projects.value.length !== 1)
 
 async function fetchMetrics() {
   loadingMetrics.value = true
   try {
-    const [metricsRes, brokersRes, audienceRes] = await Promise.all([
+    const [metricsRes, brokersRes, audienceRes, heatmapRes] = await Promise.all([
       fetchApi(`/tracking/metrics?${buildQueryString()}`),
       fetchApi(`/tracking/metrics/brokers?${buildQueryString()}`),
-      fetchApi(`/tracking/metrics/audience?${buildQueryString()}`)
+      fetchApi(`/tracking/metrics/audience?${buildQueryString()}`),
+      hasSpecificProjectSelected.value
+        ? fetchApi(`/tracking/metrics/project-heatmap?${buildQueryString()}`)
+        : Promise.resolve(null)
     ])
     metrics.value = metricsRes
     brokerMetrics.value = brokersRes
     audienceMetrics.value = audienceRes
+    projectHeatmap.value = heatmapRes
   } catch {
     toast.error('Erro ao carregar métricas')
   } finally {
@@ -80,6 +91,11 @@ const bounceRate = computed(() => {
 const returningRate = computed(() => {
   if (!audienceMetrics.value?.summary?.totalVisitors) return '0'
   return ((audienceMetrics.value.summary.returningVisitors / audienceMetrics.value.summary.totalVisitors) * 100).toFixed(1)
+})
+
+const selectedProjectHeatmapTitle = computed(() => {
+  if (!selectedProject.value) return 'Mapa de calor por projeto'
+  return `Mapa de calor · ${selectedProject.value.name}`
 })
 
 const topicCards = computed(() => [
@@ -176,7 +192,7 @@ const topicCards = computed(() => [
         <div class="filter-group">
           <label>Empreendimento:</label>
           <select v-model="selectedProjectId" class="project-select">
-            <option value="all">Todos os Projetos</option>
+            <option v-if="canAggregateAllProjects" value="all">Todos os Projetos</option>
             <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
         </div>
@@ -194,7 +210,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Número de sessões reais iniciadas no período. Uma nova sessão surge após 30 minutos de inatividade ou quando a visita é retomada em uma nova janela de navegação." position="bottom"><span class="stat-label">Total de Sessões</span></CommonAppTooltip>
-            <span class="stat-value text-blue">{{ metrics.summary.totalSessions }}</span>
+            <span class="stat-value stat-value--default">{{ metrics.summary.totalSessions }}</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -203,7 +219,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Visitantes únicos identificados no período, mesmo quando retornam em várias sessões." position="bottom"><span class="stat-label">Total de Visitantes</span></CommonAppTooltip>
-            <span class="stat-value text-sky">{{ metrics.summary.totalVisitors }}</span>
+            <span class="stat-value stat-value--default">{{ metrics.summary.totalVisitors }}</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -212,7 +228,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Quantidade e taxa de visitantes que voltaram em mais de uma sessão dentro do período." position="bottom"><span class="stat-label">Visitantes Retornantes</span></CommonAppTooltip>
-            <span class="stat-value text-cyan">{{ metrics.summary.returningVisitors }} ({{ returningRate }}%)</span>
+            <span class="stat-value stat-value--default">{{ metrics.summary.returningVisitors }} ({{ returningRate }}%)</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -221,7 +237,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Média de páginas vistas por sessão ativa. Leituras longas sem nova navegação não inflacionam esse número com page views artificiais." position="bottom"><span class="stat-label">Páginas por Sessão</span></CommonAppTooltip>
-            <span class="stat-value text-teal">{{ pagesPerSession }}</span>
+            <span class="stat-value stat-value--default">{{ pagesPerSession }}</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -230,7 +246,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Total de vezes que qualquer página do site foi carregada ou visualizada, incluindo recarregamentos." position="bottom"><span class="stat-label">Visualizações de Página</span></CommonAppTooltip>
-            <span class="stat-value text-indigo">{{ metrics.summary.totalPageViews }}</span>
+            <span class="stat-value stat-value--default">{{ metrics.summary.totalPageViews }}</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -239,7 +255,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Tempo médio observado entre o primeiro e o último sinal real de atividade da sessão. A aba visível mantém a sessão viva; períodos longos de ausência não são reaproveitados como se fossem navegação contínua." position="bottom"><span class="stat-label">Tempo Médio/Sessão</span></CommonAppTooltip>
-            <span class="stat-value text-cyan">{{ avgSessionDuration }}</span>
+            <span class="stat-value stat-value--default">{{ avgSessionDuration }}</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -248,7 +264,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Percentual de sessões sem engajamento relevante: uma página apenas, sem interações adicionais com lotes, ferramentas ou envio de lead. Valores menores são melhores." position="bottom"><span class="stat-label">Taxa de Rejeição</span></CommonAppTooltip>
-            <span class="stat-value text-rose">{{ bounceRate }}%</span>
+            <span class="stat-value stat-value--warning">{{ bounceRate }}%</span>
           </div>
         </div>
         <div class="stat-card">
@@ -257,7 +273,7 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Total de leads gerados e a taxa de conversão (leads / sessões). Indica a eficiência do site em captar contatos." position="bottom"><span class="stat-label">Leads: Taxa de Conv.</span></CommonAppTooltip>
-            <span class="stat-value text-emerald">{{ metrics.summary.totalLeads }} ({{ conversionRate }}%)</span>
+            <span class="stat-value stat-value--success">{{ metrics.summary.totalLeads }} ({{ conversionRate }}%)</span>
           </div>
         </div>
         <div v-if="!auth.isCorretor" class="stat-card">
@@ -266,10 +282,38 @@ const topicCards = computed(() => [
           </div>
           <div class="stat-content">
             <CommonAppTooltip text="Total de acessos que vieram através de links de corretores. Mostra quantos visitantes os corretores estão trazendo." position="bottom"><span class="stat-label">Acessos via Corretor</span></CommonAppTooltip>
-            <span class="stat-value text-orange">{{ metrics.summary.totalRealtorClicks }}</span>
+            <span class="stat-value stat-value--muted">{{ metrics.summary.totalRealtorClicks }}</span>
           </div>
         </div>
       </div>
+
+      <section class="details-card heatmap-dashboard-card full-width">
+        <div class="heatmap-dashboard-card__header">
+          <div>
+            <h3>{{ selectedProjectHeatmapTitle }}</h3>
+            <p class="heatmap-dashboard-card__subtitle">
+              Visualize a planta com concentração de acessos, leads e reservas do empreendimento filtrado.
+            </p>
+          </div>
+          <div v-if="selectedProject" class="heatmap-dashboard-card__project-pill">
+            {{ selectedProject.name }}
+          </div>
+        </div>
+
+        <ProjectHeatmapReport v-if="projectHeatmap" :report="projectHeatmap" />
+
+        <div v-else class="heatmap-dashboard-card__empty">
+          <div class="heatmap-dashboard-card__empty-icon">
+            <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
+          </div>
+          <div>
+            <h4>Selecione um empreendimento para abrir o mapa de calor</h4>
+            <p>
+              O relatório visual usa a planta do projeto. Quando um projeto estiver selecionado no filtro, a tela mostra automaticamente o heatmap dele.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <!-- History Chart -->
       <div v-if="!auth.isCorretor" class="details-card history-card full-width">
@@ -338,6 +382,16 @@ const topicCards = computed(() => [
 <style scoped>
 .metrics-page {
   padding: 24px;
+  --metrics-accent: #86efac;
+  --metrics-accent-strong: #34d399;
+  --metrics-accent-surface: rgba(16, 185, 129, 0.1);
+  --metrics-accent-border: rgba(16, 185, 129, 0.18);
+  --metrics-success-strong: #4ade80;
+  --metrics-success-surface: rgba(34, 197, 94, 0.14);
+  --metrics-success-border: rgba(34, 197, 94, 0.24);
+  --metrics-warning: #fb7185;
+  --metrics-warning-surface: rgba(244, 63, 94, 0.14);
+  --metrics-warning-border: rgba(244, 63, 94, 0.24);
 }
 
 .header {
@@ -421,6 +475,73 @@ h1 {
   color: var(--color-surface-50);
 }
 
+.heatmap-dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.heatmap-dashboard-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heatmap-dashboard-card__subtitle {
+  margin: 8px 0 0;
+  color: var(--color-surface-400);
+}
+
+.heatmap-dashboard-card__project-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--metrics-accent-surface);
+  color: var(--metrics-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--metrics-accent-border);
+}
+
+.heatmap-dashboard-card__empty {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 220px;
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.heatmap-dashboard-card__empty h4 {
+  margin: 0;
+  color: var(--color-surface-50);
+}
+
+.heatmap-dashboard-card__empty p {
+  margin: 8px 0 0;
+  color: var(--color-surface-400);
+  max-width: 560px;
+}
+
+.heatmap-dashboard-card__empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--metrics-accent-surface);
+  color: var(--metrics-accent);
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  border: 1px solid var(--metrics-accent-border);
+}
+
 .dashboard {
   display: flex;
   flex-direction: column;
@@ -450,6 +571,12 @@ h1 {
   gap: 14px;
   min-height: 122px;
   border: 1px solid var(--glass-border-subtle);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--metrics-accent-border);
+  background: rgba(15, 23, 42, 0.34);
 }
 
 .stat-icon {
@@ -460,6 +587,7 @@ h1 {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .stat-icon svg {
@@ -467,13 +595,27 @@ h1 {
   height: 22px;
 }
 
-.stat-icon.sessions { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
-.stat-icon.views { background: rgba(79, 70, 229, 0.12); color: #4f46e5; }
-.stat-icon.avg-pages { background: rgba(13, 148, 136, 0.12); color: #0d9488; }
-.stat-icon.leads { background: rgba(16, 185, 129, 0.12); color: #059669; }
-.stat-icon.realtor { background: rgba(249, 115, 22, 0.12); color: #ea580c; }
-.stat-icon.duration { background: rgba(6, 182, 212, 0.12); color: #06b6d4; }
-.stat-icon.bounce { background: rgba(244, 63, 94, 0.12); color: #f43f5e; }
+.stat-icon.sessions,
+.stat-icon.views,
+.stat-icon.avg-pages,
+.stat-icon.realtor,
+.stat-icon.duration {
+  background: var(--metrics-accent-surface);
+  color: var(--metrics-accent);
+  border-color: var(--metrics-accent-border);
+}
+
+.stat-icon.leads {
+  background: var(--metrics-success-surface);
+  color: var(--metrics-success-strong);
+  border-color: var(--metrics-success-border);
+}
+
+.stat-icon.bounce {
+  background: var(--metrics-warning-surface);
+  color: var(--metrics-warning);
+  border-color: var(--metrics-warning-border);
+}
 
 .stat-label {
   display: block;
@@ -491,6 +633,22 @@ h1 {
   line-height: 1.1;
   color: var(--color-surface-100);
   overflow-wrap: anywhere;
+}
+
+.stat-value--default {
+  color: var(--color-surface-50);
+}
+
+.stat-value--success {
+  color: var(--metrics-success-strong);
+}
+
+.stat-value--warning {
+  color: var(--metrics-warning);
+}
+
+.stat-value--muted {
+  color: #e2e8f0;
 }
 
 .stat-content {
@@ -518,13 +676,16 @@ h1 {
   }
 }
 
-.text-blue { color: #2563eb; }
-.text-indigo { color: #4f46e5; }
-.text-teal { color: #0d9488; }
-.text-emerald { color: #059669; }
-.text-orange { color: #ea580c; }
-.text-cyan { color: #06b6d4; }
-.text-rose { color: #f43f5e; }
+.text-blue,
+.text-indigo,
+.text-teal,
+.text-emerald,
+.text-orange,
+.text-cyan,
+.text-rose,
+.text-sky {
+  color: var(--color-surface-100);
+}
 
 /* History Chart */
 .details-card {
@@ -589,8 +750,8 @@ h1 {
   margin-bottom: 4px;
 }
 
-.bar-value.views { color: #4f46e5; }
-.bar-value.sessions-val { color: #2563eb; }
+.bar-value.views { color: var(--metrics-accent); }
+.bar-value.sessions-val { color: #e2e8f0; }
 
 .bar {
   width: 100%;
@@ -599,8 +760,8 @@ h1 {
   min-height: 2px;
 }
 
-.views-bar { background: #4f46e5; opacity: 0.85; }
-.sessions-bar { background: #3b82f6; opacity: 0.6; }
+.views-bar { background: rgba(16, 185, 129, 0.58); opacity: 1; }
+.sessions-bar { background: rgba(134, 239, 172, 0.42); opacity: 1; }
 
 .chart-col .label {
   font-size: 10px;
@@ -627,8 +788,8 @@ h1 {
 }
 
 .legend-color { width: 14px; height: 14px; border-radius: 4px; }
-.legend-color.views { background: #4f46e5; }
-.legend-color.sessions { background: #3b82f6; opacity: 0.7; }
+.legend-color.views { background: rgba(16, 185, 129, 0.82); }
+.legend-color.sessions { background: rgba(134, 239, 172, 0.72); opacity: 1; }
 
 /* Topic Cards Grid */
 .topics-grid {
@@ -657,12 +818,16 @@ h1 {
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 
-.topic-card.topic-blue:hover { border-color: rgba(59, 130, 246, 0.5); }
-.topic-card.topic-emerald:hover { border-color: rgba(16, 185, 129, 0.5); }
-.topic-card.topic-orange:hover { border-color: rgba(249, 115, 22, 0.5); }
-.topic-card.topic-purple:hover { border-color: rgba(139, 92, 246, 0.5); }
-.topic-card.topic-indigo:hover { border-color: rgba(79, 70, 229, 0.5); }
-.topic-card.topic-slate:hover { border-color: rgba(71, 85, 105, 0.55); }
+.topic-card.topic-blue:hover,
+.topic-card.topic-emerald:hover,
+.topic-card.topic-orange:hover,
+.topic-card.topic-purple:hover,
+.topic-card.topic-indigo:hover,
+.topic-card.topic-slate:hover,
+.topic-card.topic-cyan:hover,
+.topic-card.topic-amber:hover {
+  border-color: var(--metrics-accent-border);
+}
 
 .topic-icon {
   width: 56px;
@@ -674,12 +839,18 @@ h1 {
   flex-shrink: 0;
 }
 
-.topic-icon.lot { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
-.topic-icon.trend { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-.topic-icon.users { background: rgba(249, 115, 22, 0.12); color: #f97316; }
-.topic-icon.building { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
-.topic-icon.globe { background: rgba(79, 70, 229, 0.12); color: #6366f1; }
-.topic-icon.office { background: rgba(100, 116, 139, 0.14); color: #94a3b8; }
+.topic-icon.lot,
+.topic-icon.trend,
+.topic-icon.users,
+.topic-icon.building,
+.topic-icon.globe,
+.topic-icon.office,
+.topic-icon.pulse,
+.topic-icon.personas {
+  background: var(--metrics-accent-surface);
+  color: var(--metrics-accent);
+  border: 1px solid var(--metrics-accent-border);
+}
 
 .topic-content {
   flex: 1;
@@ -705,10 +876,11 @@ h1 {
   margin-top: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-primary-400);
-  background: rgba(16, 185, 129, 0.1);
+  color: var(--metrics-accent);
+  background: var(--metrics-accent-surface);
   padding: 2px 10px;
   border-radius: 20px;
+  border: 1px solid var(--metrics-accent-border);
 }
 
 .topic-arrow {
