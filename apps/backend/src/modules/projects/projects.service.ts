@@ -218,6 +218,139 @@ export class ProjectsService {
     };
   }
 
+  private hasPreferenceSearchInputs(
+    tags?: string[],
+    smartFilters?: {
+      minArea?: number;
+      maxArea?: number;
+      minPrice?: number;
+      maxPrice?: number;
+      maxPricePerM2?: number;
+      minFrontage?: number;
+      minDepth?: number;
+    }
+  ) {
+    return Boolean(
+      tags?.length ||
+        smartFilters?.minArea != null ||
+        smartFilters?.maxArea != null ||
+        smartFilters?.minPrice != null ||
+        smartFilters?.maxPrice != null ||
+        smartFilters?.maxPricePerM2 != null ||
+        smartFilters?.minFrontage != null ||
+        smartFilters?.minDepth != null
+    );
+  }
+
+  private matchesPreferenceRange(
+    rawValue: number | null | undefined,
+    minimum?: number,
+    maximum?: number
+  ) {
+    if (rawValue == null || Number.isNaN(rawValue)) return false;
+    if (minimum != null && rawValue < minimum) return false;
+    if (maximum != null && rawValue > maximum) return false;
+    return true;
+  }
+
+  private getPreferenceMatchScore(
+    metrics: {
+      tags?: string[];
+      areaM2?: number | null;
+      price?: number | null;
+      pricePerM2?: number | null;
+      frontage?: number | null;
+      depth?: number | null;
+    },
+    tags?: string[],
+    matchMode: 'any' | 'exact' = 'any',
+    smartFilters?: {
+      minArea?: number;
+      maxArea?: number;
+      minPrice?: number;
+      maxPrice?: number;
+      maxPricePerM2?: number;
+      minFrontage?: number;
+      minDepth?: number;
+    }
+  ) {
+    let score = 0;
+
+    if (tags?.length) {
+      const lotTags = metrics.tags || [];
+      const tagMatched =
+        matchMode === 'exact'
+          ? tags.every((tag) => lotTags.includes(tag))
+          : tags.some((tag) => lotTags.includes(tag));
+
+      if (tagMatched) {
+        score += matchMode === 'exact' ? Math.max(2, tags.length) : 2;
+      }
+    }
+
+    if (smartFilters?.minArea != null || smartFilters?.maxArea != null) {
+      if (
+        this.matchesPreferenceRange(
+          metrics.areaM2,
+          smartFilters?.minArea,
+          smartFilters?.maxArea
+        )
+      ) {
+        score += 1;
+      }
+    }
+
+    if (smartFilters?.minPrice != null || smartFilters?.maxPrice != null) {
+      if (
+        this.matchesPreferenceRange(
+          metrics.price,
+          smartFilters?.minPrice,
+          smartFilters?.maxPrice
+        )
+      ) {
+        score += 1;
+      }
+    }
+
+    if (smartFilters?.maxPricePerM2 != null) {
+      if (
+        this.matchesPreferenceRange(
+          metrics.pricePerM2,
+          undefined,
+          smartFilters.maxPricePerM2
+        )
+      ) {
+        score += 1;
+      }
+    }
+
+    if (smartFilters?.minFrontage != null) {
+      if (
+        this.matchesPreferenceRange(
+          metrics.frontage,
+          smartFilters.minFrontage,
+          undefined
+        )
+      ) {
+        score += 1;
+      }
+    }
+
+    if (smartFilters?.minDepth != null) {
+      if (
+        this.matchesPreferenceRange(
+          metrics.depth,
+          smartFilters.minDepth,
+          undefined
+        )
+      ) {
+        score += 1;
+      }
+    }
+
+    return score;
+  }
+
   async create(tenantId: string, dto: CreateProjectDto, user?: User) {
     // Validate project creation against billing limits
     await this.billingService.validateProjectCreation(tenantId);
@@ -557,6 +690,7 @@ export class ProjectsService {
       minFrontage?: number;
       minDepth?: number;
     },
+    smartMode?: 'preference',
     sortBy?: 'pricePerM2Asc'
   ) {
     const project = await this.prisma.project.findFirst({
@@ -566,6 +700,7 @@ export class ProjectsService {
     if (!project) throw new NotFoundException('Projeto não encontrado.');
 
     const skip = (page - 1) * limit;
+    const usePreferenceMode = smartMode === 'preference';
 
     if ((project as any).mapData) {
       // ── Legacy mapData path ───────────────────────────────────────────────────
@@ -596,7 +731,7 @@ export class ProjectsService {
         );
       }
 
-      if (tags?.length) {
+      if (!usePreferenceMode && tags?.length) {
         lots = lots.filter((l: any) => {
           const lt: string[] = l.tags || [];
           return matchMode === 'exact'
@@ -645,13 +780,16 @@ export class ProjectsService {
       const hasMinDepth = smartFilters?.minDepth != null;
 
       if (
-        hasMinArea ||
-        hasMaxArea ||
-        hasMinPrice ||
-        hasMaxPrice ||
-        hasMaxPricePerM2 ||
-        hasMinFrontage ||
-        hasMinDepth
+        !usePreferenceMode &&
+        (
+          hasMinArea ||
+          hasMaxArea ||
+          hasMinPrice ||
+          hasMaxPrice ||
+          hasMaxPricePerM2 ||
+          hasMinFrontage ||
+          hasMinDepth
+        )
       ) {
         lots = lots.filter((l: any) => {
           const metrics = getLegacyLotMetrics(l);
@@ -702,7 +840,50 @@ export class ProjectsService {
         });
       }
 
-      if (sortBy === 'pricePerM2Asc') {
+      if (usePreferenceMode) {
+        const hasPreferenceInputs = this.hasPreferenceSearchInputs(tags, smartFilters);
+        lots = lots
+          .map((lot: any) => {
+            const metrics = getLegacyLotMetrics(lot);
+            return {
+              lot,
+              score: this.getPreferenceMatchScore(
+                {
+                  tags: lot.tags || [],
+                  areaM2: metrics.areaM2,
+                  price: metrics.price,
+                  pricePerM2: metrics.pricePerM2,
+                  frontage: metrics.frontage,
+                  depth: metrics.depth
+                },
+                tags,
+                matchMode,
+                smartFilters
+              ),
+              pricePerM2: metrics.pricePerM2
+            };
+          })
+          .filter(({ score }) => !hasPreferenceInputs || score > 0)
+          .sort((a: any, b: any) => {
+            if (b.score !== a.score) return b.score - a.score;
+
+            if (sortBy === 'pricePerM2Asc') {
+              const aOrder =
+                a.pricePerM2 == null || Number.isNaN(a.pricePerM2)
+                  ? Number.POSITIVE_INFINITY
+                  : a.pricePerM2;
+              const bOrder =
+                b.pricePerM2 == null || Number.isNaN(b.pricePerM2)
+                  ? Number.POSITIVE_INFINITY
+                  : b.pricePerM2;
+
+              if (aOrder !== bOrder) return aOrder - bOrder;
+            }
+
+            return String(a.lot.code || '').localeCompare(String(b.lot.code || ''));
+          })
+          .map(({ lot }: any) => lot);
+      } else if (sortBy === 'pricePerM2Asc') {
         lots = [...lots].sort((a: any, b: any) => {
           const aValue = getLegacyLotMetrics(a).pricePerM2;
           const bValue = getLegacyLotMetrics(b).pricePerM2;
@@ -781,7 +962,7 @@ export class ProjectsService {
       lotDetailsFilter.status = 'AVAILABLE';
     }
 
-    if (tags?.length) {
+    if (!usePreferenceMode && tags?.length) {
       Object.assign(
         lotDetailsFilter,
         matchMode === 'exact'
@@ -790,29 +971,29 @@ export class ProjectsService {
       );
     }
 
-    if (smartFilters?.minArea != null || smartFilters?.maxArea != null) {
+    if (!usePreferenceMode && (smartFilters?.minArea != null || smartFilters?.maxArea != null)) {
       lotDetailsFilter.areaM2 = {
         ...(smartFilters?.minArea != null && { gte: smartFilters.minArea }),
         ...(smartFilters?.maxArea != null && { lte: smartFilters.maxArea })
       };
     }
 
-    if (smartFilters?.minPrice != null || smartFilters?.maxPrice != null) {
+    if (!usePreferenceMode && (smartFilters?.minPrice != null || smartFilters?.maxPrice != null)) {
       lotDetailsFilter.price = {
         ...(smartFilters?.minPrice != null && { gte: smartFilters.minPrice }),
         ...(smartFilters?.maxPrice != null && { lte: smartFilters.maxPrice })
       };
     }
 
-    if (smartFilters?.maxPricePerM2 != null) {
+    if (!usePreferenceMode && smartFilters?.maxPricePerM2 != null) {
       lotDetailsFilter.pricePerM2 = { lte: smartFilters.maxPricePerM2 };
     }
 
-    if (smartFilters?.minFrontage != null) {
+    if (!usePreferenceMode && smartFilters?.minFrontage != null) {
       lotDetailsFilter.frontage = { gte: smartFilters.minFrontage };
     }
 
-    if (smartFilters?.minDepth != null) {
+    if (!usePreferenceMode && smartFilters?.minDepth != null) {
       lotDetailsFilter.depth = { gte: smartFilters.minDepth };
     }
 
@@ -831,60 +1012,117 @@ export class ProjectsService {
       ];
     }
 
-    const [total, data, tagRows] = await Promise.all([
-      this.prisma.mapElement.count({ where: elementFilter }),
-      this.prisma.mapElement.findMany({
-        where: elementFilter,
+    const lotSelect = {
+      id: true,
+      name: true,
+      code: true,
+      metaJson: true,
+      lotDetails: {
         select: {
           id: true,
-          name: true,
-          code: true,
-          metaJson: true,
-          lotDetails: {
+          status: true,
+          price: true,
+          pricePerM2: true,
+          areaM2: true,
+          frontage: true,
+          depth: true,
+          sideLeft: true,
+          sideRight: true,
+          sideMetricsJson: true,
+          slope: true,
+          notes: true,
+          tags: true,
+          block: true,
+          lotNumber: true,
+          conditionsJson: true,
+          paymentConditions: true,
+          panoramaUrl: true,
+          medias: {
             select: {
               id: true,
-              status: true,
-              price: true,
-              pricePerM2: true,
-              areaM2: true,
-              frontage: true,
-              depth: true,
-              sideLeft: true,
-              sideRight: true,
-              sideMetricsJson: true,
-              slope: true,
-              notes: true,
-              tags: true,
-              block: true,
-              lotNumber: true,
-              conditionsJson: true,
-              paymentConditions: true,
-              panoramaUrl: true,
-              medias: {
-                select: {
-                  id: true,
-                  type: true,
-                  url: true,
-                  caption: true,
-                  createdAt: true
-                },
-                orderBy: { createdAt: 'desc' }
-              }
-            }
+              type: true,
+              url: true,
+              caption: true,
+              createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
           }
-        },
-        skip,
-        take: limit,
-        orderBy:
-          sortBy === 'pricePerM2Asc'
-            ? [{ lotDetails: { pricePerM2: 'asc' } }, { code: 'asc' }]
-            : [{ code: 'asc' }]
-      }),
+        }
+      }
+    } as const;
+
+    const dataPromise = usePreferenceMode
+      ? this.prisma.mapElement.findMany({
+          where: elementFilter,
+          select: lotSelect,
+          orderBy: [{ code: 'asc' }]
+        })
+      : this.prisma.mapElement.findMany({
+          where: elementFilter,
+          select: lotSelect,
+          skip,
+          take: limit,
+          orderBy:
+            sortBy === 'pricePerM2Asc'
+              ? [{ lotDetails: { pricePerM2: 'asc' } }, { code: 'asc' }]
+              : [{ code: 'asc' }]
+        });
+
+    const [data, tagRows] = await Promise.all([
+      dataPromise,
       this.prisma.lotDetails.findMany({
         where: { projectId: project.id, status: 'AVAILABLE' },
         select: { tags: true }
       })
     ]);
+
+    let rankedData = data;
+
+    if (usePreferenceMode) {
+      const hasPreferenceInputs = this.hasPreferenceSearchInputs(tags, smartFilters);
+      rankedData = data
+        .map((lot) => ({
+          lot,
+          score: this.getPreferenceMatchScore(
+            {
+              tags: lot.lotDetails?.tags || [],
+              areaM2: lot.lotDetails?.areaM2 == null ? null : Number(lot.lotDetails.areaM2),
+              price: lot.lotDetails?.price == null ? null : Number(lot.lotDetails.price),
+              pricePerM2:
+                lot.lotDetails?.pricePerM2 == null ? null : Number(lot.lotDetails.pricePerM2),
+              frontage: lot.lotDetails?.frontage == null ? null : Number(lot.lotDetails.frontage),
+              depth: lot.lotDetails?.depth == null ? null : Number(lot.lotDetails.depth)
+            },
+            tags,
+            matchMode,
+            smartFilters
+          )
+        }))
+        .filter(({ score }) => !hasPreferenceInputs || score > 0)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+
+          if (sortBy === 'pricePerM2Asc') {
+            const aOrder =
+              a.lot.lotDetails?.pricePerM2 == null || Number.isNaN(Number(a.lot.lotDetails.pricePerM2))
+                ? Number.POSITIVE_INFINITY
+                : Number(a.lot.lotDetails.pricePerM2);
+            const bOrder =
+              b.lot.lotDetails?.pricePerM2 == null || Number.isNaN(Number(b.lot.lotDetails.pricePerM2))
+                ? Number.POSITIVE_INFINITY
+                : Number(b.lot.lotDetails.pricePerM2);
+            if (aOrder !== bOrder) return aOrder - bOrder;
+          }
+
+          return String(a.lot.code || '').localeCompare(String(b.lot.code || ''));
+        })
+        .map(({ lot }) => lot);
+    }
+
+    const total = usePreferenceMode
+      ? rankedData.length
+      : await this.prisma.mapElement.count({ where: elementFilter });
+    const pagedData = usePreferenceMode ? rankedData.slice(skip, skip + limit) : rankedData;
 
     const availableTags = Array.from(
       new Set((tagRows as any[]).flatMap((r: any) => r.tags || []))
@@ -892,7 +1130,7 @@ export class ProjectsService {
 
     return {
       data: await Promise.all(
-        data.map(async (lot) => ({
+        pagedData.map(async (lot) => ({
           ...lot,
           frontEdgeIndex: (lot as any).metaJson?.frontEdgeIndex ?? null,
           frontAngleDeg: (lot as any).metaJson?.frontAngleDeg ?? null,

@@ -177,6 +177,115 @@ export class TrackingService {
     );
   }
 
+  private getMetadataObject(metadata: unknown): Record<string, any> {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      return {};
+    }
+
+    return metadata as Record<string, any>;
+  }
+
+  private getMetadataString(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+
+    const normalized = value.trim();
+    return normalized ? normalized : null;
+  }
+
+  private getMetadataNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    return null;
+  }
+
+  private getSearchSourceLabel(source: string): string {
+    switch (source) {
+      case 'timed_onboarding':
+        return 'Modal 7s';
+      case 'smart_modal':
+        return 'Modal inteligente';
+      case 'preference_page':
+        return 'Busca por preferência';
+      default:
+        return 'Outro';
+    }
+  }
+
+  private getSearchIntentLabel(intent: string | null, fallback?: string | null): string {
+    if (fallback) return fallback;
+
+    switch (intent) {
+      case 'investir':
+        return 'Investir';
+      case 'morar':
+        return 'Morar';
+      case 'construir':
+        return 'Construir';
+      case 'revender':
+        return 'Revender';
+      case 'avaliando':
+        return 'Ainda avaliando';
+      default:
+        return 'Não informado';
+    }
+  }
+
+  private buildLotSearchMetrics(
+    events: Array<{ label: string | null; metadata: unknown }>
+  ) {
+    const sourceCounts = new Map<string, number>();
+    const intentCounts = new Map<string, { label: string; count: number }>();
+    let totalResults = 0;
+    let totalResultSamples = 0;
+
+    for (const event of events) {
+      const metadata = this.getMetadataObject(event.metadata);
+      const source = this.getMetadataString(metadata.source) || 'other';
+      sourceCounts.set(source, (sourceCounts.get(source) || 0) + 1);
+
+      const intent = this.getMetadataString(metadata.intent);
+      const fallbackIntentLabel = this.getMetadataString(metadata.intentLabel);
+      const intentKey = intent || 'not_informed';
+      const intentLabel = this.getSearchIntentLabel(intent, fallbackIntentLabel);
+      const currentIntent = intentCounts.get(intentKey);
+      if (currentIntent) {
+        currentIntent.count += 1;
+      } else {
+        intentCounts.set(intentKey, { label: intentLabel, count: 1 });
+      }
+
+      const resultCount = this.getMetadataNumber(metadata.resultCount);
+      if (resultCount != null) {
+        totalResults += resultCount;
+        totalResultSamples += 1;
+      }
+    }
+
+    return {
+      totalSearches: events.length,
+      timedOnboardingSearches: sourceCounts.get('timed_onboarding') || 0,
+      smartModalSearches: sourceCounts.get('smart_modal') || 0,
+      preferencePageSearches: sourceCounts.get('preference_page') || 0,
+      avgResultsPerSearch:
+        totalResultSamples > 0
+          ? parseFloat((totalResults / totalResultSamples).toFixed(1))
+          : 0,
+      sources: Array.from(sourceCounts.entries())
+        .map(([value, count]) => ({
+          value,
+          label: this.getSearchSourceLabel(value),
+          count
+        }))
+        .sort((a, b) => b.count - a.count),
+      intents: Array.from(intentCounts.entries())
+        .map(([value, item]) => ({
+          value,
+          label: item.label,
+          count: item.count
+        }))
+        .sort((a, b) => b.count - a.count)
+    };
+  }
+
   /**
    * Returns high-level dashboard stats for a tenant:
    * project counts, lot/map-element count, lead count.
@@ -1004,7 +1113,8 @@ export class TrackingService {
       pageViewsPerSession,
       lotInteractionsPerSession,
       sessionCountsForBounce,
-      sessionsPerVisitor
+      sessionsPerVisitor,
+      lotSearchEvents
     ] = await Promise.all([
       this.prisma.trackingVisitor.count({ where: whereVisitor }),
       this.prisma.trackingSession.count({ where: whereSession }),
@@ -1103,6 +1213,17 @@ export class TrackingService {
           visitorId: { not: null }
         },
         _count: { id: true }
+      }),
+      this.prisma.trackingEvent.findMany({
+        where: {
+          ...whereEvent,
+          category: 'LOT_SEARCH',
+          action: 'SUBMIT'
+        },
+        select: {
+          label: true,
+          metadata: true
+        }
       })
     ]);
 
@@ -1313,6 +1434,8 @@ export class TrackingService {
           )
         : 0;
 
+    const searchMetrics = this.buildLotSearchMetrics(lotSearchEvents);
+
     return {
       summary: {
         totalVisitors,
@@ -1322,6 +1445,9 @@ export class TrackingService {
         totalLotClicks,
         totalRealtorClicks,
         totalLeads,
+        totalSearches: searchMetrics.totalSearches,
+        timedOnboardingSearches: searchMetrics.timedOnboardingSearches,
+        preferencePageSearches: searchMetrics.preferencePageSearches,
         avgVisitsPerVisitor:
           totalVisitors > 0
             ? parseFloat((totalSessions / totalVisitors).toFixed(1))
@@ -1382,6 +1508,7 @@ export class TrackingService {
         query.tenantId,
         query.projectId
       ),
+      search: searchMetrics,
       engagement: {
         avgSessionDurationSec,
         bounceRate,

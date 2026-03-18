@@ -127,6 +127,49 @@
             <p v-else class="empty-note">Nenhuma origem consolidada para o período.</p>
             </section>
 
+            <section class="project-metrics-details-card project-metrics-side-card">
+            <div class="insight-card__header">
+              <div>
+                <p class="eyebrow">Busca guiada</p>
+                <h2>Intenção e origem das buscas</h2>
+              </div>
+            </div>
+
+            <div class="insight-stat-list">
+              <div>
+                <span>Total de buscas</span>
+                <strong>{{ formatNumber(searchSummary.totalSearches || 0) }}</strong>
+              </div>
+              <div>
+                <span>Modal após 7s</span>
+                <strong>{{ formatNumber(searchSummary.timedOnboardingSearches || 0) }}</strong>
+              </div>
+              <div>
+                <span>Busca por preferência</span>
+                <strong>{{ formatNumber(searchSummary.preferencePageSearches || 0) }}</strong>
+              </div>
+              <div>
+                <span>Média de resultados</span>
+                <strong>{{ formatNumberDecimal(searchMetrics.avgResultsPerSearch || 0) }}</strong>
+              </div>
+            </div>
+
+            <div v-if="searchIntents.length" class="insight-list insight-list--compact" style="margin-top: 18px;">
+              <div v-for="item in searchIntents" :key="item.value" class="insight-list__item">
+                <strong>{{ item.label }}</strong>
+                <span>{{ formatNumber(item.count || 0) }}</span>
+              </div>
+            </div>
+            <p v-else class="empty-note">Nenhuma intenção de busca registrada no período.</p>
+
+            <div v-if="searchSources.length" class="insight-list insight-list--compact" style="margin-top: 18px;">
+              <div v-for="item in searchSources" :key="item.value" class="insight-list__item">
+                <strong>{{ item.label }}</strong>
+                <span>{{ formatNumber(item.count || 0) }}</span>
+              </div>
+            </div>
+            </section>
+
             <section class="project-metrics-details-card project-metrics-side-card project-metrics-side-card--warning" v-if="heatmap?.summary?.lotsWithoutHotspot">
             <div class="insight-card__header">
               <div>
@@ -248,6 +291,24 @@ const summaryCards = computed(() => {
       tone: 'accent'
     },
     {
+      label: 'Buscas guiadas',
+      value: formatNumber(metricsSummary.totalSearches || 0),
+      hint: 'Todas as buscas registradas no modal e na página de preferência.',
+      tone: 'accent'
+    },
+    {
+      label: 'Modal após 7s',
+      value: formatNumber(metricsSummary.timedOnboardingSearches || 0),
+      hint: 'Conversões do fluxo guiado que aparece no tempo de permanência.',
+      tone: 'accent'
+    },
+    {
+      label: 'Busca por preferência',
+      value: formatNumber(metricsSummary.preferencePageSearches || 0),
+      hint: 'Pesquisas disparadas na listagem de unidades com preferências.',
+      tone: 'accent'
+    },
+    {
       label: 'Taxa de rejeição',
       value: `${formatPercent(overview.value?.engagement?.bounceRate || 0)}%`,
       hint: 'Sessões curtas sem aprofundamento relevante.',
@@ -267,6 +328,10 @@ const summaryCards = computed(() => {
 
 const topPaths = computed(() => overview.value?.topPaths?.slice(0, 5) || [])
 const topSources = computed(() => overview.value?.topUtmSources?.slice(0, 5) || [])
+const searchMetrics = computed(() => overview.value?.search || {})
+const searchSummary = computed(() => overview.value?.summary || {})
+const searchIntents = computed(() => searchMetrics.value?.intents?.slice(0, 5) || [])
+const searchSources = computed(() => searchMetrics.value?.sources?.slice(0, 5) || [])
 const topActiveLot = computed(() => heatmap.value?.lots?.find((lot: any) => lot.views || lot.leads || lot.reservations) || null)
 
 const topLotHeadline = computed(() => {
@@ -294,6 +359,13 @@ const formattedPeriod = computed(() => {
 
 function formatNumber(value: number) {
   return value.toLocaleString('pt-BR')
+}
+
+function formatNumberDecimal(value: number) {
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
 }
 
 function formatPercent(value: number) {

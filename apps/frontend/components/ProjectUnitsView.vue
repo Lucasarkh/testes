@@ -29,7 +29,8 @@
                 <p>Busca rápida por código, preço, metragem e dimensões.</p>
               </div>
               <div class="v4-filter-stats" v-if="!loading && project">
-                <span>{{ filteredLots.length }} unidades encontradas</span>
+                <span>{{ resultCount }} unidades encontradas</span>
+                <span v-if="lotsLoading" class="v4-filter-loading">Atualizando...</span>
                 <span v-if="selectedFilters.length || searchQuery || hasAnySmartFilter" class="v4-clear-btn" @click="clearFilters">Limpar filtros</span>
               </div>
             </div>
@@ -43,6 +44,7 @@
                       v-model="searchQuery" 
                       type="text" 
                       placeholder="Código do lote (ex: L01, QUADRA A...)" 
+                      @keydown.enter="() => applyCurrentFilters()"
                       style="margin-left: 0;"
                     />
                   </div>
@@ -51,36 +53,48 @@
                   <input v-model="smartFilters.sortByLowestPricePerM2" type="checkbox" />
                   <span>Menor valor/m²</span>
                 </label>
+                <button class="v4-search-submit" :disabled="lotsLoading" @click="applyCurrentFilters()">
+                  {{ lotsLoading ? 'Buscando...' : 'Buscar agora' }}
+                </button>
               </div>
 
               <div class="v4-smart-filters-grid v4-smart-filters-grid--slim">
                 <label class="v4-smart-input">
+                  <span>Objetivo</span>
+                  <select v-model="searchIntent" @keydown.enter="() => applyCurrentFilters()">
+                    <option value="">Não definido</option>
+                    <option v-for="option in LOT_SEARCH_INTENT_OPTIONS" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </label>
+                <label class="v4-smart-input">
                   <span>Área min</span>
-                  <input v-model="smartFilters.minArea" type="number" min="0" step="1" placeholder="250 m²" />
+                  <input v-model="smartFilters.minArea" type="number" min="0" step="1" placeholder="250 m²" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
                 <label class="v4-smart-input">
                   <span>Área max</span>
-                  <input v-model="smartFilters.maxArea" type="number" min="0" step="1" placeholder="420 m²" />
+                  <input v-model="smartFilters.maxArea" type="number" min="0" step="1" placeholder="420 m²" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
                 <label class="v4-smart-input">
                   <span>Valor min</span>
-                  <input v-model="smartFilters.minPrice" type="number" min="0" step="1000" placeholder="R$ 90.000" />
+                  <input v-model="smartFilters.minPrice" type="number" min="0" step="1000" placeholder="R$ 90.000" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
                 <label class="v4-smart-input">
                   <span>Valor max</span>
-                  <input v-model="smartFilters.maxPrice" type="number" min="0" step="1000" placeholder="R$ 180.000" />
+                  <input v-model="smartFilters.maxPrice" type="number" min="0" step="1000" placeholder="R$ 180.000" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
                 <label class="v4-smart-input">
                   <span>Teto valor/m²</span>
-                  <input v-model="smartFilters.maxPricePerM2" type="number" min="0" step="10" placeholder="R$ 650" />
+                  <input v-model="smartFilters.maxPricePerM2" type="number" min="0" step="10" placeholder="R$ 650" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
                 <label class="v4-smart-input">
                   <span>Largura min</span>
-                  <input v-model="smartFilters.minFrontage" type="number" min="0" step="0.1" placeholder="10 m" />
+                  <input v-model="smartFilters.minFrontage" type="number" min="0" step="0.1" placeholder="10 m" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
                 <label class="v4-smart-input">
                   <span>Altura min</span>
-                  <input v-model="smartFilters.minDepth" type="number" min="0" step="0.1" placeholder="25 m" />
+                  <input v-model="smartFilters.minDepth" type="number" min="0" step="0.1" placeholder="25 m" @keydown.enter="() => applyCurrentFilters()" />
                 </label>
               </div>
             </div>
@@ -202,7 +216,7 @@
 
             <!-- Pagination -->
             <div v-if="totalPages > 1" class="v4-pagination-wrap">
-              <CommonPagination :meta="paginationMeta" @change="lotsPage = $event" />
+              <CommonPagination :meta="paginationMeta" @change="handlePageChange" />
             </div>
           </div>
         </div>
@@ -226,6 +240,7 @@ import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
 import { useTracking } from '~/composables/useTracking'
 import CommonPagination from '~/components/common/Pagination.vue'
+import { LOT_SEARCH_INTENT_OPTIONS, getLotSearchIntentLabel, normalizeLotSearchIntent, type LotSearchIntent } from '~/utils/lotSearchIntent'
 import { formatCurrencyToBrasilia } from '~/utils/money'
 
 const props = defineProps({
@@ -240,6 +255,7 @@ const props = defineProps({
 })
 
 const route = useRoute()
+const router = useRouter()
 const tenantStore = useTenantStore()
 const chatStore = useAiChatStore()
 const tracking = useTracking()
@@ -271,9 +287,11 @@ const error = ref('')
 const project = ref<any>(null)
 
 const searchQuery = ref('')
+const searchIntent = ref<LotSearchIntent | ''>('')
 const selectedFilters = ref<string[]>([])
 const codesFilter = ref<string[]>([])
 const matchMode = ref<'any' | 'exact'>('any')
+const smartMode = ref<'strict' | 'preference'>('strict')
 const smartFilters = ref({
   minArea: '',
   maxArea: '',
@@ -287,10 +305,72 @@ const smartFilters = ref({
 const lotsPage = ref(1)
 const lotsPerPage = 12
 
-const parseFilterNumber = (value: string) => {
-  if (!value?.trim()) return null
-  const parsed = Number(value.replace(',', '.'))
+const parseFilterNumber = (value: string | number | null | undefined) => {
+  if (value == null) return null
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  const normalizedValue = String(value).trim()
+  if (!normalizedValue) return null
+
+  const parsed = Number(normalizedValue.replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : null
+}
+
+const matchesPreferenceRange = (rawValue: number | null | undefined, minimum?: number | null, maximum?: number | null) => {
+  if (rawValue == null || Number.isNaN(rawValue)) return false
+  if (minimum != null && rawValue < minimum) return false
+  if (maximum != null && rawValue > maximum) return false
+  return true
+}
+
+const hasPreferenceInputs = computed(() => Boolean(
+  searchIntent.value ||
+  selectedFilters.value.length ||
+  parseFilterNumber(smartFilters.value.minArea) != null ||
+  parseFilterNumber(smartFilters.value.maxArea) != null ||
+  parseFilterNumber(smartFilters.value.minPrice) != null ||
+  parseFilterNumber(smartFilters.value.maxPrice) != null ||
+  parseFilterNumber(smartFilters.value.maxPricePerM2) != null ||
+  parseFilterNumber(smartFilters.value.minFrontage) != null ||
+  parseFilterNumber(smartFilters.value.minDepth) != null
+))
+
+const getPreferenceMatchScore = (lot: any) => {
+  const details = lot?.lotDetails || {}
+  const areaM2 = Number(details.areaM2)
+  const price = Number(details.price)
+  const pricePerM2 = Number(details.pricePerM2)
+  const frontage = Number(details.frontage)
+  const depth = Number(details.depth)
+  const minArea = parseFilterNumber(smartFilters.value.minArea)
+  const maxArea = parseFilterNumber(smartFilters.value.maxArea)
+  const minPrice = parseFilterNumber(smartFilters.value.minPrice)
+  const maxPrice = parseFilterNumber(smartFilters.value.maxPrice)
+  const maxPricePerM2 = parseFilterNumber(smartFilters.value.maxPricePerM2)
+  const minFrontage = parseFilterNumber(smartFilters.value.minFrontage)
+  const minDepth = parseFilterNumber(smartFilters.value.minDepth)
+
+  let score = 0
+  const tags = details.tags || []
+  if (selectedFilters.value.length > 0) {
+    const tagMatched = matchMode.value === 'exact'
+      ? selectedFilters.value.every(filter => tags.includes(filter))
+      : selectedFilters.value.some(filter => tags.includes(filter))
+
+    if (tagMatched) {
+      score += matchMode.value === 'exact' ? Math.max(2, selectedFilters.value.length) : 2
+    }
+  }
+
+  if ((minArea != null || maxArea != null) && matchesPreferenceRange(Number.isFinite(areaM2) ? areaM2 : null, minArea, maxArea)) score += 1
+  if ((minPrice != null || maxPrice != null) && matchesPreferenceRange(Number.isFinite(price) ? price : null, minPrice, maxPrice)) score += 1
+  if (maxPricePerM2 != null && matchesPreferenceRange(Number.isFinite(pricePerM2) ? pricePerM2 : null, null, maxPricePerM2)) score += 1
+  if (minFrontage != null && matchesPreferenceRange(Number.isFinite(frontage) ? frontage : null, minFrontage, null)) score += 1
+  if (minDepth != null && matchesPreferenceRange(Number.isFinite(depth) ? depth : null, minDepth, null)) score += 1
+
+  return score
 }
 
 const hasAnySmartFilter = computed(() => {
@@ -307,11 +387,91 @@ const hasAnySmartFilter = computed(() => {
   )
 })
 
-/** â”€â”€ Server-side lots (public path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const lots = ref<any[]>([])
 const lotsTotal = ref(0)
 const availableTags = ref<string[]>([])
 const lotsLoading = ref(false)
+let latestLotsRequestId = 0
+
+const buildLotsParams = (page = lotsPage.value) => {
+  const params = new URLSearchParams({ page: String(page), limit: String(lotsPerPage) })
+  if (searchQuery.value) params.set('search', searchQuery.value)
+  if (searchIntent.value) params.set('searchIntent', searchIntent.value)
+  if (selectedFilters.value.length > 0) params.set('tags', selectedFilters.value.join(','))
+  if (matchMode.value === 'exact') params.set('matchMode', 'exact')
+  if (codesFilter.value.length > 0) params.set('codes', codesFilter.value.join(','))
+
+  const minArea = parseFilterNumber(smartFilters.value.minArea)
+  const maxArea = parseFilterNumber(smartFilters.value.maxArea)
+  const minPrice = parseFilterNumber(smartFilters.value.minPrice)
+  const maxPrice = parseFilterNumber(smartFilters.value.maxPrice)
+  const maxPricePerM2 = parseFilterNumber(smartFilters.value.maxPricePerM2)
+  const minFrontage = parseFilterNumber(smartFilters.value.minFrontage)
+  const minDepth = parseFilterNumber(smartFilters.value.minDepth)
+
+  if (minArea != null) params.set('minArea', String(minArea))
+  if (maxArea != null) params.set('maxArea', String(maxArea))
+  if (minPrice != null) params.set('minPrice', String(minPrice))
+  if (maxPrice != null) params.set('maxPrice', String(maxPrice))
+  if (maxPricePerM2 != null) params.set('maxPricePerM2', String(maxPricePerM2))
+  if (minFrontage != null) params.set('minFrontage', String(minFrontage))
+  if (minDepth != null) params.set('minDepth', String(minDepth))
+  if (smartMode.value === 'preference') params.set('smartMode', 'preference')
+  if (smartFilters.value.sortByLowestPricePerM2) params.set('sortBy', 'pricePerM2Asc')
+  if (corretorCode) params.set('c', String(corretorCode))
+
+  return params
+}
+
+const buildRouteQuery = (page = lotsPage.value) => {
+  const query: Record<string, string> = {}
+
+  if (searchQuery.value) query.search = searchQuery.value
+  if (searchIntent.value) query.searchIntent = searchIntent.value
+  if (selectedFilters.value.length > 0) query.tags = selectedFilters.value.join(',')
+  if (matchMode.value === 'exact') query.matchMode = 'exact'
+  if (codesFilter.value.length > 0) query.codes = codesFilter.value.join(',')
+
+  const minArea = parseFilterNumber(smartFilters.value.minArea)
+  const maxArea = parseFilterNumber(smartFilters.value.maxArea)
+  const minPrice = parseFilterNumber(smartFilters.value.minPrice)
+  const maxPrice = parseFilterNumber(smartFilters.value.maxPrice)
+  const maxPricePerM2 = parseFilterNumber(smartFilters.value.maxPricePerM2)
+  const minFrontage = parseFilterNumber(smartFilters.value.minFrontage)
+  const minDepth = parseFilterNumber(smartFilters.value.minDepth)
+
+  if (minArea != null) query.minArea = String(minArea)
+  if (maxArea != null) query.maxArea = String(maxArea)
+  if (minPrice != null) query.minPrice = String(minPrice)
+  if (maxPrice != null) query.maxPrice = String(maxPrice)
+  if (maxPricePerM2 != null) query.maxPricePerM2 = String(maxPricePerM2)
+  if (minFrontage != null) query.minFrontage = String(minFrontage)
+  if (minDepth != null) query.minDepth = String(minDepth)
+  if (smartMode.value === 'preference') query.smartMode = 'preference'
+  if (smartFilters.value.sortByLowestPricePerM2) query.sortBy = 'pricePerM2Asc'
+  if (page > 1) query.page = String(page)
+  if (corretorCode) query.c = String(corretorCode)
+
+  return query
+}
+
+const syncFiltersToRoute = async (page = lotsPage.value) => {
+  if (isPreview.value) return
+
+  const nextQuery = buildRouteQuery(page)
+  const currentQuery = Object.fromEntries(
+    Object.entries(route.query)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([key, value]) => [key, String(value)])
+  )
+
+  if (JSON.stringify(currentQuery) === JSON.stringify(nextQuery)) return
+
+  await router.replace({
+    path: route.path,
+    query: nextQuery
+  })
+}
 
 const normalizeBlockLabel = (value?: string | null) => {
   const block = String(value ?? '').trim()
@@ -321,31 +481,14 @@ const normalizeBlockLabel = (value?: string | null) => {
   return withoutPrefix || block
 }
 
-async function fetchLots() {
+async function fetchLots(params = buildLotsParams()) {
   if (isPreview.value || !projectSlug.value) return
+  const requestId = ++latestLotsRequestId
   lotsLoading.value = true
+  error.value = ''
   try {
-    const params = new URLSearchParams({ page: String(lotsPage.value), limit: String(lotsPerPage) })
-    if (searchQuery.value) params.set('search', searchQuery.value)
-    if (selectedFilters.value.length > 0) params.set('tags', selectedFilters.value.join(','))
-    if (matchMode.value === 'exact') params.set('matchMode', 'exact')
-    if (codesFilter.value.length > 0) params.set('codes', codesFilter.value.join(','))
-    const minArea = parseFilterNumber(smartFilters.value.minArea)
-    const maxArea = parseFilterNumber(smartFilters.value.maxArea)
-    const minPrice = parseFilterNumber(smartFilters.value.minPrice)
-    const maxPrice = parseFilterNumber(smartFilters.value.maxPrice)
-    const maxPricePerM2 = parseFilterNumber(smartFilters.value.maxPricePerM2)
-    const minFrontage = parseFilterNumber(smartFilters.value.minFrontage)
-    const minDepth = parseFilterNumber(smartFilters.value.minDepth)
-    if (minArea != null) params.set('minArea', String(minArea))
-    if (maxArea != null) params.set('maxArea', String(maxArea))
-    if (minPrice != null) params.set('minPrice', String(minPrice))
-    if (maxPrice != null) params.set('maxPrice', String(maxPrice))
-    if (maxPricePerM2 != null) params.set('maxPricePerM2', String(maxPricePerM2))
-    if (minFrontage != null) params.set('minFrontage', String(minFrontage))
-    if (minDepth != null) params.set('minDepth', String(minDepth))
-    if (smartFilters.value.sortByLowestPricePerM2) params.set('sortBy', 'pricePerM2Asc')
     const res = await fetchPublic(`/p/${projectSlug.value}/lots?${params}`)
+    if (requestId !== latestLotsRequestId) return
     if (res) {
       lots.value = res.data || []
       lotsTotal.value = res.total || 0
@@ -353,8 +496,14 @@ async function fetchLots() {
         availableTags.value = res.availableTags
       }
     }
-  } catch (_) { /* non-critical */ }
-  lotsLoading.value = false
+  } catch (fetchError: any) {
+    if (requestId !== latestLotsRequestId) return
+    error.value = fetchError?.message || 'Erro ao carregar lotes'
+  } finally {
+    if (requestId === latestLotsRequestId) {
+      lotsLoading.value = false
+    }
+  }
 }
 
 // â”€â”€ Preview fallback â€” legacy lot processing from project.mapElements / mapData â”€â”€
@@ -447,11 +596,33 @@ const filteredLots = computed(() => {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((l: any) => (l.code || '').toLowerCase().includes(q) || (l.name || '').toLowerCase().includes(q))
   }
-  if (selectedFilters.value.length > 0) {
+  if (smartMode.value !== 'preference' && selectedFilters.value.length > 0) {
     list = list.filter((l: any) => {
       const tags = l.lotDetails?.tags || []
       return matchMode.value === 'exact' ? selectedFilters.value.every(f => tags.includes(f)) : selectedFilters.value.some(f => tags.includes(f))
     })
+  }
+
+  if (smartMode.value === 'preference') {
+    list = list
+      .map((lot: any) => ({ lot, score: getPreferenceMatchScore(lot) }))
+      .filter(({ score }) => !hasPreferenceInputs.value || score > 0)
+      .sort((a: any, b: any) => {
+        if (b.score !== a.score) return b.score - a.score
+
+        if (smartFilters.value.sortByLowestPricePerM2) {
+          const aVal = Number(a.lot.lotDetails?.pricePerM2)
+          const bVal = Number(b.lot.lotDetails?.pricePerM2)
+          const aOrder = Number.isFinite(aVal) ? aVal : Number.POSITIVE_INFINITY
+          const bOrder = Number.isFinite(bVal) ? bVal : Number.POSITIVE_INFINITY
+          if (aOrder !== bOrder) return aOrder - bOrder
+        }
+
+        return String(a.lot.code || '').localeCompare(String(b.lot.code || ''))
+      })
+      .map(({ lot }: any) => lot)
+
+    return list
   }
 
   list = list.filter((l: any) => {
@@ -491,6 +662,10 @@ const paginatedLots = computed(() => {
   return filteredLots.value.slice(start, start + lotsPerPage)
 })
 
+const resultCount = computed(() =>
+  isPreview.value ? filteredLots.value.length : lotsTotal.value
+)
+
 const totalPages = computed(() =>
   Math.ceil((isPreview.value ? filteredLots.value.length : lotsTotal.value) / lotsPerPage)
 )
@@ -502,16 +677,56 @@ const paginationMeta = computed(() => ({
   currentPage: lotsPage.value
 }))
 
-let _lotsDebounce: ReturnType<typeof setTimeout> | null = null
-function scheduleLotsRefetch() {
-  if (_lotsDebounce) clearTimeout(_lotsDebounce)
-  _lotsDebounce = setTimeout(() => {
-    lotsPage.value = 1
-    fetchLots()
-  }, 300)
+async function applyCurrentFilters(options?: { page?: number; preserveSmartMode?: boolean; trackSearch?: boolean }) {
+  const targetPage = options?.page ?? 1
+  const requestedSmartMode = smartMode.value
+  if (!options?.preserveSmartMode && smartMode.value === 'preference') {
+    smartMode.value = 'strict'
+  }
+  lotsPage.value = targetPage
+
+  if (!isPreview.value) {
+    const params = buildLotsParams(targetPage)
+    const routeSyncPromise = syncFiltersToRoute(targetPage)
+    await fetchLots(params)
+    await routeSyncPromise
+  }
+
+  if (options?.trackSearch !== false && targetPage === 1) {
+    await tracking.trackEvent({
+      type: 'TOOL_USE',
+      category: 'LOT_SEARCH',
+      action: 'SUBMIT',
+      label: 'Busca por preferência',
+      metadata: {
+        source: 'preference_page',
+        intent: searchIntent.value || null,
+        intentLabel: searchIntent.value ? getLotSearchIntentLabel(searchIntent.value) : null,
+        requestedSmartMode,
+        appliedSmartMode: smartMode.value,
+        resultCount: isPreview.value ? filteredLots.value.length : lotsTotal.value,
+        searchQuery: searchQuery.value || null,
+        selectedTags: [...selectedFilters.value],
+        selectedTagsCount: selectedFilters.value.length,
+        exactMatch: matchMode.value === 'exact',
+        filters: {
+          minArea: parseFilterNumber(smartFilters.value.minArea),
+          maxArea: parseFilterNumber(smartFilters.value.maxArea),
+          minPrice: parseFilterNumber(smartFilters.value.minPrice),
+          maxPrice: parseFilterNumber(smartFilters.value.maxPrice),
+          maxPricePerM2: parseFilterNumber(smartFilters.value.maxPricePerM2),
+          minFrontage: parseFilterNumber(smartFilters.value.minFrontage),
+          minDepth: parseFilterNumber(smartFilters.value.minDepth),
+          sortByLowestPricePerM2: smartFilters.value.sortByLowestPricePerM2,
+        },
+      },
+    })
+  }
 }
-watch([searchQuery, selectedFilters, matchMode, smartFilters], scheduleLotsRefetch, { deep: true })
-watch(lotsPage, () => { if (!isPreview.value) fetchLots() })
+
+function handlePageChange(page: number) {
+  void applyCurrentFilters({ page, preserveSmartMode: true, trackSearch: false })
+}
 
 function toggleFilter(tag: string) {
   lotsPage.value = 1
@@ -522,8 +737,10 @@ function toggleFilter(tag: string) {
 
 function clearFilters() {
   searchQuery.value = ''
+  searchIntent.value = ''
   selectedFilters.value = []
   codesFilter.value = []
+  smartMode.value = 'strict'
   smartFilters.value = {
     minArea: '',
     maxArea: '',
@@ -535,6 +752,7 @@ function clearFilters() {
     sortByLowestPricePerM2: false
   }
   lotsPage.value = 1
+  void applyCurrentFilters({ page: 1, trackSearch: false })
 }
 
 const lotPageUrl = (lot: any) => {
@@ -551,7 +769,9 @@ onMounted(async () => {
 
     const initTags  = route.query.tags  ? (route.query.tags  as string).split(',') : []
     const initCodes = route.query.codes ? (route.query.codes as string).split(',') : []
-    const initMatch = route.query.match === 'exact' ? 'exact' : 'any'
+    const initSearchIntent = normalizeLotSearchIntent(route.query.searchIntent)
+    const initMatch = (route.query.matchMode === 'exact' || route.query.match === 'exact') ? 'exact' : 'any'
+    const initSmartMode = route.query.smartMode === 'preference' ? 'preference' : 'strict'
     const initSortByLowestPricePerM2 = route.query.sortBy === 'pricePerM2Asc'
 
     const toQueryNumber = (value: unknown) => {
@@ -571,7 +791,9 @@ onMounted(async () => {
 
     if (initTags.length)  selectedFilters.value = initTags
     if (initCodes.length) codesFilter.value = initCodes
+    searchIntent.value = initSearchIntent
     if (initMatch === 'exact') matchMode.value = 'exact'
+    smartMode.value = initSmartMode
     smartFilters.value = {
       minArea: initMinArea,
       maxArea: initMaxArea,
@@ -583,18 +805,9 @@ onMounted(async () => {
       sortByLowestPricePerM2: initSortByLowestPricePerM2
     }
 
-    const lotsParams = new URLSearchParams({ page: '1', limit: String(lotsPerPage) })
-    if (initTags.length)  lotsParams.set('tags',      initTags.join(','))
-    if (initCodes.length) lotsParams.set('codes',     initCodes.join(','))
-    if (initMatch === 'exact') lotsParams.set('matchMode', 'exact')
-    if (initMinArea) lotsParams.set('minArea', initMinArea)
-    if (initMaxArea) lotsParams.set('maxArea', initMaxArea)
-    if (initMinPrice) lotsParams.set('minPrice', initMinPrice)
-    if (initMaxPrice) lotsParams.set('maxPrice', initMaxPrice)
-    if (initMaxPricePerM2) lotsParams.set('maxPricePerM2', initMaxPricePerM2)
-    if (initMinFrontage) lotsParams.set('minFrontage', initMinFrontage)
-    if (initMinDepth) lotsParams.set('minDepth', initMinDepth)
-    if (initSortByLowestPricePerM2) lotsParams.set('sortBy', 'pricePerM2Asc')
+    const initialPage = Number(route.query.page || 1)
+    lotsPage.value = Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1
+    const lotsParams = buildLotsParams(lotsPage.value)
 
     const [p, lotsRes] = await Promise.allSettled([
       fetchPublic(baseUrl),
@@ -781,7 +994,7 @@ onMounted(async () => {
 }
 
 .v4-smart-filters-grid--slim {
-  grid-template-columns: repeat(7, minmax(92px, 1fr));
+  grid-template-columns: repeat(8, minmax(92px, 1fr));
 }
 
 .v4-smart-input {
@@ -800,7 +1013,8 @@ onMounted(async () => {
   color: #86868b;
 }
 
-.v4-smart-input input {
+.v4-smart-input input,
+.v4-smart-input select {
   border: 1px solid #d8dde6;
   border-radius: 10px;
   background: #fff;
@@ -812,7 +1026,8 @@ onMounted(async () => {
   box-sizing: border-box;
 }
 
-.v4-smart-input input:focus {
+.v4-smart-input input:focus,
+.v4-smart-input select:focus {
   outline: none;
   border-color: #0071e3;
   box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.16);
@@ -840,6 +1055,30 @@ onMounted(async () => {
 .v4-smart-toggle input {
   width: 14px;
   height: 14px;
+}
+
+.v4-search-submit {
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0071e3 0%, #0a84ff 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(0, 113, 227, 0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.v4-search-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(0, 113, 227, 0.24);
+}
+
+.v4-search-submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .v4-tags-filter {
@@ -910,6 +1149,7 @@ onMounted(async () => {
   gap: 12px;
   white-space: nowrap;
 }
+.v4-filter-loading { color: #0071e3; font-weight: 700; }
 .v4-clear-btn { color: var(--v4-primary); font-weight: 600; cursor: pointer; border-bottom: 1px dashed var(--v4-primary); }
 
 /* Results Section */
@@ -1111,6 +1351,10 @@ onMounted(async () => {
     gap: 8px;
   }
   .v4-smart-toggle--pill {
+    width: 100%;
+    justify-content: center;
+  }
+  .v4-search-submit {
     width: 100%;
     justify-content: center;
   }

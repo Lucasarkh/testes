@@ -1763,7 +1763,7 @@ function applyIdealLotFilters() {
     query.tags = idealLotSelectedTags.value.join(',')
   }
   if (idealLotExactMatch.value) {
-    query.match = 'exact'
+    query.matchMode = 'exact'
   }
   if (corretorCode) {
     query.c = corretorCode

@@ -271,6 +271,7 @@ export class PublicProjectsController {
     required: false,
     description: 'Minimum depth (height) in meters'
   })
+  @ApiQuery({ name: 'smartMode', required: false, enum: ['preference'] })
   @ApiQuery({ name: 'sortBy', required: false, enum: ['pricePerM2Asc'] })
   findPublicLots(
     @Param('projectSlug') projectSlug: string,
@@ -287,6 +288,7 @@ export class PublicProjectsController {
     @Query('maxPricePerM2') maxPricePerM2Raw?: string,
     @Query('minFrontage') minFrontageRaw?: string,
     @Query('minDepth') minDepthRaw?: string,
+    @Query('smartMode') smartMode?: 'preference',
     @Query('sortBy') sortBy?: 'pricePerM2Asc'
   ) {
     const parseNumber = (value?: string) => {
@@ -327,6 +329,7 @@ export class PublicProjectsController {
       matchMode,
       codes,
       smartFilters,
+      smartMode,
       sortBy
     );
   }

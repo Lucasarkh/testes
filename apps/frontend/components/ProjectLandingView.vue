@@ -618,8 +618,272 @@
         <a v-if="(project?.lotSummary?.available ?? 0) > 0" href="#lotes" class="v4-nav-item">Unidades</a>
         <a href="#contato" class="v4-nav-item v4-nav-cta">TENHO INTERESSE</a>
       </nav>
+
+      <Transition name="fade">
+        <div
+          v-if="showPreferenceOnboarding"
+          ref="onboardingOverlayRef"
+          class="v4-onboarding-overlay"
+          @click.self="dismissPreferenceOnboarding"
+        >
+          <div ref="onboardingCardRef" class="v4-onboarding-shell">
+            <span class="v4-onboarding-orb v4-onboarding-orb--one"></span>
+            <span class="v4-onboarding-orb v4-onboarding-orb--two"></span>
+            <span class="v4-onboarding-orb v4-onboarding-orb--three"></span>
+
+            <div class="v4-onboarding-head" data-onboarding-animate>
+              <div class="v4-onboarding-head-top">
+                <div class="v4-onboarding-head-row">
+                  <span class="v4-onboarding-step-label">{{ onboardingStepCaption }}</span>
+                  <span class="v4-onboarding-mini-note">Leva menos de 30 segundos</span>
+                </div>
+                <button class="v4-onboarding-dismiss" @click="dismissPreferenceOnboarding">Não agora</button>
+              </div>
+              <div class="v4-onboarding-progress">
+                <span ref="onboardingProgressFillRef"></span>
+              </div>
+            </div>
+
+            <div ref="onboardingContentRef" class="v4-onboarding-content">
+              <template v-if="onboardingCurrentStepKey === 'intro'">
+                <div class="v4-onboarding-intro-grid">
+                  <div class="v4-onboarding-copy" data-step-animate>
+                    <h3>Vamos personalizar sua experiência</h3>
+                    <p>
+                      Responda algumas perguntas rápidas e eu te levo direto para as unidades com mais aderência ao que você procura.
+                    </p>
+                    <div class="v4-onboarding-summary-strip">
+                      <span class="v4-onboarding-summary-pill">objetivo da busca</span>
+                      <span class="v4-onboarding-summary-pill">metragem ideal</span>
+                      <span class="v4-onboarding-summary-pill">faixa de investimento</span>
+                      <span class="v4-onboarding-summary-pill">atributos do lote</span>
+                    </div>
+                  </div>
+
+                  <div class="v4-onboarding-intro-visual" data-step-animate>
+                    <div class="v4-onboarding-preview-card v4-onboarding-preview-card--primary">
+                      <span class="v4-onboarding-preview-label">Busca guiada</span>
+                      <strong>Escolhas simples, resultado direto.</strong>
+                      <p>Sem formulários longos. Só respostas rápidas para abrir a busca certa.</p>
+                    </div>
+                    <div class="v4-onboarding-preview-stack">
+                      <div class="v4-onboarding-preview-card">
+                        <span class="v4-onboarding-preview-dot"></span>
+                        <div>
+                          <strong>{{ formatAreaValue(areaRangeBounds.min) }} ate {{ formatAreaValue(areaRangeBounds.max) }}</strong>
+                          <p>Range guiado pela metragem real das unidades disponíveis.</p>
+                        </div>
+                      </div>
+                      <div class="v4-onboarding-preview-card">
+                        <span class="v4-onboarding-preview-dot"></span>
+                        <div>
+                          <strong>{{ formatCurrencyToBrasilia(priceRangeBounds.min) }} ate {{ formatCurrencyToBrasilia(priceRangeBounds.max) }}</strong>
+                          <p>Faixa de investimento baseada no estoque atual do empreendimento.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else-if="onboardingCurrentStepKey === 'intent'">
+                <div class="v4-onboarding-step-panel">
+                  <div class="v4-onboarding-copy" data-step-animate>
+                    <h3>O que você está buscando neste momento?</h3>
+                    <p>Essa é a primeira leitura que vou usar para contextualizar sua busca e medir a intenção principal do interesse.</p>
+                  </div>
+
+                  <div class="v4-onboarding-summary-card" data-step-animate>
+                    <span class="v4-onboarding-summary-title">Objetivo atual</span>
+                    <div class="v4-onboarding-summary-chips">
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': !searchIntent }">
+                        {{ searchIntent ? getLotSearchIntentLabel(searchIntent) : 'Selecione o objetivo principal' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="v4-onboarding-tag-cloud" data-step-animate>
+                  <button
+                    v-for="option in LOT_SEARCH_INTENT_OPTIONS"
+                    :key="option.value"
+                    class="v4-onboarding-tag"
+                    :class="{ active: searchIntent === option.value }"
+                    @click="searchIntent = option.value"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </template>
+
+              <template v-else-if="onboardingCurrentStepKey === 'area'">
+                <div class="v4-onboarding-step-panel">
+                  <div class="v4-onboarding-copy" data-step-animate>
+                    <h3>Qual tamanho de terreno faz mais sentido para você?</h3>
+                    <p>Escolha uma faixa para priorizar as unidades com a metragem mais próxima do seu plano.</p>
+                  </div>
+
+                  <div class="v4-onboarding-summary-card" data-step-animate>
+                    <span class="v4-onboarding-summary-title">Resumo até aqui</span>
+                    <div class="v4-onboarding-summary-chips">
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': !searchIntent }">
+                        {{ searchIntent ? getLotSearchIntentLabel(searchIntent) : 'Objetivo ainda não definido' }}
+                      </span>
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': onboardingAreaRangeLabel === 'Qualquer faixa' }">
+                        {{ onboardingAreaRangeLabel === 'Qualquer faixa' ? 'Sem metragem definida ainda' : onboardingAreaRangeLabel }}
+                      </span>
+                      <span class="v4-onboarding-chip is-empty">{{ onboardingPriceRangeLabel === 'Qualquer faixa' ? 'Sem faixa de valor' : onboardingPriceRangeLabel }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="v4-smart-range-card v4-smart-range-card--guided" data-step-animate>
+                  <div class="v4-smart-range-head">
+                    <div>
+                      <span class="v4-smart-range-label">Faixa de metragem</span>
+                      <strong>{{ onboardingAreaRangeLabel }}</strong>
+                    </div>
+                    <span class="v4-smart-range-hint">Passos de {{ areaRangeStep }} m²</span>
+                  </div>
+
+                  <div class="v4-dual-range">
+                    <div class="v4-dual-range-track" :style="onboardingAreaTrackStyle"></div>
+                    <input class="v4-dual-range-input" type="range" :min="areaRangeBounds.min" :max="areaRangeBounds.max" :step="areaRangeStep" :value="currentOnboardingAreaRange.min" @input="updateOnboardingAreaMin(Number(($event.target as HTMLInputElement).value))" />
+                    <input class="v4-dual-range-input" type="range" :min="areaRangeBounds.min" :max="areaRangeBounds.max" :step="areaRangeStep" :value="currentOnboardingAreaRange.max" @input="updateOnboardingAreaMax(Number(($event.target as HTMLInputElement).value))" />
+                  </div>
+
+                  <div class="v4-smart-range-values">
+                    <div class="v4-smart-range-pill">
+                      <span>Min</span>
+                      <strong>{{ formatAreaValue(currentOnboardingAreaRange.min) }}</strong>
+                    </div>
+                    <div class="v4-smart-range-pill">
+                      <span>Max</span>
+                      <strong>{{ formatAreaValue(currentOnboardingAreaRange.max) }}</strong>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else-if="onboardingCurrentStepKey === 'price'">
+                <div class="v4-onboarding-step-panel">
+                  <div class="v4-onboarding-copy" data-step-animate>
+                    <h3>Em qual faixa de valor você quer concentrar a busca?</h3>
+                    <p>Isso ajuda a abrir resultados mais próximos da sua realidade de investimento logo no primeiro clique.</p>
+                  </div>
+
+                  <div class="v4-onboarding-summary-card" data-step-animate>
+                    <span class="v4-onboarding-summary-title">Resumo até aqui</span>
+                    <div class="v4-onboarding-summary-chips">
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': !searchIntent }">
+                        {{ searchIntent ? getLotSearchIntentLabel(searchIntent) : 'Objetivo ainda não definido' }}
+                      </span>
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': onboardingAreaRangeLabel === 'Qualquer faixa' }">
+                        {{ onboardingAreaRangeLabel === 'Qualquer faixa' ? 'Sem metragem definida ainda' : onboardingAreaRangeLabel }}
+                      </span>
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': onboardingPriceRangeLabel === 'Qualquer faixa' }">
+                        {{ onboardingPriceRangeLabel === 'Qualquer faixa' ? 'Sem faixa de valor' : onboardingPriceRangeLabel }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="v4-smart-range-card v4-smart-range-card--guided" data-step-animate>
+                  <div class="v4-smart-range-head">
+                    <div>
+                      <span class="v4-smart-range-label">Faixa de investimento</span>
+                      <strong>{{ onboardingPriceRangeLabel }}</strong>
+                    </div>
+                    <span class="v4-smart-range-hint">Passos de {{ formatCurrencyToBrasilia(priceRangeStep) }}</span>
+                  </div>
+
+                  <div class="v4-dual-range">
+                    <div class="v4-dual-range-track" :style="onboardingPriceTrackStyle"></div>
+                    <input class="v4-dual-range-input" type="range" :min="priceRangeBounds.min" :max="priceRangeBounds.max" :step="priceRangeStep" :value="currentOnboardingPriceRange.min" @input="updateOnboardingPriceMin(Number(($event.target as HTMLInputElement).value))" />
+                    <input class="v4-dual-range-input" type="range" :min="priceRangeBounds.min" :max="priceRangeBounds.max" :step="priceRangeStep" :value="currentOnboardingPriceRange.max" @input="updateOnboardingPriceMax(Number(($event.target as HTMLInputElement).value))" />
+                  </div>
+
+                  <div class="v4-smart-range-values">
+                    <div class="v4-smart-range-pill">
+                      <span>Min</span>
+                      <strong>{{ formatCurrencyToBrasilia(currentOnboardingPriceRange.min) }}</strong>
+                    </div>
+                    <div class="v4-smart-range-pill">
+                      <span>Max</span>
+                      <strong>{{ formatCurrencyToBrasilia(currentOnboardingPriceRange.max) }}</strong>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else-if="onboardingCurrentStepKey === 'tags'">
+                <div class="v4-onboarding-step-panel">
+                  <div class="v4-onboarding-copy" data-step-animate>
+                    <h3>Existe algum atributo que pesa mais na sua decisão?</h3>
+                    <p>Você pode marcar vários. Se não escolher nenhum, eu mostro as melhores oportunidades sem travar a busca.</p>
+                  </div>
+
+                  <div class="v4-onboarding-summary-card" data-step-animate>
+                    <span class="v4-onboarding-summary-title">O que já ficou definido</span>
+                    <div class="v4-onboarding-summary-chips">
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': !searchIntent }">
+                        {{ searchIntent ? getLotSearchIntentLabel(searchIntent) : 'Objetivo ainda não definido' }}
+                      </span>
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': onboardingAreaRangeLabel === 'Qualquer faixa' }">
+                        {{ onboardingAreaRangeLabel === 'Qualquer faixa' ? 'Metragem livre' : onboardingAreaRangeLabel }}
+                      </span>
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': onboardingPriceRangeLabel === 'Qualquer faixa' }">
+                        {{ onboardingPriceRangeLabel === 'Qualquer faixa' ? 'Valor livre' : onboardingPriceRangeLabel }}
+                      </span>
+                      <span class="v4-onboarding-chip" :class="{ 'is-empty': !onboardingSelectedTags.length }">
+                        {{ onboardingSelectedTags.length ? `${onboardingSelectedTags.length} atributos selecionados` : 'Sem atributo obrigatório' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="v4-onboarding-tag-cloud" data-step-animate>
+                  <button
+                    v-for="tag in allAvailableTags"
+                    :key="tag"
+                    class="v4-onboarding-tag"
+                    :class="{ active: onboardingSelectedTags.includes(tag) }"
+                    @click="toggleOnboardingTag(tag)"
+                  >
+                    {{ tag }}
+                  </button>
+                </div>
+              </template>
+            </div>
+
+            <div class="v4-onboarding-footer" data-onboarding-animate>
+              <div class="v4-onboarding-footer-copy">
+                <strong>{{ onboardingSearchPreviewHeadline }}</strong>
+                <span>{{ onboardingSearchPreviewBody }}</span>
+              </div>
+
+              <div class="v4-onboarding-footer-actions">
+                <button
+                  v-if="onboardingStepIndex > 0"
+                  class="v4-onboarding-btn v4-onboarding-btn--ghost"
+                  @click="goToPreviousOnboardingStep"
+                >
+                  Voltar
+                </button>
+                <button
+                  class="v4-onboarding-btn v4-onboarding-btn--primary"
+                  @click="handleOnboardingPrimaryAction"
+                >
+                  {{ onboardingPrimaryCtaLabel }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
       <!-- Floating Search CTA -->
-      <div v-if="allAvailableTags.length > 0" class="v4-floating-cta">
+      <div v-if="preferenceSearchAvailable" class="v4-floating-cta">
         <button class="v4-cta-btn-animated" @click="() => { tracking.trackClick('CTA: Busca de Lotes Animado'); toggleFilterModal(); }">
           <div class="v4-cta-inner">
             <span class="v4-cta-icon-spark"><i class="bi bi-search" aria-hidden="true"></i></span>
@@ -641,38 +905,91 @@
             
             <div class="v4-modal-body">
               <p style="margin-bottom: 24px; color: #86868b; font-size: 15px;">Escolha as características que você deseja para o seu novo lote.</p>
-              
-              <span class="v4-modal-label">Características</span>
-              <div class="v4-modal-tags">
-                <button 
-                  v-for="tag in allAvailableTags" 
-                  :key="tag" 
+
+              <span class="v4-modal-label">O que você está buscando?</span>
+              <div class="v4-modal-tags" style="margin-bottom: 24px;">
+                <button
+                  v-for="option in LOT_SEARCH_INTENT_OPTIONS"
+                  :key="option.value"
                   class="v4-modal-tag"
-                  :class="{ active: selectedFilterTags.includes(tag) }"
-                  @click="toggleFilterTag(tag)"
+                  :class="{ active: searchIntent === option.value }"
+                  @click="searchIntent = option.value"
                 >
-                  {{ tag }}
+                  {{ option.label }}
                 </button>
               </div>
 
+              <template v-if="allAvailableTags.length">
+                <span class="v4-modal-label">Características</span>
+                <div class="v4-modal-tags">
+                  <button 
+                    v-for="tag in allAvailableTags" 
+                    :key="tag" 
+                    class="v4-modal-tag"
+                    :class="{ active: selectedFilterTags.includes(tag) }"
+                    @click="toggleFilterTag(tag)"
+                  >
+                    {{ tag }}
+                  </button>
+                </div>
+              </template>
+
               <span class="v4-modal-label">Busca Inteligente</span>
               <div class="v4-smart-grid">
-                <label class="v4-smart-field">
-                  <span>Área mínima (m²)</span>
-                  <input v-model="smartSearchForm.minArea" type="number" min="0" step="1" placeholder="Ex: 250" />
-                </label>
-                <label class="v4-smart-field">
-                  <span>Área máxima (m²)</span>
-                  <input v-model="smartSearchForm.maxArea" type="number" min="0" step="1" placeholder="Ex: 420" />
-                </label>
-                <label class="v4-smart-field">
-                  <span>Valor mínimo (R$)</span>
-                  <input v-model="smartSearchForm.minPrice" type="number" min="0" step="1000" placeholder="Ex: 90000" />
-                </label>
-                <label class="v4-smart-field">
-                  <span>Valor máximo (R$)</span>
-                  <input v-model="smartSearchForm.maxPrice" type="number" min="0" step="1000" placeholder="Ex: 180000" />
-                </label>
+                <div class="v4-smart-range-card v4-smart-range-card--modal v4-smart-grid-span-2">
+                  <div class="v4-smart-range-head">
+                    <div>
+                      <span class="v4-smart-range-label">Faixa de área</span>
+                      <strong>{{ smartAreaRangeLabel }}</strong>
+                    </div>
+                    <span class="v4-smart-range-hint">Disponível de {{ formatAreaValue(areaRangeBounds.min) }} a {{ formatAreaValue(areaRangeBounds.max) }}</span>
+                  </div>
+
+                  <div class="v4-dual-range">
+                    <div class="v4-dual-range-track" :style="smartAreaTrackStyle"></div>
+                    <input class="v4-dual-range-input" type="range" :min="areaRangeBounds.min" :max="areaRangeBounds.max" :step="areaRangeStep" :value="currentSmartAreaRange.min" @input="updateSmartAreaMin(Number(($event.target as HTMLInputElement).value))" />
+                    <input class="v4-dual-range-input" type="range" :min="areaRangeBounds.min" :max="areaRangeBounds.max" :step="areaRangeStep" :value="currentSmartAreaRange.max" @input="updateSmartAreaMax(Number(($event.target as HTMLInputElement).value))" />
+                  </div>
+
+                  <div class="v4-smart-range-values">
+                    <div class="v4-smart-range-pill">
+                      <span>Min</span>
+                      <strong>{{ formatAreaValue(currentSmartAreaRange.min) }}</strong>
+                    </div>
+                    <div class="v4-smart-range-pill">
+                      <span>Max</span>
+                      <strong>{{ formatAreaValue(currentSmartAreaRange.max) }}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="v4-smart-range-card v4-smart-range-card--modal v4-smart-grid-span-2">
+                  <div class="v4-smart-range-head">
+                    <div>
+                      <span class="v4-smart-range-label">Faixa de valor</span>
+                      <strong>{{ smartPriceRangeLabel }}</strong>
+                    </div>
+                    <span class="v4-smart-range-hint">Disponível de {{ formatCurrencyToBrasilia(priceRangeBounds.min) }} a {{ formatCurrencyToBrasilia(priceRangeBounds.max) }}</span>
+                  </div>
+
+                  <div class="v4-dual-range">
+                    <div class="v4-dual-range-track" :style="smartPriceTrackStyle"></div>
+                    <input class="v4-dual-range-input" type="range" :min="priceRangeBounds.min" :max="priceRangeBounds.max" :step="priceRangeStep" :value="currentSmartPriceRange.min" @input="updateSmartPriceMin(Number(($event.target as HTMLInputElement).value))" />
+                    <input class="v4-dual-range-input" type="range" :min="priceRangeBounds.min" :max="priceRangeBounds.max" :step="priceRangeStep" :value="currentSmartPriceRange.max" @input="updateSmartPriceMax(Number(($event.target as HTMLInputElement).value))" />
+                  </div>
+
+                  <div class="v4-smart-range-values">
+                    <div class="v4-smart-range-pill">
+                      <span>Min</span>
+                      <strong>{{ formatCurrencyToBrasilia(currentSmartPriceRange.min) }}</strong>
+                    </div>
+                    <div class="v4-smart-range-pill">
+                      <span>Max</span>
+                      <strong>{{ formatCurrencyToBrasilia(currentSmartPriceRange.max) }}</strong>
+                    </div>
+                  </div>
+                </div>
+
                 <label class="v4-smart-field">
                   <span>Teto de valor por m² (R$)</span>
                   <input v-model="smartSearchForm.maxPricePerM2" type="number" min="0" step="10" placeholder="Ex: 650" />
@@ -707,7 +1024,7 @@
 
             <div class="v4-modal-footer">
               <button class="v4-btn-modal-search" @click="applyFiltersAndSearch">
-                {{ selectedFilterTags.length ? `Ver ${filteredCount} unidades compatíveis` : 'Ver todas as unidades' }}
+                {{ hasAnySmartFilter || selectedFilterTags.length ? `Ver ${filteredCount} unidades compatíveis` : 'Ver todas as unidades' }}
               </button>
               <button v-if="hasAnySmartFilter || selectedFilterTags.length" class="v4-btn-modal-clear" @click="resetIdealLotFilters">
                 Limpar seleção
@@ -721,6 +1038,8 @@
 </template>
 
 <script setup lang="ts">
+import { gsap } from 'gsap'
+
 import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
 
@@ -751,6 +1070,7 @@ import type { Panorama } from '~/composables/panorama/types'
 import PanoramaViewer from '~/components/panorama/PanoramaViewer.vue'
 import { useTracking } from '~/composables/useTracking'
 import { useTrackingStore } from '~/stores/tracking'
+import { LOT_SEARCH_INTENT_OPTIONS, getLotSearchIntentLabel, normalizeLotSearchIntent, type LotSearchIntent } from '~/utils/lotSearchIntent'
 import { formatCurrencyToBrasilia } from '~/utils/money'
 const corretorCode = route.query.c || ''
 const projectUrl = computed(() => {
@@ -883,9 +1203,24 @@ const normalizeBlockLabel = (value?: string | null) => {
   return withoutPrefix || block
 }
 
+type IdealLotCriteria = {
+  searchIntent: LotSearchIntent | null
+  selectedTags: string[]
+  exactMatch: boolean
+  minArea: unknown
+  maxArea: unknown
+  minPrice: unknown
+  maxPrice: unknown
+  maxPricePerM2: unknown
+  minFrontage: unknown
+  minDepth: unknown
+  sortByLowestPricePerM2: boolean
+}
+
 const isFilterModalOpen = ref(false)
 const selectedFilterTags = ref<string[]>([])
 const exactMatchMode = ref(false)
+const searchIntent = ref<LotSearchIntent | ''>(normalizeLotSearchIntent(route.query.searchIntent))
 const smartSearchForm = ref({
   minArea: '',
   maxArea: '',
@@ -896,6 +1231,25 @@ const smartSearchForm = ref({
   minDepth: '',
   sortByLowestPricePerM2: false
 })
+
+const showPreferenceOnboarding = ref(false)
+const onboardingStepIndex = ref(0)
+const onboardingSelectedTags = ref<string[]>([])
+const onboardingAreaMin = ref<number | null>(null)
+const onboardingAreaMax = ref<number | null>(null)
+const onboardingPriceMin = ref<number | null>(null)
+const onboardingPriceMax = ref<number | null>(null)
+const onboardingOverlayRef = ref<HTMLElement | null>(null)
+const onboardingCardRef = ref<HTMLElement | null>(null)
+const onboardingContentRef = ref<HTMLElement | null>(null)
+const onboardingProgressFillRef = ref<HTMLElement | null>(null)
+const preferenceOnboardingTimerId = ref<number | null>(null)
+
+const syncBodyScrollLock = () => {
+  if (!process.client) return
+  const shouldLock = isFilterModalOpen.value || showSchedulingModal.value || showPreferenceOnboarding.value
+  document.body.style.overflow = shouldLock ? 'hidden' : ''
+}
 
 const parseSmartNumber = (value: unknown) => {
   if (value == null) return null
@@ -913,6 +1267,7 @@ const parseSmartNumber = (value: unknown) => {
 const hasAnySmartFilter = computed(() => {
   const f = smartSearchForm.value
   return !!(
+    searchIntent.value ||
     f.minArea ||
     f.maxArea ||
     f.minPrice ||
@@ -924,33 +1279,6 @@ const hasAnySmartFilter = computed(() => {
   )
 })
 
-const matchesSmartFilters = (lot: any) => {
-  const details = lot?.lotDetails || {}
-  const areaM2 = Number(details.areaM2)
-  const price = Number(details.price)
-  const pricePerM2 = Number(details.pricePerM2)
-  const frontage = Number(details.frontage)
-  const depth = Number(details.depth)
-
-  const minArea = parseSmartNumber(smartSearchForm.value.minArea)
-  const maxArea = parseSmartNumber(smartSearchForm.value.maxArea)
-  const minPrice = parseSmartNumber(smartSearchForm.value.minPrice)
-  const maxPrice = parseSmartNumber(smartSearchForm.value.maxPrice)
-  const maxPricePerM2 = parseSmartNumber(smartSearchForm.value.maxPricePerM2)
-  const minFrontage = parseSmartNumber(smartSearchForm.value.minFrontage)
-  const minDepth = parseSmartNumber(smartSearchForm.value.minDepth)
-
-  if (minArea != null && (!Number.isFinite(areaM2) || areaM2 < minArea)) return false
-  if (maxArea != null && (!Number.isFinite(areaM2) || areaM2 > maxArea)) return false
-  if (minPrice != null && (!Number.isFinite(price) || price < minPrice)) return false
-  if (maxPrice != null && (!Number.isFinite(price) || price > maxPrice)) return false
-  if (maxPricePerM2 != null && (!Number.isFinite(pricePerM2) || pricePerM2 > maxPricePerM2)) return false
-  if (minFrontage != null && (!Number.isFinite(frontage) || frontage < minFrontage)) return false
-  if (minDepth != null && (!Number.isFinite(depth) || depth < minDepth)) return false
-
-  return true
-}
-
 const allAvailableTags = computed(() => {
   const tags = new Set<string>()
   unifiedAvailableLots.value.forEach((l: any) => {
@@ -961,39 +1289,588 @@ const allAvailableTags = computed(() => {
   return Array.from(tags).sort()
 })
 
-const filteredCount = computed(() => {
-  return unifiedAvailableLots.value.filter((l: any) => {
-    if (!matchesSmartFilters(l)) return false
+const preferenceSearchAvailable = computed(() => unifiedAvailableLots.value.length > 0)
 
-    if (selectedFilterTags.value.length === 0) return true
-    const lotTags = l.lotDetails?.tags || []
-    if (exactMatchMode.value) {
-      return selectedFilterTags.value.every(t => lotTags.includes(t))
+const preferenceOnboardingStorageKey = computed(() => {
+  const projectKey = String(project.value?.id || projectSlug.value || previewId.value || 'unknown')
+  return `lotio:preference-onboarding:${projectKey}`
+})
+
+const buildModalCriteria = (): IdealLotCriteria => ({
+  searchIntent: searchIntent.value || null,
+  selectedTags: [...selectedFilterTags.value],
+  exactMatch: exactMatchMode.value,
+  minArea: smartSearchForm.value.minArea,
+  maxArea: smartSearchForm.value.maxArea,
+  minPrice: smartSearchForm.value.minPrice,
+  maxPrice: smartSearchForm.value.maxPrice,
+  maxPricePerM2: smartSearchForm.value.maxPricePerM2,
+  minFrontage: smartSearchForm.value.minFrontage,
+  minDepth: smartSearchForm.value.minDepth,
+  sortByLowestPricePerM2: smartSearchForm.value.sortByLowestPricePerM2,
+})
+
+const matchesPreferenceRange = (rawValue: number | null | undefined, minimum?: number | null, maximum?: number | null) => {
+  if (rawValue == null || Number.isNaN(rawValue)) return false
+  if (minimum != null && rawValue < minimum) return false
+  if (maximum != null && rawValue > maximum) return false
+  return true
+}
+
+const getPreferenceMatchScore = (lot: any, criteria: IdealLotCriteria) => {
+  const details = lot?.lotDetails || {}
+  const areaM2 = Number(details.areaM2)
+  const price = Number(details.price)
+  const pricePerM2 = Number(details.pricePerM2)
+  const frontage = Number(details.frontage)
+  const depth = Number(details.depth)
+
+  const minArea = parseSmartNumber(criteria.minArea)
+  const maxArea = parseSmartNumber(criteria.maxArea)
+  const minPrice = parseSmartNumber(criteria.minPrice)
+  const maxPrice = parseSmartNumber(criteria.maxPrice)
+  const maxPricePerM2 = parseSmartNumber(criteria.maxPricePerM2)
+  const minFrontage = parseSmartNumber(criteria.minFrontage)
+  const minDepth = parseSmartNumber(criteria.minDepth)
+
+  let score = 0
+  const lotTags = details.tags || []
+  if (criteria.selectedTags.length > 0) {
+    const tagMatched = criteria.exactMatch
+      ? criteria.selectedTags.every(tag => lotTags.includes(tag))
+      : criteria.selectedTags.some(tag => lotTags.includes(tag))
+
+    if (tagMatched) {
+      score += criteria.exactMatch ? Math.max(2, criteria.selectedTags.length) : 2
     }
-    return selectedFilterTags.value.some(t => lotTags.includes(t))
-  }).length
+  }
+
+  if ((minArea != null || maxArea != null) && matchesPreferenceRange(Number.isFinite(areaM2) ? areaM2 : null, minArea, maxArea)) score += 1
+  if ((minPrice != null || maxPrice != null) && matchesPreferenceRange(Number.isFinite(price) ? price : null, minPrice, maxPrice)) score += 1
+  if (maxPricePerM2 != null && matchesPreferenceRange(Number.isFinite(pricePerM2) ? pricePerM2 : null, null, maxPricePerM2)) score += 1
+  if (minFrontage != null && matchesPreferenceRange(Number.isFinite(frontage) ? frontage : null, minFrontage, null)) score += 1
+  if (minDepth != null && matchesPreferenceRange(Number.isFinite(depth) ? depth : null, minDepth, null)) score += 1
+
+  return score
+}
+
+const countLotsByCriteria = (criteria: IdealLotCriteria) => {
+  const hasAnyCriteria = Boolean(
+    criteria.searchIntent ||
+    criteria.selectedTags.length ||
+    parseSmartNumber(criteria.minArea) != null ||
+    parseSmartNumber(criteria.maxArea) != null ||
+    parseSmartNumber(criteria.minPrice) != null ||
+    parseSmartNumber(criteria.maxPrice) != null ||
+    parseSmartNumber(criteria.maxPricePerM2) != null ||
+    parseSmartNumber(criteria.minFrontage) != null ||
+    parseSmartNumber(criteria.minDepth) != null
+  )
+
+  return unifiedAvailableLots.value.filter((lot: any) => !hasAnyCriteria || getPreferenceMatchScore(lot, criteria) > 0).length
+}
+
+const buildQueryFromCriteria = (criteria: IdealLotCriteria) => {
+  const query: Record<string, string> = {}
+
+  if (criteria.searchIntent) {
+    query.searchIntent = criteria.searchIntent
+  }
+  if (criteria.selectedTags.length) {
+    query.tags = criteria.selectedTags.join(',')
+  }
+  if (criteria.exactMatch) {
+    query.matchMode = 'exact'
+  }
+
+  const minArea = parseSmartNumber(criteria.minArea)
+  const maxArea = parseSmartNumber(criteria.maxArea)
+  const minPrice = parseSmartNumber(criteria.minPrice)
+  const maxPrice = parseSmartNumber(criteria.maxPrice)
+  const maxPricePerM2 = parseSmartNumber(criteria.maxPricePerM2)
+  const minFrontage = parseSmartNumber(criteria.minFrontage)
+  const minDepth = parseSmartNumber(criteria.minDepth)
+
+  if (minArea != null) query.minArea = String(minArea)
+  if (maxArea != null) query.maxArea = String(maxArea)
+  if (minPrice != null) query.minPrice = String(minPrice)
+  if (maxPrice != null) query.maxPrice = String(maxPrice)
+  if (maxPricePerM2 != null) query.maxPricePerM2 = String(maxPricePerM2)
+  if (minFrontage != null) query.minFrontage = String(minFrontage)
+  if (minDepth != null) query.minDepth = String(minDepth)
+  if (criteria.sortByLowestPricePerM2) {
+    query.sortBy = 'pricePerM2Asc'
+  }
+
+  query.smartMode = 'preference'
+
+  if (corretorCode) {
+    query.c = String(corretorCode)
+  }
+
+  return query
+}
+
+type SearchTrackingSource = 'timed_onboarding' | 'smart_modal'
+
+const buildSearchTrackingMetadata = (criteria: IdealLotCriteria, source: SearchTrackingSource) => {
+  const resultCount = countLotsByCriteria(criteria)
+  const selectedIntent = criteria.searchIntent || null
+  return {
+    source,
+    intent: selectedIntent,
+    intentLabel: selectedIntent ? getLotSearchIntentLabel(selectedIntent) : null,
+    resultCount,
+    smartMode: 'preference',
+    selectedTags: [...criteria.selectedTags],
+    selectedTagsCount: criteria.selectedTags.length,
+    exactMatch: criteria.exactMatch,
+    sortByLowestPricePerM2: criteria.sortByLowestPricePerM2,
+    filters: {
+      minArea: parseSmartNumber(criteria.minArea),
+      maxArea: parseSmartNumber(criteria.maxArea),
+      minPrice: parseSmartNumber(criteria.minPrice),
+      maxPrice: parseSmartNumber(criteria.maxPrice),
+      maxPricePerM2: parseSmartNumber(criteria.maxPricePerM2),
+      minFrontage: parseSmartNumber(criteria.minFrontage),
+      minDepth: parseSmartNumber(criteria.minDepth),
+    },
+  }
+}
+
+const trackSearchSubmission = async (criteria: IdealLotCriteria, source: SearchTrackingSource) => {
+  const label = source === 'timed_onboarding' ? 'Busca guiada 7s' : 'Busca inteligente modal'
+  await tracking.trackEvent({
+    type: 'TOOL_USE',
+    category: 'LOT_SEARCH',
+    action: 'SUBMIT',
+    label,
+    metadata: buildSearchTrackingMetadata(criteria, source),
+  })
+}
+
+const navigateToIdealLots = async (criteria: IdealLotCriteria, source: SearchTrackingSource) => {
+  await trackSearchSubmission(criteria, source)
+  isFilterModalOpen.value = false
+  showPreferenceOnboarding.value = false
+  syncBodyScrollLock()
+
+  await navigateTo({
+    path: pathPrefix.value + '/unidades',
+    query: buildQueryFromCriteria(criteria),
+  })
+}
+
+const getFiniteSortedValues = (values: unknown[]) => {
+  return values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b)
+}
+
+const buildRangeBounds = (values: number[], fallbackMin: number, fallbackMax: number) => {
+  const minimum = values[0] ?? fallbackMin
+  const maximum = values[values.length - 1] ?? fallbackMax
+  return {
+    min: Math.min(minimum, maximum),
+    max: Math.max(minimum, maximum),
+  }
+}
+
+const getRangeStep = (spread: number, type: 'area' | 'price') => {
+  if (type === 'area') {
+    if (spread <= 150) return 10
+    if (spread <= 400) return 25
+    if (spread <= 900) return 50
+    return 100
+  }
+
+  if (spread <= 200000) return 10000
+  if (spread <= 600000) return 25000
+  if (spread <= 1200000) return 50000
+  return 100000
+}
+
+const normalizeStepValue = (value: number, bounds: { min: number; max: number }, step: number) => {
+  const clamped = Math.max(bounds.min, Math.min(bounds.max, value))
+  const snapped = bounds.min + Math.round((clamped - bounds.min) / step) * step
+  return Math.max(bounds.min, Math.min(bounds.max, snapped))
+}
+
+const buildSliderRangeStyle = (min: number, max: number, bounds: { min: number; max: number }) => {
+  const spread = Math.max(1, bounds.max - bounds.min)
+  const start = ((min - bounds.min) / spread) * 100
+  const end = ((max - bounds.min) / spread) * 100
+  return {
+    background: `linear-gradient(90deg, rgba(148, 163, 184, 0.28) 0%, rgba(148, 163, 184, 0.28) ${start}%, rgba(0, 113, 227, 0.94) ${start}%, rgba(0, 153, 255, 0.94) ${end}%, rgba(148, 163, 184, 0.28) ${end}%, rgba(148, 163, 184, 0.28) 100%)`,
+  }
+}
+
+const formatAreaValue = (value: number) => `${Math.round(value)} m²`
+
+const formatSmartRangeLabel = (min: number, max: number, bounds: { min: number; max: number }, formatter: (value: number) => string) => {
+  const atFullRange = min === bounds.min && max === bounds.max
+  if (atFullRange) return 'Qualquer faixa'
+  if (min === max) return formatter(min)
+  if (min === bounds.min) return `Até ${formatter(max)}`
+  if (max === bounds.max) return `A partir de ${formatter(min)}`
+  return `${formatter(min)} a ${formatter(max)}`
+}
+
+const availableAreaValues = computed(() => {
+  return getFiniteSortedValues(unifiedAvailableLots.value.map((lot: any) => lot?.lotDetails?.areaM2))
+})
+
+const availablePriceValues = computed(() => {
+  return getFiniteSortedValues(unifiedAvailableLots.value.map((lot: any) => lot?.lotDetails?.price))
+})
+
+const areaRangeBounds = computed(() => buildRangeBounds(availableAreaValues.value, 250, 500))
+const priceRangeBounds = computed(() => buildRangeBounds(availablePriceValues.value, 150000, 350000))
+const areaRangeStep = computed(() => getRangeStep(areaRangeBounds.value.max - areaRangeBounds.value.min, 'area'))
+const priceRangeStep = computed(() => getRangeStep(priceRangeBounds.value.max - priceRangeBounds.value.min, 'price'))
+
+const currentSmartAreaRange = computed(() => ({
+  min: parseSmartNumber(smartSearchForm.value.minArea) ?? areaRangeBounds.value.min,
+  max: parseSmartNumber(smartSearchForm.value.maxArea) ?? areaRangeBounds.value.max,
+}))
+
+const currentSmartPriceRange = computed(() => ({
+  min: parseSmartNumber(smartSearchForm.value.minPrice) ?? priceRangeBounds.value.min,
+  max: parseSmartNumber(smartSearchForm.value.maxPrice) ?? priceRangeBounds.value.max,
+}))
+
+const currentOnboardingAreaRange = computed(() => ({
+  min: onboardingAreaMin.value ?? areaRangeBounds.value.min,
+  max: onboardingAreaMax.value ?? areaRangeBounds.value.max,
+}))
+
+const currentOnboardingPriceRange = computed(() => ({
+  min: onboardingPriceMin.value ?? priceRangeBounds.value.min,
+  max: onboardingPriceMax.value ?? priceRangeBounds.value.max,
+}))
+
+const smartAreaRangeLabel = computed(() => {
+  return formatSmartRangeLabel(currentSmartAreaRange.value.min, currentSmartAreaRange.value.max, areaRangeBounds.value, formatAreaValue)
+})
+
+const smartPriceRangeLabel = computed(() => {
+  return formatSmartRangeLabel(currentSmartPriceRange.value.min, currentSmartPriceRange.value.max, priceRangeBounds.value, formatCurrencyToBrasilia)
+})
+
+const onboardingAreaRangeLabel = computed(() => {
+  return formatSmartRangeLabel(currentOnboardingAreaRange.value.min, currentOnboardingAreaRange.value.max, areaRangeBounds.value, formatAreaValue)
+})
+
+const onboardingPriceRangeLabel = computed(() => {
+  return formatSmartRangeLabel(currentOnboardingPriceRange.value.min, currentOnboardingPriceRange.value.max, priceRangeBounds.value, formatCurrencyToBrasilia)
+})
+
+const smartAreaTrackStyle = computed(() => buildSliderRangeStyle(currentSmartAreaRange.value.min, currentSmartAreaRange.value.max, areaRangeBounds.value))
+const smartPriceTrackStyle = computed(() => buildSliderRangeStyle(currentSmartPriceRange.value.min, currentSmartPriceRange.value.max, priceRangeBounds.value))
+const onboardingAreaTrackStyle = computed(() => buildSliderRangeStyle(currentOnboardingAreaRange.value.min, currentOnboardingAreaRange.value.max, areaRangeBounds.value))
+const onboardingPriceTrackStyle = computed(() => buildSliderRangeStyle(currentOnboardingPriceRange.value.min, currentOnboardingPriceRange.value.max, priceRangeBounds.value))
+
+const syncSmartAreaRange = (nextMin: number, nextMax: number) => {
+  const min = normalizeStepValue(nextMin, areaRangeBounds.value, areaRangeStep.value)
+  const max = normalizeStepValue(nextMax, areaRangeBounds.value, areaRangeStep.value)
+  const orderedMin = Math.min(min, max)
+  const orderedMax = Math.max(min, max)
+
+  smartSearchForm.value.minArea = orderedMin === areaRangeBounds.value.min ? '' : String(orderedMin)
+  smartSearchForm.value.maxArea = orderedMax === areaRangeBounds.value.max ? '' : String(orderedMax)
+}
+
+const syncSmartPriceRange = (nextMin: number, nextMax: number) => {
+  const min = normalizeStepValue(nextMin, priceRangeBounds.value, priceRangeStep.value)
+  const max = normalizeStepValue(nextMax, priceRangeBounds.value, priceRangeStep.value)
+  const orderedMin = Math.min(min, max)
+  const orderedMax = Math.max(min, max)
+
+  smartSearchForm.value.minPrice = orderedMin === priceRangeBounds.value.min ? '' : String(orderedMin)
+  smartSearchForm.value.maxPrice = orderedMax === priceRangeBounds.value.max ? '' : String(orderedMax)
+}
+
+const updateSmartAreaMin = (value: number) => {
+  syncSmartAreaRange(value, currentSmartAreaRange.value.max)
+}
+
+const updateSmartAreaMax = (value: number) => {
+  syncSmartAreaRange(currentSmartAreaRange.value.min, value)
+}
+
+const updateSmartPriceMin = (value: number) => {
+  syncSmartPriceRange(value, currentSmartPriceRange.value.max)
+}
+
+const updateSmartPriceMax = (value: number) => {
+  syncSmartPriceRange(currentSmartPriceRange.value.min, value)
+}
+
+const syncOnboardingAreaRange = (nextMin: number, nextMax: number) => {
+  const min = normalizeStepValue(nextMin, areaRangeBounds.value, areaRangeStep.value)
+  const max = normalizeStepValue(nextMax, areaRangeBounds.value, areaRangeStep.value)
+  onboardingAreaMin.value = Math.min(min, max)
+  onboardingAreaMax.value = Math.max(min, max)
+}
+
+const syncOnboardingPriceRange = (nextMin: number, nextMax: number) => {
+  const min = normalizeStepValue(nextMin, priceRangeBounds.value, priceRangeStep.value)
+  const max = normalizeStepValue(nextMax, priceRangeBounds.value, priceRangeStep.value)
+  onboardingPriceMin.value = Math.min(min, max)
+  onboardingPriceMax.value = Math.max(min, max)
+}
+
+const updateOnboardingAreaMin = (value: number) => {
+  syncOnboardingAreaRange(value, currentOnboardingAreaRange.value.max)
+}
+
+const updateOnboardingAreaMax = (value: number) => {
+  syncOnboardingAreaRange(currentOnboardingAreaRange.value.min, value)
+}
+
+const updateOnboardingPriceMin = (value: number) => {
+  syncOnboardingPriceRange(value, currentOnboardingPriceRange.value.max)
+}
+
+const updateOnboardingPriceMax = (value: number) => {
+  syncOnboardingPriceRange(currentOnboardingPriceRange.value.min, value)
+}
+
+const onboardingSteps = computed(() => {
+  const base = ['intro', 'intent', 'area', 'price']
+  if (allAvailableTags.value.length > 0) base.push('tags')
+  return base
+})
+
+const onboardingCurrentStepKey = computed(() => onboardingSteps.value[onboardingStepIndex.value] || 'intro')
+const onboardingStepCaption = computed(() => `Passo ${onboardingStepIndex.value + 1} de ${onboardingSteps.value.length}`)
+const onboardingProgressPercent = computed(() => ((onboardingStepIndex.value + 1) / onboardingSteps.value.length) * 100)
+
+const onboardingCriteria = computed<IdealLotCriteria>(() => ({
+  searchIntent: searchIntent.value || null,
+  selectedTags: [...onboardingSelectedTags.value],
+  exactMatch: false,
+  minArea: currentOnboardingAreaRange.value.min === areaRangeBounds.value.min ? null : currentOnboardingAreaRange.value.min,
+  maxArea: currentOnboardingAreaRange.value.max === areaRangeBounds.value.max ? null : currentOnboardingAreaRange.value.max,
+  minPrice: currentOnboardingPriceRange.value.min === priceRangeBounds.value.min ? null : currentOnboardingPriceRange.value.min,
+  maxPrice: currentOnboardingPriceRange.value.max === priceRangeBounds.value.max ? null : currentOnboardingPriceRange.value.max,
+  maxPricePerM2: null,
+  minFrontage: null,
+  minDepth: null,
+  sortByLowestPricePerM2: false,
+}))
+
+const onboardingRelaxedCriteria = computed(() => {
+  const criteria = onboardingCriteria.value
+  if (countLotsByCriteria(criteria) > 0) return criteria
+
+  if (criteria.selectedTags.length > 0) {
+    const relaxed = { ...criteria, selectedTags: [] }
+    if (countLotsByCriteria(relaxed) > 0) return relaxed
+  }
+
+  return criteria
+})
+
+const onboardingSearchCount = computed(() => countLotsByCriteria(onboardingRelaxedCriteria.value))
+
+const onboardingPrimaryCtaLabel = computed(() => {
+  if (onboardingCurrentStepKey.value === 'intro') return 'Começar agora'
+  if (onboardingStepIndex.value < onboardingSteps.value.length - 1) return 'Continuar'
+  if (onboardingSearchCount.value > 0) return `Ver ${onboardingSearchCount.value} opções`
+  return 'Abrir busca inteligente'
+})
+
+const onboardingSearchPreviewHeadline = computed(() => {
+  if (onboardingCurrentStepKey.value === 'intro') {
+    return 'Você entra na busca já com contexto.'
+  }
+  if (onboardingSearchCount.value > 0) {
+    return `${onboardingSearchCount.value} unidades já combinam com o que você selecionou.`
+  }
+  return 'Se não houver combinação exata, a busca abre pronta para refinamento.'
+})
+
+const onboardingSearchPreviewBody = computed(() => {
+  if (onboardingCurrentStepKey.value === 'intro') {
+    return 'A ideia é reduzir atrito no primeiro acesso e te levar direto para uma shortlist melhor.'
+  }
+  if (onboardingCurrentStepKey.value === 'intent' && searchIntent.value) {
+    return `Vou usar ${getLotSearchIntentLabel(searchIntent.value).toLowerCase()} como contexto da sua busca e registrar isso para melhorar a leitura das métricas.`
+  }
+  if (onboardingSelectedTags.value.length > 0 && onboardingSearchCount.value > 0) {
+    return 'Quando um atributo fica restritivo demais, eu alivio essa camada para evitar uma tela vazia.'
+  }
+  return 'Depois, a busca completa continua disponível para você refinar tudo manualmente.'
+})
+
+const resetPreferenceOnboarding = () => {
+  onboardingStepIndex.value = 0
+  searchIntent.value = ''
+  onboardingSelectedTags.value = []
+  onboardingAreaMin.value = null
+  onboardingAreaMax.value = null
+  onboardingPriceMin.value = null
+  onboardingPriceMax.value = null
+}
+
+const markPreferenceOnboardingAsSeen = (reason: 'dismissed' | 'completed') => {
+  if (!process.client) return
+  try {
+    window.localStorage.setItem(preferenceOnboardingStorageKey.value, JSON.stringify({ reason, seenAt: Date.now() }))
+  } catch {
+    // Ignore storage failures on the guided onboarding.
+  }
+}
+
+const toggleOnboardingTag = (tag: string) => {
+  const index = onboardingSelectedTags.value.indexOf(tag)
+  if (index >= 0) onboardingSelectedTags.value.splice(index, 1)
+  else onboardingSelectedTags.value.push(tag)
+}
+
+const animatePreferenceOnboardingStep = () => {
+  if (!process.client || !showPreferenceOnboarding.value) return
+
+  nextTick(() => {
+    const content = onboardingContentRef.value
+    if (!content) return
+
+    const targets = Array.from(content.querySelectorAll('[data-step-animate]'))
+    if (targets.length) {
+      gsap.killTweensOf(targets)
+      gsap.fromTo(
+        targets,
+        { opacity: 0, y: 20, scale: 0.98 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.42, stagger: 0.06, ease: 'power3.out' },
+      )
+    }
+
+    if (onboardingProgressFillRef.value) {
+      gsap.to(onboardingProgressFillRef.value, {
+        width: `${onboardingProgressPercent.value}%`,
+        duration: 0.45,
+        ease: 'power2.out',
+      })
+    }
+  })
+}
+
+const animatePreferenceOnboardingOpen = () => {
+  if (!process.client) return
+
+  nextTick(() => {
+    const overlay = onboardingOverlayRef.value
+    const card = onboardingCardRef.value
+    if (!overlay || !card) return
+
+    const ornamental = Array.from(card.querySelectorAll('.v4-onboarding-orb'))
+    const chrome = Array.from(card.querySelectorAll('[data-onboarding-animate]'))
+
+    gsap.killTweensOf([overlay, card, ...ornamental, ...chrome])
+    gsap.set(overlay, { opacity: 0 })
+    gsap.set(card, { opacity: 0, y: 40, scale: 0.96, transformPerspective: 900, rotateX: 4 })
+    gsap.set(ornamental, { opacity: 0, scale: 0.72 })
+    gsap.set(chrome, { opacity: 0, y: 18 })
+
+    gsap.timeline({ defaults: { ease: 'power3.out' } })
+      .to(overlay, { opacity: 1, duration: 0.24 })
+      .to(card, { opacity: 1, y: 0, scale: 1, rotateX: 0, duration: 0.58, ease: 'expo.out' }, 0)
+      .to(ornamental, { opacity: 1, scale: 1, duration: 0.7, stagger: 0.06, ease: 'back.out(1.6)' }, 0.08)
+      .to(chrome, { opacity: 1, y: 0, duration: 0.45, stagger: 0.05 }, 0.16)
+
+    animatePreferenceOnboardingStep()
+  })
+}
+
+const dismissPreferenceOnboarding = () => {
+  void tracking.trackEvent({
+    type: 'TOOL_USE',
+    category: 'LOT_SEARCH',
+    action: 'DISMISS',
+    label: 'Busca guiada 7s',
+    metadata: {
+      source: 'timed_onboarding',
+      intent: searchIntent.value || null,
+      intentLabel: searchIntent.value ? getLotSearchIntentLabel(searchIntent.value) : null,
+      step: onboardingCurrentStepKey.value,
+    },
+  })
+  showPreferenceOnboarding.value = false
+  markPreferenceOnboardingAsSeen('dismissed')
+  syncBodyScrollLock()
+}
+
+const openPreferenceOnboardingIfNeeded = () => {
+  if (!process.client || !preferenceSearchAvailable.value) return
+
+  try {
+    if (window.localStorage.getItem(preferenceOnboardingStorageKey.value)) return
+  } catch {
+    return
+  }
+
+  if (preferenceOnboardingTimerId.value !== null) {
+    window.clearTimeout(preferenceOnboardingTimerId.value)
+  }
+
+  preferenceOnboardingTimerId.value = window.setTimeout(() => {
+    resetPreferenceOnboarding()
+    showPreferenceOnboarding.value = true
+    void tracking.trackEvent({
+      type: 'TOOL_USE',
+      category: 'LOT_SEARCH',
+      action: 'IMPRESSION',
+      label: 'Busca guiada 7s',
+      metadata: {
+        source: 'timed_onboarding',
+      },
+    })
+  }, 7000)
+}
+
+const goToPreviousOnboardingStep = () => {
+  onboardingStepIndex.value = Math.max(0, onboardingStepIndex.value - 1)
+}
+
+const handleOnboardingPrimaryAction = () => {
+  if (onboardingStepIndex.value < onboardingSteps.value.length - 1) {
+    onboardingStepIndex.value += 1
+    return
+  }
+
+  markPreferenceOnboardingAsSeen('completed')
+  navigateToIdealLots(onboardingRelaxedCriteria.value, 'timed_onboarding')
+}
+
+const filteredCount = computed(() => {
+  return countLotsByCriteria(buildModalCriteria())
 })
 
 const toggleFilterModal = () => {
   isFilterModalOpen.value = !isFilterModalOpen.value
-  if (process.client) {
-    document.body.style.overflow = isFilterModalOpen.value ? 'hidden' : ''
-  }
+  syncBodyScrollLock()
 }
 
 function handleModalKeyDown(e: KeyboardEvent) {
   if (e.key !== 'Escape') return
+  if (showPreferenceOnboarding.value) {
+    dismissPreferenceOnboarding()
+    return
+  }
   if (isFilterModalOpen.value) toggleFilterModal()
   if (showSchedulingModal.value) {
     showSchedulingModal.value = false
-    if (process.client) document.body.style.overflow = ''
+    syncBodyScrollLock()
   }
 }
 
 watch(showSchedulingModal, (v) => {
-  if (process.client) {
-    document.body.style.overflow = v ? 'hidden' : ''
+  if (v && showPreferenceOnboarding.value) {
+    dismissPreferenceOnboarding()
   }
+  syncBodyScrollLock()
 })
 
 const toggleFilterTag = (tag: string) => {
@@ -1003,6 +1880,7 @@ const toggleFilterTag = (tag: string) => {
 }
 
 const resetIdealLotFilters = () => {
+  searchIntent.value = ''
   selectedFilterTags.value = []
   exactMatchMode.value = false
   smartSearchForm.value = {
@@ -1019,44 +1897,7 @@ const resetIdealLotFilters = () => {
 
 const applyFiltersAndSearch = () => {
   tracking.trackClick('Botão: Aplicar Filtros e Buscar', 'LIST_FILTER')
-
-  const query: any = {}
-  if (selectedFilterTags.value.length) {
-    query.tags = selectedFilterTags.value.join(',')
-  }
-  if (exactMatchMode.value) {
-    query.match = 'exact'
-  }
-
-  const minArea = parseSmartNumber(smartSearchForm.value.minArea)
-  const maxArea = parseSmartNumber(smartSearchForm.value.maxArea)
-  const minPrice = parseSmartNumber(smartSearchForm.value.minPrice)
-  const maxPrice = parseSmartNumber(smartSearchForm.value.maxPrice)
-  const maxPricePerM2 = parseSmartNumber(smartSearchForm.value.maxPricePerM2)
-  const minFrontage = parseSmartNumber(smartSearchForm.value.minFrontage)
-  const minDepth = parseSmartNumber(smartSearchForm.value.minDepth)
-
-  if (minArea != null) query.minArea = String(minArea)
-  if (maxArea != null) query.maxArea = String(maxArea)
-  if (minPrice != null) query.minPrice = String(minPrice)
-  if (maxPrice != null) query.maxPrice = String(maxPrice)
-  if (maxPricePerM2 != null) query.maxPricePerM2 = String(maxPricePerM2)
-  if (minFrontage != null) query.minFrontage = String(minFrontage)
-  if (minDepth != null) query.minDepth = String(minDepth)
-  if (smartSearchForm.value.sortByLowestPricePerM2) {
-    query.sortBy = 'pricePerM2Asc'
-  }
-
-  if (corretorCode) {
-    query.c = corretorCode
-  }
-  
-  isFilterModalOpen.value = false
-  if (process.client) document.body.style.overflow = ''
-  navigateTo({
-    path: pathPrefix.value + '/unidades',
-    query
-  })
+  navigateToIdealLots(buildModalCriteria(), 'smart_modal')
 }
 
 const lotsPage = ref(1)
@@ -1835,6 +2676,7 @@ onMounted(async () => {
         panoramas.value = panos ?? []
       }).catch(() => {})
       // NearbyPlaces component emits @update:visible for side menu
+      openPreferenceOnboardingIfNeeded()
     }
     else error.value = (p.reason as any)?.message || 'Projeto não encontrado'
     if (c.status === 'fulfilled' && c.value) corretor.value = c.value
@@ -1858,8 +2700,23 @@ watch(
   },
 )
 
+watch(showPreferenceOnboarding, (isOpen) => {
+  syncBodyScrollLock()
+  if (isOpen) {
+    animatePreferenceOnboardingOpen()
+  }
+})
+
+watch(onboardingStepIndex, () => {
+  animatePreferenceOnboardingStep()
+})
+
 onUnmounted(() => {
   clearSalesMotionTimers()
+  if (preferenceOnboardingTimerId.value !== null) {
+    window.clearTimeout(preferenceOnboardingTimerId.value)
+    preferenceOnboardingTimerId.value = null
+  }
   window.removeEventListener('resize', detectTouchMobile)
   window.removeEventListener('keydown', handleModalKeyDown)
   window.removeEventListener('scroll', handleSalesMotionNavigation)
@@ -2256,6 +3113,774 @@ function openLightbox(idx: number) {
 
 .v4-cta-btn-animated:hover .v4-cta-arrow-icon {
   transform: translateX(4px);
+}
+
+.v4-onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(0, 113, 227, 0.18), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(73, 182, 255, 0.14), transparent 24%),
+    rgba(6, 14, 24, 0.68);
+  backdrop-filter: blur(18px);
+}
+
+.v4-onboarding-shell {
+  position: relative;
+  width: min(100%, 980px);
+  max-height: min(92dvh, 860px);
+  border-radius: 32px;
+  overflow: hidden;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(245, 247, 250, 0.92)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(239, 243, 248, 0.88));
+  box-shadow: 0 32px 90px rgba(4, 20, 35, 0.36);
+}
+
+.v4-onboarding-orb {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0.65;
+  filter: blur(2px);
+  animation: v4-onboarding-float 10s ease-in-out infinite;
+}
+
+.v4-onboarding-orb--one {
+  width: 220px;
+  height: 220px;
+  top: -78px;
+  right: -36px;
+  background: radial-gradient(circle, rgba(0, 113, 227, 0.18), rgba(0, 113, 227, 0.02) 70%);
+}
+
+.v4-onboarding-orb--two {
+  width: 140px;
+  height: 140px;
+  left: -46px;
+  bottom: 72px;
+  background: radial-gradient(circle, rgba(103, 184, 255, 0.18), rgba(103, 184, 255, 0.01) 72%);
+  animation-delay: -2s;
+}
+
+.v4-onboarding-orb--three {
+  width: 120px;
+  height: 120px;
+  right: 28%;
+  bottom: -44px;
+  background: radial-gradient(circle, rgba(29, 29, 31, 0.1), transparent 70%);
+  animation-delay: -4s;
+}
+
+.v4-onboarding-dismiss {
+  position: relative;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #4a4a50;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.v4-onboarding-head,
+.v4-onboarding-content,
+.v4-onboarding-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.v4-onboarding-head {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.v4-onboarding-head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.v4-onboarding-head-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.v4-onboarding-kicker,
+.v4-onboarding-step-label {
+  display: block;
+}
+
+.v4-onboarding-kicker {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--v4-primary);
+  margin-bottom: 6px;
+}
+
+.v4-onboarding-step-label,
+.v4-onboarding-mini-note {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.v4-onboarding-progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(17, 24, 39, 0.08);
+}
+
+.v4-onboarding-progress > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0071e3, #59b4ff);
+  box-shadow: 0 0 18px rgba(0, 113, 227, 0.22);
+}
+
+.v4-onboarding-content {
+  min-height: 420px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(134, 134, 139, 0.45) transparent;
+}
+
+.v4-onboarding-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.v4-onboarding-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.v4-onboarding-content::-webkit-scrollbar-thumb {
+  background: rgba(134, 134, 139, 0.45);
+  border-radius: 999px;
+}
+
+.v4-onboarding-intro-grid,
+.v4-onboarding-step-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.v4-onboarding-copy h3 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  margin: 0 0 16px;
+  color: #121417;
+}
+
+.v4-onboarding-copy p {
+  max-width: 580px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: #5b6470;
+}
+
+.v4-onboarding-summary-strip,
+.v4-onboarding-summary-chips,
+.v4-onboarding-tag-cloud,
+.v4-onboarding-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.v4-onboarding-summary-strip {
+  margin-top: 22px;
+}
+
+.v4-onboarding-summary-pill,
+.v4-onboarding-chip {
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.v4-onboarding-summary-pill {
+  background: rgba(0, 113, 227, 0.09);
+  color: var(--v4-primary);
+}
+
+.v4-onboarding-chip {
+  background: rgba(15, 23, 42, 0.06);
+  color: #1f2937;
+}
+
+.v4-onboarding-chip.is-empty {
+  background: rgba(148, 163, 184, 0.14);
+  color: #64748b;
+}
+
+.v4-onboarding-intro-visual,
+.v4-onboarding-summary-card {
+  border-radius: 28px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
+}
+
+.v4-onboarding-preview-stack {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.v4-onboarding-preview-card {
+  border-radius: 22px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(245, 247, 250, 0.9));
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.v4-onboarding-preview-card--primary {
+  background: linear-gradient(135deg, rgba(0, 113, 227, 0.1), rgba(255, 255, 255, 0.96));
+}
+
+.v4-onboarding-preview-label,
+.v4-onboarding-summary-title {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #64748b;
+}
+
+.v4-onboarding-preview-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 18px;
+  line-height: 1.2;
+  color: #101828;
+}
+
+.v4-onboarding-preview-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #5b6470;
+}
+
+.v4-onboarding-preview-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0071e3, #59b4ff);
+  box-shadow: 0 0 0 8px rgba(0, 113, 227, 0.09);
+  flex-shrink: 0;
+}
+
+.v4-onboarding-preview-stack .v4-onboarding-preview-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.v4-smart-range-card {
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 18px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.v4-smart-range-card--guided {
+  margin-top: 22px;
+}
+
+.v4-smart-range-card--modal {
+  background: #fbfbfd;
+}
+
+.v4-smart-grid-span-2 {
+  grid-column: span 2;
+}
+
+.v4-smart-range-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.v4-smart-range-label,
+.v4-smart-range-hint {
+  display: block;
+}
+
+.v4-smart-range-label {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.v4-smart-range-head strong {
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.v4-smart-range-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #64748b;
+  text-align: right;
+}
+
+.v4-dual-range {
+  position: relative;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.v4-dual-range-track {
+  position: absolute;
+  inset: 50% 0 auto;
+  transform: translateY(-50%);
+  height: 8px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.v4-dual-range-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  pointer-events: none;
+}
+
+.v4-dual-range-input::-webkit-slider-runnable-track {
+  height: 8px;
+  background: transparent;
+}
+
+.v4-dual-range-input::-moz-range-track {
+  height: 8px;
+  background: transparent;
+}
+
+.v4-dual-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #0071e3;
+  border: 4px solid #fff;
+  box-shadow: 0 8px 20px rgba(0, 113, 227, 0.28);
+  pointer-events: auto;
+  cursor: pointer;
+  margin-top: -7px;
+}
+
+.v4-dual-range-input::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #0071e3;
+  border: 4px solid #fff;
+  box-shadow: 0 8px 20px rgba(0, 113, 227, 0.28);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.v4-smart-range-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.v4-smart-range-pill {
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.v4-smart-range-pill span,
+.v4-smart-range-pill strong {
+  display: block;
+}
+
+.v4-smart-range-pill span {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+}
+
+.v4-smart-range-pill strong {
+  font-size: 14px;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.v4-onboarding-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.v4-onboarding-option {
+  position: relative;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 22px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease, background 0.24s ease;
+}
+
+.v4-onboarding-option:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 113, 227, 0.26);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.v4-onboarding-option.active {
+  border-color: rgba(0, 113, 227, 0.55);
+  background: linear-gradient(180deg, rgba(0, 113, 227, 0.08), rgba(255, 255, 255, 0.96));
+  box-shadow: 0 18px 40px rgba(0, 113, 227, 0.14);
+}
+
+.v4-onboarding-option strong,
+.v4-onboarding-option span {
+  display: block;
+}
+
+.v4-onboarding-option strong {
+  font-size: 20px;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: #111827;
+  margin-bottom: 10px;
+}
+
+.v4-onboarding-option span {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.v4-onboarding-option-badge {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  margin-bottom: 14px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #1f2937 !important;
+  font-size: 12px !important;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.v4-onboarding-tag-cloud {
+  margin-top: 22px;
+}
+
+.v4-onboarding-tag {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.v4-onboarding-tag:hover,
+.v4-onboarding-tag.active {
+  border-color: rgba(0, 113, 227, 0.48);
+  background: rgba(0, 113, 227, 0.1);
+  color: var(--v4-primary);
+}
+
+.v4-onboarding-footer {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.v4-onboarding-footer-copy {
+  display: grid;
+  gap: 6px;
+  max-width: 480px;
+}
+
+.v4-onboarding-footer-copy strong {
+  font-size: 15px;
+  line-height: 1.3;
+  color: #101828;
+}
+
+.v4-onboarding-footer-copy span {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.v4-onboarding-btn {
+  border: none;
+  border-radius: 16px;
+  padding: 15px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+}
+
+.v4-onboarding-btn:hover {
+  transform: translateY(-1px);
+}
+
+.v4-onboarding-btn--ghost {
+  background: rgba(15, 23, 42, 0.06);
+  color: #1f2937;
+}
+
+.v4-onboarding-btn--primary {
+  background: linear-gradient(135deg, #0071e3, #0099ff);
+  color: #fff;
+  min-width: 220px;
+  box-shadow: 0 18px 36px rgba(0, 113, 227, 0.24);
+}
+
+@keyframes v4-onboarding-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -10px, 0) scale(1.04); }
+}
+
+@media (max-width: 768px) {
+  .v4-onboarding-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .v4-onboarding-shell {
+    width: 100%;
+    max-height: min(88dvh, 760px);
+    border-radius: 24px 24px 0 0;
+    padding: 16px 14px 14px;
+  }
+
+  .v4-onboarding-dismiss {
+    align-self: flex-start;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+
+  .v4-onboarding-head {
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+
+  .v4-onboarding-head-top,
+  .v4-onboarding-head-row,
+  .v4-onboarding-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .v4-onboarding-head-row {
+    gap: 8px;
+  }
+
+  .v4-onboarding-intro-grid,
+  .v4-onboarding-step-panel,
+  .v4-onboarding-options-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .v4-onboarding-content {
+    min-height: auto;
+    padding-right: 2px;
+  }
+
+  .v4-onboarding-copy h3 {
+    font-size: 1.85rem;
+    line-height: 1.02;
+    margin-bottom: 12px;
+  }
+
+  .v4-onboarding-copy p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .v4-onboarding-summary-strip {
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .v4-onboarding-summary-pill,
+  .v4-onboarding-chip {
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+
+  .v4-onboarding-intro-visual {
+    display: none;
+  }
+
+  .v4-onboarding-summary-card {
+    padding: 14px;
+  }
+
+  .v4-smart-grid-span-2 {
+    grid-column: span 1;
+  }
+
+  .v4-smart-range-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .v4-smart-range-head {
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .v4-smart-range-head strong {
+    font-size: 17px;
+  }
+
+  .v4-smart-range-hint {
+    text-align: left;
+  }
+
+  .v4-smart-range-values {
+    gap: 8px;
+  }
+
+  .v4-smart-range-pill {
+    padding: 10px 12px;
+  }
+
+  .v4-dual-range-input::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    margin-top: -6px;
+  }
+
+  .v4-dual-range-input::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .v4-onboarding-option {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .v4-onboarding-option strong {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .v4-onboarding-option span {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .v4-onboarding-option-badge {
+    margin-bottom: 10px;
+  }
+
+  .v4-onboarding-tag-cloud {
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .v4-onboarding-tag {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .v4-onboarding-footer {
+    margin-top: 14px;
+    padding-top: 14px;
+    gap: 12px;
+  }
+
+  .v4-onboarding-footer-copy strong {
+    font-size: 14px;
+  }
+
+  .v4-onboarding-footer-copy span {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .v4-onboarding-footer-actions {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .v4-onboarding-btn {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
 }
 
 /* Modal Search Styles */

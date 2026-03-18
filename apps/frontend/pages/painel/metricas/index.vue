@@ -84,6 +84,18 @@ const avgSessionDuration = computed(() => {
   return formatDuration(metrics.value?.engagement?.avgSessionDurationSec || 0)
 })
 
+const searchMetrics = computed(() => metrics.value?.search || null)
+const searchSummary = computed(() => metrics.value?.summary || {})
+const searchIntentRows = computed(() => searchMetrics.value?.intents?.slice(0, 5) || [])
+const searchSourceRows = computed(() => searchMetrics.value?.sources?.slice(0, 5) || [])
+const averageSearchResults = computed(() => {
+  const value = searchMetrics.value?.avgResultsPerSearch || 0
+  return Number(value).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  })
+})
+
 const bounceRate = computed(() => {
   return metrics.value?.engagement?.bounceRate?.toFixed(1) || '0'
 })
@@ -285,7 +297,106 @@ const topicCards = computed(() => [
             <span class="stat-value stat-value--muted">{{ metrics.summary.totalRealtorClicks }}</span>
           </div>
         </div>
+        <div class="stat-card">
+          <div class="stat-icon sessions">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg>
+          </div>
+          <div class="stat-content">
+            <CommonAppTooltip text="Total de buscas registradas no modal após 7 segundos, no modal inteligente e na página de busca por preferência, respeitando o filtro de empreendimento atual." position="bottom"><span class="stat-label">Buscas Guiadas</span></CommonAppTooltip>
+            <span class="stat-value stat-value--default">{{ searchSummary.totalSearches || 0 }}</span>
+          </div>
+        </div>
+        <div v-if="hasSpecificProjectSelected" class="stat-card">
+          <div class="stat-icon sessions">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M12 3v18"/></svg>
+          </div>
+          <div class="stat-content">
+            <CommonAppTooltip text="Quantidade de buscas originadas pelo modal guiado que aparece após alguns segundos de permanência na landing do projeto." position="bottom"><span class="stat-label">Modal após 7s</span></CommonAppTooltip>
+            <span class="stat-value stat-value--default">{{ searchSummary.timedOnboardingSearches || 0 }}</span>
+          </div>
+        </div>
+        <div v-if="hasSpecificProjectSelected" class="stat-card">
+          <div class="stat-icon sessions">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+          </div>
+          <div class="stat-content">
+            <CommonAppTooltip text="Buscas disparadas na página de unidades usando o fluxo de busca por preferência, dentro do projeto filtrado." position="bottom"><span class="stat-label">Busca por Preferência</span></CommonAppTooltip>
+            <span class="stat-value stat-value--default">{{ searchSummary.preferencePageSearches || 0 }}</span>
+          </div>
+        </div>
       </div>
+
+      <section class="details-card search-intelligence-card full-width">
+        <div class="search-intelligence-card__header">
+          <div>
+            <h3>Busca Inteligente</h3>
+            <p class="search-intelligence-card__subtitle">
+              Leituras da intenção declarada do usuário nas buscas do projeto{{ hasSpecificProjectSelected && selectedProject ? ` · ${selectedProject.name}` : '' }}.
+            </p>
+          </div>
+          <div v-if="hasSpecificProjectSelected && selectedProject" class="heatmap-dashboard-card__project-pill">
+            {{ selectedProject.name }}
+          </div>
+        </div>
+
+        <div v-if="hasSpecificProjectSelected" class="search-intelligence-grid">
+          <div class="search-intelligence-panel">
+            <span class="search-intelligence-panel__label">Resumo</span>
+            <div class="search-intelligence-stats">
+              <div>
+                <span>Total de buscas</span>
+                <strong>{{ searchSummary.totalSearches || 0 }}</strong>
+              </div>
+              <div>
+                <span>Modal inteligente</span>
+                <strong>{{ searchSummary.smartModalSearches || 0 }}</strong>
+              </div>
+              <div>
+                <span>Modal após 7s</span>
+                <strong>{{ searchSummary.timedOnboardingSearches || 0 }}</strong>
+              </div>
+              <div>
+                <span>Média de resultados</span>
+                <strong>{{ averageSearchResults }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-intelligence-panel">
+            <span class="search-intelligence-panel__label">Intenções mais frequentes</span>
+            <div v-if="searchIntentRows.length" class="search-intelligence-list">
+              <div v-for="item in searchIntentRows" :key="item.value" class="search-intelligence-list__item">
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.count }}</span>
+              </div>
+            </div>
+            <p v-else class="search-intelligence-empty">Nenhuma intenção de busca registrada no período.</p>
+          </div>
+
+          <div class="search-intelligence-panel">
+            <span class="search-intelligence-panel__label">Origem das buscas</span>
+            <div v-if="searchSourceRows.length" class="search-intelligence-list">
+              <div v-for="item in searchSourceRows" :key="item.value" class="search-intelligence-list__item">
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.count }}</span>
+              </div>
+            </div>
+            <p v-else class="search-intelligence-empty">Nenhuma origem de busca registrada no período.</p>
+          </div>
+        </div>
+
+        <div v-else class="heatmap-dashboard-card__empty">
+          <div class="heatmap-dashboard-card__empty-icon">
+            <i class="bi bi-search" aria-hidden="true"></i>
+          </div>
+          <div>
+            <h4>Selecione um empreendimento para abrir as métricas de busca</h4>
+            <p>
+              As métricas de intenção e origem da busca são exibidas aqui usando o filtro de empreendimento no topo da página.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section class="details-card heatmap-dashboard-card full-width">
         <div class="heatmap-dashboard-card__header">
@@ -481,6 +592,84 @@ h1 {
   gap: 18px;
 }
 
+.search-intelligence-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.search-intelligence-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.search-intelligence-card__subtitle {
+  margin: 8px 0 0;
+  color: var(--color-surface-400);
+}
+
+.search-intelligence-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.search-intelligence-panel {
+  border: 1px solid var(--glass-border-subtle);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.28);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.search-intelligence-panel__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-surface-400);
+  letter-spacing: 0.05em;
+}
+
+.search-intelligence-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.search-intelligence-stats span,
+.search-intelligence-list__item span,
+.search-intelligence-empty {
+  color: var(--color-surface-400);
+}
+
+.search-intelligence-stats strong,
+.search-intelligence-list__item strong {
+  color: var(--color-surface-50);
+}
+
+.search-intelligence-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-intelligence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.search-intelligence-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .heatmap-dashboard-card__header {
   display: flex;
   align-items: flex-start;
@@ -673,6 +862,10 @@ h1 {
 @media (max-width: 980px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .search-intelligence-grid {
+    grid-template-columns: 1fr;
   }
 }
 
