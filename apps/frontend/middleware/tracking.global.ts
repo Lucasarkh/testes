@@ -1,11 +1,13 @@
 import { useTracking } from '../composables/useTracking';
 import { useTenantStore } from '../stores/tenant';
+import { isKnownPlatformHostname } from '~/utils/host';
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (!process.client) return;
 
   const host = window.location.host;
-  const isMainDomain = host.includes('lotio.com.br') || host.includes('localhost:3000');
+  const runtime = useRuntimeConfig();
+  const isMainDomain = isKnownPlatformHostname(host, runtime.public.siteUrl);
   
   // Skip tracking for non-public or administrative pages
   const isPainel = to.path.startsWith('/painel');

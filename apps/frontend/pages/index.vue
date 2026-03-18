@@ -34,6 +34,7 @@ import {
   normalizeSiteOrigin,
   resolveSeoImage,
 } from '~/utils/seo'
+import { isKnownPlatformHostname, normalizeHostname } from '~/utils/host'
 
 const defaultSeoTitle = 'Lotio - Aliado das Loteadoras, Incorporadoras e Imobiliárias'
 const defaultSeoDescription = 'A plataforma definitiva para incorporadoras, loteadoras, imobiliárias e corretores. Mapas interativos, gestão de leads em tempo real e controle total de estoque.'
@@ -53,15 +54,6 @@ const requestHost = computed(() => {
   if (forwarded) return forwarded
   return String(incomingHeaders.host || requestUrl.host || '').trim()
 })
-
-function normalizeHostname(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/\/.*$/, '')
-    .split(':')[0]
-}
 
 const { data: tenantResolverData } = await useAsyncData(
   () => `tenant-resolve-root-${requestHost.value || 'unknown'}`,
@@ -109,18 +101,7 @@ const hasResolvedProjectContext = computed(
 
 const isKnownPlatformHost = computed(() => {
   const currentHost = normalizeHostname(requestHost.value || requestUrl.host)
-  if (!currentHost) return false
-
-  const configuredHost = normalizeHostname(siteOrigin.value)
-  const knownHosts = new Set([
-    configuredHost,
-    configuredHost.replace(/^www\./, ''),
-    configuredHost ? `www.${configuredHost.replace(/^www\./, '')}` : '',
-    'localhost',
-    '127.0.0.1',
-  ].filter(Boolean))
-
-  return knownHosts.has(currentHost)
+  return isKnownPlatformHostname(currentHost, siteOrigin.value)
 })
 
 const shouldHoldPlatformLanding = computed(

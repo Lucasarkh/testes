@@ -1,6 +1,8 @@
 /**
  * Public API composable — no auth headers, for /p/ routes.
  */
+import { isPrivateNetworkHostname } from '~/utils/host'
+
 export const usePublicApi = () => {
   const config = useRuntimeConfig()
   let apiBase = (config.public.apiBase || '').replace(/\/+$/, '')
@@ -17,10 +19,10 @@ export const usePublicApi = () => {
       ).hostname
 
       const currentHost = window.location.hostname
-      const isLocalDev = currentHost === 'localhost' || currentHost === '127.0.0.1'
+      const isLocalDev = isPrivateNetworkHostname(currentHost)
 
       // In local development, keep absolute apiBase to allow testing against
-      // production/staging APIs from localhost.
+      // production/staging APIs from localhost or a LAN IP opened on mobile.
       if (!isLocalDev && configuredHost !== currentHost) {
         apiBase = ''
       }

@@ -1,5 +1,6 @@
 import { defineNuxtPlugin } from '#app';
 import { useTenantStore } from '~/stores/tenant';
+import { isPrivateNetworkHostname } from '~/utils/host';
 
 export default defineNuxtPlugin(async () => {
   // Only run in client context (SPA).
@@ -13,11 +14,12 @@ export default defineNuxtPlugin(async () => {
     const host = window.location.hostname;
     const hostWithPort = window.location.host;
     const hostQuery = `host=${encodeURIComponent(hostWithPort)}`;
-    const isLocalDev = host === 'localhost' || host === '127.0.0.1';
+    const isLocalDev = isPrivateNetworkHostname(host);
 
     // On real domains, use current origin so Host is preserved for tenant
-    // resolution in reverse proxy. On localhost, prefer configured apiBase so
-    // local SPA can consume production/staging backend.
+    // resolution in reverse proxy. On local dev hosts or LAN IPs, prefer
+    // configured apiBase so the SPA can be opened from mobile devices while
+    // still consuming production/staging backend.
     const primaryUrl = isLocalDev && configuredApiBase
       ? `${configuredApiBase}/api/p/resolve-tenant?${hostQuery}`
       : `${window.location.origin}/api/p/resolve-tenant?${hostQuery}`;
