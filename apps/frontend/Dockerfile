@@ -29,7 +29,7 @@ COPY apps/frontend/ apps/frontend/
 
 # Build-time public env vars (baked into the client bundle)
 ARG NUXT_PUBLIC_API_BASE=https://lotio.com.br
-ARG NUXT_PUBLIC_SITE_URL=https://www.lotio.com.br
+ARG NUXT_PUBLIC_SITE_URL=https://lotio.com.br
 ARG NUXT_PUBLIC_FB_APP_ID=""
 
 ENV NUXT_PUBLIC_API_BASE=$NUXT_PUBLIC_API_BASE

@@ -1,10 +1,18 @@
+function normalizeLotioCanonicalHostname(url: URL): URL {
+  if (url.hostname === 'www.lotio.com.br') {
+    url.hostname = 'lotio.com.br'
+  }
+
+  return url
+}
+
 export function normalizeSiteOrigin(input: unknown, fallback = ''): string {
   const raw = String(input || '').trim() || String(fallback || '').trim()
   if (!raw) return ''
 
   try {
     const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
-    return new URL(normalized).origin.replace(/\/+$/, '')
+    return normalizeLotioCanonicalHostname(new URL(normalized)).origin.replace(/\/+$/, '')
   } catch {
     return String(fallback || '').trim().replace(/\/+$/, '')
   }

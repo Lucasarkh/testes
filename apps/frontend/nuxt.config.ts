@@ -1,5 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-const configuredSiteUrl = process.env.NUXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://www.lotio.com.br'
+const configuredSiteUrl = process.env.NUXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://lotio.com.br'
 const siteUrl = configuredSiteUrl.replace(/\/+$/, '')
 const configuredAssetBase = process.env.NUXT_PUBLIC_ASSET_BASE || process.env.ASSET_CDN_BASE_URL || 'https://img.lotio.com.br'
 const assetBase = configuredAssetBase.replace(/\/+$/, '')
