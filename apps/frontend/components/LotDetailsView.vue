@@ -474,26 +474,39 @@
 
               <!-- Reservation / Lead Form -->
               <div id="contato" class="lead-form-v4">
-                <div v-if="project?.paymentGateways?.length > 0 && details?.status === 'AVAILABLE'" class="booking-section-v4">
-                  <div v-if="!bookingMode" class="booking-intro">
+                <div v-if="showBookingSection" class="booking-section-v4">
+                  <div v-if="isPreLaunchMode && priorityQueueSuccess" class="form-success-v4">
+                    <div class="success-animation-v4">
+                      <div class="success-circle-v4">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                          <path d="M20 6L9 17L4 12" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                      </div>
+                    </div>
+                    <h4>{{ bookingSuccessTitle }}</h4>
+                    <p>{{ bookingSuccessMessage }}</p>
+                    <button class="back-link" @click="priorityQueueSuccess = false">Fechar</button>
+                  </div>
+
+                  <div v-else-if="!bookingMode" class="booking-intro">
                     <div class="h-reserve-v4">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                      <span>Reserva Online Garantida</span>
+                      <span>{{ bookingIntroTitle }}</span>
                     </div>
-                    <p>Reserve este lote agora mesmo e garanta sua unidade.</p>
-                    <button @click="() => { bookingMode = true; tracking.trackClick('Botão: Abrir Reserva Online', 'CONVERSION'); }" class="cta-reserve-v4">
-                      Reservar Lote
+                    <p>{{ bookingIntroDescription }}</p>
+                    <button @click="() => { bookingMode = true; priorityQueueSuccess = false; tracking.trackClick(bookingPrimaryClickLabel, 'CONVERSION'); }" class="cta-reserve-v4">
+                      {{ bookingCtaLabel }}
                     </button>
-                    <div class="reserve-fee">
+                    <div v-if="!isPreLaunchMode" class="reserve-fee">
                       Taxa de reserva: {{ formatCurrencyToBrasilia(reservationFeeValue) }}
                     </div>
-                    <p class="reserve-disclaimer">*Sujeito a análise de crédito.</p>
+                    <p class="reserve-disclaimer">{{ bookingDisclaimerText }}</p>
                   </div>
 
                   <div v-else class="booking-form-v4">
                     <div class="booking-header">
                       <button @click="bookingMode = false" class="back-link"><i class="bi bi-arrow-left-short back-nav-icon" aria-hidden="true"></i><span class="back-nav-label">Cancelar</span></button>
-                      <h4>Dados da Reserva</h4>
+                      <h4>{{ bookingFormTitle }}</h4>
                     </div>
                     <form @submit.prevent="submitReservation" class="form-v4">
                       <div class="f-field">
@@ -505,16 +518,16 @@
                       <div class="f-field">
                         <input v-model="reservationForm.phone" type="tel" placeholder="WhatsApp" required />
                       </div>
-                      <div class="f-field">
+                      <div v-if="!isPreLaunchMode" class="f-field">
                         <input v-model="reservationForm.cpf" type="text" placeholder="CPF" required />
                       </div>
                       <div class="f-checkbox">
                         <input v-model="reservationForm.acceptTerms" type="checkbox" id="terms" required />
-                        <label for="terms">Aceito os termos de reserva e politicas de privacidade e estou ciente de que a reserva esta sujeita a analise de credito da loteadora.</label>
+                        <label for="terms">{{ bookingTermsLabel }}</label>
                       </div>
                       <div v-if="bookingError" class="f-error">{{ bookingError }}</div>
                       <button type="submit" class="cta-submit-booking-v4" :disabled="bookingLoading">
-                        {{ bookingLoading ? 'Processando...' : 'Ir para Pagamento' }}
+                        {{ bookingLoading ? 'Processando...' : bookingSubmitLabel }}
                       </button>
                     </form>
                   </div>
@@ -1123,6 +1136,61 @@ const sectionNavItems = computed(() => {
 })
 
 const stickySectionNavItems = computed(() => sectionNavItems.value.filter(item => item.id !== 'hero'))
+
+const isPreLaunchMode = computed(() => project.value?.preLaunchEnabled === true)
+
+const showBookingSection = computed(() => {
+  if (details.value?.status !== 'AVAILABLE') return false
+  return isPreLaunchMode.value || (project.value?.paymentGateways?.length ?? 0) > 0
+})
+
+const bookingPrimaryClickLabel = computed(() =>
+  isPreLaunchMode.value ? 'Botão: Abrir Fila de Preferencia' : 'Botão: Abrir Reserva Online'
+)
+
+const bookingIntroTitle = computed(() =>
+  isPreLaunchMode.value ? 'PRÉ-LANÇAMENTO · ACESSO ANTECIPADO EXCLUSIVO' : 'Reserva Online Garantida'
+)
+
+const bookingIntroDescription = computed(() =>
+  isPreLaunchMode.value
+    ? 'Entre na fila de preferência deste lote para garantir atendimento prioritário, acesso antecipado às condições comerciais e aviso antes da abertura oficial do lançamento.'
+    : 'Reserve este lote agora mesmo e garanta sua unidade.'
+)
+
+const bookingCtaLabel = computed(() =>
+  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Reservar Lote'
+)
+
+const bookingDisclaimerText = computed(() =>
+  isPreLaunchMode.value
+    ? 'Cadastro exclusivo para clientes que querem acesso antecipado e prioridade neste lote.'
+    : '*Sujeito a análise de crédito.'
+)
+
+const bookingFormTitle = computed(() =>
+  isPreLaunchMode.value ? 'Dados para o acesso antecipado' : 'Dados da Reserva'
+)
+
+const bookingTermsLabel = computed(() =>
+  isPreLaunchMode.value
+    ? 'Aceito os termos de pré-lançamento e políticas de privacidade e estou ciente de que meu cadastro entrará na fila de preferência do empreendimento.'
+    : 'Aceito os termos de reserva e politicas de privacidade e estou ciente de que a reserva esta sujeita a analise de credito da loteadora.'
+)
+
+const bookingSubmitLabel = computed(() =>
+  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Ir para Pagamento'
+)
+
+const bookingSuccessTitle = computed(() =>
+  isPreLaunchMode.value ? 'Seu acesso antecipado foi registrado!' : 'Solicitação Enviada!'
+)
+
+const bookingSuccessMessage = computed(() =>
+  isPreLaunchMode.value
+    ? 'Recebemos seus dados com prioridade. Você já está na fila de preferência deste lote e nossa equipe vai avisar você antes da abertura oficial com as condições exclusivas do pré-lançamento.'
+    : 'O corretor entrará em contato em breve via WhatsApp ou e-mail.'
+)
 
 const reservationFeeValue = computed(() => {
   if (!project.value) return 500
@@ -1806,6 +1874,7 @@ const reservationForm = ref({
 })
 const bookingError = ref('')
 const bookingLoading = ref(false)
+const priorityQueueSuccess = ref(false)
 
 // ── Simulator ───────────────────────────────────────────
 const simMonths = ref(120)
@@ -2143,7 +2212,7 @@ async function submitGateLead() {
 }
 
 async function submitReservation() {
-  if (!validateCpf(reservationForm.value.cpf)) {
+  if (!isPreLaunchMode.value && !validateCpf(reservationForm.value.cpf)) {
     bookingError.value = 'CPF inválido'
     return
   }
@@ -2168,10 +2237,13 @@ async function submitReservation() {
       name: reservationForm.value.name,
       email: reservationForm.value.email,
       phone: unmask(reservationForm.value.phone),
-      cpf: unmask(reservationForm.value.cpf),
+      ...(isPreLaunchMode.value ? {} : { cpf: unmask(reservationForm.value.cpf) }),
       mapElementId: lot.value?.id,
-      message: `RESERVA ONLINE: Intenção de compra do lote ${lotCode.value}`,
+      message: isPreLaunchMode.value
+        ? `PRE-LANCAMENTO: Entrou na fila de preferência do lote ${lotCode.value}`
+        : `RESERVA ONLINE: Intenção de compra do lote ${lotCode.value}`,
       realtorCode: corretorCode || undefined,
+      visitorId: trackingStore.visitorId || undefined,
       sessionId: trackingStore.sessionId || undefined,
       aiChatTranscript: chatStore.getTranscript() || undefined,
     }
@@ -2180,6 +2252,23 @@ async function submitReservation() {
       method: 'POST',
       body: JSON.stringify(leadBody),
     })
+
+    if (isPreLaunchMode.value) {
+      tracking.trackLeadSubmit('FORM', { lotCode: lotCode.value, source: 'priority_queue' })
+      priorityQueueSuccess.value = true
+      bookingMode.value = false
+      bookingLoading.value = false
+      toastSuccess('Você entrou na fila de preferência!')
+      reservationForm.value = {
+        name: '',
+        email: '',
+        phone: '',
+        cpf: '',
+        acceptTerms: false
+      }
+      if (chatStore.hasConversation()) chatStore.clear()
+      return
+    }
 
     // 2. Start Payment
     const paymentRes = await fetchPublic(`/payment/reserve`, {
@@ -3161,6 +3250,47 @@ async function submitReservation() {
 
 .f-checkbox input {
   margin-top: 3px;
+}
+
+.form-success-v4 {
+  padding: 20px 0 8px;
+  text-align: center;
+}
+
+.success-animation-v4 {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.success-circle-v4 {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #e6f7ed;
+  color: #008a32;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.success-circle-v4 svg {
+  width: 34px;
+  height: 34px;
+  display: block;
+}
+
+.form-success-v4 h4 {
+  margin: 0 0 10px;
+  color: var(--v4-text);
+  font-size: 22px;
+}
+
+.form-success-v4 p {
+  margin: 0;
+  color: var(--v4-text-muted);
+  line-height: 1.6;
 }
 
 /* Ideal Lot Filter Modal */

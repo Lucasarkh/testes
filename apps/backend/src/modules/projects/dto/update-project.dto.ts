@@ -228,6 +228,14 @@ export class UpdateProjectDto {
   salesMotionConfig?: any;
 
   @ApiPropertyOptional({
+    description:
+      'Ativa o modo de pré-lançamento para trocar reserva online por fila de preferência'
+  })
+  @IsOptional()
+  @IsBoolean()
+  preLaunchEnabled?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Ativar/desativar seção de proximidades'
   })
   @IsOptional()

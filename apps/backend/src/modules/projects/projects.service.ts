@@ -380,7 +380,8 @@ export class ProjectsService {
         slug: dto.slug.toLowerCase().replace(/\s+/g, '-'),
         description: dto.description,
         customDomain: dto.customDomain,
-        reservationExpiryHours: dto.reservationExpiryHours ?? 24
+        reservationExpiryHours: dto.reservationExpiryHours ?? 24,
+        preLaunchEnabled: dto.preLaunchEnabled ?? false
       }
     });
 
@@ -1320,6 +1321,9 @@ export class ProjectsService {
         }),
         ...(dto.reservationExpiryHours !== undefined && {
           reservationExpiryHours: dto.reservationExpiryHours
+        }),
+        ...(dto.preLaunchEnabled !== undefined && {
+          preLaunchEnabled: dto.preLaunchEnabled
         }),
         ...(dto.financingDisclaimer !== undefined && {
           financingDisclaimer: dto.financingDisclaimer

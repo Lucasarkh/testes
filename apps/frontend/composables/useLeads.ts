@@ -3,6 +3,9 @@ import { computed, ref } from 'vue';
 type LeadFilters = Record<string, string | number | null | undefined>;
 type LeadStatusValue = string;
 type LeadRecord = Record<string, any> & { id?: string };
+type PreLaunchQueueFilters = Record<string, string | number | null | undefined>;
+type PreLaunchQueueStatusValue = 'ACTIVE' | 'CONTACTED' | 'CONVERTED' | 'REMOVED';
+type PreLaunchQueueRecord = Record<string, any> & { id?: string };
 
 export const useLeads = () => {
   const { fetchApi } = useApi();
@@ -10,8 +13,14 @@ export const useLeads = () => {
   const authStore = useAuthStore();
 
   const loading = ref(false);
+  const queueLoading = ref(false);
   const leads = ref<LeadRecord[]>([]);
   const meta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 10, totalPages: 0, currentPage: 1 });
+  const preLaunchQueue = ref<PreLaunchQueueRecord[]>([]);
+  const preLaunchQueueMeta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 12, totalPages: 0, currentPage: 1 });
+  const preLaunchQueueSummary = ref({ active: 0, contacted: 0, converted: 0, removed: 0 });
+  const preLaunchProjectBuckets = ref<Array<Record<string, any>>>([]);
+  const preLaunchLotBuckets = ref<Array<Record<string, any>>>([]);
   const selectedLead = ref<LeadRecord | null>(null);
   const projects = ref<any[]>([]);
   const canLoadProjectsCatalog = computed(() => {
@@ -62,6 +71,46 @@ export const useLeads = () => {
       return lead;
     } catch (e) {
       fromError(e, 'Erro ao carregar detalhes do lead');
+    }
+  };
+
+  const loadPreLaunchQueue = async (filters: PreLaunchQueueFilters = {}, page = 1) => {
+    queueLoading.value = true;
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, val]) => {
+        if (val !== null && val !== undefined && val !== '') params.set(key, String(val));
+      });
+      params.set('page', String(page));
+      params.set('limit', '12');
+
+      const res = await fetchApi(`/leads/prelaunch-queue?${params.toString()}`);
+      preLaunchQueue.value = res.data || [];
+      preLaunchQueueMeta.value = res.meta || preLaunchQueueMeta.value;
+      preLaunchQueueSummary.value = res.summary || preLaunchQueueSummary.value;
+      preLaunchProjectBuckets.value = res.projectBuckets || [];
+      preLaunchLotBuckets.value = res.lotBuckets || [];
+    } catch (e) {
+      fromError(e, 'Erro ao carregar fila de pré-lançamento');
+    } finally {
+      queueLoading.value = false;
+    }
+  };
+
+  const updatePreLaunchQueueEntry = async (
+    id: string,
+    data: { status?: PreLaunchQueueStatusValue; notes?: string }
+  ) => {
+    try {
+      const res = await fetchApi(`/leads/prelaunch-queue/${id}`, {
+        method: 'PATCH',
+        body: data
+      });
+      success('Fila de pré-lançamento atualizada');
+      return res;
+    } catch (e) {
+      fromError(e, 'Erro ao atualizar fila de pré-lançamento');
+      throw e;
     }
   };
 
@@ -124,7 +173,9 @@ export const useLeads = () => {
   };
 
   return {
-    loading, leads, meta, selectedLead, projects,
-    loadProjects, loadLeads, getLead, createLead, updateLead, updateLeadStatus, addDocument, addPayment
+    loading, queueLoading, leads, meta, selectedLead, projects,
+    preLaunchQueue, preLaunchQueueMeta, preLaunchQueueSummary, preLaunchProjectBuckets, preLaunchLotBuckets,
+    loadProjects, loadLeads, loadPreLaunchQueue, getLead, createLead, updateLead, updateLeadStatus,
+    updatePreLaunchQueueEntry, addDocument, addPayment
   };
 };

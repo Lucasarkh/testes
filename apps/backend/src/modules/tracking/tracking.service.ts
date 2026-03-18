@@ -9,7 +9,12 @@ import {
   CreateEventDto,
   TrackingReportQueryDto
 } from './dto/tracking.dto';
-import { ProjectStatus, MapElementType, LeadStatus } from '@prisma/client';
+import {
+  ProjectStatus,
+  MapElementType,
+  LeadStatus,
+  PreLaunchQueueStatus
+} from '@prisma/client';
 import * as crypto from 'crypto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
 import { S3Service } from '@infra/s3/s3.service';
@@ -936,6 +941,47 @@ export class TrackingService {
     };
   }
 
+  private getReportRange(query: TrackingReportQueryDto) {
+    const start = query.startDate ? new Date(`${query.startDate}T03:00:00.000Z`) : null;
+    const end = query.endDate
+      ? new Date(
+          new Date(`${query.endDate}T03:00:00.000Z`).getTime() +
+            24 * 60 * 60 * 1000 -
+            1
+        )
+      : null;
+
+    return { start, end };
+  }
+
+  private isWithinRange(
+    value: Date | string | null | undefined,
+    start: Date | null,
+    end: Date | null
+  ) {
+    if (!value) return false;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+    if (start && date < start) return false;
+    if (end && date > end) return false;
+
+    return true;
+  }
+
+  private toDateKey(value: Date | string) {
+    return new Date(value).toISOString().split('T')[0];
+  }
+
+  private average(values: number[], fractionDigits = 1) {
+    if (!values.length) return 0;
+
+    const averageValue =
+      values.reduce((sum, current) => sum + current, 0) / values.length;
+
+    return Number(averageValue.toFixed(fractionDigits));
+  }
+
   private getPagination(query: TrackingReportQueryDto) {
     const page = Math.max(Number(query.page || 1), 1);
     const limit = Math.min(Math.max(Number(query.limit || 25), 1), 100);
@@ -1513,6 +1559,357 @@ export class TrackingService {
         avgSessionDurationSec,
         bounceRate,
         avgPagesPerSession
+      }
+    };
+  }
+
+  async getPreLaunchMetrics(
+    query: TrackingReportQueryDto,
+    user?: { id: string; role: string; agencyId?: string }
+  ) {
+    const context = await this.getRealtorContextFromUser(user);
+    const { start, end } = this.getReportRange(query);
+
+    const entries = await this.prisma.preLaunchQueueEntry.findMany({
+      where: {
+        tenantId: query.tenantId as string,
+        ...(query.projectId && query.projectId !== 'all'
+          ? { projectId: query.projectId }
+          : {}),
+        ...(context.realtorLinkId ? { realtorLinkId: context.realtorLinkId } : {}),
+        ...(context.agencyId ? { realtorLink: { agencyId: context.agencyId } } : {})
+      },
+      select: {
+        id: true,
+        position: true,
+        status: true,
+        createdAt: true,
+        contactedAt: true,
+        convertedAt: true,
+        removedAt: true,
+        projectId: true,
+        mapElementId: true,
+        realtorLinkId: true,
+        project: {
+          select: {
+            id: true,
+            name: true,
+            preLaunchEnabled: true
+          }
+        },
+        mapElement: {
+          select: {
+            id: true,
+            code: true,
+            name: true
+          }
+        },
+        realtorLink: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        }
+      }
+    });
+
+    const currentScopeEntries = entries.filter(
+      (entry) => !end || new Date(entry.createdAt) <= end
+    );
+    const entriesCreatedInPeriod = entries.filter((entry) =>
+      this.isWithinRange(entry.createdAt, start, end)
+    );
+    const contactedInPeriod = entries.filter((entry) =>
+      this.isWithinRange(entry.contactedAt, start, end)
+    );
+    const convertedInPeriod = entries.filter((entry) =>
+      this.isWithinRange(entry.convertedAt, start, end)
+    );
+    const removedInPeriod = entries.filter((entry) =>
+      this.isWithinRange(entry.removedAt, start, end)
+    );
+
+    const activeNowEntries = currentScopeEntries.filter(
+      (entry) => entry.status === PreLaunchQueueStatus.ACTIVE
+    );
+    const statusOrder = [
+      PreLaunchQueueStatus.ACTIVE,
+      PreLaunchQueueStatus.CONTACTED,
+      PreLaunchQueueStatus.CONVERTED,
+      PreLaunchQueueStatus.REMOVED
+    ];
+    const statusLabels: Record<PreLaunchQueueStatus, string> = {
+      [PreLaunchQueueStatus.ACTIVE]: 'Na fila',
+      [PreLaunchQueueStatus.CONTACTED]: 'Contatados',
+      [PreLaunchQueueStatus.CONVERTED]: 'Convertidos',
+      [PreLaunchQueueStatus.REMOVED]: 'Removidos'
+    };
+
+    const statusCounts = statusOrder.map((status) => ({
+      status,
+      label: statusLabels[status],
+      count: currentScopeEntries.filter((entry) => entry.status === status).length
+    }));
+
+    const historyMap = new Map<
+      string,
+      { date: string; entries: number; contacted: number; converted: number; removed: number }
+    >();
+    const historyStart = start || new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
+    const historyEnd = end || new Date();
+    const cursor = new Date(historyStart);
+
+    while (cursor <= historyEnd) {
+      const key = this.toDateKey(cursor);
+      historyMap.set(key, {
+        date: key,
+        entries: 0,
+        contacted: 0,
+        converted: 0,
+        removed: 0
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    for (const entry of entriesCreatedInPeriod) {
+      const key = this.toDateKey(entry.createdAt);
+      const bucket = historyMap.get(key);
+      if (bucket) bucket.entries += 1;
+    }
+
+    for (const entry of contactedInPeriod) {
+      const key = this.toDateKey(entry.contactedAt as Date);
+      const bucket = historyMap.get(key);
+      if (bucket) bucket.contacted += 1;
+    }
+
+    for (const entry of convertedInPeriod) {
+      const key = this.toDateKey(entry.convertedAt as Date);
+      const bucket = historyMap.get(key);
+      if (bucket) bucket.converted += 1;
+    }
+
+    for (const entry of removedInPeriod) {
+      const key = this.toDateKey(entry.removedAt as Date);
+      const bucket = historyMap.get(key);
+      if (bucket) bucket.removed += 1;
+    }
+
+    type AggregateBucket = {
+      label: string;
+      secondaryLabel?: string | null;
+      entries: number;
+      active: number;
+      contacted: number;
+      converted: number;
+      removed: number;
+      positions: number[];
+    };
+
+    const projectBuckets = new Map<string, AggregateBucket>();
+    const lotBuckets = new Map<string, AggregateBucket>();
+    const realtorBuckets = new Map<string, AggregateBucket>();
+
+    const ensureBucket = (
+      collection: Map<string, AggregateBucket>,
+      key: string,
+      label: string,
+      secondaryLabel?: string | null
+    ) => {
+      const current = collection.get(key);
+      if (current) return current;
+
+      const created: AggregateBucket = {
+        label,
+        secondaryLabel: secondaryLabel || null,
+        entries: 0,
+        active: 0,
+        contacted: 0,
+        converted: 0,
+        removed: 0,
+        positions: []
+      };
+      collection.set(key, created);
+      return created;
+    };
+
+    for (const entry of entries) {
+      const projectName = entry.project?.name || 'Projeto';
+      const lotLabel = entry.mapElement?.code || entry.mapElement?.name || 'Fila geral';
+      const realtorLabel = entry.realtorLink?.name || 'Sem corretor vinculado';
+
+      const projectBucket = ensureBucket(projectBuckets, entry.projectId, projectName);
+      const lotBucket = ensureBucket(
+        lotBuckets,
+        `${entry.projectId}:${entry.mapElementId || 'general'}`,
+        lotLabel,
+        projectName
+      );
+      const realtorBucket = ensureBucket(
+        realtorBuckets,
+        entry.realtorLinkId || 'unassigned',
+        realtorLabel,
+        entry.realtorLink?.code || null
+      );
+
+      const createdInPeriod = this.isWithinRange(entry.createdAt, start, end);
+      const contactedInRange = this.isWithinRange(entry.contactedAt, start, end);
+      const convertedInRange = this.isWithinRange(entry.convertedAt, start, end);
+      const removedInRange = this.isWithinRange(entry.removedAt, start, end);
+      const isCurrentEntry = !end || new Date(entry.createdAt) <= end;
+      const isActiveCurrent =
+        isCurrentEntry && entry.status === PreLaunchQueueStatus.ACTIVE;
+
+      if (createdInPeriod) {
+        projectBucket.entries += 1;
+        projectBucket.positions.push(entry.position);
+        lotBucket.entries += 1;
+        lotBucket.positions.push(entry.position);
+        realtorBucket.entries += 1;
+        realtorBucket.positions.push(entry.position);
+      }
+
+      if (isActiveCurrent) {
+        projectBucket.active += 1;
+        lotBucket.active += 1;
+        realtorBucket.active += 1;
+      }
+
+      if (contactedInRange) {
+        projectBucket.contacted += 1;
+        lotBucket.contacted += 1;
+        realtorBucket.contacted += 1;
+      }
+
+      if (convertedInRange) {
+        projectBucket.converted += 1;
+        lotBucket.converted += 1;
+        realtorBucket.converted += 1;
+      }
+
+      if (removedInRange) {
+        projectBucket.removed += 1;
+        lotBucket.removed += 1;
+        realtorBucket.removed += 1;
+      }
+    }
+
+    const contactLeadTimes = contactedInPeriod
+      .filter((entry) => entry.contactedAt)
+      .map(
+        (entry) =>
+          (new Date(entry.contactedAt as Date).getTime() -
+            new Date(entry.createdAt).getTime()) /
+          (1000 * 60 * 60)
+      );
+    const conversionLeadTimes = convertedInPeriod
+      .filter((entry) => entry.convertedAt)
+      .map(
+        (entry) =>
+          (new Date(entry.convertedAt as Date).getTime() -
+            new Date(entry.createdAt).getTime()) /
+          (1000 * 60 * 60)
+      );
+
+    const totalEntries = entriesCreatedInPeriod.length;
+    const totalContacted = contactedInPeriod.length;
+    const totalConverted = convertedInPeriod.length;
+    const totalRemoved = removedInPeriod.length;
+
+    return {
+      summary: {
+        totalEntries,
+        activeEntries: activeNowEntries.length,
+        contactedEntries: totalContacted,
+        convertedEntries: totalConverted,
+        removedEntries: totalRemoved,
+        contactRate: totalEntries ? Number(((totalContacted / totalEntries) * 100).toFixed(1)) : 0,
+        conversionRate: totalEntries ? Number(((totalConverted / totalEntries) * 100).toFixed(1)) : 0,
+        removalRate: totalEntries ? Number(((totalRemoved / totalEntries) * 100).toFixed(1)) : 0,
+        avgQueuePosition: this.average(entriesCreatedInPeriod.map((entry) => entry.position)),
+        maxQueuePosition: entriesCreatedInPeriod.length
+          ? Math.max(...entriesCreatedInPeriod.map((entry) => entry.position))
+          : 0,
+        avgHoursToContact: this.average(contactLeadTimes),
+        avgHoursToConversion: this.average(conversionLeadTimes),
+        activeProjects: new Set(activeNowEntries.map((entry) => entry.projectId)).size,
+        activeLots: new Set(
+          activeNowEntries
+            .map((entry) => entry.mapElementId)
+            .filter((value): value is string => Boolean(value))
+        ).size
+      },
+      statusDistribution: statusCounts,
+      history: Array.from(historyMap.values()),
+      topProjects: Array.from(projectBuckets.entries())
+        .map(([projectId, bucket]) => ({
+          projectId,
+          label: bucket.label,
+          entries: bucket.entries,
+          active: bucket.active,
+          contacted: bucket.contacted,
+          converted: bucket.converted,
+          removed: bucket.removed,
+          avgQueuePosition: this.average(bucket.positions)
+        }))
+        .filter((bucket) => bucket.entries > 0 || bucket.active > 0)
+        .sort((left, right) =>
+          right.entries - left.entries ||
+          right.active - left.active ||
+          right.converted - left.converted
+        )
+        .slice(0, 8),
+      topLots: Array.from(lotBuckets.entries())
+        .map(([bucketKey, bucket]) => ({
+          key: bucketKey,
+          label: bucket.label,
+          projectName: bucket.secondaryLabel || 'Projeto',
+          entries: bucket.entries,
+          active: bucket.active,
+          contacted: bucket.contacted,
+          converted: bucket.converted,
+          removed: bucket.removed,
+          avgQueuePosition: this.average(bucket.positions)
+        }))
+        .filter((bucket) => bucket.entries > 0 || bucket.active > 0)
+        .sort((left, right) =>
+          right.entries - left.entries ||
+          right.active - left.active ||
+          right.converted - left.converted
+        )
+        .slice(0, 10),
+      topRealtors: Array.from(realtorBuckets.entries())
+        .map(([realtorLinkId, bucket]) => ({
+          realtorLinkId,
+          label: bucket.label,
+          code: bucket.secondaryLabel,
+          entries: bucket.entries,
+          active: bucket.active,
+          contacted: bucket.contacted,
+          converted: bucket.converted,
+          removed: bucket.removed,
+          avgQueuePosition: this.average(bucket.positions)
+        }))
+        .filter((bucket) => bucket.entries > 0 || bucket.active > 0)
+        .sort((left, right) =>
+          right.entries - left.entries ||
+          right.converted - left.converted ||
+          right.active - left.active
+        )
+        .slice(0, 10),
+      meta: {
+        period: {
+          startDate: query.startDate || null,
+          endDate: query.endDate || null
+        },
+        totalTrackedEntries: entries.length,
+        preLaunchProjects: new Set(entries.map((entry) => entry.projectId)).size,
+        enabledProjects: new Set(
+          entries
+            .filter((entry) => entry.project?.preLaunchEnabled)
+            .map((entry) => entry.projectId)
+        ).size
       }
     };
   }

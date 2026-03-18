@@ -9,7 +9,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@infra/db/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus, PreLaunchQueueStatus, Prisma } from '@prisma/client';
 import { LeadsQueryDto } from './dto/leads-query.dto';
 import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import {
@@ -18,6 +18,10 @@ import {
   AddLeadDocumentDto,
   AddLeadPaymentDto
 } from './dto/manual-lead.dto';
+import {
+  PreLaunchQueueQueryDto,
+  UpdatePreLaunchQueueDto
+} from './dto/prelaunch-queue.dto';
 import { NotificationsService } from '@modules/notifications/notifications.service';
 import { LeadDistributionService } from '@modules/lead-distribution/lead-distribution.service';
 import { PurchaseFlowService } from '@modules/purchase-flow/purchase-flow.service';
@@ -33,6 +37,68 @@ export class LeadsService {
     private readonly leadDistribution: LeadDistributionService,
     private readonly purchaseFlow: PurchaseFlowService
   ) {}
+
+  private buildPreLaunchScope(projectId: string, mapElementId?: string | null) {
+    return {
+      projectId,
+      mapElementId: mapElementId || null
+    };
+  }
+
+  private async compactPreLaunchQueuePositions(
+    tx: Prisma.TransactionClient,
+    projectId: string,
+    mapElementId: string | null,
+    removedPosition: number
+  ) {
+    const remainingEntries = await tx.preLaunchQueueEntry.findMany({
+      where: {
+        projectId,
+        mapElementId,
+        status: PreLaunchQueueStatus.ACTIVE,
+        position: { gt: removedPosition }
+      },
+      select: { id: true, position: true },
+      orderBy: { position: 'asc' }
+    });
+
+    for (const entry of remainingEntries) {
+      await tx.preLaunchQueueEntry.update({
+        where: { id: entry.id },
+        data: { position: entry.position - 1 }
+      });
+    }
+  }
+
+  private async createPreLaunchQueueEntry(
+    tenantId: string,
+    projectId: string,
+    leadId: string,
+    mapElementId?: string | null,
+    realtorLinkId?: string | null
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const scope = this.buildPreLaunchScope(projectId, mapElementId);
+      const activeCount = await tx.preLaunchQueueEntry.count({
+        where: {
+          ...scope,
+          status: PreLaunchQueueStatus.ACTIVE
+        }
+      });
+
+      return tx.preLaunchQueueEntry.create({
+        data: {
+          tenantId,
+          projectId,
+          mapElementId: mapElementId || null,
+          leadId,
+          realtorLinkId: realtorLinkId || null,
+          position: activeCount + 1,
+          status: PreLaunchQueueStatus.ACTIVE
+        }
+      });
+    });
+  }
 
   @Cron(CronExpression.EVERY_HOUR)
   async cleanupExpiredReservations() {
@@ -340,6 +406,26 @@ export class LeadsService {
       }
     }
 
+    let queueEntry: { id: string; position: number } | null = null;
+    if (project.preLaunchEnabled) {
+      queueEntry = await this.createPreLaunchQueueEntry(
+        tenantId,
+        project.id,
+        lead.id,
+        validMapElementId,
+        finalRealtorLinkId
+      );
+
+      await this.prisma.leadHistory.create({
+        data: {
+          leadId: lead.id,
+          toStatus: LeadStatus.NEW,
+          notes: `Lead entrou na fila de pré-lançamento na posição ${queueEntry.position}${lotCode ? ` para o lote ${lotCode}` : ''}.`,
+          createdBy: 'SYSTEM_PRELAUNCH_QUEUE'
+        }
+      });
+    }
+
     // Fire-and-forget: notify panel users about the new lead
     this.notifications
       .onNewLead(tenantId, project.id, project.name, finalRealtorLinkId, {
@@ -347,7 +433,9 @@ export class LeadsService {
         leadName: lead.name,
         leadPhone: lead.phone,
         lotCode: lotCode ?? null,
-        sendLeadWelcome: true
+        sendLeadWelcome: true,
+        isPreLaunch: project.preLaunchEnabled,
+        queuePosition: queueEntry?.position ?? null
       })
       .catch((e) =>
         this.logger.error('Notification onNewLead (public)', e.message)
@@ -583,6 +671,10 @@ export class LeadsService {
         where: finalWhere as any,
         include: {
           project: true,
+          mapElement: {
+            select: { id: true, code: true, name: true }
+          },
+          preLaunchQueueEntry: true,
           realtorLink: {
             include: { user: true }
           }
@@ -633,6 +725,7 @@ export class LeadsService {
         project: true,
         mapElement: true,
         realtorLink: true,
+        preLaunchQueueEntry: true,
         documents: true,
         payments: true,
         history: { orderBy: { createdAt: 'desc' } }
@@ -902,6 +995,272 @@ export class LeadsService {
 
     return this.prisma.lead.delete({
       where: { id }
+    });
+  }
+
+  async listPreLaunchQueue(
+    tenantId: string,
+    query: PreLaunchQueueQueryDto,
+    user: { id: string; role: string; agencyId?: string }
+  ): Promise<PaginatedResponse<any> & Record<string, any>> {
+    const {
+      projectId,
+      mapElementId,
+      search,
+      status,
+      page = 1,
+      limit = 12
+    } = query;
+    const skip = (page - 1) * limit;
+
+    let realtorLinkId: string | undefined;
+    if (user.role === 'CORRETOR') {
+      const realtor = await this.prisma.realtorLink.findUnique({
+        where: { userId: user.id }
+      });
+      realtorLinkId = realtor?.id || 'none';
+    }
+
+    const where: Prisma.PreLaunchQueueEntryWhereInput = {
+      tenantId,
+      ...(projectId && { projectId }),
+      ...(mapElementId && { mapElementId }),
+      ...(status && { status }),
+      ...(realtorLinkId && { realtorLinkId }),
+      ...(user.role === 'IMOBILIARIA' && {
+        realtorLink: { user: { agencyId: user.agencyId } }
+      }),
+      ...(search && {
+        OR: [
+          { lead: { name: { contains: search, mode: 'insensitive' } } },
+          { lead: { email: { contains: search, mode: 'insensitive' } } },
+          { lead: { phone: { contains: search } } },
+          { realtorLink: { name: { contains: search, mode: 'insensitive' } } },
+          { mapElement: { code: { contains: search, mode: 'insensitive' } } },
+          { mapElement: { name: { contains: search, mode: 'insensitive' } } },
+          { project: { name: { contains: search, mode: 'insensitive' } } }
+        ]
+      })
+    };
+
+    const [data, totalItems, statusCounts, projectBucketsRaw, lotBucketsRaw] =
+      await Promise.all([
+        this.prisma.preLaunchQueueEntry.findMany({
+          where,
+          include: {
+            lead: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                status: true,
+                createdAt: true
+              }
+            },
+            project: { select: { id: true, name: true } },
+            mapElement: { select: { id: true, code: true, name: true } },
+            realtorLink: { select: { id: true, name: true, code: true } }
+          },
+          orderBy: [
+            { project: { name: 'asc' } },
+            { mapElement: { code: 'asc' } },
+            { position: 'asc' }
+          ],
+          skip,
+          take: limit
+        }),
+        this.prisma.preLaunchQueueEntry.count({ where }),
+        this.prisma.preLaunchQueueEntry.groupBy({
+          by: ['status'],
+          where: { tenantId, ...(projectId && { projectId }), ...(mapElementId && { mapElementId }) },
+          _count: { _all: true }
+        }),
+        this.prisma.preLaunchQueueEntry.groupBy({
+          by: ['projectId'],
+          where: {
+            tenantId,
+            status: PreLaunchQueueStatus.ACTIVE,
+            ...(user.role === 'CORRETOR' && realtorLinkId ? { realtorLinkId } : {}),
+            ...(user.role === 'IMOBILIARIA' ? { realtorLink: { user: { agencyId: user.agencyId } } } : {})
+          },
+          _count: { _all: true }
+        }),
+        this.prisma.preLaunchQueueEntry.groupBy({
+          by: ['projectId', 'mapElementId'],
+          where: {
+            tenantId,
+            status: PreLaunchQueueStatus.ACTIVE,
+            ...(projectId && { projectId }),
+            ...(user.role === 'CORRETOR' && realtorLinkId ? { realtorLinkId } : {}),
+            ...(user.role === 'IMOBILIARIA' ? { realtorLink: { user: { agencyId: user.agencyId } } } : {})
+          },
+          _count: { _all: true }
+        })
+      ]);
+
+    const projectIds = Array.from(new Set(projectBucketsRaw.map((bucket) => bucket.projectId)));
+    const lotIds = Array.from(
+      new Set(lotBucketsRaw.map((bucket) => bucket.mapElementId).filter(Boolean) as string[])
+    );
+
+    const [bucketProjects, bucketLots] = await Promise.all([
+      projectIds.length
+        ? this.prisma.project.findMany({
+            where: { id: { in: projectIds } },
+            select: { id: true, name: true }
+          })
+        : Promise.resolve([]),
+      lotIds.length
+        ? this.prisma.mapElement.findMany({
+            where: { id: { in: lotIds } },
+            select: { id: true, code: true, name: true, projectId: true }
+          })
+        : Promise.resolve([])
+    ]);
+
+    const projectNameById = new Map<string, string>(
+      bucketProjects.map((project) => [project.id, project.name] as [string, string])
+    );
+    const lotById = new Map<string, { id: string; code: string | null; name: string | null; projectId: string }>(
+      bucketLots.map(
+        (lot) => [lot.id, lot] as [string, { id: string; code: string | null; name: string | null; projectId: string }]
+      )
+    );
+    const countsByStatus = statusCounts.reduce<Record<string, number>>((acc, row) => {
+      acc[row.status] = row._count._all;
+      return acc;
+    }, {});
+
+    return {
+      data,
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page
+      },
+      summary: {
+        active: countsByStatus[PreLaunchQueueStatus.ACTIVE] ?? 0,
+        contacted: countsByStatus[PreLaunchQueueStatus.CONTACTED] ?? 0,
+        converted: countsByStatus[PreLaunchQueueStatus.CONVERTED] ?? 0,
+        removed: countsByStatus[PreLaunchQueueStatus.REMOVED] ?? 0
+      },
+      projectBuckets: projectBucketsRaw
+        .map((bucket) => ({
+          projectId: bucket.projectId,
+          projectName: projectNameById.get(bucket.projectId) || 'Projeto',
+          total: bucket._count._all
+        }))
+        .sort((a, b) => b.total - a.total),
+      lotBuckets: lotBucketsRaw
+        .map((bucket) => {
+          const lot = bucket.mapElementId ? lotById.get(bucket.mapElementId) : null;
+          return {
+            projectId: bucket.projectId,
+            mapElementId: bucket.mapElementId,
+            lotCode: lot?.code || lot?.name || 'Sem lote definido',
+            total: bucket._count._all
+          };
+        })
+        .sort((a, b) => b.total - a.total)
+    };
+  }
+
+  async updatePreLaunchQueueEntry(
+    tenantId: string,
+    id: string,
+    dto: UpdatePreLaunchQueueDto,
+    user: { id: string; role: string; agencyId?: string }
+  ) {
+    const entry = await this.prisma.preLaunchQueueEntry.findFirst({
+      where: {
+        id,
+        tenantId,
+        ...(user.role === 'CORRETOR'
+          ? { realtorLink: { userId: user.id } }
+          : user.role === 'IMOBILIARIA'
+            ? { realtorLink: { user: { agencyId: user.agencyId } } }
+            : {})
+      },
+      include: {
+        lead: { select: { id: true, name: true, status: true } },
+        project: { select: { name: true } },
+        mapElement: { select: { code: true, name: true } }
+      }
+    });
+
+    if (!entry) throw new NotFoundException('Registro de fila não encontrado.');
+
+    return this.prisma.$transaction(async (tx) => {
+      const nextStatus = dto.status ?? entry.status;
+      const wasActive = entry.status === PreLaunchQueueStatus.ACTIVE;
+      const willBeActive = nextStatus === PreLaunchQueueStatus.ACTIVE;
+
+      let nextPosition = entry.position;
+      if (wasActive && !willBeActive) {
+        await this.compactPreLaunchQueuePositions(
+          tx,
+          entry.projectId,
+          entry.mapElementId,
+          entry.position
+        );
+      }
+
+      if (!wasActive && willBeActive) {
+        const scope = this.buildPreLaunchScope(entry.projectId, entry.mapElementId);
+        const activeCount = await tx.preLaunchQueueEntry.count({
+          where: { ...scope, status: PreLaunchQueueStatus.ACTIVE }
+        });
+        nextPosition = activeCount + 1;
+      }
+
+      const updated = await tx.preLaunchQueueEntry.update({
+        where: { id: entry.id },
+        data: {
+          status: nextStatus,
+          notes: dto.notes !== undefined ? dto.notes : entry.notes,
+          position: nextPosition,
+          contactedAt:
+            nextStatus === PreLaunchQueueStatus.CONTACTED
+              ? entry.contactedAt || new Date()
+              : nextStatus === PreLaunchQueueStatus.ACTIVE
+                ? null
+                : entry.contactedAt,
+          convertedAt:
+            nextStatus === PreLaunchQueueStatus.CONVERTED
+              ? entry.convertedAt || new Date()
+              : nextStatus === PreLaunchQueueStatus.ACTIVE
+                ? null
+                : entry.convertedAt,
+          removedAt:
+            nextStatus === PreLaunchQueueStatus.REMOVED
+              ? entry.removedAt || new Date()
+              : nextStatus === PreLaunchQueueStatus.ACTIVE
+                ? null
+                : entry.removedAt
+        },
+        include: {
+          lead: { select: { id: true, name: true, status: true } },
+          project: { select: { id: true, name: true } },
+          mapElement: { select: { id: true, code: true, name: true } },
+          realtorLink: { select: { id: true, name: true, code: true } }
+        }
+      });
+
+      await tx.leadHistory.create({
+        data: {
+          leadId: entry.leadId,
+          toStatus: entry.lead.status,
+          notes:
+            dto.notes ||
+            `Fila de pré-lançamento atualizada para ${nextStatus}${updated.mapElement?.code ? ` no lote ${updated.mapElement.code}` : ''}.`,
+          createdBy: user.id || 'SYSTEM_PRELAUNCH_QUEUE'
+        }
+      });
+
+      return updated;
     });
   }
 

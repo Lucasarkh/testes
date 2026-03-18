@@ -19,6 +19,9 @@
             <span class="badge" :class="project.status === 'PUBLISHED' ? 'badge-success' : 'badge-neutral'" style="font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;">
               {{ project.status === 'PUBLISHED' ? 'Publicado' : 'Rascunho' }}
             </span>
+            <span v-if="project.preLaunchEnabled" class="badge" style="font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: rgba(245, 158, 11, 0.14); color: #fcd34d; border-color: rgba(245, 158, 11, 0.28);">
+              Pré-lançamento ativo
+            </span>
           </div>
           <h1 style="margin: 0; font-size: 1.75rem; letter-spacing: -0.02em;">{{ project.name }}</h1>
           <p style="margin: 0; color: var(--color-surface-400); font-weight: 500;">{{ project.description || 'Sem descrição' }}</p>
@@ -91,6 +94,21 @@
           <div style="width: 1px; height: 24px; background: rgba(255, 255, 255, 0.06);"></div>
 
           <div class="flex items-center gap-2">
+            <button
+              class="btn btn-sm"
+              :style="project.preLaunchEnabled
+                ? 'border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.28); color: #fcd34d;'
+                : 'border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border-subtle); color: var(--color-surface-100);'"
+              :disabled="!authStore.canEdit || togglingPreLaunch || isArchivedProject"
+              :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : (isArchivedProject ? 'Projeto arquivado em modo somente leitura' : undefined)"
+              @click="togglePreLaunchMode"
+            >
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <i :class="project.preLaunchEnabled ? 'bi bi-stars' : 'bi bi-megaphone-fill'" aria-hidden="true"></i>
+                <span>{{ togglingPreLaunch ? 'Salvando...' : (project.preLaunchEnabled ? 'Desativar Pré-lançamento' : 'Ativar Pré-lançamento') }}</span>
+              </span>
+            </button>
+
             <button 
               class="btn btn-sm btn-primary" 
               style="border-radius: 9999px; padding-left: 20px; padding-right: 20px; height: 38px;"
@@ -599,8 +617,24 @@
             </h3>
             <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 24px;">Configure o valor que o cliente deve pagar para reservar um lote online via cartão ou PIX.</p>
 
+            <div class="form-group" style="display:flex; align-items:flex-start; gap: 12px; margin-bottom: 20px; background: rgba(59, 130, 246, 0.08); padding: 16px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.18);">
+              <input type="checkbox" v-model="editForm.preLaunchEnabled" id="chkPreLaunchEnabled" style="width:20px; height:20px; cursor:pointer; margin-top: 2px;" />
+              <div>
+                <label for="chkPreLaunchEnabled" style="font-weight: 700; cursor:pointer; color: var(--color-surface-100); display: block; margin-bottom: 6px;">Ativar modo de pré-lançamento</label>
+                <p class="text-muted" style="margin: 0; font-size: 0.8rem; line-height: 1.5;">
+                  Quando ativo, o site público substitui a reserva online por uma fila de preferência com comunicação de exclusividade.
+                  Os leads e as métricas de acesso continuam sendo capturados normalmente.
+                </p>
+              </div>
+            </div>
+
+            <div v-if="editForm.preLaunchEnabled" style="padding: 12px 16px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.18); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: flex-start; gap: 8px;">
+              <span><i class="bi bi-stars" aria-hidden="true"></i></span>
+              <span style="color: #047857;">A reserva online e o pagamento ficam pausados no site público enquanto o pré-lançamento estiver ativo. As configurações abaixo são preservadas e voltam a valer ao desativar este modo.</span>
+            </div>
+
             <!-- Guard: no gateways active -->
-            <div v-if="activeConfigs.length === 0 && allConfigs.length > 0" style="padding: 12px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
+            <div v-if="!editForm.preLaunchEnabled && activeConfigs.length === 0 && allConfigs.length > 0" style="padding: 12px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); border-radius: 10px; margin-bottom: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 8px;">
               <span><i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i></span>
               <span style="color: #d97706;">Nenhum gateway de pagamento habilitado para este projeto. Ative um acima para que a reserva online funcione.</span>
             </div>
@@ -608,7 +642,7 @@
             <div class="grid grid-cols-2 gap-6">
               <div class="form-group">
                 <label class="form-label">Tipo de Cobrança</label>
-                <select v-model="editForm.reservationFeeType" class="form-input">
+                <select v-model="editForm.reservationFeeType" class="form-input" :disabled="editForm.preLaunchEnabled">
                   <option value="FIXED">Valor Fixo (R$)</option>
                   <option value="PERCENTAGE">Porcentagem do Valor do Lote (%)</option>
                 </select>
@@ -617,7 +651,7 @@
                 <label class="form-label">
                   {{ editForm.reservationFeeType === 'FIXED' ? 'Valor da Reserva (R$)' : 'Porcentagem da Reserva (%)' }}
                 </label>
-                <input v-model.number="editForm.reservationFeeValue" type="number" step="0.01" class="form-input" 
+                <input v-model.number="editForm.reservationFeeValue" type="number" step="0.01" class="form-input" :disabled="editForm.preLaunchEnabled"
                        :placeholder="editForm.reservationFeeType === 'FIXED' ? 'Ex: 500.00' : 'Ex: 0.5'" />
                 <small v-if="editForm.reservationFeeType === 'PERCENTAGE'" style="color: var(--color-surface-400); font-size: 0.75rem;">
                   Ex: 0.5 = 0,5% do valor total do lote.
@@ -628,7 +662,7 @@
             <div class="grid grid-cols-2 gap-6" style="margin-top: 16px;">
               <div class="form-group">
                 <label class="form-label">Tempo de Expiração da Reserva (Horas)</label>
-                <input v-model.number="editForm.reservationExpiryHours" type="number" class="form-input" placeholder="Ex: 24" />
+                <input v-model.number="editForm.reservationExpiryHours" type="number" class="form-input" :disabled="editForm.preLaunchEnabled" placeholder="Ex: 24" />
                 <small class="text-muted">Tempo que o lote ficará reservado aguardando confirmação (manual ou pagamento). Padrão: 24h.</small>
               </div>
             </div>
@@ -638,7 +672,7 @@
                 <span v-if="savingSettings">Salvando...</span>
                 <span v-else style="display: inline-flex; align-items: center; gap: 6px;">
                   <i class="bi bi-floppy-fill" aria-hidden="true"></i>
-                  <span>Salvar Configuração de Taxa</span>
+                  <span>Salvar Configuração Comercial</span>
                 </span>
               </button>
             </div>
@@ -1946,6 +1980,7 @@ const uploadingMedia = ref(false)
 const savingSettings = ref(false)
 const settingsError = ref('')
 const settingsSaved = ref(false)
+const togglingPreLaunch = ref(false)
 
 const editingLot = ref<any>(null)
 const lotQrModal = ref<null | {
@@ -2566,6 +2601,7 @@ const editForm = ref<any>({
   description: '',
   showPaymentConditions: false,
   customDomain: '',
+  preLaunchEnabled: false,
   reservationFeeType: 'FIXED',
   reservationFeeValue: 500,
   reservationExpiryHours: 24,
@@ -4133,6 +4169,7 @@ const loadProject = async () => {
       description: p.description || '',
       showPaymentConditions: p.showPaymentConditions ?? false,
       customDomain: p.customDomain || '',
+      preLaunchEnabled: p.preLaunchEnabled ?? false,
       reservationFeeType: p.reservationFeeType || 'FIXED',
       reservationFeeValue: p.reservationFeeValue ?? 500,
       reservationExpiryHours: p.reservationExpiryHours ?? 24,
@@ -4210,6 +4247,32 @@ const togglePublish = async () => {
   } catch (e) {
     toastFromError(e, 'Erro ao alterar publicação')
   }
+}
+
+const togglePreLaunchMode = async () => {
+  if (!authStore.canEdit || !project.value) return
+  if (isArchivedProject.value) {
+    toastFromError(new Error('Projeto arquivado está em modo somente leitura.'))
+    return
+  }
+
+  togglingPreLaunch.value = true
+  const nextValue = !(project.value.preLaunchEnabled === true)
+
+  try {
+    const updated = await fetchApi(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ preLaunchEnabled: nextValue })
+    })
+
+    project.value = updated
+    editForm.value.preLaunchEnabled = updated.preLaunchEnabled ?? nextValue
+    toastSuccess(nextValue ? 'Pré-lançamento ativado!' : 'Pré-lançamento desativado!')
+  } catch (e) {
+    toastFromError(e, 'Erro ao atualizar pré-lançamento')
+  }
+
+  togglingPreLaunch.value = false
 }
 
 const saveSettings = async () => {

@@ -250,6 +250,34 @@
       </div>
     </section>
 
+        <section class="lp-section lp-section--prelaunch">
+      <div class="lp-container" data-reveal-group>
+        <div class="lp-prelaunch-section" data-reveal>
+          <div class="lp-prelaunch-section__copy">
+            <div class="lp-prelaunch-spotlight__badge">Modo pré-lançamento</div>
+            <h2 class="lp-section-title lp-section-title--prelaunch">
+              Capte interesse antes da abertura oficial com fila de preferência e acesso antecipado exclusivo.
+            </h2>
+            <p class="lp-section-text lp-section-text--prelaunch">
+              Em vez de empurrar reserva cedo demais, sua landing passa a captar leads qualificados em fila,
+              mantendo o interesse aquecido até a virada comercial do empreendimento.
+            </p>
+          </div>
+
+          <div class="lp-prelaunch-section__panel">
+            <ul class="lp-prelaunch-spotlight__list">
+              <li v-for="item in preLaunchItems" :key="item">{{ item }}</li>
+            </ul>
+
+            <button type="button" class="lp-prelaunch-spotlight__cta" @click="scrollToForm">
+              Quero ativar esse fluxo
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
     <section class="lp-section lp-section--final" data-reveal-group>
       <div class="lp-container">
         <div class="lp-final-card" data-reveal>
@@ -446,7 +474,14 @@ const trustItems = ['Loteadoras', 'Incorporadoras', 'Imobiliárias', 'Corretores
 const proofItems = [
   'Estoque visual atualizado em tempo real',
   'Lead chega com lote, quadra e contexto',
+  'Modo pré-lançamento com fila de preferência',
   'Reserva online com gateway integrado',
+]
+
+const preLaunchItems = [
+  'Fila de preferência por empreendimento e por lote',
+  'Comunicação de acesso antecipado para aquecer a base',
+  'Troca simples para reserva normal quando a venda abrir',
 ]
 
 const painPoints = [
@@ -889,6 +924,139 @@ const scrollToForm = () => {
 .lp-hero-side {
   display: grid;
   gap: var(--lp-space-3);
+}
+
+.lp-section--prelaunch {
+  padding-top: 0;
+}
+
+.lp-prelaunch-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 24px;
+  padding: 28px;
+  border-radius: 32px;
+  background:
+    linear-gradient(145deg, rgba(240, 97, 74, 0.1), rgba(13, 143, 97, 0.06)),
+    rgba(255, 251, 245, 0.96);
+  border: 1px solid rgba(240, 97, 74, 0.18);
+  box-shadow: 0 22px 60px rgba(112, 62, 28, 0.1);
+}
+
+.lp-prelaunch-section__copy {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.lp-prelaunch-section__panel {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(23, 49, 39, 0.08);
+}
+
+.lp-section-title--prelaunch,
+.lp-section-text--prelaunch {
+  max-width: 100%;
+}
+
+.lp-prelaunch-spotlight {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(240, 97, 74, 0.12), rgba(13, 143, 97, 0.08)),
+    rgba(255, 251, 245, 0.96);
+  border: 1px solid rgba(240, 97, 74, 0.18);
+  box-shadow: 0 22px 60px rgba(112, 62, 28, 0.12);
+}
+
+.lp-prelaunch-spotlight__badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(126, 34, 12, 0.08);
+  color: #9a3412;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lp-prelaunch-spotlight__title {
+  margin: 0;
+  font-size: 1.45rem;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: #173127;
+}
+
+.lp-prelaunch-spotlight__text {
+  margin: 0;
+  color: #52645b;
+  line-height: 1.7;
+}
+
+.lp-prelaunch-spotlight__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-prelaunch-spotlight__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #244137;
+}
+
+.lp-prelaunch-spotlight__list li::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f0614a, #0d8f61);
+  flex: 0 0 9px;
+  margin-top: 7px;
+}
+
+.lp-prelaunch-spotlight__cta {
+  border: 0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  width: 100%;
+  font: inherit;
+  font-weight: 800;
+  color: #fffdf9;
+  background: linear-gradient(135deg, #d9485f, #b45309);
+  box-shadow: 0 18px 40px rgba(180, 83, 9, 0.22);
+  cursor: pointer;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.lp-prelaunch-spotlight__cta:hover {
+  transform: translateY(-2px);
+}
+
+@media (max-width: 900px) {
+  .lp-prelaunch-section {
+    grid-template-columns: 1fr;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .lp-prelaunch-section__panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
 }
 
 .lp-hero-visual,

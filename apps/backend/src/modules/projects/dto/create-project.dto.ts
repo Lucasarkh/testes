@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProjectDto {
@@ -35,4 +35,12 @@ export class CreateProjectDto {
   })
   @IsOptional()
   salesMotionConfig?: any;
+
+  @ApiPropertyOptional({
+    description:
+      'Ativa o modo de pré-lançamento para trocar reserva online por fila de preferência'
+  })
+  @IsOptional()
+  @IsBoolean()
+  preLaunchEnabled?: boolean;
 }

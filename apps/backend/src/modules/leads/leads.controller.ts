@@ -25,6 +25,10 @@ import {
   AddLeadDocumentDto,
   AddLeadPaymentDto
 } from './dto/manual-lead.dto';
+import {
+  PreLaunchQueueQueryDto,
+  UpdatePreLaunchQueueDto
+} from './dto/prelaunch-queue.dto';
 
 @ApiTags('Leads')
 @ApiBearerAuth()
@@ -51,6 +55,27 @@ export class LeadsController {
     @CurrentUser() user: any
   ) {
     return this.leadsService.findAll(tenantId, query, user);
+  }
+
+  @Get('prelaunch-queue')
+  @Roles('LOTEADORA', 'CORRETOR', 'IMOBILIARIA', 'SYSADMIN')
+  listPreLaunchQueue(
+    @TenantId() tenantId: string,
+    @Query() query: PreLaunchQueueQueryDto,
+    @CurrentUser() user: any
+  ) {
+    return this.leadsService.listPreLaunchQueue(tenantId, query, user);
+  }
+
+  @Patch('prelaunch-queue/:id')
+  @Roles('LOTEADORA', 'CORRETOR', 'IMOBILIARIA', 'SYSADMIN')
+  updatePreLaunchQueue(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdatePreLaunchQueueDto,
+    @CurrentUser() user: any
+  ) {
+    return this.leadsService.updatePreLaunchQueueEntry(tenantId, id, dto, user);
   }
 
   @Get(':id')

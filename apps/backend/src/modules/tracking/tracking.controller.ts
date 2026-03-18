@@ -216,6 +216,17 @@ export class TrackingController {
     return this.trackingService.getProjectHeatmapReport(query, user);
   }
 
+  @Get('metrics/prelaunch')
+  @UseGuards(AuthGuard('jwt'), TenantGuard)
+  async getPreLaunchMetrics(
+    @TenantId() tenantId: string,
+    @Query() query: TrackingReportQueryDto,
+    @CurrentUser() user: any
+  ) {
+    query.tenantId = tenantId;
+    return this.trackingService.getPreLaunchMetrics(query, user);
+  }
+
   @Get('metrics')
   @UseGuards(AuthGuard('jwt'), TenantGuard)
   async getMetrics(

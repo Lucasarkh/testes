@@ -204,6 +204,13 @@ enum NotificationType {
   LEAD_AUTO_DISTRIBUTED // Lead auto-distributed to a broker
 }
 
+enum PreLaunchQueueStatus {
+  ACTIVE
+  CONTACTED
+  CONVERTED
+  REMOVED
+}
+
 // ─── SUPPORT ENUMS ───────────────────────────────────────
 
 enum TicketStatus {
@@ -315,6 +322,7 @@ model Tenant {
   inviteCodes       TenantInviteCode[]
   logos             TenantLogo[]
   projectLogos      ProjectLogo[]
+  preLaunchQueueEntries PreLaunchQueueEntry[]
 }
 
 model TenantLogo {
@@ -456,6 +464,7 @@ model Project {
   reservationFeeType    ReservationFeeType @default(FIXED)
   reservationFeeValue   Decimal            @default(500) @db.Decimal(12, 2)
   reservationExpiryHours Int               @default(24)
+  preLaunchEnabled      Boolean            @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -491,6 +500,7 @@ model Project {
   distributionConfig LeadDistributionConfig?
   distributionLogs   LeadDistributionLog[]
   schedulings      Scheduling[]
+  preLaunchQueueEntries PreLaunchQueueEntry[]
   nearbyItems      NearbyItem[]
   subscriptionItems TenantSubscriptionItem[]
   logos           ProjectLogo[]
@@ -532,6 +542,7 @@ model MapElement {
 
   lotDetails LotDetails?
   leads      Lead[]
+  preLaunchQueueEntries PreLaunchQueueEntry[]
 
   // Removed redundant @@index([tenantId, projectId]) — it is a left-prefix subset
   // of the composite below and PostgreSQL will not use it independently.
@@ -655,6 +666,7 @@ model Lead {
   history       LeadHistory[]
   schedulings   Scheduling[]
   distributionLog LeadDistributionLog?
+  preLaunchQueueEntry PreLaunchQueueEntry?
   purchaseProcess PurchaseProcess?
   purchaseFunnelEvents PurchaseFunnelEvent[]
 
@@ -753,6 +765,32 @@ model LeadHistory {
   createdAt   DateTime    @default(now())
 
   @@index([leadId])
+}
+
+model PreLaunchQueueEntry {
+  id            String               @id @default(cuid())
+  tenantId      String
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projectId     String
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mapElementId  String?
+  mapElement    MapElement?          @relation(fields: [mapElementId], references: [id], onDelete: SetNull)
+  leadId        String               @unique
+  lead          Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  realtorLinkId String?
+  realtorLink   RealtorLink?         @relation(fields: [realtorLinkId], references: [id], onDelete: SetNull)
+  position      Int
+  status        PreLaunchQueueStatus @default(ACTIVE)
+  notes         String?              @db.Text
+  contactedAt   DateTime?
+  convertedAt   DateTime?
+  removedAt     DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([tenantId, projectId, status, createdAt(sort: Desc)])
+  @@index([projectId, mapElementId, status, position])
+  @@index([realtorLinkId, status])
 }
 
 model PurchaseFlowConfig {
@@ -1029,6 +1067,7 @@ model RealtorLink {
   trackingSessions TrackingSession[]
   trackingVisitors TrackingVisitor[]
   distributionLogs LeadDistributionLog[]
+  preLaunchQueueEntries PreLaunchQueueEntry[]
 
   @@unique([tenantId, code])
   @@index([tenantId])

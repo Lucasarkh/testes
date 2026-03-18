@@ -259,6 +259,8 @@ export class NotificationsService {
       leadPhone?: string | null;
       lotCode?: string | null;
       sendLeadWelcome?: boolean;
+      isPreLaunch?: boolean;
+      queuePosition?: number | null;
     }
   ) {
     // Resolve realtorLink → userId + agencyId
@@ -279,9 +281,11 @@ export class NotificationsService {
     await this.notifyTenantLoteadoras(
       tenantId,
       NotificationType.NEW_LEAD,
-      'Novo lead recebido!',
-      `Um novo lead foi captado no empreendimento "${projectName}".`,
-      `/painel/leads`,
+      leadContext?.isPreLaunch ? 'Novo lead de pré-lançamento!' : 'Novo lead recebido!',
+      leadContext?.isPreLaunch
+        ? `${leadContext?.leadName || 'Um cliente'} entrou na fila de pré-lançamento${leadContext?.queuePosition ? ` na posição ${leadContext.queuePosition}` : ''}${leadContext?.lotCode ? ` para o lote ${leadContext.lotCode}` : ''} no empreendimento "${projectName}".`
+        : `Um novo lead foi captado no empreendimento "${projectName}".`,
+      leadContext?.isPreLaunch ? `/painel/leads?view=prelaunch` : `/painel/leads`,
       { projectId }
     ).catch((e) => this.logger.error('onNewLead loteadora', e.message));
 
@@ -290,9 +294,11 @@ export class NotificationsService {
       await this.create(
         realtorUserId,
         NotificationType.NEW_LEAD,
-        'Novo lead para você!',
-        `Você recebeu um novo lead no empreendimento "${projectName}".`,
-        `/painel/leads`,
+        leadContext?.isPreLaunch ? 'Novo interessado na fila!' : 'Novo lead para você!',
+        leadContext?.isPreLaunch
+          ? `${leadContext?.leadName || 'Um cliente'} está interessado${leadContext?.queuePosition ? ` e está na fila na posição ${leadContext.queuePosition}` : ''}${leadContext?.lotCode ? ` pelo lote ${leadContext.lotCode}` : ''}.`
+          : `Você recebeu um novo lead no empreendimento "${projectName}".`,
+        leadContext?.isPreLaunch ? `/painel/leads?view=prelaunch` : `/painel/leads`,
         { projectId }
       ).catch((e) => this.logger.error('onNewLead corretor', e.message));
     }
@@ -302,9 +308,11 @@ export class NotificationsService {
       await this.notifyAgency(
         agencyId,
         NotificationType.NEW_LEAD,
-        'Novo lead para sua equipe!',
-        `Um novo lead foi captado no empreendimento "${projectName}" para a sua equipe.`,
-        `/painel/leads`,
+        leadContext?.isPreLaunch ? 'Novo interessado na fila da equipe!' : 'Novo lead para sua equipe!',
+        leadContext?.isPreLaunch
+          ? `${leadContext?.leadName || 'Um cliente'} entrou na fila${leadContext?.queuePosition ? ` na posição ${leadContext.queuePosition}` : ''}${leadContext?.lotCode ? ` pelo lote ${leadContext.lotCode}` : ''} no empreendimento "${projectName}".`
+          : `Um novo lead foi captado no empreendimento "${projectName}" para a sua equipe.`,
+        leadContext?.isPreLaunch ? `/painel/leads?view=prelaunch` : `/painel/leads`,
         { projectId }
       ).catch((e) => this.logger.error('onNewLead imobiliaria', e.message));
     }
@@ -326,14 +334,17 @@ export class NotificationsService {
       leadContext?.leadPhone || null,
       realtorLinkId ?? null,
       leadContext?.lotCode ?? null,
-      leadContext?.leadId
+      leadContext?.leadId,
+      leadContext?.isPreLaunch === true,
+      leadContext?.queuePosition ?? null
     ).catch((e) => this.logger.error('sendNewLeadWhatsAppAlerts', e.message));
 
     if (leadContext?.sendLeadWelcome && leadContext.leadPhone) {
       this.sendLeadWelcomeWhatsApp(
         leadContext.leadPhone,
         leadContext.leadName || 'cliente',
-        projectName
+        projectName,
+        leadContext?.isPreLaunch === true
       ).catch((e) => this.logger.error('sendLeadWelcomeWhatsApp', e.message));
     }
   }
@@ -479,19 +490,25 @@ export class NotificationsService {
     leadPhone?: string | null,
     realtorLinkId?: string | null,
     lotCode?: string | null,
-    leadId?: string
+    leadId?: string,
+    isPreLaunch = false,
+    queuePosition?: number | null
   ) {
     const recipients = await this.resolveWhatsAppRecipients(
       tenantId,
       realtorLinkId ?? null
     );
-    const msg =
-      `Novo lead recebido no empreendimento *${projectName}*.` +
-      `${leadName ? `\nNome: ${leadName}.` : ''}` +
-      `${leadPhone ? `\nTelefone: ${leadPhone}.` : ''}` +
-      `${lotCode ? `\nLote de interesse: ${lotCode}.` : ''}` +
-      `${leadId ? `\nLead ID: ${leadId}.` : ''}` +
-      '\nAcesse o painel para conferir mais detalhes!';
+    const msg = isPreLaunch
+      ? `${leadName || 'Um cliente'} está interessado${queuePosition ? ` e está na fila na posição ${queuePosition}` : ''}${lotCode ? ` pelo lote ${lotCode}` : ''} no empreendimento *${projectName}*.` +
+        `${leadPhone ? `\nTelefone: ${leadPhone}.` : ''}` +
+        `${leadId ? `\nLead ID: ${leadId}.` : ''}` +
+        '\nAcesse o painel na área de Pré-lançamento para gerenciar a fila.'
+      : `Novo lead recebido no empreendimento *${projectName}*.` +
+        `${leadName ? `\nNome: ${leadName}.` : ''}` +
+        `${leadPhone ? `\nTelefone: ${leadPhone}.` : ''}` +
+        `${lotCode ? `\nLote de interesse: ${lotCode}.` : ''}` +
+        `${leadId ? `\nLead ID: ${leadId}.` : ''}` +
+        '\nAcesse o painel para conferir mais detalhes!';
 
     await this.sendWhatsAppToMany(recipients, msg);
   }
@@ -499,12 +516,16 @@ export class NotificationsService {
   private async sendLeadWelcomeWhatsApp(
     phone: string,
     leadName: string,
-    projectName: string
+    projectName: string,
+    isPreLaunch = false
   ) {
     await this.whapi.sendText(
       phone,
-      `👋 Olá, ${leadName}! Obrigado pelo seu interesse no empreendimento *${projectName}*. 🏠` +
-        '\n✅ Recebemos sua solicitação e em breve um corretor entrará em contato para te atender. 📞'
+      isPreLaunch
+        ? `👋 Olá, ${leadName}! Você entrou na fila de preferência do pré-lançamento *${projectName}*.` +
+          '\n✨ Seu cadastro garante acesso antecipado exclusivo. Em breve um corretor entrará em contato com mais detalhes.'
+        : `👋 Olá, ${leadName}! Obrigado pelo seu interesse no empreendimento *${projectName}*. 🏠` +
+          '\n✅ Recebemos sua solicitação e em breve um corretor entrará em contato para te atender. 📞'
     );
   }
 

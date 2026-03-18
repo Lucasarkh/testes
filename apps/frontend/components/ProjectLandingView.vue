@@ -30,14 +30,14 @@
         <div class="v4-container">
           <div class="v4-hero-content">
             <div class="v4-hero-text">
-              <span class="v4-hero-tag">{{ project.tenant?.name || 'Vendas Iniciadas' }}</span>
+              <span class="v4-hero-tag">{{ heroTagLabel }}</span>
               <h1 class="v4-hero-title text-balance">{{ project.name }}</h1>
               <p v-if="project.description" class="v4-hero-desc text-balance">{{ project.description }}</p>
               <div class="v4-hero-actions">
                 <a href="#planta" class="v4-btn-primary v4-hero-btn" @click="tracking.trackClick('Botão: Ver Planta Interativa')">Ver Planta Interativa</a>
                 <NuxtLink to="/sou-cliente" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Sou Cliente')">Sou cliente</NuxtLink>
                 <a v-if="schedulingConfig?.enabled" href="#agendamento" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Agendar Visita')">Agendar Visita</a>
-                <a href="#contato" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick('Botão: Solicitar Informações')">Solicitar informações</a>
+                <a href="#contato" class="v4-btn-white v4-hero-btn" @click="tracking.trackClick(heroContactTrackingLabel)">{{ heroContactLabel }}</a>
               </div>
             </div>
 
@@ -63,8 +63,28 @@
         </div>
       </section>
 
+      <div v-if="isPreLaunchMode" class="v4-prelaunch-bar">
+        <div class="v4-container">
+          <div class="v4-prelaunch-inner">
+            <div class="v4-prelaunch-copy">
+              <span class="v4-prelaunch-kicker">Pré-lançamento ativo</span>
+              <strong class="v4-prelaunch-title">Acesso antecipado exclusivo e fila de preferência liberados</strong>
+              <p class="v4-prelaunch-text">
+                Entre na fila agora para receber atendimento prioritário, condições antecipadas e aviso antes da abertura oficial.
+                <span v-if="corretor">Seu atendimento com corretor exclusivo continua normalmente logo abaixo.</span>
+              </p>
+            </div>
+            <div class="v4-prelaunch-actions">
+              <a href="#contato" class="v4-prelaunch-btn" @click="tracking.trackClick(preLaunchBarTrackingLabel)">
+                {{ preLaunchBarCtaLabel }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Trust bar -->
-      <div v-if="corretor" class="v4-trust-bar">
+      <div v-if="corretor" class="v4-trust-bar" :class="{ 'v4-trust-bar--with-prelaunch': isPreLaunchMode }">
         <div class="v4-container">
           <div class="v4-trust-inner">
             <div class="v4-trust-person">
@@ -81,8 +101,8 @@
               <a v-if="corretor.phone" :href="`https://wa.me/${corretor.phone.replace(/\D/g,'')}`" target="_blank" class="v4-trust-btn v4-trust-btn--whatsapp" @click="tracking.trackWhatsappClick({ realtorName: corretor.name })">
                 <span>WhatsApp</span>
               </a>
-              <a href="#contato" class="v4-trust-btn v4-trust-btn--primary" @click="tracking.trackClick('CTA Flutuante: Tenho Interesse')">
-                <span>Tenho Interesse</span>
+              <a href="#contato" class="v4-trust-btn v4-trust-btn--primary" @click="tracking.trackClick(trustBarTrackingLabel)">
+                <span>{{ primaryInterestLabel }}</span>
               </a>
             </div>
           </div>
@@ -461,13 +481,13 @@
               <div class="v4-conversion-header-new">
                 <div class="v4-badge-clean">
                   <span class="v4-pulse-blue"></span>
-                  Oportunidade única
+                  {{ conversionBadgeText }}
                 </div>
-                <h2 class="v4-title-display">Garanta sua unidade agora</h2>
-                <p class="v4-subtitle-clean">Restam poucas unidades disponíveis. Preencha o formulário e nossa equipe entrará em contato para tirar suas dúvidas.</p>
+                <h2 class="v4-title-display">{{ conversionTitle }}</h2>
+                <p class="v4-subtitle-clean">{{ conversionSubtitle }}</p>
                 
                 <div v-if="(project?.lotSummary?.total ?? 0) > 0" class="v4-lot-badge-minimal">
-                  <span class="v4-sparkle"><i class="bi bi-stars" aria-hidden="true"></i></span> <strong>{{ availableLots }}</strong> lotes disponíveis no momento
+                  <span class="v4-sparkle"><i class="bi bi-stars" aria-hidden="true"></i></span> {{ conversionAvailabilityText }}
                 </div>
               </div>
 
@@ -478,8 +498,8 @@
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </div>
-                  <h3>Solicitação enviada!</h3>
-                  <p>Recebemos seus dados e logo um consultor entrará em contato.</p>
+                  <h3>{{ leadSuccessTitle }}</h3>
+                  <p>{{ leadSuccessMessage }}</p>
                   <button @click="leadSuccess = false" class="v4-btn-back">Voltar</button>
                 </div>
                 
@@ -514,13 +534,18 @@
 
                   <div class="v4-input-group">
                     <label>Mensagem (opcional)</label>
-                    <textarea v-model="leadForm.message" rows="3" placeholder="Em que podemos te ajudar?"></textarea>
+                    <textarea v-model="leadForm.message" rows="3" :placeholder="leadMessagePlaceholder"></textarea>
                   </div>
+
+                  <label class="v4-form-checkbox">
+                    <input v-model="leadForm.acceptTerms" type="checkbox" required />
+                    <span>{{ leadTermsLabel }}</span>
+                  </label>
 
                   <div v-if="leadError" class="v4-form-error-msg">{{ leadError }}</div>
                   
-                  <button type="submit" class="v4-btn-submit-modern" :disabled="submitting" @click="tracking.trackClick('Formulário: Submit')">
-                    {{ submitting ? 'Enviando...' : 'Falar com um consultor' }}
+                  <button type="submit" class="v4-btn-submit-modern" :disabled="submitting" @click="tracking.trackClick(formSubmitTrackingLabel)">
+                    {{ submitting ? 'Enviando...' : leadSubmitButtonLabel }}
                   </button>
                   <p class="v4-privacy-legal">Seus dados estão seguros conosco.</p>
                 </form>
@@ -616,7 +641,7 @@
         <a v-if="project?.plantMap" href="#planta" class="v4-nav-item">Planta</a>
         <a v-if="panoramas.length" href="#panorama" class="v4-nav-item">Panorama</a>
         <a v-if="(project?.lotSummary?.available ?? 0) > 0" href="#lotes" class="v4-nav-item">Unidades</a>
-        <a href="#contato" class="v4-nav-item v4-nav-cta">TENHO INTERESSE</a>
+        <a href="#contato" class="v4-nav-item v4-nav-cta">{{ stickyInterestLabel }}</a>
       </nav>
 
       <Transition name="fade">
@@ -1183,7 +1208,7 @@ const salesMotionLastViews = ref(0)
 const salesMotionLastVisits = ref(0)
 const salesMotionReachedMilestones = ref<number[]>([])
 
-const leadForm = ref({ name: '', email: '', phone: '', mapElementId: '', message: '' })
+const leadForm = ref({ name: '', email: '', phone: '', mapElementId: '', message: '', acceptTerms: false })
 const { maskPhone, validateEmail, validatePhone, unmask } = useMasks()
 
 watch(() => leadForm.value.phone, (v) => {
@@ -2213,6 +2238,89 @@ const totalLots = computed(() => project.value?.lotSummary?.total ?? 0)
 const availableLots = computed(() => project.value?.lotSummary?.available ?? 0)
 const reservedLots = computed(() => project.value?.lotSummary?.reserved ?? 0)
 const soldLots = computed(() => project.value?.lotSummary?.sold ?? 0)
+const isPreLaunchMode = computed(() => project.value?.preLaunchEnabled === true)
+
+const heroTagLabel = computed(() =>
+  isPreLaunchMode.value ? 'PRÉ-LANÇAMENTO · ACESSO ANTECIPADO EXCLUSIVO' : project.value?.tenant?.name || 'Vendas Iniciadas'
+)
+
+const primaryInterestLabel = computed(() =>
+  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Tenho Interesse'
+)
+
+const heroContactLabel = computed(() =>
+  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Solicitar informações'
+)
+
+const stickyInterestLabel = computed(() =>
+  isPreLaunchMode.value ? 'ENTRAR NA FILA' : 'TENHO INTERESSE'
+)
+
+const preLaunchBarCtaLabel = computed(() =>
+  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Solicitar informações'
+)
+
+const conversionBadgeText = computed(() =>
+  isPreLaunchMode.value ? 'PRÉ-LANÇAMENTO · ACESSO ANTECIPADO EXCLUSIVO' : 'Oportunidade única'
+)
+
+const conversionTitle = computed(() =>
+  isPreLaunchMode.value ? 'Entre na fila do pré-lançamento' : 'Garanta sua unidade agora'
+)
+
+const conversionSubtitle = computed(() =>
+  isPreLaunchMode.value
+    ? 'Cadastre-se para receber atendimento prioritário, novidades em primeira mão e acesso antecipado às condições especiais deste lançamento.'
+    : 'Restam poucas unidades disponíveis. Preencha o formulário e nossa equipe entrará em contato para tirar suas dúvidas.'
+)
+
+const conversionAvailabilityText = computed(() =>
+  isPreLaunchMode.value
+    ? `${availableLots.value} lotes elegíveis para a fila de preferência`
+    : `${availableLots.value} lotes disponíveis no momento`
+)
+
+const leadSuccessTitle = computed(() =>
+  isPreLaunchMode.value ? 'Seu acesso antecipado está confirmado!' : 'Solicitação enviada!'
+)
+
+const leadSuccessMessage = computed(() =>
+  isPreLaunchMode.value
+    ? 'Recebemos seu cadastro com prioridade. Você entrou na fila de preferência e um consultor vai falar com você antes da abertura oficial para apresentar o lançamento e as condições exclusivas.'
+    : 'Recebemos seus dados e logo um consultor entrará em contato.'
+)
+
+const leadSubmitButtonLabel = computed(() =>
+  isPreLaunchMode.value ? 'Entrar na fila de preferência' : 'Falar com um consultor'
+)
+
+const leadMessagePlaceholder = computed(() =>
+  isPreLaunchMode.value
+    ? 'Conte se busca um lote específico ou quer receber a abertura em primeira mão.'
+    : 'Em que podemos te ajudar?'
+)
+
+const leadTermsLabel = computed(() =>
+  isPreLaunchMode.value
+    ? 'Aceito os termos de pré-lançamento e políticas de privacidade e estou ciente de que meu cadastro entrará na fila de preferência do empreendimento.'
+    : 'Aceito os termos de atendimento e políticas de privacidade para receber contato sobre este empreendimento.'
+)
+
+const heroContactTrackingLabel = computed(() =>
+  isPreLaunchMode.value ? 'Botão: Entrar na Fila de Preferencia' : 'Botão: Solicitar Informações'
+)
+
+const trustBarTrackingLabel = computed(() =>
+  isPreLaunchMode.value ? 'CTA Flutuante: Fila de Preferencia' : 'CTA Flutuante: Tenho Interesse'
+)
+
+const preLaunchBarTrackingLabel = computed(() =>
+  isPreLaunchMode.value ? 'Barra Fixa: Entrar na Fila de Preferencia' : 'Barra Fixa: Solicitar Informacoes'
+)
+
+const formSubmitTrackingLabel = computed(() =>
+  isPreLaunchMode.value ? 'Formulário: Entrar na Fila de Preferencia' : 'Formulário: Submit'
+)
 
 const minArea = computed(() => {
   if (project.value?.startingArea) return project.value.startingArea
@@ -2732,16 +2840,32 @@ async function submitLead() {
     leadError.value = 'E-mail inválido'
     return
   }
+  if (!leadForm.value.acceptTerms) {
+    leadError.value = 'Você precisa aceitar os termos'
+    return
+  }
 
   submitting.value = true
   leadError.value = ''
   try {
+    const selectedLot = unifiedAvailableLots.value.find((lot: any) => lot.id === leadForm.value.mapElementId)
+    const selectedLotLabel = selectedLot?.code || selectedLot?.name || selectedLot?.id
+    const defaultMessage = leadForm.value.message || (
+      isPreLaunchMode.value
+        ? selectedLotLabel
+          ? `PRE-LANCAMENTO: Quero entrar na fila de preferência do lote ${selectedLotLabel}`
+          : 'PRE-LANCAMENTO: Quero entrar na fila de preferência deste empreendimento.'
+        : selectedLotLabel
+          ? `Tenho interesse no lote ${selectedLotLabel}`
+          : undefined
+    )
+
     const body = {
       name: leadForm.value.name,
       email: leadForm.value.email,
       phone: unmask(leadForm.value.phone),
       mapElementId: leadForm.value.mapElementId || undefined,
-      message: leadForm.value.message || undefined,
+      message: defaultMessage,
       realtorCode: corretorCode || undefined,
       visitorId: trackingStore.visitorId || undefined,
       sessionId: trackingStore.sessionId || undefined,
@@ -2753,11 +2877,11 @@ async function submitLead() {
     })
 
     // Track Lead Submit
-    tracking.trackLeadSubmit('FORM', { source: 'main_page' })
+    tracking.trackLeadSubmit('FORM', { source: isPreLaunchMode.value ? 'pre_launch_queue' : 'main_page' })
 
     leadSuccess.value = true
-    toastSuccess('Formulário enviado com sucesso!')
-    leadForm.value = { name: '', email: '', phone: '', mapElementId: '', message: '' }
+    toastSuccess(isPreLaunchMode.value ? 'Você entrou na fila de preferência!' : 'Formulário enviado com sucesso!')
+    leadForm.value = { name: '', email: '', phone: '', mapElementId: '', message: '', acceptTerms: false }
     if (chatStore.hasConversation()) chatStore.clear()
   } catch (e: any) {
     leadError.value = e.message || 'Erro ao enviar'
@@ -2769,7 +2893,9 @@ function openLeadForm(el: any) {
   leadForm.value.mapElementId = el?.id || ''
   
   if (el?.label || el?.code) {
-    leadForm.value.message = `Tenho interesse no lote ${el.label || el.code}`
+    leadForm.value.message = isPreLaunchMode.value
+      ? `Quero entrar na fila de preferência do lote ${el.label || el.code}`
+      : `Tenho interesse no lote ${el.label || el.code}`
   }
   document.getElementById('contato')?.scrollIntoView({ behavior: 'smooth' })
 }
@@ -4341,6 +4467,81 @@ function openLightbox(idx: number) {
 .v4-btn-white:hover { background: #f5f5f7; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
 
 /* Trust Bar */
+.v4-prelaunch-bar {
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  padding: 10px 0;
+  background:
+    linear-gradient(90deg, rgba(6, 78, 59, 0.94), rgba(3, 105, 161, 0.94)),
+    rgba(7, 12, 20, 0.92);
+  color: #ecfeff;
+  border-bottom: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 10px 34px rgba(2, 6, 23, 0.18);
+  backdrop-filter: saturate(180%) blur(18px);
+}
+
+.v4-prelaunch-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.v4-prelaunch-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.v4-prelaunch-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(236, 254, 255, 0.82);
+}
+
+.v4-prelaunch-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.v4-prelaunch-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(236, 254, 255, 0.86);
+}
+
+.v4-prelaunch-actions {
+  flex-shrink: 0;
+}
+
+.v4-prelaunch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: all 0.22s ease;
+}
+
+.v4-prelaunch-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.16);
+}
+
 .v4-trust-bar {
   background: rgba(255, 255, 255, 0.85); /* Slightly more transparent */
   backdrop-filter: saturate(180%) blur(20px);
@@ -4350,6 +4551,10 @@ function openLightbox(idx: number) {
   top: 0;
   z-index: 100;
   box-shadow: 0 4px 30px rgba(0,0,0,0.03);
+}
+
+.v4-trust-bar--with-prelaunch {
+  top: 86px;
 }
 
 .v4-trust-inner {
@@ -5148,6 +5353,22 @@ function openLightbox(idx: number) {
   text-align: center;
 }
 
+.v4-form-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #6e6e73;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.v4-form-checkbox input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
 .v4-form-success-new { text-align: center; padding: 40px 0; }
 .v4-success-circle { width: 64px; height: 64px; background: #e6f7ed; color: #008a32; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
 .v4-success-circle svg { width: 32px; height: 32px; }
@@ -5322,6 +5543,28 @@ function openLightbox(idx: number) {
 }
 
 @media (max-width: 768px) {
+  .v4-prelaunch-bar {
+    padding: 10px 0;
+  }
+
+  .v4-prelaunch-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .v4-prelaunch-title {
+    font-size: 15px;
+  }
+
+  .v4-prelaunch-text {
+    font-size: 12px;
+  }
+
+  .v4-prelaunch-btn {
+    width: 100%;
+  }
+
   .v4-sticky-nav {
     display: flex;
     bottom: 20px;
@@ -5415,6 +5658,7 @@ function openLightbox(idx: number) {
   }
   
   .v4-trust-bar { padding: 8px 0; }
+  .v4-trust-bar--with-prelaunch { top: 127px; }
   .v4-trust-label { font-size: 10px; }
   .v4-trust-name { font-size: 14px; }
   .v4-trust-btn { padding: 8px 12px; font-size: 11px; font-weight: 700; white-space: nowrap; border-radius: 8px; }
