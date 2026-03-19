@@ -5701,7 +5701,6 @@ function openLightbox(idx: number) {
 
 .v4-lot-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--v4-primary) 50%, transparent);
 }
 

@@ -57,7 +57,7 @@
         <button
           v-if="plantMap"
           class="pme__btn pme__btn--primary"
-          :disabled="saving"
+          :disabled="saving || !hasPendingPlantSettingsChanges"
           @click="saveAll"
         >
           <span v-if="saving"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Salvando...</span>
@@ -256,7 +256,12 @@
 
         <!-- Toast hint -->
         <div v-if="editorMode === 'add'" class="pme__canvas-hint">
-          Clique na planta para adicionar um hotspot. Segure Espaço para mover o mapa.
+          <template v-if="quickCreateType === 'LOTE'">
+            Clique na planta para criar um lote. Ele sera adicionado na lista abaixo. Segure Espaco para mover o mapa.
+          </template>
+          <template v-else>
+            Clique na planta para adicionar um hotspot. Segure Espaco para mover o mapa.
+          </template>
         </div>
         <div v-if="editorMode === 'batch'" class="pme__canvas-hint">
           Marque os pontos para criacao em massa. Segure Espaco para mover o mapa.
@@ -324,17 +329,124 @@
         </div>
 
         <template v-else>
-          <div class="pme__sidebar-header">
-            <span>Hotspots ({{ localHotspots.length }})</span>
-            <button
-              v-if="selectedHotspotIds.length"
-              class="pme__btn pme__btn--sm pme__btn--danger"
-              @click="deleteSelectedHotspots"
-            >Excluir ({{ selectedHotspotIds.length }})</button>
+          <div class="pme__sidebar-section pme__sidebar-section--tools">
+            <div class="pme__section-header">
+              <span>Ferramentas rápidas</span>
+            </div>
+
+            <div class="pme__mode-grid">
+              <button class="pme__mode-chip" :class="{ active: isModeActive('view') }" @click="editorMode = 'view'">
+                <i class="bi bi-eye-fill" aria-hidden="true"></i>
+                <span>Visualizar</span>
+              </button>
+              <button class="pme__mode-chip" :class="{ active: isModeActive('add') }" @click="editorMode = 'add'" :disabled="!plantMap">
+                <i class="bi bi-plus-square-fill" aria-hidden="true"></i>
+                <span>Adicionar</span>
+              </button>
+              <button class="pme__mode-chip" :class="{ active: isModeActive('batch') }" @click="editorMode = 'batch'" :disabled="!plantMap">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span>Adicionar vários</span>
+              </button>
+              <button class="pme__mode-chip" :class="{ active: isModeActive('move') }" @click="editorMode = 'move'" :disabled="!plantMap">
+                <i class="bi bi-arrows-move" aria-hidden="true"></i>
+                <span>Mover</span>
+              </button>
+            </div>
+
+            <div class="pme__tool-toggles">
+              <label class="pme__toggle-label">
+                <input type="checkbox" v-model="showBeacons" />
+                <i class="bi bi-geo-alt-fill" aria-hidden="true"></i> Exibir pontos
+              </label>
+              <label class="pme__toggle-label">
+                <input type="checkbox" :checked="localSunPath.enabled" @change="toggleSunPath" />
+                <i class="bi bi-sun-fill" aria-hidden="true"></i> Trajetória solar
+              </label>
+            </div>
           </div>
 
-          <!-- Quick Search -->
-          <div class="pme__sidebar-search" v-if="localHotspots.length > 10">
+          <div v-if="editorMode === 'add'" class="pme__quick-create-card">
+            <div class="pme__quick-create-head">
+              <span><i class="bi bi-plus-square-fill" aria-hidden="true"></i> Novo spot</span>
+            </div>
+
+            <div class="pme__field">
+              <label class="pme__label">Tipo criado ao clicar</label>
+              <select v-model="quickCreateType" class="pme__input pme__select">
+                <option value="LOTE">Lote</option>
+                <option value="QUADRA">Quadra</option>
+                <option value="PORTARIA">Portaria</option>
+                <option value="AREA_COMUM">Area Comum</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </div>
+
+            <p class="pme__sidebar-tip" v-if="quickCreateType === 'LOTE'">
+              Lotes sao criados direto na planta e entram automaticamente na lista abaixo para edicao detalhada.
+            </p>
+            <p class="pme__sidebar-tip" v-else>
+              Spots informativos continuam abrindo o formulario do hotspot dentro do editor.
+            </p>
+          </div>
+
+          <div v-if="selectedHotspots.length" class="pme__sidebar-section pme__sidebar-section--selection">
+            <div class="pme__section-header">
+              <span>{{ selectionPanelTitle }}</span>
+            </div>
+
+            <div v-if="selectedSingleHotspot" class="pme__selection-card">
+              <div class="pme__selection-card-top">
+                <div>
+                  <div class="pme__selection-title">{{ selectedSingleHotspot.label || selectedSingleHotspot.title || 'Sem nome' }}</div>
+                  <div class="pme__selection-meta">
+                    <span>{{ typeLabel(selectedSingleHotspot.type) }}</span>
+                    <span v-if="selectedSingleLotBlock">Quadra {{ selectedSingleLotBlock }}</span>
+                    <span>X {{ Math.round(selectedSingleHotspot.x * 1000) / 1000 }} · Y {{ Math.round(selectedSingleHotspot.y * 1000) / 1000 }}</span>
+                  </div>
+                </div>
+                <span class="pme__selection-badge" :class="{ 'is-lot': isSingleLotSelected }">{{ isSingleLotSelected ? 'Lote' : 'Spot' }}</span>
+              </div>
+
+              <div class="pme__selection-actions">
+                <button class="pme__btn pme__btn--primary pme__btn--sm" @click="openSelectedEditor">
+                  {{ isSingleLotSelected ? 'Editar lote' : 'Editar hotspot' }}
+                </button>
+                <button class="pme__btn pme__btn--outline pme__btn--sm" @click="clearSelection">
+                  Limpar
+                </button>
+                <button class="pme__btn pme__btn--danger pme__btn--sm" @click="deleteSelectedHotspots">
+                  Excluir
+                </button>
+              </div>
+
+              <p v-if="isSingleLotSelected" class="pme__sidebar-tip pme__sidebar-tip--accent">
+                Clique novamente no lote selecionado para abrir a edicao detalhada. Arraste a seta laranja na planta para definir a frente.
+                <span v-if="savingFrontSelection"> Salvando...</span>
+              </p>
+              <p v-else class="pme__sidebar-tip">
+                Clique novamente no hotspot selecionado para abrir a edicao rapida.
+              </p>
+            </div>
+
+            <div v-else class="pme__selection-card">
+              <div class="pme__selection-title">{{ selectedHotspotIds.length }} itens selecionados</div>
+              <p class="pme__sidebar-tip">Use a exclusao em lote ou limpe a selecao para continuar editando.</p>
+              <div class="pme__selection-actions">
+                <button class="pme__btn pme__btn--outline pme__btn--sm" @click="clearSelection">
+                  Limpar
+                </button>
+                <button class="pme__btn pme__btn--danger pme__btn--sm" @click="deleteSelectedHotspots">
+                  Excluir selecionados
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="nonLotHotspots.length" class="pme__sidebar-header">
+            <span>Hotspots informativos ({{ filteredHotspots.length }})</span>
+          </div>
+
+          <div class="pme__sidebar-search" v-if="nonLotHotspots.length > 10">
             <input 
               v-model="hotspotSearch" 
               class="pme__input pme__input--sm" 
@@ -343,11 +455,7 @@
             />
           </div>
 
-          <div v-if="localHotspots.length" class="pme__sidebar-tools">
-            <label class="pme__toggle-label" :style="!hasLotHotspots ? 'opacity:0.6; cursor:not-allowed;' : ''">
-              <input type="checkbox" v-model="groupByBlock" :disabled="!hasLotHotspots" />
-              Agrupar lotes por quadra
-            </label>
+          <div v-if="nonLotHotspots.length" class="pme__sidebar-tools">
             <div class="pme__sidebar-actions">
               <button class="pme__btn pme__btn--sm pme__btn--outline" @click="selectAllFiltered" :disabled="!filteredHotspots.length">
                 Selecionar filtrados
@@ -361,80 +469,29 @@
               Arraste a seta laranja sobre {{ selectedFrontHotspot.label || selectedFrontHotspot.title }} para apontar a frente do lote.
               <span v-if="savingFrontSelection"> Salvando...</span>
             </p>
+          </div>
 
-            <div v-if="selectedLotHotspotsCount > 0" class="pme__bulk-card">
-              <div class="pme__bulk-title">
-                Quadra em lote ({{ selectedLotHotspotsCount }})
+          <div class="pme__hs-list" v-if="nonLotHotspots.length">
+            <div
+              v-for="hs in filteredHotspots"
+              :key="hs.id"
+              class="pme__hs-item"
+              :class="{ selected: isHotspotSelected(hs.id) }"
+              @click="selectHotspot(hs.id, $event)"
+            >
+              <span class="pme__hs-icon">{{ typeIcon(hs.type) }}</span>
+              <div class="pme__hs-info">
+                <span class="pme__hs-title">{{ hs.label || hs.title }}</span>
+                <span class="pme__hs-type">{{ typeLabel(hs.type) }}</span>
               </div>
-
-              <div class="pme__bulk-row">
-                <select v-model="bulkBlockExisting" class="pme__input pme__select pme__input--sm" :disabled="savingBulkBlock || !existingBlocks.length">
-                  <option value="">Selec. quadra</option>
-                  <option v-for="block in existingBlocks" :key="block" :value="block">{{ block }}</option>
-                </select>
+              <div class="pme__hs-actions">
                 <button
-                  class="pme__btn pme__btn--sm pme__btn--primary"
-                  :disabled="savingBulkBlock || !bulkBlockExisting"
-                  @click="applyExistingBlockToSelected"
-                >Aplicar quadra</button>
+                  class="pme__hs-action-btn"
+                  @click.stop="editHotspot(hs)"
+                  title="Editar"
+                ><i class="bi bi-pencil-fill" aria-hidden="true"></i></button>
               </div>
-
-              <div class="pme__bulk-row">
-                <input
-                  v-model="bulkBlockNew"
-                  class="pme__input pme__input--sm"
-                  placeholder="Nova quadra (ex: Q2)"
-                  :disabled="savingBulkBlock"
-                />
-                <button
-                  class="pme__btn pme__btn--sm pme__btn--primary"
-                  :disabled="savingBulkBlock || !bulkBlockNew.trim()"
-                  @click="applyNewBlockToSelected"
-                >Criar e aplicar</button>
-              </div>
-
-              <p class="pme__sidebar-tip" v-if="selectedNonLotHotspotsCount > 0">
-                {{ selectedNonLotHotspotsCount }} selecionado(s) nao-lote sera(ao) ignorado(s).
-              </p>
             </div>
-          </div>
-
-          <div v-if="!localHotspots.length" class="pme__sidebar-empty">
-            Nenhum hotspot ainda.<br/>Use o modo "+ Adicionar".
-          </div>
-
-          <div class="pme__hs-list" v-else>
-            <template v-for="group in groupedFilteredHotspots" :key="group.key">
-              <div v-if="groupByBlock" class="pme__hs-group-header">
-                {{ group.label }} ({{ group.items.length }})
-              </div>
-
-              <div
-                v-for="hs in group.items"
-                :key="hs.id"
-                class="pme__hs-item"
-                :class="{ selected: isHotspotSelected(hs.id) }"
-                @click="selectHotspot(hs.id, $event)"
-              >
-                <span class="pme__hs-icon">{{ typeIcon(hs.type) }}</span>
-                <div class="pme__hs-info">
-                  <span class="pme__hs-title">{{ hs.label || hs.title }}</span>
-                  <span class="pme__hs-type">{{ typeLabel(hs.type) }}</span>
-                </div>
-                <div class="pme__hs-actions">
-                  <button
-                    class="pme__hs-action-btn"
-                    @click.stop="duplicateHotspot(hs)"
-                    title="Duplicar"
-                  ><i class="bi bi-people-fill" aria-hidden="true"></i></button>
-                  <button
-                    class="pme__hs-action-btn"
-                    @click.stop="editHotspot(hs)"
-                    title="Editar"
-                  ><i class="bi bi-pencil-fill" aria-hidden="true"></i></button>
-                </div>
-              </div>
-            </template>
           </div>
         </template>
       </div>
@@ -448,6 +505,7 @@
     <HotspotModal
       v-model="showModal"
       :hotspot="editingHotspot"
+      :default-type="quickCreateType"
       :initial-x="newHotspotPos.x"
       :initial-y="newHotspotPos.y"
       :saving="savingHotspot"
@@ -475,6 +533,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'updated', plantMap: PlantMap): void
+  (e: 'hotspots-changed'): void
+  (e: 'edit-lot', mapElementId: string): void
 }>()
 
 const api = usePlantMapApi()
@@ -520,6 +580,30 @@ const localNorthAngleDeg = ref(
   ),
 )
 const effectiveSunPathAngleDeg = computed(() => normalizeAngle(localNorthAngleDeg.value + 90))
+const unsavedPlantSettingsMessage = 'Voce tem configuracoes da planta nao salvas. Deseja sair mesmo assim?'
+
+const getPersistedPlantSettings = (currentPlantMap?: PlantMap | null) => ({
+  northAngleDeg: normalizeAngle(
+    currentPlantMap?.northAngleDeg
+      ?? ((currentPlantMap?.sunPathAngleDeg ?? 0) - 90),
+  ),
+  sunPathEnabled: currentPlantMap?.sunPathEnabled ?? false,
+  sunPathAngleDeg: normalizeAngle(currentPlantMap?.sunPathAngleDeg ?? 0),
+  sunPathLabelEnabled: currentPlantMap?.sunPathLabelEnabled ?? true,
+})
+
+const hasPendingPlantSettingsChanges = computed(() => {
+  if (!plantMap.value) return false
+
+  const persistedSettings = getPersistedPlantSettings(plantMap.value)
+
+  return (
+    persistedSettings.northAngleDeg !== localNorthAngleDeg.value
+    || persistedSettings.sunPathEnabled !== localSunPath.enabled
+    || persistedSettings.sunPathAngleDeg !== effectiveSunPathAngleDeg.value
+    || persistedSettings.sunPathLabelEnabled !== localSunPath.showLabels
+  )
+})
 
 watch(
   () => props.initialPlantMap,
@@ -566,27 +650,79 @@ const hotspotError = ref<string | null>(null)
 const errorMsg = ref<string | null>(null)
 const successMsg = ref<string | null>(null)
 const hotspotSearch = ref('')
-const groupByBlock = ref(true)
-const savingBulkBlock = ref(false)
-const bulkBlockExisting = ref('')
-const bulkBlockNew = ref('')
 const showModal = ref(false)
 const editingHotspot = ref<PlantHotspot | null>(null)
 const newHotspotPos = reactive({ x: 0.5, y: 0.5 })
 const fileInput = ref<HTMLInputElement | null>(null)
+const quickCreateType = ref<PlantHotspot['type']>('LOTE')
+
+const buildNextLotIdentity = () => {
+  const existingNumbers = localHotspots.value
+    .filter((hotspot) => hotspot.type === 'LOTE')
+    .map((hotspot) => hotspot.label || hotspot.title || '')
+    .map((text) => text.match(/(\d+)(?!.*\d)/))
+    .map((match) => (match?.[1] ? Number.parseInt(match[1], 10) : null))
+    .filter((value): value is number => Number.isInteger(value))
+
+  const nextNumber = (existingNumbers.length ? Math.max(...existingNumbers) : 0) + 1
+  const padded = String(nextNumber).padStart(2, '0')
+
+  return {
+    code: `L-${padded}`,
+    lotNumber: padded,
+  }
+}
+
+const createQuickLotHotspot = async (x: number, y: number) => {
+  if (!plantMap.value) return
+
+  const identity = buildNextLotIdentity()
+  savingHotspot.value = true
+  hotspotError.value = null
+
+  try {
+    const created = await api.createHotspot(plantMap.value.id, {
+      type: 'LOTE',
+      title: identity.code,
+      description: '',
+      x,
+      y,
+      label: identity.code,
+      labelEnabled: true,
+      labelOffsetX: 0,
+      labelOffsetY: -24,
+      loteStatus: 'AVAILABLE',
+      metaJson: {
+        lotInfo: {
+          lotNumber: identity.lotNumber,
+        },
+      },
+    })
+
+    localHotspots.value.push(created)
+    selectedHotspotIds.value = [created.id]
+    selectedHotspotId.value = created.id
+    showSuccess(`Lote ${identity.code} criado!`)
+    emit('hotspots-changed')
+  } catch (e: any) {
+    hotspotError.value = e.message ?? 'Erro ao criar lote.'
+  } finally {
+    savingHotspot.value = false
+  }
+}
 
 // ── Search & Filters ──────────────────────────────────────
+const nonLotHotspots = computed(() => localHotspots.value.filter((h) => h.type !== 'LOTE'))
+
 const filteredHotspots = computed(() => {
   const search = hotspotSearch.value.toLowerCase().trim()
-  if (!search) return localHotspots.value
-  return localHotspots.value.filter(h => 
+  if (!search) return nonLotHotspots.value
+  return nonLotHotspots.value.filter(h => 
     (h.label?.toLowerCase().includes(search)) || 
     (h.title?.toLowerCase().includes(search)) ||
     (h.id.toLowerCase().includes(search))
   )
 })
-
-const hasLotHotspots = computed(() => localHotspots.value.some((h) => h.type === 'LOTE'))
 
 const getHotspotBlock = (hs: PlantHotspot): string => {
   if (hs.type !== 'LOTE') return ''
@@ -600,6 +736,25 @@ const normalizeBlockName = (value: string) => value.trim()
 const selectedHotspots = computed(() => {
   const selectedIds = new Set(selectedHotspotIds.value)
   return localHotspots.value.filter((h) => selectedIds.has(h.id))
+})
+
+const selectedSingleHotspot = computed(() => {
+  if (selectedHotspotIds.value.length !== 1) return null
+  return selectedHotspots.value[0] ?? null
+})
+
+const isSingleLotSelected = computed(() => selectedSingleHotspot.value?.type === 'LOTE')
+
+const selectedSingleLotBlock = computed(() => {
+  if (!selectedSingleHotspot.value || selectedSingleHotspot.value.type !== 'LOTE') return ''
+  return getHotspotBlock(selectedSingleHotspot.value)
+})
+
+const selectionPanelTitle = computed(() => {
+  if (selectedHotspotIds.value.length > 1) return 'Seleção atual'
+  if (isSingleLotSelected.value) return 'Lote selecionado'
+  if (selectedSingleHotspot.value) return 'Hotspot selecionado'
+  return 'Seleção'
 })
 
 const selectedFrontHotspot = computed(() => {
@@ -659,46 +814,6 @@ const selectedFrontOverlay = computed(() => {
   }
 })
 
-const selectedLotHotspots = computed(() => selectedHotspots.value.filter((h) => h.type === 'LOTE'))
-const selectedLotHotspotsCount = computed(() => selectedLotHotspots.value.length)
-const selectedNonLotHotspotsCount = computed(() => selectedHotspots.value.length - selectedLotHotspots.value.length)
-
-const existingBlocks = computed(() => {
-  const blocks = new Set<string>()
-  for (const hs of localHotspots.value) {
-    const block = getHotspotBlock(hs)
-    if (block) blocks.add(block)
-  }
-
-  return Array.from(blocks).sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }))
-})
-
-const setHotspotBlockInMeta = (hs: PlantHotspot, nextBlock: string): Record<string, any> | undefined => {
-  const baseMeta =
-    hs.metaJson && typeof hs.metaJson === 'object' && !Array.isArray(hs.metaJson)
-      ? { ...hs.metaJson }
-      : {}
-
-  const currentLotInfo =
-    baseMeta.lotInfo && typeof baseMeta.lotInfo === 'object' && !Array.isArray(baseMeta.lotInfo)
-      ? { ...baseMeta.lotInfo }
-      : {}
-
-  if (nextBlock) {
-    currentLotInfo.block = nextBlock
-  } else {
-    delete currentLotInfo.block
-  }
-
-  if (Object.keys(currentLotInfo).length > 0) {
-    baseMeta.lotInfo = currentLotInfo
-  } else {
-    delete baseMeta.lotInfo
-  }
-
-  return Object.keys(baseMeta).length > 0 ? baseMeta : undefined
-}
-
 const setHotspotFrontAngleInMeta = (hs: PlantHotspot, frontAngleDeg: number): Record<string, any> | undefined => {
   const baseMeta =
     hs.metaJson && typeof hs.metaJson === 'object' && !Array.isArray(hs.metaJson)
@@ -726,7 +841,7 @@ const persistFrontAngleSelection = async (hotspotId: string) => {
 
   savingFrontSelection.value = true
   try {
-    const updatedHotspot = await api.updateHotspot(hotspot.id, { metaJson: hotspot.metaJson })
+    const updatedHotspot = await api.updateHotspot(hotspot.id, { metaJson: hotspot.metaJson ?? undefined })
     localHotspots.value = localHotspots.value.map((item) => item.id === updatedHotspot.id ? updatedHotspot : item)
 
     const mapElement = await fetchApi(`/projects/${props.projectId}/map-elements/${hotspot.linkId}`)
@@ -797,89 +912,6 @@ const startFrontAngleDragTouch = (event: TouchEvent) => {
   skipNextCanvasClick = true
   updateFrontAngleByPointer(touch.clientX, touch.clientY)
 }
-
-const applyBlockToSelectedLots = async (rawBlock: string) => {
-  const nextBlock = normalizeBlockName(rawBlock)
-  if (!nextBlock) return
-
-  const targets = selectedLotHotspots.value
-  if (!targets.length) {
-    showError('Selecione ao menos um hotspot de lote para vincular quadra.')
-    return
-  }
-
-  savingBulkBlock.value = true
-  try {
-    const operations = targets.map((hs) => {
-      const nextMeta = setHotspotBlockInMeta(hs, nextBlock)
-      return api.updateHotspot(hs.id, { metaJson: nextMeta })
-    })
-
-    const results = await Promise.allSettled(operations)
-    const updatedHotspots = results
-      .filter((res): res is PromiseFulfilledResult<PlantHotspot> => res.status === 'fulfilled')
-      .map((res) => res.value)
-    const failedCount = results.length - updatedHotspots.length
-
-    if (updatedHotspots.length > 0) {
-      const updatedById = new Map(updatedHotspots.map((h) => [h.id, h]))
-      localHotspots.value = localHotspots.value.map((h) => updatedById.get(h.id) || h)
-      bulkBlockExisting.value = nextBlock
-      bulkBlockNew.value = ''
-    }
-
-    if (failedCount === 0) {
-      showSuccess(`Quadra ${nextBlock} aplicada em ${updatedHotspots.length} lote(s).`)
-    } else {
-      showError(`Quadra aplicada em ${updatedHotspots.length}, mas ${failedCount} falharam.`)
-    }
-  } catch (e: any) {
-    showError(e.message ?? 'Erro ao vincular quadra em lote.')
-  } finally {
-    savingBulkBlock.value = false
-  }
-}
-
-const applyExistingBlockToSelected = async () => {
-  if (!bulkBlockExisting.value) return
-  await applyBlockToSelectedLots(bulkBlockExisting.value)
-}
-
-const applyNewBlockToSelected = async () => {
-  if (!bulkBlockNew.value.trim()) return
-  await applyBlockToSelectedLots(bulkBlockNew.value)
-}
-
-const groupedFilteredHotspots = computed(() => {
-  if (!groupByBlock.value) {
-    return [{ key: '__all__', label: 'Todos', items: filteredHotspots.value }]
-  }
-
-  const groups = new Map<string, { key: string; label: string; items: PlantHotspot[]; order: number }>()
-
-  for (const hs of filteredHotspots.value) {
-    if (hs.type === 'LOTE') {
-      const block = getHotspotBlock(hs)
-      const key = block ? `block:${block.toUpperCase()}` : 'block:__sem_quadra__'
-      const label = block ? `Quadra ${block}` : 'Sem quadra'
-      if (!groups.has(key)) groups.set(key, { key, label, items: [], order: 1 })
-      groups.get(key)!.items.push(hs)
-      continue
-    }
-
-    const key = `type:${hs.type}`
-    const label = typeLabel(hs.type)
-    if (!groups.has(key)) groups.set(key, { key, label, items: [], order: 2 })
-    groups.get(key)!.items.push(hs)
-  }
-
-  return Array.from(groups.values()).sort((a, b) => {
-    if (a.order !== b.order) return a.order - b.order
-    if (a.key === 'block:__sem_quadra__') return 1
-    if (b.key === 'block:__sem_quadra__') return -1
-    return a.label.localeCompare(b.label, 'pt-BR', { sensitivity: 'base' })
-  })
-})
 
 // ── Performance optimization (Viewport Culling) ──────────
 const visibleHotspots = computed(() => {
@@ -1229,6 +1261,11 @@ const handleCanvasClick = (e: MouseEvent) => {
     return
   }
 
+  if (quickCreateType.value === 'LOTE') {
+    void createQuickLotHotspot(x, y)
+    return
+  }
+
   newHotspotPos.x = x
   newHotspotPos.y = y
   editingHotspot.value = null
@@ -1238,9 +1275,24 @@ const handleCanvasClick = (e: MouseEvent) => {
 
 // ── Hotspot selection ──────────────────────────────────────
 const isHotspotSelected = (id: string) => selectedHotspotIds.value.includes(id)
+const isModeActive = (mode: 'view' | 'add' | 'move' | 'batch') => editorMode.value === mode
+
+const openSelectedEditor = () => {
+  if (!selectedSingleHotspot.value) return
+  editHotspot(selectedSingleHotspot.value)
+}
 
 const selectHotspot = (id: string, event?: MouseEvent) => {
   const additive = !!event && (event.ctrlKey || event.metaKey)
+  const alreadySingleSelected = selectedHotspotIds.value.length === 1 && selectedHotspotIds.value[0] === id
+
+  if (!additive && alreadySingleSelected && editorMode.value !== 'move') {
+    const hotspot = localHotspots.value.find((item) => item.id === id)
+    if (hotspot) {
+      editHotspot(hotspot)
+      return
+    }
+  }
 
   if (additive) {
     if (isHotspotSelected(id)) {
@@ -1248,8 +1300,6 @@ const selectHotspot = (id: string, event?: MouseEvent) => {
     } else {
       selectedHotspotIds.value = [...selectedHotspotIds.value, id]
     }
-  } else if (selectedHotspotIds.value.length === 1 && selectedHotspotIds.value[0] === id) {
-    selectedHotspotIds.value = []
   } else {
     selectedHotspotIds.value = [id]
   }
@@ -1270,36 +1320,15 @@ const selectAllFiltered = () => {
 const editHotspot = (hs: PlantHotspot) => {
   selectedHotspotIds.value = [hs.id]
   selectedHotspotId.value = hs.id
+
+  if (hs.type === 'LOTE' && hs.linkId) {
+    emit('edit-lot', hs.linkId)
+    return
+  }
+
   editingHotspot.value = hs
   hotspotError.value = null
   showModal.value = true
-}
-
-const duplicateHotspot = async (hs: PlantHotspot) => {
-  if (!plantMap.value) return
-  savingHotspot.value = true
-  try {
-    const payload: CreateHotspotPayload = {
-      type: hs.type,
-      title: `${hs.title} (cópia)`,
-      description: hs.description || '',
-      x: Math.min(0.99, hs.x + 0.02),
-      y: Math.min(0.99, hs.y + 0.02),
-      label: hs.label ? `${hs.label} (cópia)` : '',
-      labelEnabled: hs.labelEnabled,
-      labelOffsetX: hs.labelOffsetX,
-      labelOffsetY: hs.labelOffsetY,
-      loteStatus: hs.loteStatus || 'AVAILABLE',
-      metaJson: hs.metaJson || {},
-    }
-    const created = await api.createHotspot(plantMap.value.id, payload)
-    localHotspots.value.push(created)
-    showSuccess('Hotspot duplicado!')
-  } catch (e: any) {
-    showError(e.message ?? 'Erro ao duplicar hotspot.')
-  } finally {
-    savingHotspot.value = false
-  }
 }
 
 // ── Hotspot CRUD ───────────────────────────────────────────
@@ -1322,6 +1351,7 @@ const handleHotspotSave = async (payload: CreateHotspotPayload) => {
     }
     showModal.value = false
     editorMode.value = 'view'
+    emit('hotspots-changed')
   } catch (e: any) {
     hotspotError.value = e.message ?? 'Erro ao salvar hotspot.'
   } finally {
@@ -1397,6 +1427,7 @@ const generateBatch = async () => {
     showSuccess(`${newHotspots.length} hotspots criados com sucesso!`)
     clearBatch()
     editorMode.value = 'view'
+    emit('hotspots-changed')
   } catch (e: any) {
     showError(e.message ?? 'Erro ao gerar hotspots em lote.')
   } finally {
@@ -1421,6 +1452,7 @@ const deleteSelectedHotspots = async () => {
 
   if (deletedIds.length) {
     localHotspots.value = localHotspots.value.filter((h) => !deletedIds.includes(h.id))
+    emit('hotspots-changed')
   }
 
   selectedHotspotIds.value = []
@@ -1447,7 +1479,7 @@ watch(
 
 // ── Save all (sun path + plant map) ────────────────────────
 const saveAll = async () => {
-  if (!plantMap.value) return
+  if (!plantMap.value || !hasPendingPlantSettingsChanges.value) return
   saving.value = true
   try {
     const updated = await api.updatePlantMap(plantMap.value.id, {
@@ -1576,16 +1608,33 @@ const onWindowBlur = () => {
   isSpacePressed.value = false
 }
 
+const hasUnsavedPlantSettings = () => hasPendingPlantSettingsChanges.value && !saving.value
+
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (!hasUnsavedPlantSettings()) return
+
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+onBeforeRouteLeave(() => {
+  if (!hasUnsavedPlantSettings()) return
+
+  return window.confirm(unsavedPlantSettingsMessage)
+})
+
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   window.addEventListener('blur', onWindowBlur)
+  window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   window.removeEventListener('blur', onWindowBlur)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
 
@@ -1694,6 +1743,24 @@ onBeforeUnmount(() => {
   min-width: 36px;
 }
 
+.pme__quick-create-card {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 14px;
+  background: rgba(30, 41, 59, 0.62);
+}
+
+.pme__quick-create-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #dbeafe;
+}
+
 /* ── Empty state ───────────────────────────────────────── */
 .pme__empty {
   flex: 1;
@@ -1717,7 +1784,7 @@ onBeforeUnmount(() => {
   flex: 1;
   display: flex;
   overflow: hidden;
-  min-height: 0;
+  min-height: 600px;
 }
 
 .pme__canvas-wrap {
@@ -1782,6 +1849,22 @@ onBeforeUnmount(() => {
   overflow: hidden;
   min-height: 0;
 }
+.pme__sidebar-section {
+  padding: 12px;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pme__section-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .pme__sidebar-header {
   display: flex;
   align-items: center;
@@ -1794,6 +1877,111 @@ onBeforeUnmount(() => {
   letter-spacing: 0.05em;
   border-bottom: 1px solid #334155;
   flex-shrink: 0;
+}
+
+.pme__mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pme__mode-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #162133;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pme__mode-chip:hover:not(:disabled) {
+  border-color: #60a5fa;
+  background: #172554;
+}
+
+.pme__mode-chip.active {
+  border-color: rgba(59, 130, 246, 0.65);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.26), rgba(30, 41, 59, 0.96));
+  color: #eff6ff;
+}
+
+.pme__mode-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pme__tool-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pme__selection-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.78));
+}
+
+.pme__selection-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pme__selection-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.pme__selection-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.pme__selection-meta span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.pme__selection-badge {
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.pme__selection-badge.is-lot {
+  color: #dcfce7;
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.pme__selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .pme__sidebar-empty {
   padding: 20px 12px;

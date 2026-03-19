@@ -137,6 +137,7 @@ import {
 const props = defineProps<{
   modelValue: boolean
   hotspot?: PlantHotspot | null
+  defaultType?: PlantHotspotType
   /** Pre-fill x/y when creating a new hotspot by clicking */
   initialX?: number
   initialY?: number
@@ -153,7 +154,7 @@ const isEdit = computed(() => !!props.hotspot)
 
 // ── Form state ────────────────────────────────────────────
 const defaultForm = (): CreateHotspotPayload => ({
-  type: 'LOTE' as PlantHotspotType,
+  type: (props.defaultType ?? 'LOTE') as PlantHotspotType,
   title: '',
   x: props.initialX ?? 0.5,
   y: props.initialY ?? 0.5,
@@ -234,6 +235,7 @@ watch(
       form.value = defaultForm()
       if (props.initialX !== undefined) form.value.x = props.initialX
       if (props.initialY !== undefined) form.value.y = props.initialY
+      form.value.type = props.defaultType ?? 'LOTE'
       lotInfo.value = { block: '', lotNumber: '' }
     }
   },

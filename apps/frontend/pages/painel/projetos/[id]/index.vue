@@ -1079,103 +1079,20 @@
 
       <!-- Lotes -->
       <section v-if="activeSection === 'lotes'" id="lotes" class="content-section">
-        <div v-if="lots.length === 0" class="empty-state-container d-flex align-items-center justify-content-center py-5">
-          <div class="card text-center p-5 rounded-5 max-w-500" style="backdrop-filter: blur(var(--glass-blur));">
-            <div class="icon-blob mx-auto mb-4"><i class="bi bi-map" aria-hidden="true"></i></div>
-            <h3 class="fw-bold mb-3">Nenhum elemento criado na planta</h3>
-            <p class="mb-4 px-4">Adicione pontos (hotspots) na Planta Interativa para que apareçam aqui para edição detalhada.</p>
-            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary btn-lg rounded-pill px-5">Ir para a Planta</NuxtLink>
+        <div class="card" style="padding: 28px; border-radius: 18px; background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.72)); border: 1px solid rgba(148, 163, 184, 0.16);">
+          <span class="badge badge-neutral" style="margin-bottom: 12px;">Fluxo centralizado</span>
+          <h3 style="margin: 0 0 10px; font-size: 1.2rem;">A gestão de lotes foi movida para a Planta Interativa</h3>
+          <p style="margin: 0 0 18px; color: var(--color-surface-400); max-width: 70ch;">
+            Agora os lotes ficam logo abaixo do editor da planta, com a mesma paginação e o mesmo modal de edição. Assim o desenho dos spots e a configuração comercial acontecem na mesma tela.
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary">
+              Abrir Planta Interativa
+            </NuxtLink>
+            <button class="btn btn-outline" type="button" @click="setActiveSection('configuracoes')">
+              Voltar para configurações
+            </button>
           </div>
-        </div>
-        <div v-else class="table-wrapper">
-          <div class="lot-import-card">
-            <div class="lot-import-card__head">
-              <div>
-                <h4>Importacao de Lotes (CSV ou Excel)</h4>
-                <p>Envie CSV, XLSX ou XLS. Se for Excel, convertemos automaticamente para CSV antes do envio.</p>
-              </div>
-              <div class="lot-import-card__actions" v-if="authStore.canEdit">
-                <button class="btn btn-sm btn-outline" @click="downloadLotCsvTemplate">Baixar modelo</button>
-                <button class="btn btn-sm btn-primary" :disabled="!authStore.canEdit || uploadingLotCsv || !!activeLotImportRunning" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="openLotCsvPicker">
-                  {{ uploadingLotCsv ? 'Enviando...' : 'Importar Arquivo' }}
-                </button>
-                <input ref="lotCsvInputRef" type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display: none" @change="handleLotCsvSelected" />
-              </div>
-            </div>
-
-            <div class="lot-import-help">
-              <p><strong>Formato recomendado:</strong> use o modelo e mantenha os nomes das colunas em português.</p>
-              <p><strong>Valores aceitos:</strong> status = DISPONIVEL, RESERVADO ou VENDIDO | topografia = PLANO, ACLIVE ou DECLIVE.</p>
-              <p><strong>Campos obrigatórios:</strong> apenas <code>codigo</code>. Campos como <code>tags</code> e <code>observações</code> são opcionais.</p>
-              <p><strong>Observação:</strong> a coluna <code>codigo</code> precisa bater com o codigo do lote criado na Planta Interativa e nao pode ter acentuação.</p>
-            </div>
-
-            <div v-if="activeLotImport" class="lot-import-status">
-              <div class="lot-import-status__row">
-                <span>
-                  <strong>Status:</strong>
-                  {{ lotImportStatusLabel(activeLotImport.status) }}
-                </span>
-                <span>
-                  <strong>Arquivo:</strong>
-                  {{ activeLotImport.fileName }}
-                </span>
-              </div>
-              <div class="lot-import-status__row">
-                <span><strong>Total:</strong> {{ activeLotImport.totalRows || 0 }}</span>
-                <span><strong>Sucesso:</strong> {{ activeLotImport.successRows || 0 }}</span>
-                <span><strong>Erros:</strong> {{ activeLotImport.errorRows || 0 }}</span>
-                <span><strong>Processadas:</strong> {{ activeLotImport.processedRows || 0 }}</span>
-              </div>
-              <div class="progress-bar" style="margin-top: 8px;">
-                <div class="progress-bar-fill" :style="{ width: `${lotImportProgress}%` }"></div>
-              </div>
-              <p v-if="activeLotImport.message" class="lot-import-status__message">{{ activeLotImport.message }}</p>
-              <div v-if="activeLotImport.errorRows > 0" style="margin-top: 10px;">
-                <button class="btn btn-xs btn-outline" @click="downloadLotImportErrorsCsv">Baixar erros (CSV)</button>
-              </div>
-            </div>
-          </div>
-
-          <div style="padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; margin-bottom: 16px; font-size: 0.85rem; color: #fbbf24; display: flex; align-items: center; gap: 8px;">
-            <span>ℹ️</span>
-            Todos os pontos criados na Planta Interativa aparecem nesta lista para que você adicione fotos, preços e dados do contrato.
-          </div>
-          <table>
-            <thead>
-              <tr><th>Quadra/Lote</th><th>Status</th><th>Valor M²</th><th>Total</th><th>Entrada/Ato</th><th>Área</th><th v-if="authStore.canEdit">Ações</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="l in lots" :key="l.id">
-                <td>
-                   <div style="font-weight: 700; color: var(--color-surface-100);">{{ l.block || '' }} {{ l.lotNumber || (l.mapElement?.code || '—') }}</div>
-                   <div style="font-size: 0.7rem; color: var(--color-surface-500); display: flex; align-items: center; gap: 4px;">
-                     <span class="badge badge-neutral" style="font-size: 8px; padding: 1px 4px; border-radius: 4px;">{{ l.mapElement?.type === 'LOT' ? 'Lote' : 'Ponto' }}</span>
-                     <span>{{ l.mapElement?.code }}</span>
-                   </div>
-                </td>
-                <td>
-                  <span class="badge" :class="lotBadge(l.status)">{{ lotLabel(l.status) }}</span>
-                </td>
-                <td style="font-weight: 500;">{{ l.pricePerM2 ? formatCurrencyToBrasilia(l.pricePerM2) : '—' }}</td>
-                <td style="font-weight: 700;">{{ l.price ? formatCurrencyToBrasilia(l.price) : '—' }}</td>
-                <td style="font-weight: 600; color: var(--color-success);">
-                  {{ l.price ? formatCurrencyToBrasilia(Number(l.price) * (project?.minDownPaymentPercent / 100 || 0.1)) : '—' }}
-                </td>
-                <td style="font-weight: 500;">{{ l.areaM2 ? `${l.areaM2.toFixed(2)} m²` : '—' }}</td>
-                <td v-if="authStore.canEdit">
-                  <div class="flex gap-2">
-                     <button class="btn btn-sm btn-dark" style="background: var(--glass-bg-heavy); color: #fff; border: none;" @click="openEditLot(l)">Editar Dados</button>
-                     <button class="btn btn-sm btn-outline" @click="shareLot(l)">Compartilhar</button>
-                     <button class="btn btn-sm btn-outline" @click="openLotQrModal(l)">QR Code</button>
-                     <button v-if="l.status === 'RESERVED'" class="btn btn-sm btn-warning" @click="openReservationModal(l)">Abrir Reservas</button>
-                     <a v-if="publicUrl && l.mapElement" :href="`/${project.slug}/${l.mapElement.code}`" target="_blank" class="btn btn-sm btn-outline">Ver Página</a>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <CommonPagination :meta="lotsMeta" @change="loadLotsPaginated" />
         </div>
       </section>
 
@@ -1648,11 +1565,8 @@
           </div>
 
           <div style="display:flex; flex-wrap: wrap; gap: 8px;">
-            <button class="btn btn-primary btn-sm" @click="setActiveSection('lotes')">
-              Ir para Gestão de Lotes
-            </button>
-            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-secondary btn-sm">
-              Abrir Planta Interativa
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary btn-sm">
+              Abrir Gestão de Lotes na Planta
             </NuxtLink>
           </div>
         </div>
@@ -1680,11 +1594,8 @@
           </div>
 
           <div style="display:flex; flex-wrap: wrap; gap: 8px;">
-            <button class="btn btn-primary btn-sm" @click="setActiveSection('lotes')">
-              Ir para Gestão de Lotes
-            </button>
-            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-secondary btn-sm">
-              Abrir Planta Interativa
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-primary btn-sm">
+              Abrir Gestão de Lotes na Planta
             </NuxtLink>
           </div>
         </div>
@@ -4025,13 +3936,6 @@ const configurationSections = computed<SidebarSectionItem[]>(() => {
 })
 
 const sidebarGroups = computed<SidebarGroup[]>(() => ([
-  {
-    id: 'lotes',
-    label: 'Gestão',
-    items: [
-      { id: 'lotes', icon: 'bi bi-geo-alt-fill', label: 'Lotes' },
-    ],
-  },
   {
     id: 'configuracoes',
     label: 'Configuração',

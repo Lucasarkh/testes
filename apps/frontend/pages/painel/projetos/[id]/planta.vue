@@ -25,11 +25,22 @@
     </div>
 
     <!-- Editor -->
-    <div v-else style="height: calc(100vh - 200px); min-height: 500px;">
-      <PlantMapEditor
+    <div v-else class="plant-page-layout">
+      <div class="plant-editor-shell">
+        <PlantMapEditor
+          :project-id="projectId"
+          :initial-plant-map="plantMap"
+          @updated="plantMap = $event"
+          @hotspots-changed="refreshLotsList"
+          @edit-lot="openLotFromEditor"
+        />
+      </div>
+
+      <PlantLotsManager
+        ref="lotsManagerRef"
         :project-id="projectId"
-        :initial-plant-map="plantMap"
-        @updated="plantMap = $event"
+        :project="project"
+        @map-changed="reloadPlantMap"
       />
     </div>
   </div>
@@ -41,6 +52,7 @@ import { useRoute } from 'vue-router'
 import { usePlantMapApi } from '~/composables/plantMap/usePlantMapApi'
 import type { PlantMap } from '~/composables/plantMap/types'
 import PlantMapEditor from '~/components/plantMap/PlantMapEditor.vue'
+import PlantLotsManager from '~/components/plantMap/PlantLotsManager.vue'
 import { useApi } from '~/composables/useApi'
 
 definePageMeta({ layout: 'default' })
@@ -52,22 +64,44 @@ const { fetchApi } = useApi()
 const plantMapApi = usePlantMapApi()
 
 const plantMap = ref<PlantMap | null>(null)
+const project = ref<any>(null)
 const projectName = ref('')
 const projectSlug = ref('')
 const loading = ref(true)
 const loadError = ref<string | null>(null)
+const lotsManagerRef = ref<{
+  refreshLots: (page?: number) => Promise<void>
+  openLotByMapElementId: (mapElementId: string) => Promise<void>
+} | null>(null)
+
+const reloadPlantMap = async () => {
+  plantMap.value = await plantMapApi.getPlantMap(projectId).catch(() => plantMap.value)
+}
+
+const refreshLotsList = async () => {
+  await lotsManagerRef.value?.refreshLots(1)
+}
+
+const openLotFromEditor = async (mapElementId: string) => {
+  await lotsManagerRef.value?.openLotByMapElementId(mapElementId)
+
+  if (typeof document !== 'undefined') {
+    document.getElementById('plant-lots-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
 
 onMounted(async () => {
   try {
     // Load project info + plant map in parallel
-    const [project, pm] = await Promise.all([
+    const [projectData, pm] = await Promise.all([
       fetchApi(`/projects/${projectId}`).catch(() => null),
       plantMapApi.getPlantMap(projectId).catch(() => null),
     ])
 
-    if (project) {
-      projectName.value = project.name
-      projectSlug.value = project.slug
+    if (projectData) {
+      project.value = projectData
+      projectName.value = projectData.name
+      projectSlug.value = projectData.slug
     }
 
     plantMap.value = pm
@@ -104,6 +138,22 @@ onMounted(async () => {
     min-height: 38px;
     display: inline-flex;
     align-items: center;
+  }
+}
+
+.plant-page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.plant-editor-shell {
+  min-height: 70vh;
+}
+
+@media (max-width: 768px) {
+  .plant-editor-shell {
+    min-height: 58vh;
   }
 }
 </style>
