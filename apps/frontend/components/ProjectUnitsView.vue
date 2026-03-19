@@ -914,7 +914,7 @@ onMounted(async () => {
 
 /* Main Content Padding */
 .v4-main-content {
-  padding-top: 100px;
+  padding-top: 58px;
 }
 
 /* Filter Section */
