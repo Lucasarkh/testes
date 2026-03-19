@@ -12,14 +12,7 @@
     <!-- Project -->
     <template v-else-if="project">
       <ProjectSideMenu
-        :has-plant="!!project?.plantMap"
-        :has-panorama="panoramas.length > 0"
-        :has-info="hasInfo"
-        :has-lots="(project?.lotSummary?.available ?? 0) > 0"
-        :has-gallery="!!project.projectMedias?.length"
-        :has-location="!!project.googleMapsUrl || !!project.address"
-        :has-nearby="hasNearbyData && isPublicSectionEnabled('pub-nearby')"
-        :has-scheduling="schedulingConfig?.enabled && isPublicSectionEnabled('pub-scheduling')"
+        :items="publicSideMenuItems"
       />
 
       <!-- Hero section -->
@@ -200,15 +193,6 @@
           >
             Desativar interacao do mapa
           </button>
-          <div v-if="(project?.lotSummary?.available ?? 0) > 0" class="v4-plant-map-actions">
-            <NuxtLink
-              :to="unitsUrl"
-              class="v4-btn-primary v4-plant-map-btn"
-              @click="tracking.trackClick('Botão: Ver todos os lotes na planta')"
-            >
-              Ver todos os lotes
-            </NuxtLink>
-          </div>
         </div>
       </section>
 
@@ -295,11 +279,128 @@
         </div>
       </section>
 
+      <!-- Available Lots Carousel -->
+      <section v-if="(project?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots-carousel')" class="v4-section v4-section-alt" id="carrossel-lotes" :style="publicSectionStyle('pub-lots-carousel')">
+        <div class="v4-container">
+          <div class="v4-section-header v4-lots-carousel-header">
+            <h2 class="v4-section-title"></h2>
+            <p class="v4-section-subtitle"></p>
+          <div class="v4-lots-carousel-header-content">
+            <h2 class="v4-section-title">Explore as Melhores Oportunidades</h2>
+            <p class="v4-section-subtitle">Encontre o lote ideal com as características que você busca.</p>
+          </div>
+          </div>
+        </div>
+
+        <ClientOnly>
+          <div class="v4-lots-carousel-bleed">
+            <Swiper
+              class="v4-lots-swiper"
+              :modules="lotCarouselModules"
+              :autoplay="lotCarouselAutoplay"
+              :breakpoints="lotCarouselBreakpoints"
+              :grab-cursor="true"
+              :loop="availableLotsCarouselShouldLoop"
+              :slides-per-view="1.85"
+              :space-between="16"
+              :speed="520"
+              :watch-overflow="true"
+              @swiper="handleAvailableLotsSwiper"
+              @slideChange="handleAvailableLotsSlideChange"
+            >
+              <SwiperSlide v-for="lot in displayedAvailableLots" :key="availableLotSlideKey(lot)">
+                <NuxtLink
+                  :to="lotPageUrl(lot)"
+                  class="v4-lot-card v4-lot-card--compact"
+                  @click="tracking.trackLotClick(lot.code || lot.name || lot.id, lot.id)"
+                >
+                  <div class="v4-lot-card-header v4-lot-card-header--compact">
+                    <div class="v4-lot-id v4-lot-id--compact">
+                      <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
+                      <span class="v4-lot-code v4-lot-code--compact">{{ resolveLandingLotDisplayName(lot) }}</span>
+                    </div>
+                    <div class="v4-lot-status">Disponível</div>
+                  </div>
+
+                  <div v-if="formatLandingLotMeta(lot)" class="v4-lot-mini-meta">
+                    <span>{{ formatLandingLotMeta(lot) }}</span>
+                  </div>
+
+                  <div class="v4-lot-mini-stats">
+                    <div class="v4-lot-mini-stat">
+                      <span class="v4-lot-mini-stat-label">Tamanho total</span>
+                      <strong>{{ formatLandingLotArea(lot) }}</strong>
+                    </div>
+                    <div class="v4-lot-mini-stat">
+                      <span class="v4-lot-mini-stat-label">Valor total</span>
+                      <strong>{{ formatLandingLotPrice(lot) }}</strong>
+                    </div>
+                  </div>
+
+                  <div class="v4-lot-card-footer v4-lot-card-footer--compact">Detalhes <span class="v4-icon">→</span></div>
+                </NuxtLink>
+              </SwiperSlide>
+            </Swiper>
+          </div>
+          <template #fallback>
+            <div class="v4-lots-carousel-bleed">
+              <div class="v4-lots-carousel-fallback">
+                <NuxtLink
+                  v-for="lot in displayedAvailableLots.slice(0, 6)"
+                  :key="availableLotSlideKey(lot)"
+                  :to="lotPageUrl(lot)"
+                  class="v4-lot-card v4-lot-card--compact v4-lot-card--fallback"
+                  @click="tracking.trackLotClick(lot.code || lot.name || lot.id, lot.id)"
+                >
+                  <div class="v4-lot-card-header v4-lot-card-header--compact">
+                    <div class="v4-lot-id v4-lot-id--compact">
+                      <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
+                      <span class="v4-lot-code v4-lot-code--compact">{{ resolveLandingLotDisplayName(lot) }}</span>
+                    </div>
+                    <div class="v4-lot-status">Disponível</div>
+                  </div>
+                  <div v-if="formatLandingLotMeta(lot)" class="v4-lot-mini-meta">
+                    <span>{{ formatLandingLotMeta(lot) }}</span>
+                  </div>
+                  <div class="v4-lot-mini-stats">
+                    <div class="v4-lot-mini-stat">
+                      <span class="v4-lot-mini-stat-label">Tamanho total</span>
+                      <strong>{{ formatLandingLotArea(lot) }}</strong>
+                    </div>
+                    <div class="v4-lot-mini-stat">
+                      <span class="v4-lot-mini-stat-label">Valor total</span>
+                      <strong>{{ formatLandingLotPrice(lot) }}</strong>
+                    </div>
+                  </div>
+                </NuxtLink>
+              </div>
+            </div>
+          </template>
+        </ClientOnly>
+
+        <div class="v4-container">
+          <div class="v4-lots-carousel-footer">
+            <span v-if="availableLotsCarouselLoading && availableLotsCarouselHasMore" class="v4-lots-carousel-status">
+              Carregando mais unidades...
+            </span>
+            <span v-else-if="availableLotsCarouselError && !displayedAvailableLots.length" class="v4-lots-carousel-status v4-lots-carousel-status--error">
+              {{ availableLotsCarouselError }}
+            </span>
+
+            <div v-if="(project?.lotSummary?.available ?? 0) > 6" class="v4-lots-carousel-cta">
+              <NuxtLink :to="unitsUrl" class="v4-btn-primary v4-lots-carousel-cta-btn" @click="tracking.trackClick('Botão: Ver todas unidades')">
+                Ver todos os {{ project?.lotSummary?.available ?? 0 }} lotes disponíveis
+              </NuxtLink>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Available Lots Grid -->
       <section v-if="(project?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots')" class="v4-section v4-section-alt" id="lotes" :style="publicSectionStyle('pub-lots')">
         <div class="v4-container">
           <div class="v4-section-header">
-            <h2 class="v4-section-title">Lotes Disponíveis</h2>
+            <h2 class="v4-section-title">Nossas Unidades</h2>
             <p class="v4-section-subtitle">Selecione uma opção abaixo para ver metragens e condições.</p>
           </div>
 
@@ -313,26 +414,22 @@
             >
               <div class="v4-lot-card-header">
                 <div class="v4-lot-id">
-                  <span class="v4-lot-label">
-                    <span v-if="lot.lotDetails?.block || lot.lotDetails?.lotNumber">
-                      QUADRA {{ normalizeBlockLabel(lot.lotDetails?.block) }} · LOTE {{ lot.lotDetails.lotNumber || '---' }}
-                    </span>
-                    <span v-else>LOTE</span>
-                  </span>
-                  <span class="v4-lot-code">{{ lot.code || lot.name || lot.id }}</span>
+                  <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
+                  <span v-else class="v4-lot-label">Unidade disponível</span>
+                  <span class="v4-lot-code">{{ resolveLandingLotDisplayName(lot) }}</span>
                 </div>
                 <div class="v4-lot-status">Disponível</div>
               </div>
               
               <div class="v4-lot-card-body">
                 <div class="v4-lot-info-row">
-                  <span class="v4-info-item"><i class="bi bi-bounding-box" aria-hidden="true"></i> {{ lot.lotDetails?.areaM2 || '---' }} m²</span>
+                  <span class="v4-info-item"><i class="bi bi-bounding-box" aria-hidden="true"></i> {{ formatLandingLotArea(lot) }}</span>
                   <span v-if="lot.lotDetails?.pricePerM2" class="v4-info-item"><i class="bi bi-cash-stack" aria-hidden="true"></i> {{ formatCurrencyToBrasilia(lot.lotDetails.pricePerM2) }} / m²</span>
                   <span v-else-if="lot.lotDetails?.frontage" class="v4-info-item">↔ {{ lot.lotDetails.frontage }}m frente</span>
                 </div>
-                <div v-if="lot.lotDetails?.price" class="v4-lot-price">
+                <div class="v4-lot-price">
                   <span class="v4-price-label">Valor do investimento</span>
-                  <span class="v4-price-value">{{ formatCurrencyToBrasilia(lot.lotDetails.price) }}</span>
+                  <span class="v4-price-value">{{ formatLandingLotPrice(lot) }}</span>
                 </div>
               </div>
               
@@ -343,8 +440,8 @@
             </NuxtLink>
           </div>
 
-          <div v-if="(project?.lotSummary?.available ?? 0) > 6" style="margin-top: 56px; display: flex; justify-content: center;">
-            <NuxtLink :to="unitsUrl" class="v4-btn-primary" style="min-width: 280px; text-decoration: none; text-align: center;" @click="tracking.trackClick('Botão: Ver todas unidades')">
+          <div v-if="(project?.lotSummary?.available ?? 0) > 6" class="v4-lots-grid-cta">
+            <NuxtLink :to="unitsUrl" class="v4-btn-primary v4-lots-carousel-cta-btn" @click="tracking.trackClick('Botão: Ver todas unidades')">
               Ver todos os {{ project?.lotSummary?.available ?? 0 }} lotes disponíveis
             </NuxtLink>
           </div>
@@ -1081,6 +1178,10 @@
 
 <script setup lang="ts">
 import { gsap } from 'gsap'
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { A11y, Autoplay } from 'swiper/modules'
+import type { Swiper as SwiperInstance } from 'swiper'
+import 'swiper/css'
 
 import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
@@ -1224,6 +1325,26 @@ const salesMotionLastShownAt = ref(0)
 const salesMotionLastViews = ref(0)
 const salesMotionLastVisits = ref(0)
 const salesMotionReachedMilestones = ref<number[]>([])
+const AVAILABLE_LOTS_BATCH_SIZE = 10
+const lotCarouselModules = [A11y, Autoplay]
+const lotCarouselAutoplay = {
+  delay: 2000,
+  disableOnInteraction: false,
+  pauseOnMouseEnter: true,
+}
+const lotCarouselBreakpoints = {
+  480: { slidesPerView: 2.4, spaceBetween: 16 },
+  768: { slidesPerView: 3.6, spaceBetween: 18 },
+  1024: { slidesPerView: 5, spaceBetween: 20 },
+  1280: { slidesPerView: 6.2, spaceBetween: 20 },
+  1536: { slidesPerView: 7, spaceBetween: 22 },
+}
+const availableLotsCarouselItems = ref<any[]>([])
+const availableLotsCarouselPage = ref(0)
+const availableLotsCarouselTotal = ref(0)
+const availableLotsCarouselLoading = ref(false)
+const availableLotsCarouselError = ref('')
+const availableLotsSwiper = ref<SwiperInstance | null>(null)
 
 const leadForm = ref({ name: '', email: '', phone: '', mapElementId: '', message: '', acceptTerms: false })
 const { maskPhone, validateEmail, validatePhone, unmask } = useMasks()
@@ -1243,6 +1364,126 @@ const normalizeBlockLabel = (value?: string | null) => {
 
   const withoutPrefix = block.replace(/^quadra\s*/i, '').trim()
   return withoutPrefix || block
+}
+
+const normalizeLotIdentifier = (value?: string | null) =>
+  String(value ?? '')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+const availableLotSlideKey = (lot: any) => String(lot?.id || lot?.code || lot?.name || '')
+
+const normalizeLandingLot = (lot: any) => ({
+  id: lot?.id,
+  name: lot?.name || lot?.code || 'Lote disponível',
+  code: lot?.code || lot?.name || lot?.id,
+  lotDetails: {
+    ...(lot?.lotDetails || {}),
+    status: String(lot?.lotDetails?.status || 'AVAILABLE').toUpperCase(),
+    tags: Array.isArray(lot?.lotDetails?.tags) ? lot.lotDetails.tags : [],
+  },
+})
+
+const resolveLandingLotDisplayName = (lot: any) => {
+  const name = String(lot?.name || '').trim()
+  const code = String(lot?.code || '').trim()
+  const lotNumber = String(lot?.lotDetails?.lotNumber || '').trim()
+
+  if (name && normalizeLotIdentifier(name) !== normalizeLotIdentifier(code)) return name
+  if (lotNumber) return `Lote ${lotNumber}`
+  if (code) return code
+  if (name) return name
+  return 'Lote disponível'
+}
+
+const resolveLandingLotSecondaryLabel = (lot: any) => {
+  const code = String(lot?.code || '').trim()
+  const displayName = resolveLandingLotDisplayName(lot)
+
+  if (code && normalizeLotIdentifier(code) !== normalizeLotIdentifier(displayName)) {
+    return code
+  }
+
+  return ''
+}
+
+const formatLandingLotMeta = (lot: any) => {
+  const parts: string[] = []
+  const block = normalizeBlockLabel(lot?.lotDetails?.block)
+  const lotNumber = String(lot?.lotDetails?.lotNumber || '').trim()
+
+  if (block !== '---') parts.push(`Quadra ${block}`)
+  if (lotNumber) parts.push(`Lote ${lotNumber}`)
+
+  return parts.length ? parts.join(' · ') : ''
+}
+
+const mergeLandingLots = (current: any[], incoming: any[]) => {
+  const merged = new Map<string, any>()
+
+  for (const lot of [...current, ...incoming]) {
+    const key = availableLotSlideKey(lot)
+    if (!key || merged.has(key)) continue
+    merged.set(key, normalizeLandingLot(lot))
+  }
+
+  return Array.from(merged.values())
+}
+
+const resolveLandingLotAreaValue = (lot: any) => {
+  const candidates = [
+    lot?.lotDetails?.areaM2,
+    lot?.lotDetails?.totalAreaM2,
+    lot?.areaM2,
+    lot?.area,
+  ]
+
+  for (const candidate of candidates) {
+    const area = Number(candidate)
+    if (Number.isFinite(area) && area > 0) return area
+  }
+
+  return null
+}
+
+const resolveLandingLotPriceValue = (lot: any) => {
+  const directCandidates = [
+    lot?.lotDetails?.price,
+    lot?.lotDetails?.totalPrice,
+    lot?.price,
+  ]
+
+  for (const candidate of directCandidates) {
+    const price = Number(candidate)
+    if (Number.isFinite(price) && price > 0) return price
+  }
+
+  const area = resolveLandingLotAreaValue(lot)
+  const pricePerM2Candidates = [lot?.lotDetails?.pricePerM2, lot?.pricePerM2]
+
+  for (const candidate of pricePerM2Candidates) {
+    const pricePerM2 = Number(candidate)
+    if (Number.isFinite(pricePerM2) && pricePerM2 > 0 && area) {
+      return pricePerM2 * area
+    }
+  }
+
+  return null
+}
+
+const formatLandingLotArea = (lot: any) => {
+  const area = resolveLandingLotAreaValue(lot) ?? Number.NaN
+  if (!Number.isFinite(area) || area <= 0) return 'Sob consulta'
+
+  return `${area.toLocaleString('pt-BR', { minimumFractionDigits: area % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })} m²`
+}
+
+const formatLandingLotPrice = (lot: any) => {
+  const price = resolveLandingLotPriceValue(lot) ?? Number.NaN
+  if (!Number.isFinite(price) || price <= 0) return 'Sob consulta'
+  return formatCurrencyToBrasilia(price)
 }
 
 type IdealLotCriteria = {
@@ -2041,6 +2282,7 @@ const LANDING_REORDERABLE_SECTIONS = [
   'pub-plant',
   'pub-panorama',
   'pub-video',
+  'pub-lots-carousel',
   'pub-lots',
   'pub-construction',
   'pub-location',
@@ -2088,6 +2330,24 @@ const publicSectionOrderIndex = computed(() => {
 const publicSectionStyle = (sectionId: string) => {
   return { order: String(publicSectionOrderIndex.value.get(sectionId) ?? 999) }
 }
+
+const PUBLIC_SIDE_MENU_SECTION_MAP = [
+  { sectionId: 'pub-banner', id: 'inicio', label: 'INICIO' },
+  { sectionId: 'pub-description', id: 'info', label: 'INFO' },
+  { sectionId: 'pub-infra', id: 'infraestrutura', label: 'INFRA' },
+  { sectionId: 'pub-plant', id: 'planta', label: 'PLANTA' },
+  { sectionId: 'pub-panorama', id: 'panorama', label: '360°' },
+  { sectionId: 'pub-video', id: 'video-apresentacao', label: 'VIDEO' },
+  { sectionId: 'pub-highlights', id: 'destaques', label: 'DESTAQUES' },
+  { sectionId: 'pub-lots-carousel', id: 'carrossel-lotes', label: 'CARROSSEL' },
+  { sectionId: 'pub-lots', id: 'lotes', label: 'UNIDADES' },
+  { sectionId: 'pub-construction', id: 'obras', label: 'OBRAS' },
+  { sectionId: 'pub-gallery', id: 'galeria', label: 'GALERIA' },
+  { sectionId: 'pub-location', id: 'localizacao', label: 'LOCAL' },
+  { sectionId: 'pub-nearby', id: 'proximidades', label: 'PROX.' },
+  { sectionId: 'pub-scheduling', id: 'agendamento', label: 'AGENDAR' },
+  { sectionId: 'pub-contact', id: 'contato', label: 'CONTATO' },
+] as const
 
 const infrastructureCategories = computed(() => {
   return highlights.value.filter(h => h.type === 'category')
@@ -2141,6 +2401,32 @@ const hasInfo = computed(() => {
 
 const hasTraditionalInfo = computed(() => {
   return traditionalHighlights.value.length > 0
+})
+
+const publicSideMenuVisibility = computed<Record<string, boolean>>(() => ({
+  'pub-banner': true,
+  'pub-description': showDescriptionBlock.value,
+  'pub-infra': showInfrastructureBlock.value,
+  'pub-plant': !!project.value?.plantMap && isPublicSectionEnabled('pub-plant'),
+  'pub-panorama': panoramas.value.length > 0 && isPublicSectionEnabled('pub-panorama'),
+  'pub-video': !!project.value?.youtubeVideoUrl && isPublicSectionEnabled('pub-video'),
+  'pub-highlights': hasTraditionalInfo.value && isPublicSectionEnabled('pub-highlights'),
+  'pub-lots-carousel': (project.value?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots-carousel'),
+  'pub-lots': (project.value?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots'),
+  'pub-construction': !!project.value?.constructionStatus?.length && isPublicSectionEnabled('pub-construction'),
+  'pub-gallery': !!project.value?.projectMedias?.length && isPublicSectionEnabled('pub-gallery'),
+  'pub-location': !!(project.value?.googleMapsUrl || project.value?.address) && isPublicSectionEnabled('pub-location'),
+  'pub-nearby': hasNearbyData.value && isPublicSectionEnabled('pub-nearby'),
+  'pub-scheduling': !!(project.value && schedulingConfig.value?.enabled && isPublicSectionEnabled('pub-scheduling')),
+  'pub-contact': isPublicSectionEnabled('pub-contact'),
+}))
+
+const publicSideMenuItems = computed(() => {
+  return publicSectionOrder.value
+    .map((sectionId) => PUBLIC_SIDE_MENU_SECTION_MAP.find((item) => item.sectionId === sectionId))
+    .filter((item): item is typeof PUBLIC_SIDE_MENU_SECTION_MAP[number] => !!item)
+    .filter((item) => publicSideMenuVisibility.value[item.sectionId])
+    .map(({ id, label }) => ({ id, label }))
 })
 
 
@@ -2211,6 +2497,88 @@ const unifiedAvailableLots = computed(() => {
   }
   return list
 })
+
+const seedAvailableLotsCarousel = () => {
+  const seeded = (unifiedAvailableLots.value || [])
+    .map((lot: any) => normalizeLandingLot(lot))
+    .filter((lot: any) => lot.lotDetails?.status === 'AVAILABLE')
+
+  availableLotsCarouselItems.value = mergeLandingLots([], seeded)
+  availableLotsCarouselPage.value = 0
+  availableLotsCarouselTotal.value = Math.max(project.value?.lotSummary?.available ?? 0, availableLotsCarouselItems.value.length)
+  availableLotsCarouselError.value = ''
+}
+
+const displayedAvailableLots = computed(() => {
+  if (availableLotsCarouselItems.value.length > 0) {
+    return availableLotsCarouselItems.value
+  }
+
+  return (unifiedAvailableLots.value || [])
+    .map((lot: any) => normalizeLandingLot(lot))
+    .filter((lot: any) => lot.lotDetails?.status === 'AVAILABLE')
+})
+
+const availableLotsCarouselHasMore = computed(() => {
+  if (isPreview.value) return false
+  const total = Math.max(availableLotsCarouselTotal.value, project.value?.lotSummary?.available ?? 0)
+  return displayedAvailableLots.value.length < total
+})
+
+const availableLotsCarouselShouldLoop = computed(() => displayedAvailableLots.value.length >= 5)
+
+const handleAvailableLotsSwiper = (instance: SwiperInstance) => {
+  availableLotsSwiper.value = instance
+}
+
+const loadMoreAvailableLots = async (force = false) => {
+  if (isPreview.value || !projectSlug.value || availableLotsCarouselLoading.value) return
+
+  const knownTotal = Math.max(availableLotsCarouselTotal.value, project.value?.lotSummary?.available ?? 0)
+  if (!force && knownTotal > 0 && availableLotsCarouselItems.value.length >= knownTotal) return
+
+  const nextPage = availableLotsCarouselPage.value + 1
+  availableLotsCarouselLoading.value = true
+
+  try {
+    const response = await fetchPublic(`/p/${projectSlug.value}/lots?limit=${AVAILABLE_LOTS_BATCH_SIZE}&page=${nextPage}`)
+    const incomingLots = Array.isArray(response?.data)
+      ? response.data
+          .map((lot: any) => normalizeLandingLot(lot))
+          .filter((lot: any) => lot.lotDetails?.status === 'AVAILABLE')
+      : []
+
+    availableLotsCarouselItems.value = mergeLandingLots(availableLotsCarouselItems.value, incomingLots)
+    availableLotsCarouselPage.value = nextPage
+    availableLotsCarouselTotal.value = Math.max(
+      Number(response?.total || 0),
+      knownTotal,
+      availableLotsCarouselItems.value.length,
+    )
+    availableLotsCarouselError.value = ''
+  } catch (fetchError: any) {
+    availableLotsCarouselError.value = fetchError?.message || 'Erro ao carregar lotes disponíveis'
+  } finally {
+    availableLotsCarouselLoading.value = false
+  }
+}
+
+const handleAvailableLotsSlideChange = (instance: SwiperInstance) => {
+  const currentIndex = Number.isFinite(instance.realIndex) ? instance.realIndex : instance.activeIndex
+  const remaining = displayedAvailableLots.value.length - currentIndex - 1
+
+  if (remaining <= 3) {
+    void loadMoreAvailableLots()
+  }
+}
+
+const initializeAvailableLotsCarousel = () => {
+  seedAvailableLotsCarousel()
+
+  if (!isPreview.value) {
+    void loadMoreAvailableLots(true)
+  }
+}
 
 const sanitizeRichTextTheme = (html: string) => {
   if (!html) return ''
@@ -2770,6 +3138,7 @@ onMounted(async () => {
     if (p.status === 'fulfilled') {
       project.value = p.value
       chatStore.setProject(p.value)
+      initializeAvailableLotsCarousel()
       
       if (s.status === 'fulfilled' && s.value) {
         schedulingConfig.value = s.value
@@ -2817,6 +3186,15 @@ onMounted(async () => {
   }
   startSalesMotion()
 })
+
+watch(
+  () => displayedAvailableLots.value.length,
+  async () => {
+    await nextTick()
+    if (!availableLotsSwiper.value || availableLotsSwiper.value.destroyed) return
+    availableLotsSwiper.value.update()
+  },
+)
 
 watch(
   () => [
@@ -2983,7 +3361,7 @@ function openLightbox(idx: number) {
 
 /* Spacing & Sections */
 .v4-section {
-  padding: 100px 0; /* Consistent desk padding */
+  padding: 72px 0; /* Consistent desk padding */
   position: relative;
   border-bottom: var(--v4-hairline); /* Apple style hairline separator */
 }
@@ -3010,7 +3388,6 @@ function openLightbox(idx: number) {
 
 .v4-section-header {
   margin-bottom: 56px;
-  max-width: 800px;
 }
 
 @media (max-width: 768px) {
@@ -4616,19 +4993,21 @@ function openLightbox(idx: number) {
 }
 
 .v4-trust-bar--with-prelaunch {
-  top: 86px;
+  top: 106px;
 }
 
 .v4-trust-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
 }
 
 .v4-trust-person {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
 }
 
 .v4-trust-avatar {
@@ -4661,6 +5040,7 @@ function openLightbox(idx: number) {
 .v4-trust-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .v4-trust-label {
@@ -4681,13 +5061,21 @@ function openLightbox(idx: number) {
 .v4-trust-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .v4-trust-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 10px 20px;
   border-radius: 100px;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
   transition: all 0.2s;
 }
@@ -5056,6 +5444,184 @@ function openLightbox(idx: number) {
   }
 }
 
+.v4-lots-carousel-header {
+  margin-bottom: 40px;
+  justify-content: center;
+  text-align: center;
+}
+
+.v4-lots-carousel-header .v4-section-title {
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .v4-lots-carousel-header {
+    margin-bottom: 24px;
+  }
+}
+
+.v4-lots-carousel-bleed {
+  width: 100%;
+  margin: 24px 0;
+  padding: 4px 0 6px;
+  position: relative;
+}
+
+.v4-lots-carousel-bleed::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  background: linear-gradient(to right, transparent, var(--v4-section-alt-bg, #f7f8fb));
+  pointer-events: none;
+  z-index: 2;
+}
+
+.v4-lots-swiper {
+  padding: 0 24px 4px;
+}
+
+.v4-lots-swiper :deep(.swiper-slide) {
+  height: auto;
+}
+
+.v4-lots-carousel-fallback {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 0 24px 4px;
+  scrollbar-width: none;
+}
+
+.v4-lots-carousel-fallback::-webkit-scrollbar {
+  display: none;
+}
+
+.v4-lot-card--compact {
+  min-height: 148px;
+  padding: 16px 16px 14px;
+  gap: 10px;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #eef1f5;
+}
+
+.v4-lot-card--fallback {
+  min-width: min(48vw, 200px);
+  flex: 0 0 min(48vw, 200px);
+}
+
+.v4-lot-card-header--compact {
+  margin-bottom: 2px;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.v4-lot-id--compact {
+  gap: 4px;
+  min-width: 0;
+}
+
+.v4-lot-code--compact {
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  overflow-wrap: anywhere;
+}
+
+.v4-lot-mini-meta {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--v4-text-muted);
+  min-height: 0;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.v4-lot-mini-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.v4-lot-mini-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #f7f8fb;
+}
+
+.v4-lot-mini-stat-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--v4-text-muted);
+  line-height: 1.3;
+}
+
+.v4-lot-mini-stat strong {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--v4-text);
+}
+
+.v4-lot-card-footer--compact {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #eef1f5;
+  font-size: 11.5px;
+  justify-content: space-between;
+}
+
+.v4-lots-carousel-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 48px;
+  text-align: center;
+}
+
+.v4-lots-carousel-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v4-text-muted);
+  width: 100%;
+  text-align: center;
+}
+
+.v4-lots-carousel-status--error {
+  color: #c43d2f;
+}
+
+.v4-lots-carousel-cta,
+.v4-lots-grid-cta {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.v4-lots-grid-cta {
+  margin-top: 56px;
+}
+
+.v4-lots-carousel-cta-btn {
+  min-width: 280px;
+  text-decoration: none;
+  text-align: center;
+}
+
 .v4-lot-card {
   background: white;
   border-radius: var(--v4-radius-lg);
@@ -5071,6 +5637,50 @@ function openLightbox(idx: number) {
 }
 
 @media (max-width: 768px) {
+  .v4-lots-swiper {
+    padding: 0 12px 4px;
+  }
+
+  .v4-lots-carousel-fallback {
+    padding: 0 12px 4px;
+  }
+
+  .v4-lot-card--compact {
+    min-height: 136px;
+    padding: 14px 13px 12px;
+  }
+
+  .v4-lot-code--compact {
+    font-size: 20px;
+    line-height: 1.15;
+  }
+
+  .v4-lot-mini-meta {
+    font-size: 9px;
+    min-height: 0;
+  }
+
+  .v4-lot-mini-stats {
+    gap: 6px;
+  }
+
+  .v4-lot-mini-stat {
+    padding: 6px 8px;
+  }
+
+  .v4-lot-mini-stat strong {
+    font-size: 11px;
+  }
+
+  .v4-lots-carousel-footer {
+    margin-top: 32px;
+  }
+
+  .v4-lots-carousel-cta-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
   .v4-lot-card {
     padding: 16px;
     border-radius: 16px;
@@ -5078,10 +5688,10 @@ function openLightbox(idx: number) {
   }
 }
 
-.v4-lot-card:hover { 
-  box-shadow: var(--v4-shadow-elevated);
-  transform: translateY(-4px);
-  border-color: var(--v4-primary);
+.v4-lot-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--v4-primary) 50%, transparent);
 }
 
 .v4-lot-card-header { 
@@ -5111,7 +5721,8 @@ function openLightbox(idx: number) {
   font-weight: 700;
   text-transform: uppercase;
   color: var(--v4-text-muted);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
 }
 
 @media (max-width: 768px) {
@@ -5121,7 +5732,8 @@ function openLightbox(idx: number) {
 .v4-lot-code { 
   font-size: 26px; 
   font-weight: 700; 
-  letter-spacing: -0.02em; 
+  line-height: 1.05;
+  letter-spacing: -0.03em; 
   color: var(--v4-text); 
 }
 
@@ -5129,21 +5741,23 @@ function openLightbox(idx: number) {
   .v4-lot-code { font-size: 18px; line-height: 1.2; }
 }
 
-.v4-lot-status { 
-  font-size: 11px; 
-  font-weight: 700; 
-  color: #32d74b;
-  background: rgba(50, 215, 75, 0.1);
-  padding: 6px 14px;
+.v4-lot-status {
+  font-size: 9px;
+  font-weight: 600;
+  color: #3a9d6a;
+  background: rgba(34, 153, 90, 0.06);
+  border: 1px solid rgba(34, 153, 90, 0.10);
+  padding: 4px 8px;
   border-radius: 100px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
-  .v4-lot-status { 
+  .v4-lot-status {
     font-size: 8px;
-    padding: 4px 8px;
+    padding: 3px 7px;
     position: static;
     align-self: flex-start;
   }
@@ -5606,13 +6220,14 @@ function openLightbox(idx: number) {
 
 @media (max-width: 768px) {
   .v4-prelaunch-bar {
-    padding: 10px 0;
+    position: static;
+    padding: 12px 0 10px;
   }
 
   .v4-prelaunch-inner {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
   }
 
   .v4-prelaunch-title {
@@ -5625,11 +6240,13 @@ function openLightbox(idx: number) {
 
   .v4-prelaunch-btn {
     width: 100%;
+    min-height: 48px;
   }
 
   .v4-prelaunch-actions {
     flex-direction: column-reverse;
     align-items: stretch;
+    width: 100%;
   }
 
   .v4-prelaunch-dismiss {
@@ -5742,12 +6359,13 @@ function openLightbox(idx: number) {
   }
   
   .v4-trust-bar { padding: 8px 0; }
-  .v4-trust-bar--with-prelaunch { top: 127px; }
+  .v4-trust-bar--with-prelaunch { top: 0; }
   .v4-trust-label { font-size: 10px; }
   .v4-trust-name { font-size: 14px; }
-  .v4-trust-btn { padding: 8px 12px; font-size: 11px; font-weight: 700; white-space: nowrap; border-radius: 8px; }
-  .v4-trust-actions { gap: 4px; }
-  .v4-trust-inner { gap: 12px; }
+  .v4-trust-btn { width: 100%; min-height: 44px; padding: 10px 12px; font-size: 11px; font-weight: 700; white-space: normal; border-radius: 10px; }
+  .v4-trust-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
+  .v4-trust-actions > *:only-child { grid-column: 1 / -1; }
+  .v4-trust-inner { flex-direction: column; align-items: stretch; gap: 10px; }
   .v4-trust-person { gap: 8px; }
   .v4-trust-avatar { width: 36px; height: 36px; }
   .v4-avatar-placeholder { font-size: 14px; }

@@ -19,7 +19,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
+type ProjectSideMenuItem = {
+  id: string
+  label: string
+}
+
 const props = defineProps<{
+  items?: ProjectSideMenuItem[];
   hasPlant?: boolean;
   hasPanorama?: boolean;
   hasInfo?: boolean;
@@ -30,7 +36,7 @@ const props = defineProps<{
   hasScheduling?: boolean;
 }>()
 
-const allItems = [
+const legacyItems: ProjectSideMenuItem[] = [
   { id: 'inicio', label: 'INÍCIO' },
   { id: 'info', label: 'INFO' },
   { id: 'planta', label: 'PLANTA' },
@@ -43,9 +49,20 @@ const allItems = [
   { id: 'contato', label: 'CONTATO' },
 ]
 
-// Filter items based on availability
+const orderedItems = computed(() => {
+  if (Array.isArray(props.items) && props.items.length > 0) {
+    return props.items
+  }
+
+  return legacyItems
+})
+
 const filteredItems = computed(() => {
-  return allItems.filter(item => {
+  if (Array.isArray(props.items) && props.items.length > 0) {
+    return orderedItems.value
+  }
+
+  return orderedItems.value.filter(item => {
     if (item.id === 'inicio' || item.id === 'contato') return true
     if (item.id === 'planta') return props.hasPlant
     if (item.id === 'panorama') return props.hasPanorama
@@ -117,7 +134,7 @@ onUnmounted(() => {
   left: 24px;
   top: 50%;
   transform: translateY(-50%) translateX(-100px);
-  z-index: 100;
+  z-index: 101;
   background: var(--glass-bg);
   padding: 24px 12px;
   border-radius: 999px;

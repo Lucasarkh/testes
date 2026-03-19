@@ -1605,6 +1605,38 @@
           </div>
         </div>
 
+        <!-- ── Carrossel de Lotes ── -->
+        <div v-if="activeSection === 'pub-lots-carousel'" class="pub-card pub-card--compact">
+          <h4 class="pub-card__title">Carrossel de Lotes</h4>
+          <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
+            Esta seção pública exibe um carrossel automático com lotes disponíveis. No editor de páginas ela é apenas ativável, desativável e reordenável.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px;">
+            <div class="stat-chip">
+              <span class="stat-chip-value">{{ lotStats.total }}</span>
+              <span class="stat-chip-label">Total</span>
+            </div>
+            <div class="stat-chip stat-chip-success">
+              <span class="stat-chip-value">{{ lotStats.available }}</span>
+              <span class="stat-chip-label">Disponíveis</span>
+            </div>
+            <div class="stat-chip stat-chip-warning">
+              <span class="stat-chip-value">{{ lotStats.reserved }}</span>
+              <span class="stat-chip-label">Reservados</span>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-wrap: wrap; gap: 8px;">
+            <button class="btn btn-primary btn-sm" @click="setActiveSection('lotes')">
+              Ir para Gestão de Lotes
+            </button>
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta`" class="btn btn-secondary btn-sm">
+              Abrir Planta Interativa
+            </NuxtLink>
+          </div>
+        </div>
+
         <!-- ── Lotes Disponíveis ── -->
         <div v-if="activeSection === 'pub-lots'" class="pub-card pub-card--compact">
           <h4 class="pub-card__title">Lotes Disponíveis</h4>
@@ -3675,6 +3707,7 @@ const PUBLIC_SECTION_CATALOG: SidebarSectionItem[] = [
   { id: 'pub-plant', icon: 'bi bi-map', label: 'Planta Interativa' },
   { id: 'pub-panorama', icon: 'bi bi-image-fill', label: 'Panorama 360°' },
   { id: 'pub-video', icon: 'bi bi-youtube', label: 'Vídeo de Apresentação' },
+  { id: 'pub-lots-carousel', icon: 'bi bi-view-list', label: 'Carrossel de Lotes' },
   { id: 'pub-lots', icon: 'bi bi-grid-3x2-gap-fill', label: 'Lotes Disponíveis' },
   { id: 'pub-construction', icon: 'bi bi-hammer', label: 'Obras' },
   { id: 'pub-location', icon: 'bi bi-geo-alt-fill', label: 'Localização' },
@@ -3865,6 +3898,7 @@ const isPublicSectionConfigured = (sectionId: string) => {
     case 'pub-plant': return hasPlantConfigured.value
     case 'pub-panorama': return hasPanoramaConfigured.value
     case 'pub-video': return !!pubInfoForm.value.youtubeVideoUrl?.trim()
+    case 'pub-lots-carousel': return hasLotsConfigured.value
     case 'pub-lots': return hasLotsConfigured.value
     case 'pub-construction': return hasConstructionConfigured.value
     case 'pub-location': return hasLocationConfigured.value

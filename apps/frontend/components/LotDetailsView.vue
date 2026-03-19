@@ -582,23 +582,107 @@
         <!-- Footer / Others -->
         <footer class="v4-footer">
           <div class="page-container-v4">
-            <div v-if="otherLots.length" class="other-assets-v4">
-              <div class="assets-header-v4">
-                <h3>Outras Oportunidades</h3>
-                <NuxtLink :to="projectUrl">Ver todos no mapa</NuxtLink>
-              </div>
+              <section v-if="otherLotsCarouselItems.length" class="other-assets-v4" aria-labelledby="other-lots-title">
+                <div class="assets-header-v4">
+                  <div class="assets-header-copy-v4">
+                    <h3 id="other-lots-title">Opções para você</h3>
+                    <p>Outras unidades disponíveis com dados atualizados da API pública.</p>
+                  </div>
+                </div>
 
-              <div class="assets-grid-v4">
-                <NuxtLink v-for="l in otherLots.slice(0, 8)" :key="l.id" :to="otherLotUrl(l)" class="asset-card-v4">
-                  <div class="a-code">{{ (l.code || l.name || l.id).toString().toLowerCase().includes('lote') ? '' : 'Lote ' }}{{ l.code || l.name || l.id }}</div>
-                  <div class="a-area">{{ l.lotDetails?.areaM2 ? `${l.lotDetails.areaM2} m²` : '—' }}</div>
-                  <div class="a-price" v-if="l.lotDetails?.price">{{ formatCurrencyToBrasilia(l.lotDetails.price) }}</div>
-                </NuxtLink>
-              </div>
-              <p v-if="!otherLots.length" class="other-lots-empty-v4">
-                Nenhum lote encontrado com os filtros atuais.
-              </p>
-            </div>
+                <ClientOnly>
+                  <div class="other-lots-carousel-bleed-v4">
+                    <Swiper
+                      class="other-lots-swiper-v4"
+                      :modules="otherLotsCarouselModules"
+                      :autoplay="otherLotsCarouselAutoplay"
+                      :breakpoints="otherLotsCarouselBreakpoints"
+                      :grab-cursor="true"
+                      :loop="otherLotsCarouselShouldLoop"
+                      :slides-per-view="1.22"
+                      :space-between="10"
+                      :speed="520"
+                      :watch-overflow="true"
+                    >
+                      <SwiperSlide v-for="otherLot in otherLotsCarouselItems" :key="otherLotSlideKey(otherLot)">
+                        <NuxtLink :to="otherLotUrl(otherLot)" class="other-lot-card-v4">
+                          <div class="other-lot-card-head-v4">
+                            <div class="other-lot-heading-v4">
+                              <span class="other-lot-code-v4">{{ resolveOtherLotEyebrow(otherLot) }}</span>
+                              <h4 class="other-lot-title-v4">{{ resolveOtherLotDisplayName(otherLot) }}</h4>
+                            </div>
+                            <span class="other-lot-status-v4" :class="otherLotStatusClass(otherLot)">
+                              {{ otherLotStatusLabel(otherLot) }}
+                            </span>
+                          </div>
+
+                          <p class="other-lot-meta-v4">{{ formatOtherLotMeta(otherLot) }}</p>
+
+                          <div class="other-lot-stats-v4">
+                            <div class="other-lot-stat-v4">
+                              <span class="other-lot-stat-label-v4">Área total</span>
+                              <strong>{{ formatOtherLotArea(otherLot) }}</strong>
+                            </div>
+                            <div class="other-lot-stat-v4">
+                              <span class="other-lot-stat-label-v4">Valor total</span>
+                              <strong>{{ formatOtherLotPrice(otherLot) }}</strong>
+                            </div>
+                          </div>
+
+                          <div class="other-lot-card-footer-v4">
+                            <span>Detalhes</span>
+                            <span aria-hidden="true">→</span>
+                          </div>
+                        </NuxtLink>
+                      </SwiperSlide>
+                    </Swiper>
+                  </div>
+                  <template #fallback>
+                    <div class="other-lots-carousel-bleed-v4">
+                      <div class="other-lots-fallback-v4">
+                        <NuxtLink
+                          v-for="otherLot in otherLotsCarouselItems.slice(0, 6)"
+                          :key="otherLotSlideKey(otherLot)"
+                          :to="otherLotUrl(otherLot)"
+                          class="other-lot-card-v4"
+                        >
+                          <div class="other-lot-card-head-v4">
+                            <div class="other-lot-heading-v4">
+                              <span class="other-lot-code-v4">{{ resolveOtherLotEyebrow(otherLot) }}</span>
+                              <h4 class="other-lot-title-v4">{{ resolveOtherLotDisplayName(otherLot) }}</h4>
+                            </div>
+                            <span class="other-lot-status-v4" :class="otherLotStatusClass(otherLot)">
+                              {{ otherLotStatusLabel(otherLot) }}
+                            </span>
+                          </div>
+
+                          <p class="other-lot-meta-v4">{{ formatOtherLotMeta(otherLot) }}</p>
+
+                          <div class="other-lot-stats-v4">
+                            <div class="other-lot-stat-v4">
+                              <span class="other-lot-stat-label-v4">Área total</span>
+                              <strong>{{ formatOtherLotArea(otherLot) }}</strong>
+                            </div>
+                            <div class="other-lot-stat-v4">
+                              <span class="other-lot-stat-label-v4">Valor total</span>
+                              <strong>{{ formatOtherLotPrice(otherLot) }}</strong>
+                            </div>
+                          </div>
+
+                          <div class="other-lot-card-footer-v4">
+                            <span>Detalhes</span>
+                            <span aria-hidden="true">→</span>
+                          </div>
+                        </NuxtLink>
+                      </div>
+                    </div>
+                  </template>
+                </ClientOnly>
+
+                <div class="other-lots-actions-v4">
+                  <NuxtLink :to="unitsUrl" class="other-lots-cta-v4">Ver todos os lotes disponíveis</NuxtLink>
+                </div>
+              </section>
 
             <div v-if="project" class="v4-footer-inner">
               <div class="v4-footer-brand">
@@ -694,6 +778,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { Swiper, SwiperSlide } from 'swiper/vue'
+import { A11y, Autoplay } from 'swiper/modules'
 import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
 import { getTodayInBrasilia, getYearInBrasilia } from '~/utils/date'
@@ -753,6 +839,26 @@ const salesMotionLastViews = ref(0)
 const salesMotionLastVisits = ref(0)
 const salesMotionSeenSections = ref<string[]>([])
 const salesMotionReachedMilestones = ref<number[]>([])
+const otherLotsCarouselModules = [A11y, Autoplay]
+const otherLotsCarouselAutoplay = {
+  delay: 2400,
+  disableOnInteraction: false,
+  pauseOnMouseEnter: true,
+}
+const otherLotsCarouselBreakpoints = {
+  480: { slidesPerView: 2.05, spaceBetween: 10 },
+  768: { slidesPerView: 3.15, spaceBetween: 12 },
+  1024: { slidesPerView: 4.15, spaceBetween: 12 },
+  1280: { slidesPerView: 5.15, spaceBetween: 14 },
+}
+
+const normalizeBlockLabel = (value?: string | null) => {
+  const block = String(value ?? '').trim()
+  if (!block) return '---'
+
+  const withoutPrefix = block.replace(/^quadra\s*/i, '').trim()
+  return withoutPrefix || block
+}
 
 const normalizeLotIdentifier = (value?: string | null) =>
   String(value ?? '')
@@ -763,6 +869,120 @@ const normalizeLotIdentifier = (value?: string | null) =>
 
 const isSameLotIdentifier = (a?: string | null, b?: string | null) =>
   !!normalizeLotIdentifier(a) && normalizeLotIdentifier(a) === normalizeLotIdentifier(b)
+
+const otherLotSlideKey = (lot: any) => String(lot?.id || lot?.code || lot?.name || '')
+
+const normalizeOtherLot = (lot: any) => ({
+  id: lot?.id,
+  name: lot?.name || lot?.code || 'Lote disponível',
+  code: lot?.code || lot?.name || lot?.id,
+  lotDetails: {
+    ...(lot?.lotDetails || {}),
+    status: String(lot?.lotDetails?.status || 'AVAILABLE').toUpperCase(),
+    tags: Array.isArray(lot?.lotDetails?.tags) ? lot.lotDetails.tags : [],
+  },
+})
+
+const resolveOtherLotAreaValue = (lot: any) => {
+  const candidates = [
+    lot?.lotDetails?.areaM2,
+    lot?.lotDetails?.totalAreaM2,
+    lot?.areaM2,
+    lot?.area,
+  ]
+
+  for (const candidate of candidates) {
+    const area = Number(candidate)
+    if (Number.isFinite(area) && area > 0) return area
+  }
+
+  return null
+}
+
+const resolveOtherLotPriceValue = (lot: any) => {
+  const directCandidates = [
+    lot?.lotDetails?.price,
+    lot?.lotDetails?.totalPrice,
+    lot?.price,
+  ]
+
+  for (const candidate of directCandidates) {
+    const price = Number(candidate)
+    if (Number.isFinite(price) && price > 0) return price
+  }
+
+  const area = resolveOtherLotAreaValue(lot)
+  const pricePerM2Candidates = [lot?.lotDetails?.pricePerM2, lot?.pricePerM2]
+
+  for (const candidate of pricePerM2Candidates) {
+    const pricePerM2 = Number(candidate)
+    if (Number.isFinite(pricePerM2) && pricePerM2 > 0 && area) {
+      return pricePerM2 * area
+    }
+  }
+
+  return null
+}
+
+const formatOtherLotArea = (lot: any) => {
+  const area = resolveOtherLotAreaValue(lot) ?? Number.NaN
+  if (!Number.isFinite(area) || area <= 0) return 'Sob consulta'
+
+  return `${area.toLocaleString('pt-BR', { minimumFractionDigits: area % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })} m²`
+}
+
+const formatOtherLotPrice = (lot: any) => {
+  const price = resolveOtherLotPriceValue(lot) ?? Number.NaN
+  if (!Number.isFinite(price) || price <= 0) return 'Sob consulta'
+  return formatCurrencyToBrasilia(price)
+}
+
+const resolveOtherLotDisplayName = (lot: any) => {
+  const name = String(lot?.name || '').trim()
+  const code = String(lot?.code || '').trim()
+  const lotNumber = String(lot?.lotDetails?.lotNumber || '').trim()
+
+  if (name) return name
+  if (code) return code
+  if (lotNumber) return `Lote ${lotNumber}`
+  return 'Lote disponível'
+}
+
+const resolveOtherLotEyebrow = (lot: any) => {
+  const code = String(lot?.code || '').trim()
+  const displayName = resolveOtherLotDisplayName(lot)
+  if (code && normalizeLotIdentifier(code) !== normalizeLotIdentifier(displayName)) return code
+
+  const lotNumber = String(lot?.lotDetails?.lotNumber || '').trim()
+  if (lotNumber) return `Lote ${lotNumber}`
+
+  return 'Unidade disponível'
+}
+
+const formatOtherLotMeta = (lot: any) => {
+  const parts: string[] = []
+  const block = normalizeBlockLabel(lot?.lotDetails?.block)
+  const lotNumber = String(lot?.lotDetails?.lotNumber || '').trim()
+
+  if (block !== '---') parts.push(`Quadra ${block}`)
+  if (lotNumber) parts.push(`Lote ${lotNumber}`)
+
+  return parts.length ? parts.join(' · ') : 'Consulte disponibilidade e condições comerciais'
+}
+
+const otherLotStatusLabel = (lot: any) => {
+  const status = String(lot?.lotDetails?.status || 'AVAILABLE').toUpperCase()
+  if (status === 'SOLD') return 'Vendido'
+  if (status === 'RESERVED') return 'Reservado'
+  return 'Disponível'
+}
+
+const otherLotStatusClass = (lot: any) => {
+  const status = String(lot?.lotDetails?.status || 'AVAILABLE').toUpperCase()
+  if (status === 'SOLD') return 'is-sold'
+  if (status === 'RESERVED') return 'is-reserved'
+  return 'is-available'
+}
 
 const lotPlantMap = computed(() => {
   if (!plantMap.value || !lot.value) return null
@@ -1820,6 +2040,10 @@ const otherLots = computed(() => {
     })
 })
 
+const otherLotsCarouselItems = computed(() => otherLots.value.map((lot: any) => normalizeOtherLot(lot)).slice(0, 12))
+
+const otherLotsCarouselShouldLoop = computed(() => otherLotsCarouselItems.value.length >= 5)
+
 const allProjectAvailableLots = computed(() => {
   return allProjectLots.value.filter((item: any) => {
     return String(item?.lotDetails?.status || 'AVAILABLE').toUpperCase() === 'AVAILABLE'
@@ -2641,9 +2865,11 @@ async function submitReservation() {
   padding: 20px;
   margin-bottom: 24px;
 }
-.h-reserve-v4 { display: flex; align-items: center; gap: 8px; color: var(--v4-primary); font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+.h-reserve-v4 { display: flex; align-items: center; gap: 10px; color: var(--v4-primary); font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+.h-reserve-v4 svg { width: 24px; height: 24px; flex: 0 0 24px; }
+.booking-intro { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .booking-intro p { font-size: 14px; color: #4b5563; margin-bottom: 16px; line-height: 1.4; }
-.cta-reserve-v4 { width: 100%; padding: 12px; background: var(--v4-primary); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+.cta-reserve-v4 { width: min(100%, 220px); padding: 11px 18px; background: var(--v4-primary); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; }
 .reserve-fee { font-size: 12px; color: var(--v4-text-muted); text-align: center; margin-top: 8px; }
 .reserve-disclaimer { font-size: 11px; color: var(--v4-text-muted); text-align: center; margin-top: 6px; line-height: 1.3; }
 .f-field { margin-bottom: 12px; }
@@ -2706,10 +2932,11 @@ async function submitReservation() {
 .v4-footer-project { font-size: 14px; color: var(--v4-text-muted); }
 .v4-footer-copyright { font-size: 12px; color: var(--v4-text-muted); }
 .v4-footer { padding: 32px 0;}
-.other-assets-v4 { width: 100%; position: relative; margin-bottom: 60px; padding-bottom: 60px; border-bottom: 1px solid var(--v4-border); }
-.assets-header-v4 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 32px; }
-.assets-header-v4 h3 { font-size: 24px; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
-.assets-header-v4 a { font-size: 14px; font-weight: 600; color: var(--v4-primary); text-decoration: none; }
+.other-assets-v4 { width: 100%; position: relative; margin-bottom: 60px; padding-bottom: 56px; border-bottom: 1px solid var(--v4-border); }
+.assets-header-v4 { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; gap: 20px; }
+.assets-header-copy-v4 { display: flex; flex-direction: column; gap: 8px; }
+.assets-header-v4 h3 { font-size: 28px; font-weight: 600; margin: 0; letter-spacing: -0.02em; }
+.assets-header-v4 p { margin: 0; font-size: 15px; color: var(--v4-text-muted); line-height: 1.45; }
 
 .other-lots-filters-v4 {
   margin-bottom: 18px;
@@ -2760,43 +2987,192 @@ async function submitReservation() {
   border-style: dashed;
 }
 
-.other-lots-empty-v4 {
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--v4-text-muted);
+.other-lots-carousel-bleed-v4 {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 0 0 2px;
 }
 
-.assets-grid-v4 { 
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 20px;
-  margin-bottom: 32px;
+.other-lots-swiper-v4 {
+  padding: 0 24px 4px;
 }
 
-.asset-card-v4 { 
-  background: #f5f5f7; 
-  padding: 24px; 
-  border-radius: 20px; 
-  border: 1px solid var(--v4-border); 
-  text-decoration: none; 
-  color: inherit; 
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+.other-lots-swiper-v4 :deep(.swiper-slide) {
+  height: auto;
+}
+
+.other-lots-fallback-v4 {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 24px 4px;
+  scrollbar-width: none;
+}
+
+.other-lots-fallback-v4::-webkit-scrollbar {
+  display: none;
+}
+
+.other-lot-card-v4 {
+  min-height: 166px;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid #eef1f5;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  padding: 14px;
+  text-decoration: none;
+  color: inherit;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.asset-card-v4:hover { 
-  background: white; 
-  transform: translateY(-4px); 
-  box-shadow: 0 12px 24px rgba(0,0,0,0.06); 
-  border-color: var(--v4-primary); 
+.other-lot-card-v4:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--v4-primary-rgb), 0.28);
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
 }
 
-.a-code { font-size: 17px; font-weight: 700; color: var(--v4-text); }
-.a-area { font-size: 14px; color: var(--v4-text-muted); font-weight: 500; }
-.a-price { font-size: 18px; font-weight: 700; color: var(--v4-primary); margin-top: 8px; }
+.other-lot-card-head-v4 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.other-lot-heading-v4 {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.other-lot-code-v4 {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--v4-text-muted);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.other-lot-title-v4 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  color: var(--v4-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.other-lot-status-v4 {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.other-lot-status-v4.is-available {
+  color: #1c8f54;
+  background: rgba(28, 143, 84, 0.08);
+  border-color: rgba(28, 143, 84, 0.12);
+}
+
+.other-lot-status-v4.is-reserved {
+  color: #a16207;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.12);
+}
+
+.other-lot-status-v4.is-sold {
+  color: #b42318;
+  background: rgba(217, 45, 32, 0.08);
+  border-color: rgba(217, 45, 32, 0.12);
+}
+
+.other-lot-meta-v4 {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--v4-text-muted);
+  min-height: 32px;
+}
+
+.other-lot-stats-v4 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.other-lot-stat-v4 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 9px;
+  border-radius: 12px;
+  background: #f7f8fb;
+}
+
+.other-lot-stat-label-v4 {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--v4-text-muted);
+}
+
+.other-lot-stat-v4 strong {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--v4-text);
+}
+
+.other-lot-card-footer-v4 {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #eef1f5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v4-primary);
+}
+
+.other-lots-actions-v4 {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.other-lots-cta-v4 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 280px;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--v4-primary);
+  color: #fff;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 700;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.other-lots-cta-v4:hover {
+  background: var(--v4-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(var(--v4-primary-rgb), 0.22);
+}
 
 /* Simulator Styles */
 .simulator-card-v4 {
@@ -3196,11 +3572,68 @@ async function submitReservation() {
   .lead-form-v4 { padding: 24px 20px; border-radius: 20px; }
   .form-header-v4 h3 { font-size: 20px; }
 
-  .assets-grid-v4 { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
-  .asset-card-v4 { padding: 12px; border-radius: 14px; gap: 4px; }
-  .a-code { font-size: 13px; }
-  .a-area { font-size: 11px; }
-  .a-price { font-size: 14px; margin-top: 2px; }
+  .assets-header-v4 {
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .assets-header-v4 h3 {
+    font-size: 24px;
+  }
+
+  .assets-header-v4 p {
+    font-size: 14px;
+  }
+
+  .other-lots-swiper-v4,
+  .other-lots-fallback-v4 {
+    padding: 0 12px 4px;
+  }
+
+  .other-lot-card-v4 {
+    min-height: 154px;
+    padding: 12px;
+    border-radius: 16px;
+    gap: 7px;
+  }
+
+  .other-lot-title-v4 {
+    font-size: 24px;
+  }
+
+  .other-lot-meta-v4 {
+    font-size: 11px;
+    min-height: 30px;
+  }
+
+  .other-lot-stats-v4 {
+    gap: 6px;
+  }
+
+  .other-lot-stat-v4 {
+    padding: 7px 8px;
+  }
+
+  .other-lot-stat-v4 strong {
+    font-size: 12px;
+  }
+
+  .other-lot-card-footer-v4 {
+    font-size: 11px;
+    padding-top: 7px;
+  }
+
+  .other-lots-actions-v4 {
+    margin-top: 16px;
+  }
+
+  .other-lots-cta-v4 {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 0 18px;
+    text-align: center;
+  }
 }
 
 @media (min-width: 769px) {
@@ -3219,21 +3652,34 @@ async function submitReservation() {
 .h-reserve-v4 {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--v4-primary);
   font-weight: 600;
   margin-bottom: 12px;
 }
 
+.h-reserve-v4 svg {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+}
+
+.booking-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
 .cta-reserve-v4 {
-  width: 100%;
-  padding: 14px;
+  width: min(100%, 220px);
+  padding: 11px 18px;
   border-radius: 12px;
   border: none;
   background: var(--v4-primary);
   color: white;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
   margin-top: 12px;
   transition: all 0.2s ease;
