@@ -1252,13 +1252,17 @@
       </div>
 
       <!-- Lot Edit Modal -->
-      <div v-if="editingLot" class="modal-overlay">
-        <div class="modal" style="max-width: 800px;">
-          <div class="modal-header" style="margin-bottom: 16px;">
-            <h3>Editar Lote: {{ editingLot.mapElement?.code || editingLot.id }}</h3>
-            <button class="modal-close" @click="editingLot = null">✕</button>
+      <div v-if="editingLot" class="modal-overlay lot-edit-overlay">
+        <div class="modal lot-edit-modal" style="max-width: 960px;">
+          <div class="modal-header lot-edit-modal__header" style="margin-bottom: 16px;">
+            <div>
+              <span class="lot-edit-modal__eyebrow">Editor de lote</span>
+              <h3>Editar Lote: {{ editingLot.mapElement?.code || editingLot.id }}</h3>
+              <p class="lot-edit-modal__subtitle">Ajuste dados comerciais, galeria e panorama 360 com visual mais limpo e leitura mais forte.</p>
+            </div>
+            <button class="modal-close lot-edit-modal__close" @click="closeEditingLot">✕</button>
           </div>
-          <fieldset :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
+          <fieldset class="lot-edit-modal__fieldset" :disabled="!authStore.canEdit || isArchivedProject" style="border:0;padding:0;margin:0;min-inline-size:0;">
           
           <div class="grid grid-cols-2" style="gap: 16px; margin-top: 16px;">
             <div class="form-group">
@@ -1369,11 +1373,18 @@
 
           <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
 
-          <h4 style="margin-bottom: 12px;">Fotos do Lote</h4>
-          <div v-if="lotMedias.length === 0" class="empty-state" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px;">
+          <section class="lot-edit-section">
+          <div class="lot-edit-section__head">
+            <div>
+              <h4 style="margin-bottom: 12px;">Fotos do Lote</h4>
+              <p class="lot-edit-section__hint">Envie uma ou várias imagens da galeria deste lote de uma vez.</p>
+            </div>
+            <span class="lot-edit-section__badge">{{ lotMedias.length }} {{ lotMedias.length === 1 ? 'imagem' : 'imagens' }}</span>
+          </div>
+          <div v-if="lotMedias.length === 0" class="empty-state lot-edit-empty" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px;">
             <p>Nenhuma foto específica deste lote.</p>
           </div>
-          <div v-else class="grid grid-cols-4" style="gap: 12px; margin-bottom: 16px;">
+          <div v-else class="grid grid-cols-4 lot-edit-gallery-grid" style="gap: 12px; margin-bottom: 16px;">
             <div v-for="m in lotMedias" :key="m.id" class="media-card-v4">
               <img
                 :src="m.url"
@@ -1386,15 +1397,23 @@
             </div>
           </div>
           
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer; width: fit-content;">
-            {{ uploadingLotMedia ? 'Enviando...' : '+ Adicionar Foto do Lote' }}
-            <input type="file" accept="image/*" style="display:none" @change="uploadLotMediaFile" :disabled="uploadingLotMedia" />
+          <label class="btn btn-secondary btn-sm lot-edit-upload-btn" style="cursor:pointer; width: fit-content;">
+            {{ lotMediaUploadLabel }}
+            <input type="file" accept="image/*" multiple style="display:none" @change="uploadLotMediaFile" :disabled="uploadingLotMedia" />
           </label>
+          </section>
 
           <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--glass-border-subtle);" />
 
-          <h4 style="margin-bottom: 12px;"><i class="bi bi-image-fill" aria-hidden="true"></i> Panorama 360° do Lote</h4>
-          <div v-if="lotForm.panoramaUrl" class="media-card-v4" style="max-width: 240px; margin-bottom: 16px;">
+          <section class="lot-edit-section lot-edit-section--panorama">
+          <div class="lot-edit-section__head">
+            <div>
+              <h4 style="margin-bottom: 12px;"><i class="bi bi-image-fill" aria-hidden="true"></i> Panorama 360° do Lote</h4>
+              <p class="lot-edit-section__hint">A imagem 360 fica isolada da galeria comum para não misturar fotos estáticas com a vista panorâmica.</p>
+            </div>
+            <span class="lot-edit-section__badge">{{ lotForm.panoramaUrl ? '360 ativo' : 'sem 360' }}</span>
+          </div>
+          <div v-if="lotForm.panoramaUrl" class="media-card-v4 lot-edit-panorama-card" style="max-width: 240px; margin-bottom: 16px;">
             <div class="relative group">
               <img
                 :src="lotForm.panoramaUrl"
@@ -1410,18 +1429,19 @@
               </div>
             </div>
           </div>
-          <div v-else class="empty-state" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px; margin-bottom: 16px;">
+          <div v-else class="empty-state lot-edit-empty" style="padding: 16px; background: var(--glass-bg-heavy); border-radius: 12px; margin-bottom: 16px;">
             <p>Nenhuma imagem 360° enviada para este lote.</p>
           </div>
           
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer; width: fit-content;">
-            {{ uploadingPanorama ? 'Enviando...' : (lotForm.panoramaUrl ? 'Alterar Imagem 360°' : '+ Adicionar Imagem 360°') }}
+          <label class="btn btn-secondary btn-sm lot-edit-upload-btn" style="cursor:pointer; width: fit-content;">
+            {{ panoramaUploadLabel }}
             <input type="file" accept="image/*" style="display:none" @change="uploadLotPanoramaFile" :disabled="uploadingPanorama" />
           </label>
+          </section>
 
-          <div class="modal-actions" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
-            <button class="btn btn-secondary" style="background: var(--glass-bg-heavy); color: var(--color-surface-200); border: 1px solid var(--glass-border-subtle);" @click="editingLot = null">Cancelar</button>
-            <button class="btn btn-primary" style="background: var(--color-primary-600); color: #fff; border: none; font-weight: 600;" :disabled="!authStore.canEdit || savingLot" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="saveLotDetails">
+          <div class="modal-actions lot-edit-modal__actions" style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn btn-secondary lot-edit-btn-secondary" style="background: var(--glass-bg-heavy); color: var(--color-surface-200); border: 1px solid var(--glass-border-subtle);" @click="closeEditingLot">Cancelar</button>
+            <button class="btn btn-primary lot-edit-btn-primary" style="background: var(--color-primary-600); color: #fff; border: none; font-weight: 600;" :disabled="!authStore.canEdit || savingLot" :title="!authStore.canEdit ? 'Disponível apenas para usuários com permissão de edição' : undefined" @click="saveLotDetails">
               {{ savingLot ? 'Salvando...' : 'Salvar Detalhes' }}
             </button>
           </div>
@@ -2143,6 +2163,30 @@ const addSuggestedTag = (tag: string) => {
 const savingLot = ref(false)
 const uploadingLotMedia = ref(false)
 const uploadingPanorama = ref(false)
+const lotMediaUploadProgress = ref<{ current: number; total: number } | null>(null)
+
+const lotMediaUploadLabel = computed(() => {
+  if (!uploadingLotMedia.value) return '+ Adicionar Fotos do Lote'
+  if (!lotMediaUploadProgress.value) return 'Enviando fotos...'
+  const { current, total } = lotMediaUploadProgress.value
+  return total > 1 ? `Enviando ${current}/${total}...` : 'Enviando foto...'
+})
+
+const panoramaUploadLabel = computed(() => {
+  if (uploadingPanorama.value) return 'Enviando 360...'
+  return lotForm.value.panoramaUrl ? 'Alterar Imagem 360°' : '+ Adicionar Imagem 360°'
+})
+
+const resetLotUploadStates = () => {
+  uploadingLotMedia.value = false
+  uploadingPanorama.value = false
+  lotMediaUploadProgress.value = null
+}
+
+const closeEditingLot = () => {
+  resetLotUploadStates()
+  editingLot.value = null
+}
 
 const editingLotSideMetrics = computed(() => {
   const raw = editingLot.value?.sideMetricsJson
@@ -2210,6 +2254,7 @@ watch(() => lotContractArea.value, (newArea) => {
 })
 
 const openEditLot = (lot: any) => {
+  resetLotUploadStates()
   editingLot.value = lot
   lotForm.value = { 
     status: lot.status, 
@@ -2231,6 +2276,10 @@ const openEditLot = (lot: any) => {
     paymentConditions: lot.paymentConditions ? JSON.parse(JSON.stringify(lot.paymentConditions)) : null
   }
 }
+
+watch(() => editingLot.value?.id ?? null, () => {
+  resetLotUploadStates()
+})
 
 const saveLotDetails = async () => {
   if (!authStore.canEdit) return
@@ -2309,7 +2358,7 @@ const saveLotDetails = async () => {
     }
     
     toastSuccess('Detalhes do lote salvos!')
-    editingLot.value = null
+    closeEditingLot()
   } catch (e: any) {
     toastFromError(e, 'Erro ao salvar detalhes do lote')
   }
@@ -2383,34 +2432,50 @@ const clearLotPanoramaSelection = () => {
 }
 
 const uploadLotMediaFile = async (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file || !editingLot.value) return
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length || !editingLot.value) return
+  const targetLot = editingLot.value
   uploadingLotMedia.value = true
+  lotMediaUploadProgress.value = { current: 0, total: files.length }
   try {
-    const fd = new FormData(); fd.append('file', file)
-    const m = await uploadApi(`/projects/${projectId}/media?lotDetailsId=${editingLot.value.id}`, fd)
-    
-    // Update locally
-    if (!editingLot.value.medias) editingLot.value.medias = []
-    editingLot.value.medias.unshift(m)
-    
-    toastSuccess('Foto do lote enviada!')
+    const uploadedMedias: any[] = []
+    for (const [index, file] of files.entries()) {
+      lotMediaUploadProgress.value = { current: index + 1, total: files.length }
+      const fd = new FormData()
+      fd.append('file', file)
+      const media = await uploadApi(`/projects/${projectId}/media?lotDetailsId=${targetLot.id}`, fd)
+      uploadedMedias.push(media)
+    }
+
+    if (editingLot.value?.id === targetLot.id) {
+      const currentMedias = Array.isArray(editingLot.value.medias) ? editingLot.value.medias : []
+      editingLot.value.medias = [...uploadedMedias, ...currentMedias]
+    }
+
+    toastSuccess(uploadedMedias.length > 1 ? `${uploadedMedias.length} fotos do lote enviadas!` : 'Foto do lote enviada!')
   } catch (err) {
     toastFromError(err, 'Erro ao enviar foto')
+  } finally {
+    input.value = ''
+    uploadingLotMedia.value = false
+    lotMediaUploadProgress.value = null
   }
-  (e.target as HTMLInputElement).value = ''
-  uploadingLotMedia.value = false
 }
 
 const uploadLotPanoramaFile = async (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0]
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
   if (!file || !editingLot.value) return
+  const targetLot = editingLot.value
   uploadingPanorama.value = true
   try {
     const previousPanoramaUrl = lotForm.value.panoramaUrl
     const fd = new FormData(); fd.append('file', file)
     // Tag panorama uploads so they can be reliably filtered from static galleries.
-    const m = await uploadApi(`/projects/${projectId}/media?lotDetailsId=${editingLot.value.id}&caption=lot_panorama_360`, fd)
+    const m = await uploadApi(`/projects/${projectId}/media?lotDetailsId=${targetLot.id}&caption=lot_panorama_360`, fd)
+
+    if (editingLot.value?.id !== targetLot.id) return
 
     if (!editingLot.value.medias) editingLot.value.medias = []
     editingLot.value.medias.unshift(m)
@@ -2429,8 +2494,10 @@ const uploadLotPanoramaFile = async (e: Event) => {
     toastSuccess('Imagem 360° enviada! Salve para concluir.')
   } catch (err) {
     toastFromError(err, 'Erro ao enviar imagem')
+  } finally {
+    input.value = ''
+    uploadingPanorama.value = false
   }
-  (e.target as HTMLInputElement).value = ''
 }
 
 const removeLotMedia = async (id: string) => {
@@ -5270,6 +5337,154 @@ onMounted(async () => {
   background: #3b82f6 !important;
   color: #fff !important;
   border: none !important;
+}
+
+.lot-edit-overlay {
+  background:
+    radial-gradient(circle at top, rgba(59, 130, 246, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(3, 7, 18, 0.82), rgba(3, 7, 18, 0.9));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.lot-edit-modal {
+  background: linear-gradient(180deg, rgba(12, 19, 33, 0.96), rgba(8, 14, 27, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 28px 70px rgba(2, 6, 23, 0.52);
+}
+
+.lot-edit-modal__header {
+  align-items: flex-start;
+  padding-right: 48px;
+}
+
+.lot-edit-modal__eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(96, 165, 250, 0.28);
+  color: #bfdbfe;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lot-edit-modal__subtitle {
+  margin: 8px 0 0;
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  max-width: 56ch;
+}
+
+.lot-edit-modal__close {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.lot-edit-modal__fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.lot-edit-section {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.54));
+}
+
+.lot-edit-section--panorama {
+  background: linear-gradient(180deg, rgba(8, 47, 73, 0.42), rgba(15, 23, 42, 0.58));
+}
+
+.lot-edit-section__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.lot-edit-section__hint {
+  margin: -4px 0 0;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.lot-edit-section__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lot-edit-empty {
+  border: 1px dashed rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.58) !important;
+}
+
+.lot-edit-empty p {
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.lot-edit-gallery-grid {
+  align-items: start;
+}
+
+.lot-edit-panorama-card {
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.32);
+}
+
+.lot-edit-upload-btn {
+  background: rgba(30, 41, 59, 0.92) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.24);
+}
+
+.lot-edit-upload-btn:hover {
+  background: rgba(37, 99, 235, 0.9) !important;
+  border-color: rgba(96, 165, 250, 0.34) !important;
+}
+
+.lot-edit-modal__actions {
+  margin-top: 28px !important;
+  padding-top: 22px;
+}
+
+.lot-edit-btn-secondary {
+  background: rgba(15, 23, 42, 0.9) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+}
+
+.lot-edit-btn-primary {
+  background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
+}
+
+@media (max-width: 900px) {
+  .lot-edit-section__head {
+    flex-direction: column;
+  }
+
+  .lot-edit-modal__subtitle {
+    max-width: none;
+  }
 }
 
 /* Project Stats Bar */
