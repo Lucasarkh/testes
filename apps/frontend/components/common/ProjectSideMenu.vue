@@ -1,5 +1,5 @@
 <template>
-  <div class="project-side-menu" :class="{ 'is-visible': isVisible }">
+  <div ref="sideMenuRef" class="project-side-menu" :class="{ 'is-visible': isVisible }" :style="{ top: `${menuTopOffset}px` }">
     <div ref="menuItemsRef" class="menu-items">
       <a 
         v-for="item in filteredItems" 
@@ -79,8 +79,12 @@ const filteredItems = computed(() => {
 
 const isVisible = ref(false)
 const activeSection = ref('inicio')
+const menuTopOffset = ref(24)
+const sideMenuRef = ref<HTMLElement | null>(null)
 const menuItemsRef = ref<HTMLElement | null>(null)
 const itemRefs = new Map<string, HTMLElement>()
+const MENU_MAX_HEIGHT = 520
+const MENU_VIEWPORT_MARGIN = 24
 
 const setItemRef = (id: string, target: Element | { $el?: Element } | null) => {
   const resolvedElement = target instanceof HTMLElement
@@ -117,6 +121,19 @@ const ensureActiveItemVisible = () => {
   if (itemBottom > visibleBottom - padding) {
     container.scrollTo({ top: itemBottom - container.clientHeight + padding, behavior: 'smooth' })
   }
+}
+
+const updateMenuPosition = () => {
+  const viewportHeight = window.innerHeight
+  const effectiveMenuHeight = Math.min(MENU_MAX_HEIGHT, Math.max(viewportHeight - (MENU_VIEWPORT_MARGIN * 2), 0))
+  const minTop = MENU_VIEWPORT_MARGIN
+  const maxTop = Math.max(MENU_VIEWPORT_MARGIN, viewportHeight - effectiveMenuHeight - MENU_VIEWPORT_MARGIN)
+  const activeIndex = Math.max(filteredItems.value.findIndex(item => item.id === activeSection.value), 0)
+  const progress = filteredItems.value.length > 1
+    ? activeIndex / (filteredItems.value.length - 1)
+    : 0.5
+
+  menuTopOffset.value = minTop + ((maxTop - minTop) * progress)
 }
 
 const scrollTo = (id: string) => {
@@ -156,25 +173,31 @@ const handleScroll = () => {
       }
     }
   }
+
+  updateMenuPosition()
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll)
+  window.addEventListener('resize', handleScroll)
   handleScroll()
 })
 
 watch(activeSection, async () => {
   await nextTick()
+  updateMenuPosition()
   ensureActiveItemVisible()
 })
 
 watch(filteredItems, async () => {
   await nextTick()
+  updateMenuPosition()
   ensureActiveItemVisible()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', handleScroll)
   itemRefs.clear()
 })
 </script>
@@ -183,12 +206,11 @@ onUnmounted(() => {
 .project-side-menu {
   position: fixed;
   left: 24px;
-  top: 50%;
-  transform: translateY(-50%) translateX(-100px);
+  transform: translateX(-100px);
   z-index: 101;
   background: var(--glass-bg);
   padding: 24px 12px;
-  max-height: calc(100vh - 48px);
+  max-height: min(520px, calc(100vh - 48px));
   overflow: hidden;
   border-radius: 40px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -198,7 +220,7 @@ onUnmounted(() => {
 }
 
 .project-side-menu.is-visible {
-  transform: translateY(-50%) translateX(0);
+  transform: translateX(0);
   opacity: 1;
   pointer-events: all;
 }
@@ -208,7 +230,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  max-height: calc(100vh - 96px);
+  max-height: calc(min(520px, calc(100vh - 48px)) - 48px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
