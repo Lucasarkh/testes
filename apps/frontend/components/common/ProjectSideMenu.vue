@@ -185,9 +185,9 @@ onUnmounted(() => {
 <style scoped>
 .project-side-menu {
   position: fixed;
-  top: 24px;
+  top: 50%;
   left: 24px;
-  transform: translateX(-100px);
+  transform: translateY(-50%);
   z-index: 101;
   background: var(--glass-bg);
   padding: 24px 12px;
@@ -201,7 +201,8 @@ onUnmounted(() => {
 }
 
 .project-side-menu.is-visible {
-  transform: translateX(0);
+  top: 50% !important;
+  transform: translateY(-50%) !important;
   opacity: 1;
   pointer-events: all;
 }
