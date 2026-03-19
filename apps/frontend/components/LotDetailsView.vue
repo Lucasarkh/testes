@@ -469,6 +469,7 @@
                 <div class="b-text">
                   <span class="b-label">Seu consultor</span>
                   <span class="b-name">{{ corretor.name }}</span>
+                  <span v-if="corretor.creci" class="b-creci">CRECI {{ corretor.creci }}</span>
                 </div>
               </div>
 
@@ -2907,6 +2908,7 @@ async function submitReservation() {
 .b-text { display: flex; flex-direction: column; }
 .b-label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--v4-text-muted); letter-spacing: 0.5px; }
 .b-name { font-size: 15px; font-weight: 700; color: var(--v4-text); line-height: 1.2; }
+.b-creci { font-size: 12px; font-weight: 600; color: var(--v4-text-muted); line-height: 1.3; overflow-wrap: anywhere; }
 
 .form-divider-v4 { text-align: center; font-size: 13px; color: var(--v4-text-muted); margin: 12px 0; }
 .wa-btn-v4 { 
@@ -3487,6 +3489,18 @@ async function submitReservation() {
 
 @media (max-width: 768px) {
   .v4-sticky-nav { display: flex; }
+
+  .broker-info-v4 {
+    align-items: flex-start;
+  }
+
+  .b-text {
+    min-width: 0;
+  }
+
+  .b-creci {
+    font-size: 11px;
+  }
 
   .v4-sales-motion-toast {
     bottom: 132px;

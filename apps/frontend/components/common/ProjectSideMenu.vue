@@ -1,10 +1,11 @@
 <template>
   <div class="project-side-menu" :class="{ 'is-visible': isVisible }">
-    <div class="menu-items">
+    <div ref="menuItemsRef" class="menu-items">
       <a 
         v-for="item in filteredItems" 
         :key="item.id" 
         :href="`#${item.id}`"
+        :ref="(el) => setItemRef(item.id, el)"
         class="menu-item"
         :class="{ 'is-active': activeSection === item.id }"
         @click.prevent="scrollTo(item.id)"
@@ -17,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
 type ProjectSideMenuItem = {
   id: string
@@ -78,6 +79,45 @@ const filteredItems = computed(() => {
 
 const isVisible = ref(false)
 const activeSection = ref('inicio')
+const menuItemsRef = ref<HTMLElement | null>(null)
+const itemRefs = new Map<string, HTMLElement>()
+
+const setItemRef = (id: string, target: Element | { $el?: Element } | null) => {
+  const resolvedElement = target instanceof HTMLElement
+    ? target
+    : target && '$el' in target && target.$el instanceof HTMLElement
+      ? target.$el
+      : null
+
+  if (resolvedElement) {
+    itemRefs.set(id, resolvedElement)
+    return
+  }
+
+  itemRefs.delete(id)
+}
+
+const ensureActiveItemVisible = () => {
+  const container = menuItemsRef.value
+  const activeItem = itemRefs.get(activeSection.value)
+
+  if (!container || !activeItem) return
+
+  const itemTop = activeItem.offsetTop
+  const itemBottom = itemTop + activeItem.offsetHeight
+  const visibleTop = container.scrollTop
+  const visibleBottom = visibleTop + container.clientHeight
+  const padding = 20
+
+  if (itemTop < visibleTop + padding) {
+    container.scrollTo({ top: Math.max(itemTop - padding, 0), behavior: 'smooth' })
+    return
+  }
+
+  if (itemBottom > visibleBottom - padding) {
+    container.scrollTo({ top: itemBottom - container.clientHeight + padding, behavior: 'smooth' })
+  }
+}
 
 const scrollTo = (id: string) => {
   const el = document.getElementById(id)
@@ -123,8 +163,19 @@ onMounted(() => {
   handleScroll()
 })
 
+watch(activeSection, async () => {
+  await nextTick()
+  ensureActiveItemVisible()
+})
+
+watch(filteredItems, async () => {
+  await nextTick()
+  ensureActiveItemVisible()
+})
+
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  itemRefs.clear()
 })
 </script>
 
@@ -137,7 +188,9 @@ onUnmounted(() => {
   z-index: 101;
   background: var(--glass-bg);
   padding: 24px 12px;
-  border-radius: 999px;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  border-radius: 40px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 0;
@@ -155,6 +208,16 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 24px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  scrollbar-width: none;
+}
+
+.menu-items::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .menu-item {

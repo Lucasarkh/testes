@@ -96,6 +96,7 @@
               <div class="v4-trust-info">
                 <span class="v4-trust-label">Atendimento Exclusivo</span>
                 <strong class="v4-trust-name">{{ corretor.name }}</strong>
+                <span v-if="corretor.creci" class="v4-trust-creci">CRECI {{ corretor.creci }}</span>
               </div>
             </div>
             <div class="v4-trust-actions">
@@ -5058,6 +5059,16 @@ function openLightbox(idx: number) {
   color: var(--v4-text);
 }
 
+.v4-trust-creci {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--v4-text-muted);
+  overflow-wrap: anywhere;
+}
+
 .v4-trust-actions {
   display: flex;
   gap: 8px;
@@ -6362,6 +6373,7 @@ function openLightbox(idx: number) {
   .v4-trust-bar--with-prelaunch { top: 0; }
   .v4-trust-label { font-size: 10px; }
   .v4-trust-name { font-size: 14px; }
+  .v4-trust-creci { font-size: 11px; }
   .v4-trust-btn { width: 100%; min-height: 44px; padding: 10px 12px; font-size: 11px; font-weight: 700; white-space: normal; border-radius: 10px; }
   .v4-trust-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
   .v4-trust-actions > *:only-child { grid-column: 1 / -1; }
