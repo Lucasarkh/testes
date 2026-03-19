@@ -47,6 +47,7 @@ const ctaSectionRef = ref(null)
 const ctaTitleRef = ref(null)
 const ctaSubRef = ref(null)
 const ctaFormRef = ref(null)
+let animationContext = null
 
 onMounted(async () => {
   try {
@@ -57,44 +58,49 @@ onMounted(async () => {
 
   // GSAP scroll-triggered CTA animations
   nextTick(() => {
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: ctaSectionRef.value,
-        start: 'top 75%',
-        once: true
-      }
-    })
-
-    // Title: slide up with scale
-    if (ctaTitleRef.value) {
-      gsap.set(ctaTitleRef.value, { opacity: 0, y: 60, scale: 0.96 })
-      tl.to(ctaTitleRef.value, {
-        opacity: 1, y: 0, scale: 1,
-        duration: 1,
-        ease: 'expo.out'
+    animationContext?.revert()
+    animationContext = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: ctaSectionRef.value,
+          start: 'top 75%',
+          once: true
+        }
       })
-    }
 
-    // Subtitle fade up
-    if (ctaSubRef.value) {
-      gsap.set(ctaSubRef.value, { opacity: 0, y: 30 })
-      tl.to(ctaSubRef.value, {
-        opacity: 1, y: 0,
-        duration: 0.8,
-        ease: 'power3.out'
-      }, '-=0.6')
-    }
+      if (ctaTitleRef.value) {
+        gsap.set(ctaTitleRef.value, { opacity: 0, y: 60, scale: 0.96 })
+        tl.to(ctaTitleRef.value, {
+          opacity: 1, y: 0, scale: 1,
+          duration: 1,
+          ease: 'expo.out'
+        })
+      }
 
-    // Form card: dramatic slide up with shadow
-    if (ctaFormRef.value) {
-      gsap.set(ctaFormRef.value, { opacity: 0, y: 50, scale: 0.95 })
-      tl.to(ctaFormRef.value, {
-        opacity: 1, y: 0, scale: 1,
-        duration: 0.9,
-        ease: 'back.out(1.2)'
-      }, '-=0.4')
-    }
+      if (ctaSubRef.value) {
+        gsap.set(ctaSubRef.value, { opacity: 0, y: 30 })
+        tl.to(ctaSubRef.value, {
+          opacity: 1, y: 0,
+          duration: 0.8,
+          ease: 'power3.out'
+        }, '-=0.6')
+      }
+
+      if (ctaFormRef.value) {
+        gsap.set(ctaFormRef.value, { opacity: 0, y: 50, scale: 0.95 })
+        tl.to(ctaFormRef.value, {
+          opacity: 1, y: 0, scale: 1,
+          duration: 0.9,
+          ease: 'back.out(1.2)'
+        }, '-=0.4')
+      }
+    }, ctaSectionRef.value)
   })
+})
+
+onUnmounted(() => {
+  animationContext?.revert()
+  animationContext = null
 })
 
 const openWhatsapp = () => {

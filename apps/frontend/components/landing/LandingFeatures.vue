@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const TOTAL = 12
 let ticker = null
+let animationContext = null
 
 const sectionHeaderRef = ref(null)
 const bentoGridRef = ref(null)
@@ -61,48 +62,51 @@ onMounted(() => {
 
   // GSAP scroll-triggered reveals
   nextTick(() => {
-    // Section header reveal
-    if (sectionHeaderRef.value) {
-      const headerEls = sectionHeaderRef.value.children
-      gsap.set(headerEls, { opacity: 0, y: 50 })
-      gsap.to(headerEls, {
-        opacity: 1,
-        y: 0,
-        duration: 1,
-        stagger: 0.2,
-        ease: 'expo.out',
-        scrollTrigger: {
-          trigger: sectionHeaderRef.value,
-          start: 'top 85%',
-          once: true
-        }
-      })
-    }
+    animationContext?.revert()
+    animationContext = gsap.context(() => {
+      if (sectionHeaderRef.value) {
+        const headerEls = sectionHeaderRef.value.children
+        gsap.set(headerEls, { opacity: 0, y: 50 })
+        gsap.to(headerEls, {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          stagger: 0.2,
+          ease: 'expo.out',
+          scrollTrigger: {
+            trigger: sectionHeaderRef.value,
+            start: 'top 85%',
+            once: true
+          }
+        })
+      }
 
-    // Bento grid cards staggered reveal
-    if (bentoGridRef.value) {
-      const cards = bentoGridRef.value.querySelectorAll('.bento-item')
-      gsap.set(cards, { opacity: 0, y: 70, scale: 0.92 })
-      gsap.to(cards, {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        duration: 0.8,
-        stagger: 0.1,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: bentoGridRef.value,
-          start: 'top 80%',
-          once: true
-        }
-      })
-    }
+      if (bentoGridRef.value) {
+        const cards = bentoGridRef.value.querySelectorAll('.bento-item')
+        gsap.set(cards, { opacity: 0, y: 70, scale: 0.92 })
+        gsap.to(cards, {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.8,
+          stagger: 0.1,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: bentoGridRef.value,
+            start: 'top 80%',
+            once: true
+          }
+        })
+      }
+    })
   })
 })
 
 onUnmounted(() => { 
   if (ticker) clearTimeout(ticker) 
   gsap.killTweensOf('.block')
+  animationContext?.revert()
+  animationContext = null
 })
 </script>
 

@@ -38,51 +38,9 @@
 </template>
 
 <script setup>
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-
 const footerRef = ref(null)
 const footerGridRef = ref(null)
 const footerBottomRef = ref(null)
-
-onMounted(() => {
-  nextTick(() => {
-    // Footer grid columns: staggered fade-up
-    if (footerGridRef.value) {
-      const cols = footerGridRef.value.children
-      gsap.set(cols, { opacity: 0, y: 40 })
-      gsap.to(cols, {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        stagger: 0.15,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: footerRef.value,
-          start: 'top 88%',
-          once: true
-        }
-      })
-    }
-
-    // Footer bottom: subtle fade
-    if (footerBottomRef.value) {
-      gsap.set(footerBottomRef.value, { opacity: 0, y: 20 })
-      gsap.to(footerBottomRef.value, {
-        opacity: 1,
-        y: 0,
-        duration: 0.7,
-        delay: 0.4,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: footerBottomRef.value,
-          start: 'top 95%',
-          once: true
-        }
-      })
-    }
-  })
-})
 </script>
 
 <style scoped>

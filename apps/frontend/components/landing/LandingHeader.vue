@@ -8,8 +8,8 @@
       <!-- Desktop Nav -->
       <nav class="nav-desktop">
         <ul class="nav-list">
-          <li><a href="/#features" class="nav-link">Funcionalidades</a></li>
-          <li><a href="/#cta" class="nav-link">Contato</a></li>
+          <li><a href="#features" class="nav-link">Funcionalidades</a></li>
+          <li><a href="#cta" class="nav-link">Contato</a></li>
         </ul>
         
         <div class="nav-actions">
@@ -42,8 +42,8 @@
       <!-- Mobile Nav Menu -->
       <Transition name="fade">
         <div v-if="mobileMenuOpen" class="nav-mobile">
-          <a href="#features" class="nav-link" @click="mobileMenuOpen = false">Funcionalidades</a>
-          <a href="#cta" class="nav-link" @click="mobileMenuOpen = false">Contato</a>
+          <a href="#features" class="nav-link" @click="closeMobileMenu">Funcionalidades</a>
+          <a href="#cta" class="nav-link" @click="closeMobileMenu">Contato</a>
           <div class="nav-divider"></div>
           
           <template v-if="!authStore.isLoggedIn">
@@ -72,6 +72,10 @@ const mobileMenuOpen = ref(false)
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 20
+}
+
+const closeMobileMenu = () => {
+  mobileMenuOpen.value = false
 }
 
 onMounted(() => {

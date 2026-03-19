@@ -2,18 +2,20 @@
   <div class="public-layout">
     <slot />
     <ClientOnly>
-      <AiChatWidget :project="chatStore.currentProject" />
+      <AiChatWidget v-if="shouldRenderAiChat" :project="chatStore.currentProject" />
     </ClientOnly>
   </div>
 </template>
 
 <script setup>
-import { watch } from 'vue'
+import { computed, defineAsyncComponent, watch } from 'vue'
 import { useTenantStore } from '~/stores/tenant'
 import { useAiChatStore } from '~/stores/aiChat'
-import AiChatWidget from '~/components/ai/ChatWidget.vue'
+
+const AiChatWidget = defineAsyncComponent(() => import('~/components/ai/ChatWidget.vue'))
 const tenantStore = useTenantStore()
 const chatStore = useAiChatStore()
+const shouldRenderAiChat = computed(() => !!chatStore.currentProject?.aiEnabled)
 
 watch(
   () => tenantStore.config?.project,

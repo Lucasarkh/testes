@@ -22,27 +22,36 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 const stripRef = ref(null)
 const stripItemsRef = ref(null)
+let animationContext = null
 
 onMounted(() => {
   nextTick(() => {
-    if (!stripItemsRef.value) return
-    const children = stripItemsRef.value.children
-    gsap.set(children, { opacity: 0, y: 16, scale: 0.85 })
+    animationContext?.revert()
+    animationContext = gsap.context(() => {
+      if (!stripItemsRef.value) return
+      const children = stripItemsRef.value.children
+      gsap.set(children, { opacity: 0, y: 16, scale: 0.85 })
 
-    gsap.to(children, {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      duration: 0.6,
-      stagger: 0.08,
-      ease: 'back.out(1.6)',
-      scrollTrigger: {
-        trigger: stripRef.value,
-        start: 'top 90%',
-        once: true
-      }
-    })
+      gsap.to(children, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.6,
+        stagger: 0.08,
+        ease: 'back.out(1.6)',
+        scrollTrigger: {
+          trigger: stripRef.value,
+          start: 'top 90%',
+          once: true
+        }
+      })
+    }, stripRef.value)
   })
+})
+
+onUnmounted(() => {
+  animationContext?.revert()
+  animationContext = null
 })
 </script>
 

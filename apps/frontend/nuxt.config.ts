@@ -15,6 +15,7 @@ export default defineNuxtConfig({
     appManifest: false
   },
   routeRules: {
+    '/landing': { prerender: true },
     '/painel/**': { ssr: false },
     '/login': { ssr: false },
     '/aceitar-convite': { ssr: false },

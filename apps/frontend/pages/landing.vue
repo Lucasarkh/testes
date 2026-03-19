@@ -155,7 +155,7 @@
       </div>
     </section>
 
-    <section class="lp-section lp-section--solution">
+    <section id="features" class="lp-section lp-section--solution">
       <div class="lp-container" data-reveal-group>
         <div class="lp-section-head">
           <div class="lp-badge-green" data-reveal>Como a Lotio muda o jogo</div>
@@ -278,7 +278,7 @@
     </section>
 
 
-    <section class="lp-section lp-section--final" data-reveal-group>
+    <section id="cta" class="lp-section lp-section--final" data-reveal-group>
       <div class="lp-container">
         <div class="lp-final-card" data-reveal>
           <div>
@@ -385,9 +385,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import LandingHeader from '@/components/landing/LandingHeader.vue'
 import LandingFooter from '@/components/landing/LandingFooter.vue'
 import {
@@ -396,8 +394,6 @@ import {
   normalizeSiteOrigin,
   resolveSeoImage,
 } from '~/utils/seo'
-
-gsap.registerPlugin(ScrollTrigger)
 
 definePageMeta({ layout: 'public', alias: ['/demo'] })
 
@@ -627,63 +623,40 @@ const onScroll = () => {
   isScrolled.value = window.scrollY > 24
 }
 
+const runWhenBrowserIdle = (callback) => {
+  if (typeof window === 'undefined') return
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(() => {
+      void callback()
+    }, { timeout: 1200 })
+    return
+  }
+
+  window.setTimeout(() => {
+    void callback()
+  }, 1)
+}
+
 watch(isMobileFormOpen, (open) => {
   if (typeof document !== 'undefined') {
     document.body.style.overflow = open ? 'hidden' : ''
   }
 })
 
-const initRevealAnimations = () => {
-  if (!pageRef.value) return
-
-  const revealGroups = pageRef.value.querySelectorAll('[data-reveal-group]')
-  revealGroups.forEach((group) => {
-    const nodes = group.querySelectorAll('[data-reveal]')
-    if (!nodes.length) return
-
-    gsap.set(nodes, { opacity: 0, y: 34 })
-    gsap.to(nodes, {
-      opacity: 1,
-      y: 0,
-      duration: 0.75,
-      stagger: 0.08,
-      ease: 'power3.out',
-      scrollTrigger: {
-        trigger: group,
-        start: 'top 82%',
-        once: true,
-      },
-    })
-  })
-
-  const heroVisual = pageRef.value.querySelector('.lp-hero-visual')
-  if (heroVisual) {
-    gsap.set(heroVisual, { opacity: 0, x: 24, scale: 0.97 })
-    gsap.to(heroVisual, {
-      opacity: 1,
-      x: 0,
-      scale: 1,
-      duration: 0.95,
-      delay: 0.2,
-      ease: 'expo.out',
-    })
-  }
-}
-
 onMounted(async () => {
   updateViewportState()
+  onScroll()
 
-  try {
-    settings.value = await get('/p/settings')
-  } catch {
-    // silent
-  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  window.addEventListener('resize', updateViewportState, { passive: true })
 
-  window.addEventListener('scroll', onScroll)
-  window.addEventListener('resize', updateViewportState)
-
-  nextTick(() => {
-    initRevealAnimations()
+  runWhenBrowserIdle(async () => {
+    try {
+      settings.value = await get('/p/settings')
+    } catch {
+      // silent
+    }
   })
 })
 
@@ -693,7 +666,6 @@ onUnmounted(() => {
   if (typeof document !== 'undefined') {
     document.body.style.overflow = ''
   }
-  ScrollTrigger.getAll().forEach(trigger => trigger.kill())
 })
 
 const openWhatsapp = () => {
@@ -1213,6 +1185,10 @@ const scrollToForm = () => {
 
 .lp-section + .lp-section {
   padding-top: var(--lp-space-6);
+}
+
+.lp-section[id] {
+  scroll-margin-top: 92px;
 }
 
 .lp-trust + .lp-section {
