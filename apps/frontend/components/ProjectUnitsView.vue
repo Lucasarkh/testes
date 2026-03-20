@@ -30,6 +30,9 @@
               </div>
               <div class="v4-filter-stats" v-if="!loading && project">
                 <span>{{ resultCount }} unidades encontradas</span>
+                <NuxtLink v-if="lotCategories.length" :to="categoriesUrl" class="v4-search-submit v4-search-submit--link">
+                  Ver categorias
+                </NuxtLink>
                 <span v-if="lotsLoading" class="v4-filter-loading">Atualizando...</span>
                 <span v-if="selectedFilters.length || searchQuery || hasAnySmartFilter" class="v4-clear-btn" @click="clearFilters">Limpar filtros</span>
               </div>
@@ -275,6 +278,11 @@ const projectUrl = computed(() => {
   return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
 })
 
+const categoriesUrl = computed(() => {
+  const base = `${pathPrefix.value || ''}/categorias` || '/categorias'
+  return corretorCode ? `${base}?c=${corretorCode}` : base
+})
+
 const pathPrefix = computed(() => {
   if (isPreview.value) {
     return `/preview/${previewId.value}`
@@ -288,6 +296,7 @@ const project = ref<any>(null)
 
 const searchQuery = ref('')
 const searchIntent = ref<LotSearchIntent | ''>('')
+const selectedCategorySlug = ref('')
 const selectedFilters = ref<string[]>([])
 const codesFilter = ref<string[]>([])
 const matchMode = ref<'any' | 'exact'>('any')
@@ -388,6 +397,7 @@ const hasAnySmartFilter = computed(() => {
 })
 
 const lots = ref<any[]>([])
+const lotCategories = ref<any[]>([])
 const lotsTotal = ref(0)
 const availableTags = ref<string[]>([])
 const lotsLoading = ref(false)
@@ -397,6 +407,7 @@ const buildLotsParams = (page = lotsPage.value) => {
   const params = new URLSearchParams({ page: String(page), limit: String(lotsPerPage) })
   if (searchQuery.value) params.set('search', searchQuery.value)
   if (searchIntent.value) params.set('searchIntent', searchIntent.value)
+  if (selectedCategorySlug.value) params.set('category', selectedCategorySlug.value)
   if (selectedFilters.value.length > 0) params.set('tags', selectedFilters.value.join(','))
   if (matchMode.value === 'exact') params.set('matchMode', 'exact')
   if (codesFilter.value.length > 0) params.set('codes', codesFilter.value.join(','))
@@ -428,6 +439,7 @@ const buildRouteQuery = (page = lotsPage.value) => {
 
   if (searchQuery.value) query.search = searchQuery.value
   if (searchIntent.value) query.searchIntent = searchIntent.value
+  if (selectedCategorySlug.value) query.category = selectedCategorySlug.value
   if (selectedFilters.value.length > 0) query.tags = selectedFilters.value.join(',')
   if (matchMode.value === 'exact') query.matchMode = 'exact'
   if (codesFilter.value.length > 0) query.codes = codesFilter.value.join(',')
@@ -506,6 +518,15 @@ async function fetchLots(params = buildLotsParams()) {
   }
 }
 
+async function fetchLotCategories() {
+  if (isPreview.value || !projectSlug.value) return
+  try {
+    lotCategories.value = await fetchPublic(`/p/${projectSlug.value}/lot-categories`)
+  } catch {
+    lotCategories.value = []
+  }
+}
+
 // â”€â”€ Preview fallback â€” legacy lot processing from project.mapElements / mapData â”€â”€
 function calcContractArea(lot: any): number | null {
   const poly: Array<{x:number,y:number}> = lot.polygon ?? []
@@ -577,6 +598,11 @@ const allAvailableTags = computed(() => {
   const tags = new Set<string>()
   previewLots.value.forEach((l: any) => (l.lotDetails?.tags || []).forEach((t: string) => tags.add(t)))
   return Array.from(tags).sort()
+})
+
+const allCategoriesCount = computed(() => {
+  if (!lotCategories.value.length) return resultCount.value
+  return lotCategories.value.reduce((sum: number, category: any) => sum + Number(category.availableLots || 0), 0)
 })
 
 const filteredLots = computed(() => {
@@ -735,9 +761,16 @@ function toggleFilter(tag: string) {
   else selectedFilters.value.push(tag)
 }
 
+async function selectCategory(categorySlug: string) {
+  selectedCategorySlug.value = categorySlug
+  lotsPage.value = 1
+  await applyCurrentFilters({ page: 1, preserveSmartMode: true, trackSearch: false })
+}
+
 function clearFilters() {
   searchQuery.value = ''
   searchIntent.value = ''
+  selectedCategorySlug.value = ''
   selectedFilters.value = []
   codesFilter.value = []
   smartMode.value = 'strict'
@@ -769,6 +802,7 @@ onMounted(async () => {
 
     const initTags  = route.query.tags  ? (route.query.tags  as string).split(',') : []
     const initCodes = route.query.codes ? (route.query.codes as string).split(',') : []
+    const initCategory = String(route.query.category || '').trim()
     const initSearchIntent = normalizeLotSearchIntent(route.query.searchIntent)
     const initMatch = (route.query.matchMode === 'exact' || route.query.match === 'exact') ? 'exact' : 'any'
     const initSmartMode = route.query.smartMode === 'preference' ? 'preference' : 'strict'
@@ -791,6 +825,7 @@ onMounted(async () => {
 
     if (initTags.length)  selectedFilters.value = initTags
     if (initCodes.length) codesFilter.value = initCodes
+    if (initCategory) selectedCategorySlug.value = initCategory
     searchIntent.value = initSearchIntent
     if (initMatch === 'exact') matchMode.value = 'exact'
     smartMode.value = initSmartMode
@@ -809,11 +844,14 @@ onMounted(async () => {
     lotsPage.value = Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1
     const lotsParams = buildLotsParams(lotsPage.value)
 
-    const [p, lotsRes] = await Promise.allSettled([
+    const [p, lotsRes, categoriesRes] = await Promise.allSettled([
       fetchPublic(baseUrl),
       !isPreview.value && projectSlug.value
         ? fetchPublic(`/p/${projectSlug.value}/lots?${lotsParams}`)
-        : Promise.resolve(null)
+        : Promise.resolve(null),
+      !isPreview.value && projectSlug.value
+        ? fetchPublic(`/p/${projectSlug.value}/lot-categories`)
+        : Promise.resolve([])
     ])
 
     if (p.status === 'fulfilled' && p.value) {
@@ -828,6 +866,10 @@ onMounted(async () => {
       lots.value = lotsRes.value.data || []
       lotsTotal.value = lotsRes.value.total || 0
       if (lotsRes.value.availableTags) availableTags.value = lotsRes.value.availableTags
+    }
+
+    if (categoriesRes.status === 'fulfilled' && Array.isArray(categoriesRes.value)) {
+      lotCategories.value = categoriesRes.value
     }
   } catch (e: any) {
     error.value = e.message || 'Erro ao carregar projeto'
@@ -863,6 +905,81 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
+.v4-category-showcase {
+  margin-top: 20px;
+}
+
+.v4-category-showcase__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.v4-category-showcase__subtitle {
+  margin: 4px 0 0;
+  color: var(--v4-text-muted);
+  font-size: 13px;
+}
+
+.v4-category-clear {
+  border: 0;
+  background: transparent;
+  color: var(--v4-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v4-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.v4-category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(210, 210, 215, 0.9);
+  background: linear-gradient(180deg, #ffffff 0%, #f8f8fb 100%);
+  color: var(--v4-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.v4-category-card strong {
+  font-size: 16px;
+}
+
+.v4-category-card p {
+  margin: 0;
+  color: var(--v4-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.v4-category-card span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--v4-primary);
+}
+
+.v4-category-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+}
+
+.v4-category-card.active {
+  border-color: rgba(0, 113, 227, 0.5);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.08);
+  background: linear-gradient(180deg, #f4f9ff 0%, #ffffff 100%);
+}
+
 /* Header V4 */
 .v4-header-glass {
   position: fixed;
@@ -880,6 +997,17 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .v4-category-showcase__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .v4-category-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .v4-back-btn {
@@ -1069,6 +1197,13 @@ onMounted(async () => {
   cursor: pointer;
   box-shadow: 0 10px 22px rgba(0, 113, 227, 0.18);
   transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.v4-search-submit--link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .v4-search-submit:hover:not(:disabled) {

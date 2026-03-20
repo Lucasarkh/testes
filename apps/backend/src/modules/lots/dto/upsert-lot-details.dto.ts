@@ -25,6 +25,11 @@ export class UpsertLotDetailsDto {
   @IsString()
   lotNumber?: string;
 
+  @ApiPropertyOptional({ example: 'cm9x1abc123category' })
+  @IsOptional()
+  @IsString()
+  categoryId?: string | null;
+
   @ApiPropertyOptional({ example: 120000 })
   @IsOptional()
   @IsNumber()

@@ -396,6 +396,109 @@
       </section>
 
       <section
+        v-if="publicLotCategories.length > 0 && isPublicSectionEnabled(PUBLIC_CATEGORY_CAROUSEL_SECTION_ID)"
+        class="v4-section v4-section-alt"
+        id="categorias-destaque"
+        :style="publicSectionStyle(PUBLIC_CATEGORY_CAROUSEL_SECTION_ID)"
+      >
+        <div class="v4-container">
+          <div class="v4-section-header v4-lots-carousel-header">
+            <h2 class="v4-section-title"></h2>
+            <p class="v4-section-subtitle"></p>
+            <div class="v4-lots-carousel-header-content">
+              <h2 class="v4-section-title">{{ categoryCarouselConfig.title }}</h2>
+              <p class="v4-section-subtitle">{{ categoryCarouselConfig.subtitle }}</p>
+            </div>
+          </div>
+        </div>
+
+        <ClientOnly>
+          <div class="v4-lots-carousel-bleed">
+            <Swiper
+              class="v4-lots-swiper"
+              :modules="lotCarouselModules"
+              :autoplay="categoryCarouselAutoplay"
+              :breakpoints="categoryCarouselBreakpoints"
+              :grab-cursor="true"
+              :loop="categoryCarouselShouldLoop"
+              :slides-per-view="1.05"
+              :space-between="14"
+              :speed="520"
+              :watch-overflow="true"
+            >
+              <SwiperSlide v-for="category in publicLotCategories" :key="category.id">
+                <NuxtLink :to="categoryPageUrl(category)" class="v4-lot-card v4-lot-card--compact v4-category-lot-card">
+                  <div class="v4-category-lot-card__media" :class="{ 'has-image': !!category.imageUrl }">
+                    <img v-if="category.imageUrl" :src="category.imageUrl" :alt="`Imagem da categoria ${category.name}`" />
+                    <div v-else class="v4-category-lot-card__placeholder">
+                      <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                  <div class="v4-lot-card-header v4-lot-card-header--compact v4-category-lot-card__header">
+                    <div class="v4-lot-id v4-lot-id--compact v4-category-lot-card__id">
+                      <span class="v4-lot-code v4-lot-code--compact">{{ category.name }}</span>
+                    </div>
+                    <div class="v4-lot-status v4-category-lot-card__status">{{ category.availableLots }} lotes</div>
+                  </div>
+
+                  <div class="v4-lot-mini-meta v4-category-lot-card__meta">
+                    <span>{{ category.description || 'Veja a seleção completa desta categoria em uma página dedicada.' }}</span>
+                  </div>
+
+                  <div class="v4-category-lot-card__chips" v-if="category.teaserLots.length">
+                      <span v-for="code in category.teaserLots" :key="`${category.id}-${code}`">{{ code }}</span>
+                  </div>
+
+                  <div class="v4-lot-card-footer v4-lot-card-footer--compact v4-category-lot-card__footer">Abrir categoria <span class="v4-icon">→</span></div>
+                </NuxtLink>
+              </SwiperSlide>
+            </Swiper>
+          </div>
+          <template #fallback>
+            <div class="v4-lots-carousel-bleed">
+              <div class="v4-lots-carousel-fallback v4-lots-carousel-fallback--categories">
+                <NuxtLink
+                  v-for="category in publicLotCategories.slice(0, 4)"
+                  :key="category.id"
+                  :to="categoryPageUrl(category)"
+                  class="v4-lot-card v4-lot-card--compact v4-lot-card--fallback v4-category-lot-card"
+                >
+                  <div class="v4-category-lot-card__media" :class="{ 'has-image': !!category.imageUrl }">
+                    <img v-if="category.imageUrl" :src="category.imageUrl" :alt="`Imagem da categoria ${category.name}`" />
+                    <div v-else class="v4-category-lot-card__placeholder">
+                      <i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>
+                    </div>
+                  </div>
+                  <div class="v4-lot-card-header v4-lot-card-header--compact v4-category-lot-card__header">
+                    <div class="v4-lot-id v4-lot-id--compact v4-category-lot-card__id">
+                      <span class="v4-lot-code v4-lot-code--compact">{{ category.name }}</span>
+                    </div>
+                    <div class="v4-lot-status v4-category-lot-card__status">{{ category.availableLots }} lotes</div>
+                  </div>
+
+                  <div class="v4-lot-mini-meta v4-category-lot-card__meta">
+                    <span>{{ category.description || 'Veja a seleção completa desta categoria em uma página dedicada.' }}</span>
+                  </div>
+
+                  <div class="v4-lot-card-footer v4-lot-card-footer--compact v4-category-lot-card__footer">Abrir categoria <span class="v4-icon">→</span></div>
+                </NuxtLink>
+              </div>
+            </div>
+          </template>
+        </ClientOnly>
+
+        <div class="v4-container">
+          <div class="v4-lots-carousel-footer v4-lots-carousel-footer--categories">
+            <div class="v4-lots-carousel-cta">
+              <NuxtLink :to="categoriesUrl" class="v4-btn-primary v4-lots-carousel-cta-btn">
+                Ver todas as categorias
+              </NuxtLink>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
         v-if="featuredLotsCarouselConfig.lotCodes.length > 0 && isPublicSectionEnabled(PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID)"
         class="v4-section v4-featured-lots-section"
         id="lotes-em-destaque"
@@ -1348,6 +1451,11 @@ import { useTrackingStore } from '~/stores/tracking'
 import { LOT_SEARCH_INTENT_OPTIONS, getLotSearchIntentLabel, normalizeLotSearchIntent, type LotSearchIntent } from '~/utils/lotSearchIntent'
 import { formatCurrencyToBrasilia } from '~/utils/money'
 import {
+  normalizePublicCategoryCarouselConfig,
+  PUBLIC_CATEGORY_CAROUSEL_META_TYPE,
+  PUBLIC_CATEGORY_CAROUSEL_SECTION_ID,
+} from '~/utils/publicCategoryCarousel'
+import {
   normalizePublicFeaturedLotsCarouselConfig,
   PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE,
   PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID,
@@ -1359,6 +1467,11 @@ const projectUrl = computed(() => {
 })
 const unitsUrl = computed(() => {
   const base = `${pathPrefix.value}/unidades`
+  return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
+})
+const categoriesUrl = computed(() => {
+  if (isPreview.value) return projectUrl.value
+  const base = `${pathPrefix.value}/categorias`
   return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
 })
 const galleryUrl = computed(() => {
@@ -2439,6 +2552,11 @@ const featuredLotsCarouselConfig = computed(() => {
   return normalizePublicFeaturedLotsCarouselConfig(meta)
 })
 
+const categoryCarouselConfig = computed(() => {
+  const meta = highlights.value.find((item: any) => item?.type === PUBLIC_CATEGORY_CAROUSEL_META_TYPE)
+  return normalizePublicCategoryCarouselConfig(meta)
+})
+
 const PUBLIC_SECTION_ORDER_META_TYPE = '__lotio_public_section_order__'
 const LANDING_REORDERABLE_SECTIONS = [
   'pub-banner',
@@ -2446,6 +2564,7 @@ const LANDING_REORDERABLE_SECTIONS = [
   'pub-panorama',
   'pub-video',
   'pub-lots-carousel',
+  PUBLIC_CATEGORY_CAROUSEL_SECTION_ID,
   PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID,
   'pub-lots',
   'pub-construction',
@@ -2504,6 +2623,7 @@ const PUBLIC_SIDE_MENU_SECTION_MAP = [
   { sectionId: 'pub-video', id: 'video-apresentacao', label: 'VIDEO' },
   { sectionId: 'pub-highlights', id: 'destaques', label: 'DESTAQUES' },
   { sectionId: 'pub-lots-carousel', id: 'carrossel-lotes', label: 'CARROSSEL' },
+  { sectionId: PUBLIC_CATEGORY_CAROUSEL_SECTION_ID, id: 'categorias-destaque', label: 'CATEGORIAS' },
   { sectionId: PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID, id: 'lotes-em-destaque', label: 'SELECAO' },
   { sectionId: 'pub-lots', id: 'lotes', label: 'UNIDADES' },
   { sectionId: 'pub-construction', id: 'obras', label: 'OBRAS' },
@@ -2577,6 +2697,7 @@ const publicSideMenuVisibility = computed<Record<string, boolean>>(() => ({
   'pub-video': !!project.value?.youtubeVideoUrl && isPublicSectionEnabled('pub-video'),
   'pub-highlights': hasTraditionalInfo.value && isPublicSectionEnabled('pub-highlights'),
   'pub-lots-carousel': (project.value?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots-carousel'),
+  [PUBLIC_CATEGORY_CAROUSEL_SECTION_ID]: publicLotCategories.value.length > 0 && isPublicSectionEnabled(PUBLIC_CATEGORY_CAROUSEL_SECTION_ID),
   [PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID]: featuredLotsCarouselConfig.value.lotCodes.length > 0 && isPublicSectionEnabled(PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID),
   'pub-lots': (project.value?.lotSummary?.available ?? 0) > 0 && isPublicSectionEnabled('pub-lots'),
   'pub-construction': !!project.value?.constructionStatus?.length && isPublicSectionEnabled('pub-construction'),
@@ -3383,6 +3504,82 @@ const lotPageUrl = (lot: any) => {
   return corretorCode ? `${base}${base.includes('?') ? '&' : '?'}c=${corretorCode}` : base
 }
 
+type PublicLotCategoryCard = {
+  id: string
+  name: string
+  slug: string
+  description?: string | null
+  imageUrl?: string | null
+  availableLots: number
+  teaserLots: string[]
+}
+
+const publicLotCategories = ref<PublicLotCategoryCard[]>([])
+
+const normalizedPreviewLotCategories = computed<PublicLotCategoryCard[]>(() => {
+  const source = Array.isArray(project.value?.lotCategories) ? project.value.lotCategories : []
+  return source
+    .map((category: any) => ({
+      id: String(category?.id || ''),
+      name: String(category?.name || '').trim(),
+      slug: String(category?.slug || '').trim(),
+      description: category?.description ?? null,
+      imageUrl: category?.imageUrl ?? null,
+      availableLots: Array.isArray(category?.lots) ? category.lots.length : Number(category?.availableLots || 0),
+      teaserLots: Array.isArray(category?.teaserLots)
+        ? category.teaserLots
+        : Array.isArray(category?.lots)
+          ? category.lots
+            .slice(0, 3)
+            .map((lot: any) => String(lot?.mapElement?.code || lot?.mapElement?.name || lot?.id || '').trim())
+            .filter(Boolean)
+          : [],
+    }))
+    .filter((category) => category.name && category.slug && category.availableLots > 0)
+})
+
+const categoryCarouselAutoplay = computed(() => {
+  if (!categoryCarouselConfig.value.autoplay) return false
+  return lotCarouselAutoplay
+})
+
+const categoryCarouselShouldLoop = computed(() => {
+  return categoryCarouselConfig.value.infinite && publicLotCategories.value.length >= 5
+})
+
+const categoryCarouselBreakpoints = {
+  560: { slidesPerView: 1.4, spaceBetween: 14 },
+  768: { slidesPerView: 2.2, spaceBetween: 16 },
+  1100: { slidesPerView: 3.15, spaceBetween: 18 },
+  1440: { slidesPerView: 4.1, spaceBetween: 20 },
+}
+
+const categoryPageUrl = (category: PublicLotCategoryCard) => {
+  if (isPreview.value) return projectUrl.value
+
+  const base = `${categoriesUrl.value.replace(/\?.*$/, '')}/${encodeURIComponent(category.slug)}`
+  return corretorCode ? `${base}?c=${String(corretorCode)}` : base
+}
+
+const fetchPublicLotCategories = async () => {
+  if (isPreview.value) {
+    publicLotCategories.value = normalizedPreviewLotCategories.value
+    return
+  }
+
+  if (!projectSlug.value) {
+    publicLotCategories.value = []
+    return
+  }
+
+  try {
+    const response = await fetchPublic(`/p/${projectSlug.value}/lot-categories`)
+    publicLotCategories.value = Array.isArray(response) ? response : []
+  } catch {
+    publicLotCategories.value = []
+  }
+}
+
 onMounted(async () => {
   detectTouchMobile()
   window.addEventListener('resize', detectTouchMobile)
@@ -3400,6 +3597,7 @@ onMounted(async () => {
     if (p.status === 'fulfilled') {
       project.value = p.value
       chatStore.setProject(p.value)
+      await fetchPublicLotCategories()
       initializeAvailableLotsCarousel()
       await loadFeaturedLotsCarousel()
       
@@ -3463,6 +3661,13 @@ watch(
   () => [project.value?.id, projectSlug.value, isPreview.value, featuredLotsCarouselConfig.value.lotCodes.join('|')],
   () => {
     void loadFeaturedLotsCarousel()
+  },
+)
+
+watch(
+  () => [project.value?.id, projectSlug.value, isPreview.value],
+  () => {
+    void fetchPublicLotCategories()
   },
 )
 
@@ -4899,7 +5104,99 @@ function openLightbox(idx: number) {
   text-decoration: underline;
 }
 
+.v4-lots-carousel-fallback--categories {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.v4-lots-carousel-footer--categories {
+  justify-content: flex-end;
+}
+
+.v4-category-lot-card {
+  gap: 10px;
+}
+
+.v4-category-lot-card__media {
+  display: block;
+  width: calc(100% + 32px);
+  height: 92px;
+  margin: -16px -16px 2px;
+  background: linear-gradient(135deg, rgba(24, 54, 88, 0.88) 0%, rgba(13, 21, 34, 0.94) 100%);
+  overflow: hidden;
+  border-radius: 16px 16px 10px 10px;
+}
+
+.v4-category-lot-card__media.has-image {
+  background: #cbd5e1;
+}
+
+.v4-category-lot-card__media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.v4-category-lot-card__placeholder {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 1.45rem;
+}
+
+.v4-category-lot-card__header {
+  margin-bottom: 0;
+}
+
+.v4-category-lot-card__id {
+  align-items: flex-start;
+}
+
+.v4-category-lot-card__status {
+  background: #f3f4f6;
+  color: var(--v4-text-muted);
+}
+
+.v4-category-lot-card__meta {
+  min-height: 40px;
+  color: var(--v4-text-muted);
+}
+
+.v4-category-lot-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.v4-category-lot-card__chips span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.v4-category-lot-card__footer {
+  color: #0071e3;
+}
+
 @media (max-width: 768px) {
+  .v4-lots-carousel-fallback--categories {
+    grid-template-columns: 1fr;
+  }
+
+  .v4-category-lot-card__media {
+    width: calc(100% + 26px);
+    height: 82px;
+    margin: -14px -13px 2px;
+  }
+
   .v4-filter-modal-overlay {
     padding: 0;
   }

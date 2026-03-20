@@ -156,6 +156,10 @@
               <span class="sidebar-icon"><i class="bi bi-file-earmark-text-fill" aria-hidden="true"></i></span>
               <span class="sidebar-label">Reservas</span>
             </NuxtLink>
+            <NuxtLink :to="`/painel/projetos/${projectId}/categorias`" class="sidebar-tool-link sidebar-tool-link--primary">
+              <span class="sidebar-icon"><i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i></span>
+              <span class="sidebar-label">Categorias</span>
+            </NuxtLink>
           </div>
           <nav class="sidebar-nav">
             <div v-for="group in sidebarGroups" :key="group.id" class="sidebar-group">
@@ -1571,6 +1575,69 @@
           </div>
         </div>
 
+        <div v-if="activeSection === PUBLIC_CATEGORY_CAROUSEL_SECTION_ID" class="pub-card pub-card--compact">
+          <h4 class="pub-card__title">Carrossel de Categorias</h4>
+          <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
+            Esta seção pública cria um carrossel com cards de categorias e leva o visitante direto para a página filtrada da categoria escolhida.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;">
+            <div class="stat-chip stat-chip-primary">
+              <span class="stat-chip-value">{{ lotCategories.length }}</span>
+              <span class="stat-chip-label">Categorias</span>
+            </div>
+            <div class="stat-chip stat-chip-success">
+              <span class="stat-chip-value">{{ lotCategoriesWithLotsCount }}</span>
+              <span class="stat-chip-label">Com lotes</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-value">{{ lotCategoriesWithImagesCount }}</span>
+              <span class="stat-chip-label">Com imagem</span>
+            </div>
+          </div>
+
+          <div v-if="!hasCategoryCarouselConfigured" class="pub-notice pub-notice--warn" style="margin-bottom: 16px;">
+            Cadastre categorias com lotes vinculados para liberar esta seção na página pública.
+          </div>
+
+          <div class="pub-row pub-row--2col" style="margin-bottom: 16px;">
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Título da seção</label>
+              <input v-model="categoryCarouselForm.title" class="form-input" :disabled="!authStore.canEdit || !hasCategoryCarouselConfigured" placeholder="Explore por categoria" />
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label">Subtítulo</label>
+              <input v-model="categoryCarouselForm.subtitle" class="form-input" :disabled="!authStore.canEdit || !hasCategoryCarouselConfigured" placeholder="Apresente os grupos disponíveis antes da listagem de lotes." />
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 18px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; color: var(--color-surface-200); cursor:pointer;">
+              <input v-model="categoryCarouselForm.autoplay" type="checkbox" :disabled="!authStore.canEdit || !hasCategoryCarouselConfigured" />
+              <span>Autoplay</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; color: var(--color-surface-200); cursor:pointer;">
+              <input v-model="categoryCarouselForm.infinite" type="checkbox" :disabled="!authStore.canEdit || !hasCategoryCarouselConfigured" />
+              <span>Loop infinito</span>
+            </label>
+          </div>
+
+          <div style="display:flex; flex-wrap: wrap; gap: 8px;">
+            <NuxtLink :to="`/painel/projetos/${projectId}/categorias`" class="btn btn-primary btn-sm">
+              Abrir Gestão de Categorias
+            </NuxtLink>
+            <a v-if="project?.status === 'PUBLISHED'" :href="`/${project.slug}/categorias`" target="_blank" class="btn btn-secondary btn-sm">
+              Ver Página de Categorias
+            </a>
+          </div>
+
+          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary btn-sm" :disabled="!hasCategoryCarouselConfigured" @click="savePublicCategoryCarouselBlock">
+              Salvar Carrossel de Categorias
+            </button>
+          </div>
+        </div>
+
         <div v-if="activeSection === 'pub-featured-lots-carousel'" class="pub-card pub-card--compact">
           <h4 class="pub-card__title">Carrossel de Lotes em Destaque</h4>
           <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
@@ -2000,6 +2067,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import {
+  normalizePublicCategoryCarouselConfig,
+  PUBLIC_CATEGORY_CAROUSEL_META_TYPE,
+  PUBLIC_CATEGORY_CAROUSEL_SECTION_ID,
+  stripPublicCategoryCarouselMeta,
+  withPublicCategoryCarouselMeta,
+} from '~/utils/publicCategoryCarousel'
+import {
   normalizePublicFeaturedLotsCarouselConfig,
   PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE,
   PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID,
@@ -2020,6 +2094,16 @@ interface Highlight {
   label?: string;
   value?: string;
   icon?: string;
+}
+
+interface LotCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  imageUrl?: string | null;
+  totalLots: number;
+  availableLots: number;
 }
 
 type FeaturedLotSelectionItem = {
@@ -2073,6 +2157,7 @@ const isArchivedProject = computed(() => {
 })
 const mapElements = ref<any[]>([])
 const lots = ref<any[]>([])
+const lotCategories = ref<LotCategory[]>([])
 const lotsMeta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 50, totalPages: 0, currentPage: 1 })
 const media = ref<Media[]>([])
 const lotCsvInputRef = ref<HTMLInputElement | null>(null)
@@ -2088,9 +2173,13 @@ const lotStats = computed(() => {
   return { total, available, reserved, sold }
 })
 
+const categoryCarouselForm = ref(normalizePublicCategoryCarouselConfig(null))
 const featuredLotsCarouselForm = ref(normalizePublicFeaturedLotsCarouselConfig(null))
 const featuredLotsSelectionPool = ref<FeaturedLotSelectionItem[]>([])
 const activeSection = ref('configuracoes')
+const lotCategoryForm = ref({ name: '', description: '' })
+const savingLotCategory = ref(false)
+const deletingLotCategoryId = ref<string | null>(null)
 
 const formatFeaturedLotSelectionPrice = (value: unknown) => {
   const price = Number(value)
@@ -3900,6 +3989,7 @@ const PUBLIC_SECTION_CATALOG: SidebarSectionItem[] = [
   { id: 'pub-panorama', icon: 'bi bi-image-fill', label: 'Panorama 360°' },
   { id: 'pub-video', icon: 'bi bi-youtube', label: 'Vídeo de Apresentação' },
   { id: 'pub-lots-carousel', icon: 'bi bi-view-list', label: 'Carrossel de Lotes' },
+  { id: PUBLIC_CATEGORY_CAROUSEL_SECTION_ID, icon: 'bi bi-grid-3x3-gap-fill', label: 'Carrossel de Categorias' },
   { id: PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID, icon: 'bi bi-stars', label: 'Lotes em Destaque' },
   { id: 'pub-lots', icon: 'bi bi-grid-3x2-gap-fill', label: 'Lotes Disponíveis' },
   { id: 'pub-construction', icon: 'bi bi-hammer', label: 'Obras' },
@@ -3939,7 +4029,8 @@ const normalizePublicSectionOrder = (orderCandidate: unknown) => {
 
 const splitHighlightsAndPublicOrderMeta = (source: unknown) => {
   const featuredMeta = stripPublicFeaturedLotsCarouselMeta(source)
-  const raw = Array.isArray(featuredMeta.highlights) ? featuredMeta.highlights : []
+  const categoryMeta = stripPublicCategoryCarouselMeta(featuredMeta.highlights)
+  const raw = Array.isArray(categoryMeta.highlights) ? categoryMeta.highlights : []
   let metaOrder: string[] | null = null
   let metaDisabled: string[] | null = null
 
@@ -3963,6 +4054,7 @@ const splitHighlightsAndPublicOrderMeta = (source: unknown) => {
     order: metaOrder ?? [...PUBLIC_SECTION_DEFAULT_ORDER],
     disabled: metaDisabled ?? [],
     featuredLotsCarousel: featuredMeta.config,
+    categoryCarousel: categoryMeta.config,
   }
 }
 
@@ -3971,7 +4063,11 @@ const withPublicSectionOrderMeta = (highlights: unknown, order: string[], disabl
     ? highlights.filter((item: any) => !(
       item
       && typeof item === 'object'
-      && (item.type === PUBLIC_SECTION_ORDER_META_TYPE || item.type === PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE)
+      && (
+        item.type === PUBLIC_SECTION_ORDER_META_TYPE
+        || item.type === PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE
+        || item.type === PUBLIC_CATEGORY_CAROUSEL_META_TYPE
+      )
     ))
     : []
 
@@ -4014,9 +4110,12 @@ const persistPublicSectionOrder = async () => {
   if (!project.value?.id) return
   savingPublicSectionOrder.value = true
   try {
-    const highlightsWithMeta = withPublicFeaturedLotsCarouselMeta(
-      withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
-      featuredLotsCarouselForm.value,
+    const highlightsWithMeta = withPublicCategoryCarouselMeta(
+      withPublicFeaturedLotsCarouselMeta(
+        withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
+        featuredLotsCarouselForm.value,
+      ),
+      categoryCarouselForm.value,
     )
     project.value = await fetchApi(`/projects/${projectId}`, {
       method: 'PATCH',
@@ -4026,6 +4125,7 @@ const persistPublicSectionOrder = async () => {
     pubInfoForm.value.highlightsJson = parsed.highlights as Highlight[]
     publicSectionsDisabled.value = parsed.disabled
     featuredLotsCarouselForm.value = normalizePublicFeaturedLotsCarouselConfig(parsed.featuredLotsCarousel)
+    categoryCarouselForm.value = normalizePublicCategoryCarouselConfig(parsed.categoryCarousel)
     toastSuccess('Ordem das seções atualizada')
   } catch (e) {
     toastFromError(e, 'Erro ao atualizar ordem das seções')
@@ -4055,6 +4155,18 @@ const hasLotsConfigured = computed(() => {
 
 const hasFeaturedLotsCarouselConfigured = computed(() => {
   return featuredLotsCarouselForm.value.lotCodes.length > 0
+})
+
+const lotCategoriesWithLotsCount = computed(() => {
+  return lotCategories.value.filter((category) => Number(category.totalLots || 0) > 0).length
+})
+
+const lotCategoriesWithImagesCount = computed(() => {
+  return lotCategories.value.filter((category) => !!category.imageUrl).length
+})
+
+const hasCategoryCarouselConfigured = computed(() => {
+  return lotCategoriesWithLotsCount.value > 0
 })
 
 const hasConstructionConfigured = computed(() => {
@@ -4106,6 +4218,7 @@ const isPublicSectionConfigured = (sectionId: string) => {
     case 'pub-panorama': return hasPanoramaConfigured.value
     case 'pub-video': return !!pubInfoForm.value.youtubeVideoUrl?.trim()
     case 'pub-lots-carousel': return hasLotsConfigured.value
+    case PUBLIC_CATEGORY_CAROUSEL_SECTION_ID: return hasCategoryCarouselConfigured.value
     case PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID: return hasFeaturedLotsCarouselConfigured.value
     case 'pub-lots': return hasLotsConfigured.value
     case 'pub-construction': return hasConstructionConfigured.value
@@ -4416,16 +4529,68 @@ const loadLotsPaginated = async (page = 1) => {
   }
 }
 
+const loadLotCategories = async () => {
+  try {
+    lotCategories.value = await fetchApi(`/projects/${projectId}/lots/categories`)
+  } catch (e) {
+    toastFromError(e, 'Erro ao carregar categorias de lote')
+  }
+}
+
+const createLotCategory = async () => {
+  if (!authStore.canEdit) return
+  const name = String(lotCategoryForm.value.name || '').trim()
+  if (!name) {
+    toastFromError(new Error('Informe o nome da categoria.'))
+    return
+  }
+
+  savingLotCategory.value = true
+  try {
+    lotCategories.value = await fetchApi(`/projects/${projectId}/lots/categories`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        description: String(lotCategoryForm.value.description || '').trim() || undefined,
+      }),
+    })
+    lotCategoryForm.value = { name: '', description: '' }
+    toastSuccess('Categoria criada!')
+  } catch (e) {
+    toastFromError(e, 'Erro ao criar categoria')
+  } finally {
+    savingLotCategory.value = false
+  }
+}
+
+const removeLotCategory = async (category: LotCategory) => {
+  if (!authStore.canEdit) return
+  if (!confirm(`Excluir a categoria "${category.name}"? Os lotes vinculados ficarão sem categoria.`)) return
+
+  deletingLotCategoryId.value = category.id
+  try {
+    lotCategories.value = await fetchApi(`/projects/${projectId}/lots/categories/${category.id}`, {
+      method: 'DELETE',
+    })
+    toastSuccess('Categoria removida!')
+  } catch (e) {
+    toastFromError(e, 'Erro ao remover categoria')
+  } finally {
+    deletingLotCategoryId.value = null
+  }
+}
+
 const loadProject = async () => {
   loading.value = true
   error.value = ''
   try {
-    const [p, els, resLots, md, latestImport] = await Promise.all([
+    const [p, els, resLots, md, latestImport, categories] = await Promise.all([
       fetchApi(`/projects/${projectId}`),
       fetchApi(`/projects/${projectId}/map-elements`),
       fetchApi(`/projects/${projectId}/lots?page=1&limit=50`),
       fetchApi(`/projects/${projectId}/media`),
       fetchApi(`/projects/${projectId}/lots/imports/latest`).catch(() => null),
+      fetchApi(`/projects/${projectId}/lots/categories`).catch(() => []),
     ])
     project.value = p
     mapElements.value = els
@@ -4433,6 +4598,7 @@ const loadProject = async () => {
     lotsMeta.value = resLots.meta
     media.value = md
     activeLotImport.value = latestImport
+    lotCategories.value = Array.isArray(categories) ? categories : []
     if (latestImport && !latestImport.terminal) {
       startLotImportPolling(latestImport.id)
     }
@@ -4503,6 +4669,7 @@ const loadProject = async () => {
     publicSectionsOrder.value = parsedHighlightsAndOrder.order
     publicSectionsDisabled.value = parsedHighlightsAndOrder.disabled
     featuredLotsCarouselForm.value = normalizePublicFeaturedLotsCarouselConfig(parsedHighlightsAndOrder.featuredLotsCarousel)
+    categoryCarouselForm.value = normalizePublicCategoryCarouselConfig(parsedHighlightsAndOrder.categoryCarousel)
 
     pubInfoForm.value = {
       highlightsJson: parsedHighlightsAndOrder.highlights as Highlight[],
@@ -4532,6 +4699,35 @@ const loadProject = async () => {
     toastFromError(e, 'Erro ao carregar projeto')
   }
   loading.value = false
+}
+
+const savePublicCategoryCarouselBlock = async () => {
+  if (!authStore.canEdit || !project.value?.id || !hasCategoryCarouselConfigured.value) return
+
+  try {
+    const highlightsWithMeta = withPublicCategoryCarouselMeta(
+      withPublicFeaturedLotsCarouselMeta(
+        withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
+        featuredLotsCarouselForm.value,
+      ),
+      categoryCarouselForm.value,
+    )
+
+    project.value = await fetchApi(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ highlightsJson: highlightsWithMeta }),
+    })
+
+    const parsed = splitHighlightsAndPublicOrderMeta(highlightsWithMeta)
+    pubInfoForm.value.highlightsJson = parsed.highlights as Highlight[]
+    publicSectionsOrder.value = parsed.order
+    publicSectionsDisabled.value = parsed.disabled
+    featuredLotsCarouselForm.value = normalizePublicFeaturedLotsCarouselConfig(parsed.featuredLotsCarousel)
+    categoryCarouselForm.value = normalizePublicCategoryCarouselConfig(parsed.categoryCarousel)
+    toastSuccess('Carrossel de categorias salvo!')
+  } catch (e) {
+    toastFromError(e, 'Erro ao salvar carrossel de categorias')
+  }
 }
 
 const togglePublish = async () => {

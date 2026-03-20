@@ -28,6 +28,8 @@ import { UpsertLotDetailsDto } from './dto/upsert-lot-details.dto';
 import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 import { LotsImportService } from './lots-import.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
+import { CreateLotCategoryDto } from './dto/create-lot-category.dto';
+import { UpdateLotCategoryDto } from './dto/update-lot-category.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UseInterceptors } from '@nestjs/common';
 import { join } from 'node:path';
@@ -50,6 +52,75 @@ export class LotsController {
     @Query() pagination: PaginationQueryDto
   ) {
     return this.lotsService.findByProject(tenantId, projectId, pagination);
+  }
+
+  @Get('categories')
+  @Roles('LOTEADORA', 'CORRETOR', 'SYSADMIN')
+  listCategories(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.lotsService.listCategories(tenantId, projectId);
+  }
+
+  @Post('categories')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  createCategory(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateLotCategoryDto,
+  ) {
+    return this.lotsService.createCategory(tenantId, projectId, dto);
+  }
+
+  @Put('categories/:categoryId')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  updateCategory(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+    @Param('categoryId') categoryId: string,
+    @Body() dto: UpdateLotCategoryDto,
+  ) {
+    return this.lotsService.updateCategory(tenantId, projectId, categoryId, dto);
+  }
+
+  @Delete('categories/:categoryId')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  removeCategory(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+    @Param('categoryId') categoryId: string,
+  ) {
+    return this.lotsService.removeCategory(tenantId, projectId, categoryId);
+  }
+
+  @Post('categories/:categoryId/image')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } }
+    }
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  uploadCategoryImage(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+    @Param('categoryId') categoryId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.lotsService.uploadCategoryImage(tenantId, projectId, categoryId, file);
+  }
+
+  @Delete('categories/:categoryId/image')
+  @Roles('LOTEADORA', 'SYSADMIN')
+  removeCategoryImage(
+    @TenantId() tenantId: string,
+    @Param('projectId') projectId: string,
+    @Param('categoryId') categoryId: string,
+  ) {
+    return this.lotsService.removeCategoryImage(tenantId, projectId, categoryId);
   }
 
   @Get(':mapElementId')

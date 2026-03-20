@@ -273,6 +273,7 @@ export class PublicProjectsController {
   })
   @ApiQuery({ name: 'smartMode', required: false, enum: ['preference'] })
   @ApiQuery({ name: 'sortBy', required: false, enum: ['pricePerM2Asc'] })
+  @ApiQuery({ name: 'category', required: false, description: 'Lot category slug' })
   findPublicLots(
     @Param('projectSlug') projectSlug: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -289,7 +290,8 @@ export class PublicProjectsController {
     @Query('minFrontage') minFrontageRaw?: string,
     @Query('minDepth') minDepthRaw?: string,
     @Query('smartMode') smartMode?: 'preference',
-    @Query('sortBy') sortBy?: 'pricePerM2Asc'
+    @Query('sortBy') sortBy?: 'pricePerM2Asc',
+    @Query('category') categorySlug?: string,
   ) {
     const parseNumber = (value?: string) => {
       if (value == null || value === '') return undefined;
@@ -328,10 +330,17 @@ export class PublicProjectsController {
       tags,
       matchMode,
       codes,
+      categorySlug,
       smartFilters,
       smartMode,
       sortBy
     );
+  }
+
+  @Get(':projectSlug/lot-categories')
+  @ApiOperation({ summary: 'Categorias públicas de lotes do projeto' })
+  findPublicLotCategories(@Param('projectSlug') projectSlug: string) {
+    return this.projectsService.findPublicLotCategories(projectSlug);
   }
 
   @Get(':projectSlug')

@@ -282,6 +282,15 @@
               </select>
             </div>
             <div class="form-group">
+              <label class="form-label">Categoria</label>
+              <select v-model="lotForm.categoryId" class="form-input">
+                <option :value="null">Sem categoria</option>
+                <option v-for="category in lotCategories" :key="category.id" :value="category.id">
+                  {{ category.name }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
               <label class="form-label">Valor do M² (R$)</label>
               <input v-model.number="lotForm.pricePerM2" type="number" step="0.01" class="form-input" placeholder="0.00" @input="calculatePriceFromM2" />
             </div>
@@ -464,6 +473,7 @@ const { success: toastSuccess, fromError: toastFromError } = useToast()
 
 const loadingLots = ref(true)
 const lots = ref<any[]>([])
+const lotCategories = ref<any[]>([])
 const lotsMeta = ref({ totalItems: 0, itemCount: 0, itemsPerPage: 50, totalPages: 0, currentPage: 1 })
 const lotCsvInputRef = ref<HTMLInputElement | null>(null)
 const uploadingLotCsv = ref(false)
@@ -490,6 +500,7 @@ const lotForm = ref({
   status: 'AVAILABLE',
   block: '',
   lotNumber: '',
+  categoryId: null as string | null,
   price: null as number | null,
   pricePerM2: null as number | null,
   areaM2: null as number | null,
@@ -729,12 +740,17 @@ const loadLatestImport = async () => {
   activeLotImport.value = await fetchApi(`/projects/${props.projectId}/lots/imports/latest`).catch(() => null)
 }
 
+const loadLotCategories = async () => {
+  lotCategories.value = await fetchApi(`/projects/${props.projectId}/lots/categories`).catch(() => [])
+}
+
 const loadInitialData = async () => {
   loadingLots.value = true
   try {
     await Promise.all([
       loadLotsPaginated(1, false),
       loadLatestImport(),
+      loadLotCategories(),
     ])
 
     if (activeLotImport.value && !activeLotImport.value.terminal) {
@@ -967,6 +983,7 @@ const openEditLot = (lot: any) => {
     status: lot.status,
     block: lot.block || '',
     lotNumber: lot.lotNumber || '',
+    categoryId: lot.categoryId || lot.category?.id || null,
     price: lot.price ? Number(lot.price) : null,
     pricePerM2: lot.pricePerM2 ? Number(lot.pricePerM2) : null,
     areaM2: lot.areaM2,
@@ -1030,6 +1047,7 @@ const duplicateLot = async (lot: any) => {
         status: lot.status,
         block: lot.block || undefined,
         lotNumber: identity.lotNumber,
+        categoryId: lot.categoryId || lot.category?.id || null,
         price: lot.price != null ? Number(lot.price) : undefined,
         pricePerM2: lot.pricePerM2 != null ? Number(lot.pricePerM2) : undefined,
         areaM2: lot.areaM2 != null ? Number(lot.areaM2) : undefined,
@@ -1065,6 +1083,7 @@ const saveLotDetails = async () => {
       status: lotForm.value.status,
       block: lotForm.value.block || undefined,
       lotNumber: lotForm.value.lotNumber || undefined,
+      categoryId: lotForm.value.categoryId || null,
       price: toNum(lotForm.value.price),
       pricePerM2: toNum(lotForm.value.pricePerM2),
       frontage: toNum(lotForm.value.frontage),

@@ -9,7 +9,7 @@ import {
 import { PrismaService } from '@/infra/db/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { ProjectStatus, Project, User, UserRole } from '@prisma/client';
+import { ProjectStatus, Project, User, UserRole, LotStatus } from '@prisma/client';
 import { PaginationQueryDto } from '@common/dto/pagination-query.dto';
 import { PaginatedResponse } from '@common/dto/paginated-response.dto';
 import { NearbyService } from '@modules/nearby/nearby.service';
@@ -69,6 +69,15 @@ export class ProjectsService {
     }
   }
 
+  private toPublicAssetUrlSync(url?: string | null): string | null {
+    if (!url) return null;
+
+    const trimmed = String(url).trim();
+    if (!trimmed) return null;
+
+    return this.s3.resolvePublicAssetUrl(trimmed) || trimmed;
+  }
+
   private async hydratePublicLotDetailsAssets<T extends {
     panoramaUrl?: string | null;
     medias?: Array<{ url?: string | null }>;
@@ -114,6 +123,15 @@ export class ProjectsService {
         )
       : project.projectMedias;
 
+    const lotCategories = Array.isArray(project.lotCategories)
+      ? await Promise.all(
+          project.lotCategories.map(async (category: any) => ({
+            ...category,
+            imageUrl: await this.toPublicAssetUrl(category?.imageUrl)
+          }))
+        )
+      : project.lotCategories;
+
     return {
       ...project,
       ogLogoUrl: await this.toPublicAssetUrl(project.ogLogoUrl),
@@ -124,6 +142,7 @@ export class ProjectsService {
       bannerImageMobileUrl: await this.toPublicAssetUrl(
         project.bannerImageMobileUrl
       ),
+      lotCategories,
       logos,
       projectMedias,
       plantMap: project.plantMap
@@ -683,6 +702,7 @@ export class ProjectsService {
     tags?: string[],
     matchMode: 'any' | 'exact' = 'any',
     codes?: string[],
+    categorySlug?: string,
     smartFilters?: {
       minArea?: number;
       maxArea?: number;
@@ -723,6 +743,10 @@ export class ProjectsService {
       }
 
       if (codes?.length) lots = lots.filter((l: any) => codes.includes(l.code));
+
+      if (categorySlug) {
+        lots = [];
+      }
 
       if (search) {
         const q = search.toLowerCase();
@@ -1005,6 +1029,15 @@ export class ProjectsService {
       lotDetails: lotDetailsFilter
     };
 
+    if (categorySlug) {
+      elementFilter.lotDetails = {
+        ...elementFilter.lotDetails,
+        category: {
+          slug: categorySlug,
+        },
+      };
+    }
+
     if (codes?.length) {
       elementFilter.code = { in: codes };
     } else if (search) {
@@ -1036,6 +1069,16 @@ export class ProjectsService {
           tags: true,
           block: true,
           lotNumber: true,
+          categoryId: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              imageUrl: true,
+              description: true,
+            }
+          },
           conditionsJson: true,
           paymentConditions: true,
           panoramaUrl: true,
@@ -1132,12 +1175,19 @@ export class ProjectsService {
 
     return {
       data: await Promise.all(
-        pagedData.map(async (lot) => ({
-          ...lot,
-          frontEdgeIndex: (lot as any).metaJson?.frontEdgeIndex ?? null,
-          frontAngleDeg: (lot as any).metaJson?.frontAngleDeg ?? null,
-          lotDetails: await this.hydratePublicLotDetailsAssets(lot.lotDetails)
-        }))
+        pagedData.map(async (lot) => {
+          const hydratedLotDetails = JSON.parse(JSON.stringify(lot.lotDetails || null));
+          if (hydratedLotDetails?.category?.imageUrl) {
+            hydratedLotDetails.category.imageUrl = this.toPublicAssetUrlSync(hydratedLotDetails.category.imageUrl);
+          }
+
+          return {
+            ...lot,
+            frontEdgeIndex: (lot as any).metaJson?.frontEdgeIndex ?? null,
+            frontAngleDeg: (lot as any).metaJson?.frontAngleDeg ?? null,
+            lotDetails: await this.hydratePublicLotDetailsAssets(hydratedLotDetails)
+          };
+        })
       ),
       total,
       page,
@@ -1145,6 +1195,43 @@ export class ProjectsService {
       totalPages: Math.ceil(total / limit),
       availableTags
     };
+  }
+
+  async findPublicLotCategories(projectSlug: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { slug: projectSlug, status: ProjectStatus.PUBLISHED },
+      select: { id: true },
+    });
+    if (!project) throw new NotFoundException('Projeto não encontrado.');
+
+    const categories = await this.prisma.lotCategory.findMany({
+      where: {
+        projectId: project.id,
+        lots: {
+          some: { status: LotStatus.AVAILABLE },
+        },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      include: {
+        lots: {
+          where: { status: LotStatus.AVAILABLE },
+          select: {
+            id: true,
+            mapElement: { select: { code: true, name: true } },
+          },
+        },
+      },
+    });
+
+    return categories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      imageUrl: this.toPublicAssetUrlSync(category.imageUrl),
+      description: category.description || null,
+      availableLots: category.lots.length,
+      teaserLots: category.lots.slice(0, 3).map((lot) => String(lot.mapElement?.code || lot.mapElement?.name || lot.id)),
+    }));
   }
 
   async findPreview(projectId: string) {
@@ -1204,6 +1291,28 @@ export class ProjectsService {
           select: {
             id: true,
             title: true
+          }
+        },
+        lotCategories: {
+          where: {
+            lots: {
+              some: { status: LotStatus.AVAILABLE }
+            }
+          },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          include: {
+            lots: {
+              where: { status: LotStatus.AVAILABLE },
+              select: {
+                id: true,
+                mapElement: {
+                  select: {
+                    code: true,
+                    name: true
+                  }
+                }
+              }
+            }
           }
         }
       }

@@ -16,6 +16,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const canonicalMap: Record<string, string> = {
       [`/${slug}`]: '/',
       [`/${slug}/unidades`]: '/unidades',
+      [`/${slug}/categorias`]: '/categorias',
       [`/${slug}/galeria`]: '/galeria',
       [`/${slug}/espelho-planta`]: '/espelho-planta',
     };
@@ -30,6 +31,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     // Legacy links that still include /:slug/:lotCode should work without slug.
     const parts = to.path.split('/').filter(Boolean);
+    if (parts.length === 3 && parts[0] === slug && parts[1] === 'categorias') {
+      return navigateTo(
+        { path: `/categorias/${parts[2]}`, query: to.query },
+        { replace: true },
+      );
+    }
+
     if (parts.length === 2 && parts[0] === slug) {
       return navigateTo(
         { path: `/${parts[1]}`, query: to.query },
