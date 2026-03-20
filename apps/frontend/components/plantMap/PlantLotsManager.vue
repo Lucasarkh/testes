@@ -110,6 +110,7 @@
             <tr>
               <th>Quadra/Lote</th>
               <th>Status</th>
+              <th>Destaque</th>
               <th>Valor M²</th>
               <th>Total</th>
               <th>Entrada/Ato</th>
@@ -119,7 +120,7 @@
           </thead>
           <tbody v-for="group in groupedLots" :key="group.key">
             <tr v-if="groupLotsByBlock" class="plm__group-row">
-              <td :colspan="authStore.canEdit ? 7 : 6">
+              <td :colspan="authStore.canEdit ? 8 : 7">
                 <div class="plm__group-title">{{ group.label }} <span>({{ group.items.length }})</span></div>
               </td>
             </tr>
@@ -129,10 +130,23 @@
                 <div style="font-size: 0.7rem; color: var(--color-surface-500); display: flex; align-items: center; gap: 4px;">
                   <span class="badge badge-neutral" style="font-size: 8px; padding: 1px 4px; border-radius: 4px;">{{ l.mapElement?.type === 'LOT' ? 'Lote' : 'Ponto' }}</span>
                   <span>{{ l.mapElement?.code }}</span>
+                  <span v-if="isFeaturedLot(l)" class="badge badge-success" style="font-size: 8px; padding: 1px 4px; border-radius: 4px;">Destaque</span>
                 </div>
               </td>
               <td>
                 <span class="badge" :class="lotBadge(l.status)">{{ lotLabel(l.status) }}</span>
+              </td>
+              <td>
+                <button
+                  v-if="authStore.canEdit"
+                  class="btn btn-xs"
+                  :class="isFeaturedLot(l) ? 'btn-warning' : 'btn-outline'"
+                  :disabled="savingFeaturedLotCode === (l.mapElement?.code || '')"
+                  @click="toggleFeaturedLot(l)"
+                >
+                  {{ savingFeaturedLotCode === (l.mapElement?.code || '') ? 'Salvando...' : (isFeaturedLot(l) ? 'Em destaque' : 'Destacar') }}
+                </button>
+                <span v-else>{{ isFeaturedLot(l) ? 'Em destaque' : '—' }}</span>
               </td>
               <td style="font-weight: 500;">{{ l.pricePerM2 ? formatCurrencyToBrasilia(l.pricePerM2) : '—' }}</td>
               <td style="font-weight: 700;">{{ l.price ? formatCurrencyToBrasilia(l.price) : '—' }}</td>
@@ -428,6 +442,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePlantMapApi } from '~/composables/plantMap/usePlantMapApi'
+import {
+  normalizePublicFeaturedLotsCarouselConfig,
+  PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE,
+  withPublicFeaturedLotsCarouselMeta,
+} from '~/utils/publicFeaturedLotsCarousel'
 
 const props = defineProps<{
   projectId: string
@@ -453,6 +472,7 @@ let lotImportPollTimer: ReturnType<typeof setInterval> | null = null
 const lotSearch = ref('')
 const groupLotsByBlock = ref(true)
 const duplicatingLotId = ref<string | null>(null)
+const savingFeaturedLotCode = ref<string | null>(null)
 
 const editingLot = ref<any>(null)
 const viewingReservation = ref<any>(null)
@@ -497,6 +517,15 @@ const isArchivedProject = computed(() => {
   return slug.startsWith('archived-') || name.startsWith('[arquivado]')
 })
 const downPaymentFactor = computed(() => Number(projectValue.value?.minDownPaymentPercent ?? 10) / 100)
+const featuredLotsCarouselConfig = ref(normalizePublicFeaturedLotsCarouselConfig(null))
+
+const syncFeaturedLotsCarouselConfig = () => {
+  featuredLotsCarouselConfig.value = normalizePublicFeaturedLotsCarouselConfig(
+    Array.isArray(projectValue.value?.highlightsJson)
+      ? projectValue.value.highlightsJson.find((item: any) => item?.type === PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE)
+      : null,
+  )
+}
 
 const activeLotImportRunning = computed(() => {
   const status = String(activeLotImport.value?.status || '')
@@ -614,6 +643,53 @@ const reservationExpiry = (createdAt: string) => {
 
 const lotBadge = (status: string) => ({ AVAILABLE: 'badge-success', RESERVED: 'badge-warning', SOLD: 'badge-danger' }[status] || 'badge-neutral')
 const lotLabel = (status: string) => ({ AVAILABLE: 'Disponivel', RESERVED: 'Reservado', SOLD: 'Vendido' }[status] || status)
+const isFeaturedLot = (lot: any) => {
+  const code = String(lot?.mapElement?.code || '').trim()
+  return code ? featuredLotsCarouselConfig.value.lotCodes.includes(code) : false
+}
+
+const toggleFeaturedLot = async (lot: any) => {
+  if (!authStore.canEdit) return
+
+  const code = String(lot?.mapElement?.code || '').trim()
+  if (!code) {
+    toastFromError(new Error('Este lote nao possui codigo para entrar no destaque.'))
+    return
+  }
+
+  savingFeaturedLotCode.value = code
+  try {
+    const currentCodes = [...featuredLotsCarouselConfig.value.lotCodes]
+    const nextCodes = currentCodes.includes(code)
+      ? currentCodes.filter((item) => item !== code)
+      : [...currentCodes, code]
+
+    const nextHighlightsJson = withPublicFeaturedLotsCarouselMeta(
+      projectValue.value?.highlightsJson,
+      {
+        ...featuredLotsCarouselConfig.value,
+        lotCodes: nextCodes,
+      },
+    )
+
+    const updatedProject = await fetchApi(`/projects/${props.projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ highlightsJson: nextHighlightsJson }),
+    })
+
+    featuredLotsCarouselConfig.value = normalizePublicFeaturedLotsCarouselConfig(
+      Array.isArray(updatedProject?.highlightsJson)
+        ? updatedProject.highlightsJson.find((item: any) => item?.type === PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE)
+        : { ...featuredLotsCarouselConfig.value, lotCodes: nextCodes },
+    )
+
+    toastSuccess(currentCodes.includes(code) ? 'Lote removido dos destaques.' : 'Lote adicionado aos destaques.')
+  } catch (e) {
+    toastFromError(e, 'Erro ao atualizar destaque do lote')
+  } finally {
+    savingFeaturedLotCode.value = null
+  }
+}
 
 const lotImportStatusLabel = (status: string) => {
   const labels: Record<string, string> = {
@@ -1332,6 +1408,10 @@ watch(() => props.projectId, () => {
   stopLotImportPolling()
   void loadInitialData()
 })
+
+watch(() => projectValue.value?.highlightsJson, () => {
+  syncFeaturedLotsCarouselConfig()
+}, { immediate: true })
 
 onMounted(() => {
   void loadInitialData()

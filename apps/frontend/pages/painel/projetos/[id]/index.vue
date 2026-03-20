@@ -1571,6 +1571,97 @@
           </div>
         </div>
 
+        <div v-if="activeSection === 'pub-featured-lots-carousel'" class="pub-card pub-card--compact">
+          <h4 class="pub-card__title">Carrossel de Lotes em Destaque</h4>
+          <p style="margin: 0 0 12px; color: var(--color-surface-400); font-size: 0.78rem;">
+            Esta é uma nova seção separada do carrossel atual. A seleção dos lotes destacados é feita no editor de lotes da planta. Aqui você controla apenas a ordem de exibição e o comportamento do carrossel.
+          </p>
+
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;">
+            <div class="stat-chip stat-chip-primary">
+              <span class="stat-chip-value">{{ featuredLotsCarouselForm.lotCodes.length }}</span>
+              <span class="stat-chip-label">Selecionados</span>
+            </div>
+            <div class="stat-chip stat-chip-success">
+              <span class="stat-chip-value">{{ featuredLotsSelectionPool.length }}</span>
+              <span class="stat-chip-label">Carregados</span>
+            </div>
+            <div class="stat-chip">
+              <span class="stat-chip-value">{{ lotStats.total }}</span>
+              <span class="stat-chip-label">Total</span>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 18px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; color: var(--color-surface-200); cursor:pointer;">
+              <input v-model="featuredLotsCarouselForm.autoplay" type="checkbox" :disabled="!authStore.canEdit" />
+              <span>Autoplay</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; font-weight:600; color: var(--color-surface-200); cursor:pointer;">
+              <input v-model="featuredLotsCarouselForm.infinite" type="checkbox" :disabled="!authStore.canEdit" />
+              <span>Loop infinito</span>
+            </label>
+            <NuxtLink :to="`/painel/projetos/${projectId}/planta#plant-lots-manager`" class="btn btn-secondary btn-sm">
+              Ir para Editor de Lotes
+            </NuxtLink>
+          </div>
+
+          <div style="margin-bottom: 18px; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(59, 130, 246, 0.18); background: rgba(59, 130, 246, 0.08); color: var(--color-surface-200); font-size: 0.8rem; line-height: 1.5;">
+            Para adicionar ou remover lotes em destaque, use a lista de lotes no editor da planta. Nesta tela, a ordenação abaixo define a ordem final do carrossel na página pública.
+          </div>
+
+          <div style="display:grid; grid-template-columns: minmax(0, 1fr); gap: 16px;">
+            <div style="border: 1px solid var(--glass-border-subtle); border-radius: 12px; padding: 16px; background: var(--glass-bg-heavy);">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom: 12px;">
+                <div>
+                  <h5 style="margin:0; font-size:0.9rem;">Lotes selecionados</h5>
+                  <p style="margin:4px 0 0; color: var(--color-surface-500); font-size:0.75rem;">A ordem abaixo será a ordem do carrossel na página pública.</p>
+                </div>
+              </div>
+
+              <div v-if="!selectedFeaturedLots.length" class="pub-empty" style="margin: 0;">
+                Nenhum lote destacado selecionado.
+              </div>
+
+              <div v-else style="display:flex; flex-direction:column; gap:10px;">
+                <div
+                  v-for="(lot, index) in selectedFeaturedLots"
+                  :key="lot.code"
+                  style="display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px; border-radius:10px; border:1px solid var(--glass-border-subtle); background: var(--glass-bg);"
+                >
+                  <div style="min-width:0;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                      <strong style="font-size:0.86rem; color: var(--color-surface-100);">{{ lot.code }}</strong>
+                      <span class="badge" :class="featuredLotStatusBadgeClass(lot.status)" style="font-size: 0.62rem;">{{ featuredLotStatusLabel(lot.status) }}</span>
+                    </div>
+                    <div style="font-size:0.78rem; color: var(--color-surface-300); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      {{ lot.name || 'Lote sem nome' }}
+                    </div>
+                    <div v-if="lot.meta" style="font-size:0.72rem; color: var(--color-surface-500); margin-top: 3px;">
+                      {{ lot.meta }}
+                    </div>
+                  </div>
+
+                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <button type="button" class="btn btn-xs btn-outline" :disabled="!authStore.canEdit || index === 0" @click="moveFeaturedLot(index, 'up')">
+                      <i class="bi bi-chevron-up" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="btn btn-xs btn-outline" :disabled="!authStore.canEdit || index === selectedFeaturedLots.length - 1" @click="moveFeaturedLot(index, 'down')">
+                      <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="authStore.canEdit" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary btn-sm" :disabled="savingPublicFeaturedLotsCarousel" @click="savePublicFeaturedLotsCarouselBlock">
+              {{ savingPublicFeaturedLotsCarousel ? 'Salvando...' : 'Salvar Lotes em Destaque' }}
+            </button>
+          </div>
+        </div>
+
         <!-- ── Lotes Disponíveis ── -->
         <div v-if="activeSection === 'pub-lots'" class="pub-card pub-card--compact">
           <h4 class="pub-card__title">Lotes Disponíveis</h4>
@@ -1908,6 +1999,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import {
+  normalizePublicFeaturedLotsCarouselConfig,
+  PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE,
+  PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID,
+  stripPublicFeaturedLotsCarouselMeta,
+  withPublicFeaturedLotsCarouselMeta,
+} from '~/utils/publicFeaturedLotsCarousel'
 
 interface Media {
   id: string;
@@ -1922,6 +2020,14 @@ interface Highlight {
   label?: string;
   value?: string;
   icon?: string;
+}
+
+type FeaturedLotSelectionItem = {
+  code: string
+  name: string
+  status: string
+  meta: string
+  searchText: string
 }
 
 interface Corretor {
@@ -1982,6 +2088,100 @@ const lotStats = computed(() => {
   return { total, available, reserved, sold }
 })
 
+const featuredLotsCarouselForm = ref(normalizePublicFeaturedLotsCarouselConfig(null))
+const featuredLotsSelectionPool = ref<FeaturedLotSelectionItem[]>([])
+const activeSection = ref('configuracoes')
+
+const formatFeaturedLotSelectionPrice = (value: unknown) => {
+  const price = Number(value)
+  if (!Number.isFinite(price) || price <= 0) return ''
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(price)
+}
+
+const formatFeaturedLotSelectionArea = (value: unknown) => {
+  const area = Number(value)
+  if (!Number.isFinite(area) || area <= 0) return ''
+  return `${area.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m2`
+}
+
+const normalizeFeaturedLotSelection = (lot: any): FeaturedLotSelectionItem | null => {
+  const code = String(lot?.code || '').trim()
+  if (!code) return null
+
+  const name = String(lot?.name || '').trim()
+  const block = String(lot?.block || '').trim()
+  const lotNumber = String(lot?.lotNumber || '').trim()
+  const area = formatFeaturedLotSelectionArea(lot?.areaM2)
+  const price = formatFeaturedLotSelectionPrice(lot?.price)
+  const meta = [
+    block ? `Quadra ${block}` : '',
+    lotNumber ? `Lote ${lotNumber}` : '',
+    area,
+    price,
+  ].filter(Boolean).join(' • ')
+  const searchText = [code, name, block, lotNumber, meta, String(lot?.status || '')]
+    .join(' ')
+    .toLowerCase()
+
+  return {
+    code,
+    name,
+    status: String(lot?.status || ''),
+    meta,
+    searchText,
+  }
+}
+
+const seedFeaturedLotsSelectionPool = (source: any[]) => {
+  const next = new Map(featuredLotsSelectionPool.value.map(item => [item.code, item]))
+  for (const lot of source) {
+    const normalized = normalizeFeaturedLotSelection(lot)
+    if (normalized) next.set(normalized.code, normalized)
+  }
+  featuredLotsSelectionPool.value = Array.from(next.values()).sort((left, right) => left.code.localeCompare(right.code, 'pt-BR'))
+}
+
+const selectedFeaturedLots = computed(() => {
+  const pool = new Map(featuredLotsSelectionPool.value.map(item => [item.code, item]))
+  return featuredLotsCarouselForm.value.lotCodes.map((code) => {
+    const existing = pool.get(code)
+    return existing || { code, name: '', status: '', meta: '', searchText: code.toLowerCase() }
+  })
+})
+
+const featuredLotStatusLabel = (status: string) => {
+  switch (String(status || '').toUpperCase()) {
+    case 'AVAILABLE': return 'Disponível'
+    case 'RESERVED': return 'Reservado'
+    case 'SOLD': return 'Vendido'
+    default: return status || 'Sem status'
+  }
+}
+
+const featuredLotStatusBadgeClass = (status: string) => {
+  switch (String(status || '').toUpperCase()) {
+    case 'AVAILABLE': return 'badge-success'
+    case 'RESERVED': return 'badge-warning'
+    case 'SOLD': return 'badge-danger'
+    default: return 'badge-neutral'
+  }
+}
+
+const moveFeaturedLot = (index: number, direction: 'up' | 'down') => {
+  const nextIndex = direction === 'up' ? index - 1 : index + 1
+  if (nextIndex < 0 || nextIndex >= featuredLotsCarouselForm.value.lotCodes.length) return
+  const next = [...featuredLotsCarouselForm.value.lotCodes]
+  const [moved] = next.splice(index, 1)
+  next.splice(nextIndex, 0, moved)
+  featuredLotsCarouselForm.value.lotCodes = next
+}
+
+watch(lots, (value) => {
+  if (Array.isArray(value) && value.length) {
+    seedFeaturedLotsSelectionPool(value)
+  }
+}, { immediate: true })
+
 const activeLotImportRunning = computed(() => {
   const status = String(activeLotImport.value?.status || '')
   return status === 'PENDING' || status === 'PROCESSING'
@@ -1993,7 +2193,6 @@ const lotImportProgress = computed(() => {
   if (!total) return 0
   return Math.min(100, Math.round((processed / total) * 100))
 })
-const activeSection = ref('configuracoes')
 type BannerDevice = 'desktop' | 'tablet' | 'mobile'
 const uploadingBannerDevice = ref<BannerDevice | null>(null)
 const uploadingMedia = ref(false)
@@ -3071,6 +3270,7 @@ const savingPublicPricing = ref(false)
 const savingPublicConstruction = ref(false)
 const savingPublicLocation = ref(false)
 const savingPublicHighlights = ref(false)
+const savingPublicFeaturedLotsCarousel = ref(false)
 const savingPublicDescription = ref(false)
 const savingPublicLegal = ref(false)
 const newHighlight = ref({ label: '', value: '' })
@@ -3243,8 +3443,13 @@ const buildPublicInfoPayload = () => {
     ytUrl = ytUrl.replace('youtu.be/', 'www.youtube.com/embed/')
   }
 
+  const highlightsWithMeta = withPublicFeaturedLotsCarouselMeta(
+    withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
+    featuredLotsCarouselForm.value,
+  )
+
   return {
-    highlightsJson: withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
+    highlightsJson: highlightsWithMeta,
     highlightsTitle: pubInfoForm.value.highlightsTitle,
     highlightsSubtitle: pubInfoForm.value.highlightsSubtitle,
     traditionalHighlightsTitle: pubInfoForm.value.traditionalHighlightsTitle,
@@ -3344,6 +3549,15 @@ const savePublicHighlightsBlock = async () => {
     savingPublicHighlights,
     'Infraestrutura e destaques salvos!',
     'Erro ao salvar infraestrutura e destaques',
+  )
+}
+
+const savePublicFeaturedLotsCarouselBlock = async () => {
+  await savePublicInfoBlock(
+    ['highlightsJson'],
+    savingPublicFeaturedLotsCarousel,
+    'Lotes em destaque salvos!',
+    'Erro ao salvar lotes em destaque',
   )
 }
 
@@ -3686,6 +3900,7 @@ const PUBLIC_SECTION_CATALOG: SidebarSectionItem[] = [
   { id: 'pub-panorama', icon: 'bi bi-image-fill', label: 'Panorama 360°' },
   { id: 'pub-video', icon: 'bi bi-youtube', label: 'Vídeo de Apresentação' },
   { id: 'pub-lots-carousel', icon: 'bi bi-view-list', label: 'Carrossel de Lotes' },
+  { id: PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID, icon: 'bi bi-stars', label: 'Lotes em Destaque' },
   { id: 'pub-lots', icon: 'bi bi-grid-3x2-gap-fill', label: 'Lotes Disponíveis' },
   { id: 'pub-construction', icon: 'bi bi-hammer', label: 'Obras' },
   { id: 'pub-location', icon: 'bi bi-geo-alt-fill', label: 'Localização' },
@@ -3723,7 +3938,8 @@ const normalizePublicSectionOrder = (orderCandidate: unknown) => {
 }
 
 const splitHighlightsAndPublicOrderMeta = (source: unknown) => {
-  const raw = Array.isArray(source) ? source : []
+  const featuredMeta = stripPublicFeaturedLotsCarouselMeta(source)
+  const raw = Array.isArray(featuredMeta.highlights) ? featuredMeta.highlights : []
   let metaOrder: string[] | null = null
   let metaDisabled: string[] | null = null
 
@@ -3746,12 +3962,17 @@ const splitHighlightsAndPublicOrderMeta = (source: unknown) => {
     highlights,
     order: metaOrder ?? [...PUBLIC_SECTION_DEFAULT_ORDER],
     disabled: metaDisabled ?? [],
+    featuredLotsCarousel: featuredMeta.config,
   }
 }
 
 const withPublicSectionOrderMeta = (highlights: unknown, order: string[], disabled: string[]) => {
   const pureHighlights = Array.isArray(highlights)
-    ? highlights.filter((item: any) => !(item && typeof item === 'object' && item.type === PUBLIC_SECTION_ORDER_META_TYPE))
+    ? highlights.filter((item: any) => !(
+      item
+      && typeof item === 'object'
+      && (item.type === PUBLIC_SECTION_ORDER_META_TYPE || item.type === PUBLIC_FEATURED_LOTS_CAROUSEL_META_TYPE)
+    ))
     : []
 
   const normalizedDisabled = Array.from(new Set(disabled.filter((id) => publicSectionById.has(id))))
@@ -3793,7 +4014,10 @@ const persistPublicSectionOrder = async () => {
   if (!project.value?.id) return
   savingPublicSectionOrder.value = true
   try {
-    const highlightsWithMeta = withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value)
+    const highlightsWithMeta = withPublicFeaturedLotsCarouselMeta(
+      withPublicSectionOrderMeta(pubInfoForm.value.highlightsJson, publicSectionsOrder.value, publicSectionsDisabled.value),
+      featuredLotsCarouselForm.value,
+    )
     project.value = await fetchApi(`/projects/${projectId}`, {
       method: 'PATCH',
       body: JSON.stringify({ highlightsJson: highlightsWithMeta }),
@@ -3801,6 +4025,7 @@ const persistPublicSectionOrder = async () => {
     const parsed = splitHighlightsAndPublicOrderMeta(highlightsWithMeta)
     pubInfoForm.value.highlightsJson = parsed.highlights as Highlight[]
     publicSectionsDisabled.value = parsed.disabled
+    featuredLotsCarouselForm.value = normalizePublicFeaturedLotsCarouselConfig(parsed.featuredLotsCarousel)
     toastSuccess('Ordem das seções atualizada')
   } catch (e) {
     toastFromError(e, 'Erro ao atualizar ordem das seções')
@@ -3826,6 +4051,10 @@ const hasPanoramaConfigured = computed(() => {
 
 const hasLotsConfigured = computed(() => {
   return lots.value.length > 0
+})
+
+const hasFeaturedLotsCarouselConfigured = computed(() => {
+  return featuredLotsCarouselForm.value.lotCodes.length > 0
 })
 
 const hasConstructionConfigured = computed(() => {
@@ -3877,6 +4106,7 @@ const isPublicSectionConfigured = (sectionId: string) => {
     case 'pub-panorama': return hasPanoramaConfigured.value
     case 'pub-video': return !!pubInfoForm.value.youtubeVideoUrl?.trim()
     case 'pub-lots-carousel': return hasLotsConfigured.value
+    case PUBLIC_FEATURED_LOTS_CAROUSEL_SECTION_ID: return hasFeaturedLotsCarouselConfigured.value
     case 'pub-lots': return hasLotsConfigured.value
     case 'pub-construction': return hasConstructionConfigured.value
     case 'pub-location': return hasLocationConfigured.value
@@ -4272,6 +4502,7 @@ const loadProject = async () => {
     const parsedHighlightsAndOrder = splitHighlightsAndPublicOrderMeta(p.highlightsJson)
     publicSectionsOrder.value = parsedHighlightsAndOrder.order
     publicSectionsDisabled.value = parsedHighlightsAndOrder.disabled
+    featuredLotsCarouselForm.value = normalizePublicFeaturedLotsCarouselConfig(parsedHighlightsAndOrder.featuredLotsCarousel)
 
     pubInfoForm.value = {
       highlightsJson: parsedHighlightsAndOrder.highlights as Highlight[],

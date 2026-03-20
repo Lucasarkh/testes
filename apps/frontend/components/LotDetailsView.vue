@@ -587,7 +587,7 @@
                 <div class="assets-header-v4">
                   <div class="assets-header-copy-v4">
                     <h3 id="other-lots-title">Opções para você</h3>
-                    <p>Outras unidades disponíveis com dados atualizados da API pública.</p>
+                    <p>Outras unidades disponíveis com dados atualizados</p>
                   </div>
                 </div>
 
@@ -609,7 +609,6 @@
                         <NuxtLink :to="otherLotUrl(otherLot)" class="other-lot-card-v4">
                           <div class="other-lot-card-head-v4">
                             <div class="other-lot-heading-v4">
-                              <span class="other-lot-code-v4">{{ resolveOtherLotEyebrow(otherLot) }}</span>
                               <h4 class="other-lot-title-v4">{{ resolveOtherLotDisplayName(otherLot) }}</h4>
                             </div>
                             <span class="other-lot-status-v4" :class="otherLotStatusClass(otherLot)">
@@ -649,7 +648,6 @@
                         >
                           <div class="other-lot-card-head-v4">
                             <div class="other-lot-heading-v4">
-                              <span class="other-lot-code-v4">{{ resolveOtherLotEyebrow(otherLot) }}</span>
                               <h4 class="other-lot-title-v4">{{ resolveOtherLotDisplayName(otherLot) }}</h4>
                             </div>
                             <span class="other-lot-status-v4" :class="otherLotStatusClass(otherLot)">
@@ -949,16 +947,6 @@ const resolveOtherLotDisplayName = (lot: any) => {
   return 'Lote disponível'
 }
 
-const resolveOtherLotEyebrow = (lot: any) => {
-  const code = String(lot?.code || '').trim()
-  const displayName = resolveOtherLotDisplayName(lot)
-  if (code && normalizeLotIdentifier(code) !== normalizeLotIdentifier(displayName)) return code
-
-  const lotNumber = String(lot?.lotDetails?.lotNumber || '').trim()
-  if (lotNumber) return `Lote ${lotNumber}`
-
-  return 'Unidade disponível'
-}
 
 const formatOtherLotMeta = (lot: any) => {
   const parts: string[] = []
@@ -3031,7 +3019,6 @@ async function submitReservation() {
 }
 
 .other-lot-card-v4:hover {
-  transform: translateY(-2px);
   border-color: rgba(var(--v4-primary-rgb), 0.28);
   box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
 }
