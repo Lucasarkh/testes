@@ -16,6 +16,16 @@
       </div>
     </nav>
 
+    <LandingTrustBar
+      v-if="corretor"
+      :corretor="corretor"
+      :show-with-pre-launch="false"
+      :primary-interest-label="'Entrar na fila de preferencia'"
+      :tracking-label="'trust_bar_category_interest'"
+      :primary-href="brokerPrimaryHref"
+      :sticky-offset="64"
+    />
+
     <main class="v4-main-content">
       <section class="v4-category-hero">
         <div class="v4-container">
@@ -37,8 +47,8 @@
                 <p>{{ category.description || 'Explore abaixo todos os lotes publicados desta categoria.' }}</p>
 
                 <div class="v4-category-hero-actions">
-                  <NuxtLink :to="categoriesUrl" class="v4-category-btn v4-category-btn--ghost">Ver todas as categorias</NuxtLink>
                   <NuxtLink :to="unitsUrl" class="v4-category-btn v4-category-btn--primary">Ver todas as unidades</NuxtLink>
+                  <NuxtLink :to="categoriesUrl" class="v4-category-btn v4-category-btn--ghost">Outras categorias</NuxtLink>
                 </div>
               </div>
 
@@ -46,9 +56,6 @@
                 <div class="v4-category-badge-box">
                   <strong>{{ category.availableLots }}</strong>
                   <span>lotes publicados</span>
-                </div>
-                <div v-if="category.teaserLots.length" class="v4-category-teasers">
-                  <span v-for="code in category.teaserLots" :key="`${category.id}-${code}`">{{ code }}</span>
                 </div>
               </div>
             </div>
@@ -60,8 +67,8 @@
         <div class="v4-container">
           <div class="v4-category-results-head">
             <div>
-              <h2>Lotes da categoria</h2>
-              <p>{{ lotsTotal }} resultado<span v-if="lotsTotal !== 1">s</span> disponível<span v-if="lotsTotal !== 1">eis</span>.</p>
+              <h2>Unidades disponíveis</h2>
+              <p>{{ lotsTotal }} resultado<span v-if="lotsTotal !== 1">s</span> nesta categoria.</p>
             </div>
             <span v-if="lotsLoading" class="v4-category-results-loading">Atualizando...</span>
           </div>
@@ -179,6 +186,7 @@ const tracking = useTracking()
 const { fetchPublic } = usePublicApi()
 
 const project = ref<any>(null)
+const corretor = ref<any>(null)
 const categories = ref<PublicCategory[]>([])
 const lots = ref<any[]>([])
 const lotsTotal = ref(0)
@@ -204,6 +212,7 @@ const unitsUrl = computed(() => {
   const base = `${pathPrefix.value || ''}/unidades` || '/unidades'
   return corretorCode.value ? `${base}?c=${corretorCode.value}` : base
 })
+const brokerPrimaryHref = computed(() => `${projectUrl.value}#contato`)
 const category = computed(() => categories.value.find(item => item.slug === categorySlug.value) || null)
 const totalPages = computed(() => Math.ceil(lotsTotal.value / lotsPerPage))
 const paginationMeta = computed(() => ({
@@ -230,6 +239,14 @@ const lotPageUrl = (lot: any) => {
 const fetchProject = async () => {
   if (!projectSlug.value) return
   project.value = await fetchPublic(`/p/${projectSlug.value}`)
+}
+
+const fetchCorretor = async () => {
+  if (!projectSlug.value || !corretorCode.value) {
+    corretor.value = null
+    return
+  }
+  corretor.value = await fetchPublic(`/p/${projectSlug.value}/corretores/${corretorCode.value}`)
 }
 
 const fetchCategories = async () => {
@@ -271,7 +288,7 @@ onMounted(async () => {
   loading.value = true
   error.value = ''
   try {
-    await Promise.all([fetchProject(), fetchCategories()])
+    await Promise.all([fetchProject(), fetchCategories(), fetchCorretor()])
     if (!category.value) {
       error.value = 'A categoria solicitada não existe ou não está publicada.'
       return
@@ -294,69 +311,139 @@ watch(() => route.query.page, async (nextPage) => {
 
 <style scoped>
 .v4-category-lots-shell {
-  background: #f5f7fb;
+  --v4-primary: #0071e3;
+  --v4-text: #1d1d1f;
+  --v4-text-muted: #6b7280;
+  --v4-border: rgba(0, 0, 0, 0.08);
+  background: #fdfdfe;
   min-height: 100vh;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
+}
+
+.v4-container {
+  width: min(92%, 1400px);
+  margin: 0 auto;
+}
+
+.v4-header-glass {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.v4-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.v4-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #1d1d1f;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.v4-back-btn:hover {
+  opacity: 0.7;
+}
+
+.v4-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #86868b;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v4-header-title strong {
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.v4-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #d2d2d7;
 }
 
 .v4-category-hero {
-  padding: 32px 0 24px;
+  padding: 32px 0;
 }
 
 .v4-category-hero-card {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
-  padding: 24px;
-  border-radius: 28px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 32px;
+  border-radius: 24px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02);
 }
 
 .v4-category-kicker {
   display: inline-flex;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(0, 113, 227, 0.08);
+  margin-bottom: 8px;
   color: #0071e3;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .v4-category-hero-copy h1 {
   margin: 0;
-  color: #111827;
-  font-size: clamp(2rem, 6vw, 3.2rem);
-  line-height: 0.96;
-  letter-spacing: -0.04em;
+  color: #1d1d1f;
+  font-size: 2.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 .v4-category-hero-copy p {
-  margin: 14px 0 0;
-  color: #6b7280;
-  font-size: 1rem;
-  line-height: 1.65;
+  margin: 16px 0 0;
+  color: #424245;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  max-width: 600px;
 }
 
 .v4-category-hero-actions {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
 }
 
 .v4-category-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  padding: 0 18px;
-  border-radius: 999px;
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9375rem;
   text-decoration: none;
-  font-weight: 700;
+  transition: all 0.2s ease;
 }
 
 .v4-category-btn--primary {
@@ -364,145 +451,161 @@ watch(() => route.query.page, async (nextPage) => {
   color: #fff;
 }
 
+.v4-category-btn--primary:hover {
+  background: #0077ed;
+  transform: translateY(-1px);
+}
+
 .v4-category-btn--ghost {
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  background: #fff;
-  color: #111827;
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.v4-category-btn--ghost:hover {
+  background: #e8e8ed;
 }
 
 .v4-category-hero-side {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
+  padding-top: 24px;
+  border-top: 1px solid #f5f5f7;
 }
 
 .v4-category-badge-box {
-  padding: 18px;
-  border-radius: 22px;
-  background: #0f172a;
-  color: #fff;
+  display: flex;
+  flex-direction: column;
 }
 
 .v4-category-badge-box strong {
   display: block;
   font-size: 2rem;
+  font-weight: 700;
+  color: #1d1d1f;
   line-height: 1;
 }
 
 .v4-category-badge-box span {
   display: block;
-  margin-top: 8px;
-  color: rgba(255, 255, 255, 0.72);
+  margin-top: 4px;
+  color: #86868b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.v4-category-teasers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.v4-category-teasers span {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
-  font-size: 0.78rem;
-  font-weight: 700;
+.v4-results-section {
+  padding: 0 0 48px;
 }
 
 .v4-category-results-head {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .v4-category-results-head h2 {
   margin: 0;
-  color: #111827;
-  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  color: #1d1d1f;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.v4-category-results-head p,
-.v4-category-results-loading {
-  margin: 0;
-  color: #6b7280;
+.v4-category-results-head p {
+  margin: 4px 0 0;
+  color: #86868b;
+  font-size: 0.9375rem;
 }
 
 .v4-lots-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: 20px;
 }
 
 .v4-lot-card-v2 {
-  background: white;
-  border: 1px solid #eee;
-  border-radius: 18px;
-  padding: 16px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  padding: 24px;
   text-decoration: none;
   color: inherit;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .v4-lot-card-v2:hover {
+  border-color: #0071e3;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
   transform: translateY(-4px);
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.1);
-  border-color: rgba(0, 113, 227, 0.24);
 }
 
 .v4-card-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: flex-start;
-  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .v4-card-id .v4-label {
-  font-size: 8px;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: #86868b;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .v4-card-id .v4-code {
-  margin: 2px 0 0;
-  color: #111827;
-  font-size: 18px;
+  margin: 4px 0 0;
+  color: #1d1d1f;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .v4-card-status {
-  font-size: 8px;
+  font-size: 0.6875rem;
   font-weight: 700;
-  color: #32d74b;
-  background: rgba(50, 215, 75, 0.1);
-  padding: 2px 8px;
-  border-radius: 100px;
+  color: #1d7c40;
+  background: #e6f4ea;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .v4-card-seals {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
+  margin-bottom: 20px;
 }
 
 .v4-seal {
-  background: #f0f7ff;
-  color: #0071e3;
-  font-size: 9px;
+  background: #f5f5f7;
+  color: #424245;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 64px;
-  border: 1px solid #e0efff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .v4-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 20px 0;
+  border-top: 1px solid #f5f5f7;
+  border-bottom: 1px solid #f5f5f7;
 }
 
 .v4-metric {
@@ -511,75 +614,158 @@ watch(() => route.query.page, async (nextPage) => {
 }
 
 .v4-metric .m-val {
-  font-size: 15px;
-  font-weight: 600;
-  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1d1d1f;
 }
 
 .v4-metric .m-unit {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: #86868b;
-  text-transform: uppercase;
   margin-top: 2px;
 }
 
 .v4-card-footer {
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid #f5f5f7;
+  margin-top: 20px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
+  gap: 16px;
+}
+
+.v4-price {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .v4-price .p-label {
   display: block;
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: #86868b;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .v4-price .p-val {
-  font-size: 15px;
+  font-size: clamp(1.05rem, 1.6vw, 1.375rem);
   font-weight: 700;
-  color: #0071e3;
+  color: #1d1d1f;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 .v4-cta-arrow {
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0071e3;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: gap 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.v4-results-section {
-  padding: 12px 0 56px;
+.v4-lot-card-v2:hover .v4-cta-arrow {
+  gap: 10px;
+}
+
+/* Tablet & Desktop Enhancements */
+@media (min-width: 768px) {
+  .v4-header-glass {
+    height: 64px;
+  }
+
+  .v4-category-hero {
+    padding: 48px 0;
+  }
+
+  .v4-category-hero-card {
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-between;
+    padding: 40px;
+    border-radius: 32px;
+  }
+
+  .v4-category-hero-copy h1 {
+    font-size: 3.5rem;
+  }
+
+  .v4-category-hero-side {
+    padding-top: 0;
+    padding-left: 64px;
+    border-top: 0;
+    border-left: 1px solid #f5f5f7;
+    min-width: 320px;
+    justify-content: center;
+  }
+
+  .v4-category-badge-box strong {
+    font-size: 3rem;
+  }
+
+  .v4-category-results-head {
+    margin-bottom: 48px;
+    padding-bottom: 24px;
+  }
+
+  .v4-category-results-head h2 {
+    font-size: 2rem;
+  }
+
+  .v4-lots-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .v4-lots-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1400px) {
+  .v4-lots-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .v4-header-title {
+    display: none;
+  }
+  
+  .v4-category-hero-copy h1 {
+    font-size: 1.875rem;
+  }
+  
+  .v4-category-btn {
+    width: 100%;
+  }
 }
 
 .v4-empty-state,
 .v4-results-loading,
 .v4-category-state {
-  padding: 64px 20px;
+  padding: 80px 24px;
   border-radius: 24px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
   background: #fff;
   text-align: center;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02);
 }
 
-.v4-empty-state h3,
-.v4-category-state h2 {
+.v4-empty-state h3 {
   margin: 0;
-  color: #111827;
-}
-
-.v4-empty-state p,
-.v4-results-loading p,
-.v4-category-state p {
-  margin: 10px 0 0;
-  color: #6b7280;
+  color: #1d1d1f;
+  font-size: 1.5rem;
 }
 
 .v4-pagination-wrap {
-  margin-top: 32px;
+  margin-top: 48px;
   display: flex;
   justify-content: center;
 }
@@ -596,85 +782,5 @@ watch(() => route.query.page, async (nextPage) => {
   color: #6b7280;
   font-size: 0.85rem;
   text-align: center;
-}
-
-@media (min-width: 768px) {
-  .v4-category-hero-actions {
-    flex-direction: row;
-  }
-
-  .v4-category-results-head {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-
-  .v4-lots-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-  }
-
-  .v4-card-header {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-
-  .v4-card-id .v4-label {
-    font-size: 10px;
-  }
-
-  .v4-card-id .v4-code {
-    font-size: 24px;
-  }
-
-  .v4-card-status {
-    font-size: 10px;
-    padding: 4px 10px;
-  }
-
-  .v4-card-body {
-    flex-direction: row;
-    gap: 24px;
-  }
-
-  .v4-metric .m-val {
-    font-size: 18px;
-  }
-
-  .v4-metric .m-unit,
-  .v4-price .p-label {
-    font-size: 10px;
-  }
-
-  .v4-price .p-val {
-    font-size: 18px;
-  }
-
-  .v4-cta-arrow {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #6b7280;
-    font-size: 12px;
-    font-weight: 700;
-  }
-}
-
-@media (min-width: 1024px) {
-  .v4-category-hero-card {
-    grid-template-columns: minmax(0, 1fr) 280px;
-    align-items: flex-start;
-  }
-
-  .v4-lots-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1440px) {
-  .v4-lots-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 </style>

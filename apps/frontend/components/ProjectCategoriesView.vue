@@ -16,6 +16,16 @@
       </div>
     </nav>
 
+    <LandingTrustBar
+      v-if="corretor"
+      :corretor="corretor"
+      :show-with-pre-launch="false"
+      :primary-interest-label="'Entrar na fila de preferencia'"
+      :tracking-label="'trust_bar_categories_interest'"
+      :primary-href="brokerPrimaryHref"
+      :sticky-offset="64"
+    />
+
     <main class="v4-main-content">
       <section class="pub-categories-hero">
         <div class="v4-container">
@@ -208,6 +218,7 @@ const tracking = useTracking()
 const { fetchPublic } = usePublicApi()
 
 const project = ref<any>(null)
+const corretor = ref<any>(null)
 const categories = ref<PublicCategory[]>([])
 const lots = ref<any[]>([])
 const lotsTotal = ref(0)
@@ -230,6 +241,7 @@ const unitsUrl = computed(() => {
   return corretorCode.value ? `${base}?c=${corretorCode.value}` : base
 })
 const selectedCategory = computed(() => categories.value.find(category => category.slug === selectedCategorySlug.value) || null)
+const brokerPrimaryHref = computed(() => `${projectUrl.value}#contato`)
 const totalPages = computed(() => Math.ceil(lotsTotal.value / lotsPerPage))
 const paginationMeta = computed(() => ({
   totalItems: lotsTotal.value,
@@ -275,6 +287,14 @@ const syncCategoryToRoute = async () => {
 const fetchProject = async () => {
   if (!projectSlug.value) return
   project.value = await fetchPublic(`/p/${projectSlug.value}`)
+}
+
+const fetchCorretor = async () => {
+  if (!projectSlug.value || !corretorCode.value) {
+    corretor.value = null
+    return
+  }
+  corretor.value = await fetchPublic(`/p/${projectSlug.value}/corretores/${corretorCode.value}`)
 }
 
 const fetchCategories = async () => {
@@ -333,7 +353,7 @@ onMounted(async () => {
   loading.value = true
   error.value = ''
   try {
-    await Promise.all([fetchProject(), fetchCategories()])
+    await Promise.all([fetchProject(), fetchCategories(), fetchCorretor()])
     const requestedCategory = String(route.query.category || '').trim()
     if (requestedCategory && categories.value.some(category => category.slug === requestedCategory)) {
       selectedCategorySlug.value = requestedCategory
@@ -366,10 +386,19 @@ watch(() => route.query.category, async (nextCategory) => {
 
 <style scoped>
 .pub-categories-page {
+  --v4-primary: #0071e3;
+  --v4-text: #1d1d1f;
+  --v4-text-muted: #6b7280;
+  --v4-border: rgba(0, 0, 0, 0.08);
   background:
     radial-gradient(circle at top left, rgba(251, 191, 36, 0.16), transparent 32%),
     radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 28%),
     linear-gradient(180deg, #08111f 0%, #0f172a 100%);
+}
+
+.v4-container {
+  width: min(92%, 1400px);
+  margin: 0 auto;
 }
 
 .pub-categories-hero {

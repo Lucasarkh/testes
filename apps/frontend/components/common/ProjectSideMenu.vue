@@ -185,6 +185,7 @@ onUnmounted(() => {
 <style scoped>
 .project-side-menu {
   position: fixed;
+  display: none;
   top: 50%;
   left: 24px;
   transform: translateY(-50%);

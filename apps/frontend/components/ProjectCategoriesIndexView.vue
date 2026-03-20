@@ -16,12 +16,21 @@
       </div>
     </nav>
 
+    <LandingTrustBar
+      v-if="corretor"
+      :corretor="corretor"
+      :show-with-pre-launch="false"
+      :primary-interest-label="'Entrar na fila de preferencia'"
+      :tracking-label="'trust_bar_categories_index_interest'"
+      :primary-href="brokerPrimaryHref"
+      :sticky-offset="64"
+    />
+
     <main class="v4-main-content">
       <section class="v4-categories-hero">
         <div class="v4-container">
           <div class="v4-categories-hero__header">
             <div>
-              <span class="v4-categories-kicker">Organização do Empreendimento</span>
               <h1>Escolha uma categoria</h1>
               <p>Explore grupos de lotes com a mesma característica e entre em uma página dedicada com os cards daquela seleção.</p>
             </div>
@@ -81,11 +90,11 @@
 
               <div class="v4-category-tile__body">
                 <div class="v4-category-tile__top">
+                  <span class="v4-category-badge">{{ category.availableLots }} {{ category.availableLots === 1 ? 'lote' : 'lotes' }}</span>
                   <strong>{{ category.name }}</strong>
-                  <span>{{ category.availableLots }} lotes</span>
                 </div>
 
-                <p>{{ category.description || 'Lotes reunidos em uma seleção dedicada para facilitar sua escolha.' }}</p>
+                <p v-if="category.description">{{ category.description }}</p>
 
                 <div v-if="category.teaserLots.length" class="v4-category-tile__chips">
                   <span v-for="code in category.teaserLots.slice(0, 3)" :key="`${category.id}-${code}`">{{ code }}</span>
@@ -139,6 +148,7 @@ const tenantStore = useTenantStore()
 const { fetchPublic } = usePublicApi()
 
 const project = ref<any>(null)
+const corretor = ref<any>(null)
 const categories = ref<PublicCategory[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -154,6 +164,7 @@ const unitsUrl = computed(() => {
   const base = `${pathPrefix.value || ''}/unidades` || '/unidades'
   return corretorCode.value ? `${base}?c=${corretorCode.value}` : base
 })
+const brokerPrimaryHref = computed(() => `${projectUrl.value}#contato`)
 
 const totalAvailableLots = computed(() => categories.value.reduce((sum, category) => sum + Number(category.availableLots || 0), 0))
 const categoriesWithImages = computed(() => categories.value.filter(category => !!category.imageUrl).length)
@@ -168,6 +179,14 @@ const fetchProject = async () => {
   project.value = await fetchPublic(`/p/${projectSlug.value}`)
 }
 
+const fetchCorretor = async () => {
+  if (!projectSlug.value || !corretorCode.value) {
+    corretor.value = null
+    return
+  }
+  corretor.value = await fetchPublic(`/p/${projectSlug.value}/corretores/${corretorCode.value}`)
+}
+
 const fetchCategories = async () => {
   if (!projectSlug.value) return
   categories.value = await fetchPublic(`/p/${projectSlug.value}/lot-categories`)
@@ -177,7 +196,7 @@ onMounted(async () => {
   loading.value = true
   error.value = ''
   try {
-    await Promise.all([fetchProject(), fetchCategories()])
+    await Promise.all([fetchProject(), fetchCategories(), fetchCorretor()])
     const requestedCategory = String(route.query.category || '').trim()
     if (requestedCategory) {
       const target = categories.value.find(category => category.slug === requestedCategory)
@@ -195,71 +214,121 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.v4-header-glass {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.v4-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.v4-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #1d1d1f;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.v4-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #86868b;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v4-header-title strong {
+  color: #1d1d1f;
+  font-weight: 600;
+}
+
+.v4-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #d2d2d7;
+}
+
 .v4-categories-shell {
-  background: #f5f7fb;
+  --v4-primary: #0071e3;
+  --v4-text: #1d1d1f;
+  --v4-text-muted: #6b7280;
+  --v4-border: rgba(0, 0, 0, 0.08);
+  background: #fff;
   min-height: 100vh;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
 }
 
 .v4-container {
-  width: min(94%, 1280px);
+  width: 90%;
   margin: 0 auto;
 }
 
 .v4-categories-hero {
-  padding: 32px 0 24px;
+  padding: 40px 0 32px;
 }
 
 .v4-categories-hero__header {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 8px 0 0;
-}
-
-.v4-categories-kicker {
-  display: inline-flex;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(0, 113, 227, 0.08);
-  color: #0071e3;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 12px;
+  text-align: left;
 }
 
 .v4-categories-hero h1 {
   margin: 0;
-  color: #111827;
-  font-size: clamp(2rem, 6vw, 3.3rem);
-  line-height: 0.96;
-  letter-spacing: -0.04em;
+  color: #1d1d1f;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
 }
 
 .v4-categories-hero p {
   margin: 12px 0 0;
-  max-width: 720px;
-  color: #6b7280;
+  color: #48484a;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .v4-categories-hero__actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 24px;
 }
 
 .v4-categories-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  padding: 0 18px;
-  border-radius: 999px;
-  font-weight: 700;
+  min-height: 50px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 .v4-categories-btn--primary {
@@ -268,234 +337,240 @@ onMounted(async () => {
 }
 
 .v4-categories-btn--ghost {
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  background: #fff;
-  color: #111827;
+  background: #f5f5f7;
+  color: #1d1d1f;
 }
 
 .v4-categories-stats {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-top: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid #f5f5f7;
 }
 
 .v4-categories-stat {
-  min-height: 94px;
-  padding: 20px 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: #fff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
 }
 
 .v4-categories-stat strong {
   display: block;
-  color: #111827;
+  color: #1d1d1f;
   font-size: 1.6rem;
   line-height: 1;
+  font-weight: 700;
 }
 
 .v4-categories-stat span {
   display: block;
-  margin-top: 6px;
-  color: #6b7280;
-  font-size: 0.85rem;
+  margin-top: 4px;
+  color: #86868b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .v4-categories-section {
-  padding: 10px 0 64px;
+  padding: 8px 0 64px;
 }
 
 .v4-categories-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .v4-category-tile {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  min-height: 100%;
-  overflow: hidden;
-  border-radius: 24px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
   background: #fff;
-  color: inherit;
+  border-radius: 20px;
+  overflow: hidden;
   text-decoration: none;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
-  transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+  color: inherit;
+  border: 1px solid #f5f5f7;
+  transition: transform 0.3s ease;
 }
 
-.v4-category-tile:hover {
-  transform: translateY(-4px);
-  border-color: rgba(0, 113, 227, 0.18);
-  box-shadow: 0 22px 48px rgba(15, 23, 42, 0.1);
+.v4-category-tile:active {
+  transform: scale(0.98);
 }
 
 .v4-category-tile__media {
-  aspect-ratio: 16 / 11;
-  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
-}
-
-.v4-category-tile__media.has-image {
-  background: #e5e7eb;
+  aspect-ratio: 16 / 10;
+  background: #f5f5f7;
+  height: 150px;
 }
 
 .v4-category-tile__media img {
-  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
 .v4-category-tile__placeholder {
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  color: #60a5fa;
+  color: #d2d2d7;
   font-size: 2rem;
 }
 
 .v4-category-tile__body {
+  padding: 20px;
   display: flex;
-  flex: 1 1 auto;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px 18px 16px;
 }
 
 .v4-category-tile__top {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.v4-category-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(0, 113, 227, 0.05);
+  color: #0071e3;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 .v4-category-tile__top strong {
-  color: #111827;
-  font-size: 1.08rem;
+  display: block;
+  width: 100%;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1d1d1f;
   line-height: 1.2;
 }
 
-.v4-category-tile__top span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
 .v4-category-tile__body p {
-  margin: 0;
-  color: #6b7280;
-  line-height: 1.6;
-  min-height: 52px;
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #48484a;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 1px;
 }
 
 .v4-category-tile__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
 .v4-category-tile__chips span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f3f4f6;
-  color: #374151;
-  font-size: 0.76rem;
+  padding: 4px 8px;
+  background: #f5f5f7;
+  border-radius: 4px;
+  font-size: 0.7rem;
   font-weight: 600;
+  color: #86868b;
 }
 
 .v4-category-tile__footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #f5f5f7;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: auto;
-  padding-top: 14px;
-  border-top: 1px solid #f3f4f6;
   color: #0071e3;
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.v4-category-tile__footer i {
+  font-size: 1.1rem;
 }
 
 .v4-categories-state {
-  padding: 64px 20px;
-  border-radius: 24px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  background: #fff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
   text-align: center;
-}
-
-.v4-categories-state h2 {
-  margin: 0;
-  color: #111827;
-}
-
-.v4-categories-state p {
-  margin: 10px 0 0;
-  color: #6b7280;
+  padding: 48px 0;
 }
 
 .v4-footer-clean {
-  padding: 48px 0;
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
+  padding: 40px 0;
+  background: #f5f5f7;
 }
 
 .v4-footer-content {
-  display: flex;
-  justify-content: center;
-  color: #6b7280;
-  font-size: 0.85rem;
   text-align: center;
+  color: #86868b;
+  font-size: 0.8rem;
 }
 
+/* Tablet & Desktop Enhancements */
 @media (min-width: 768px) {
-  .v4-container {
-    width: min(92%, 1280px);
+  .v4-header-glass {
+    height: 64px;
   }
 
-  .v4-categories-hero__header {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
+  .v4-container {
+    width: min(92%, 1400px);
+  }
+
+  .v4-categories-hero {
+    padding: 48px 0;
+  }
+
+  .v4-categories-hero h1 {
+    font-size: 3.5rem;
   }
 
   .v4-categories-hero__actions {
-    flex-direction: row;
+    grid-template-columns: auto auto;
+    width: fit-content;
   }
 
   .v4-categories-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    gap: 64px;
   }
 
-  .v4-category-tile__top {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+  .v4-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+
+  .v4-category-tile {
+    border-radius: 24px;
   }
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .v4-categories-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (min-width: 1040px) {
+@media (min-width: 1400px) {
   .v4-categories-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .v4-header-title {
+    display: none;
   }
 }
 

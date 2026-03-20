@@ -21,22 +21,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
       [`/${slug}/espelho-planta`]: '/espelho-planta',
     };
 
-    const canonicalPath = canonicalMap[to.path];
-    if (canonicalPath !== undefined) {
-      return navigateTo(
-        { path: canonicalPath, query: to.query },
-        { replace: true },
-      );
-    }
-
-    // Legacy links that still include /:slug/:lotCode should work without slug.
+    // Fix for category deep links on custom domains (e.g. domain.com/categorias/esquina)
     const parts = to.path.split('/').filter(Boolean);
-    if (parts.length === 3 && parts[0] === slug && parts[1] === 'categorias') {
+    if (parts.length === 2 && parts[0] === 'categorias') {
+      // Just let it be, it's already in canonical format without the slug
+    } else if (parts.length === 3 && parts[0] === slug && parts[1] === 'categorias') {
       return navigateTo(
         { path: `/categorias/${parts[2]}`, query: to.query },
         { replace: true },
       );
     }
+
+    const canonicalPath = canonicalMap[to.path];
 
     if (parts.length === 2 && parts[0] === slug) {
       return navigateTo(

@@ -17,6 +17,16 @@
       </div>
     </nav>
 
+    <LandingTrustBar
+      v-if="corretor"
+      :corretor="corretor"
+      :show-with-pre-launch="false"
+      :primary-interest-label="'Entrar na fila de preferencia'"
+      :tracking-label="'trust_bar_units_interest'"
+      :primary-href="brokerPrimaryHref"
+      :sticky-offset="56"
+    />
+
     <!-- Main Content -->
     <main class="v4-main-content">
       <!-- Search & Filters -->
@@ -293,6 +303,7 @@ const pathPrefix = computed(() => {
 const loading = ref(true)
 const error = ref('')
 const project = ref<any>(null)
+const corretor = ref<any>(null)
 
 const searchQuery = ref('')
 const searchIntent = ref<LotSearchIntent | ''>('')
@@ -313,6 +324,7 @@ const smartFilters = ref({
 })
 const lotsPage = ref(1)
 const lotsPerPage = 12
+const brokerPrimaryHref = computed(() => `${projectUrl.value}#contato`)
 
 const parseFilterNumber = (value: string | number | null | undefined) => {
   if (value == null) return null
@@ -844,13 +856,16 @@ onMounted(async () => {
     lotsPage.value = Number.isFinite(initialPage) && initialPage > 0 ? initialPage : 1
     const lotsParams = buildLotsParams(lotsPage.value)
 
-    const [p, lotsRes, categoriesRes] = await Promise.allSettled([
+    const [p, lotsRes, categoriesRes, brokerRes] = await Promise.allSettled([
       fetchPublic(baseUrl),
       !isPreview.value && projectSlug.value
         ? fetchPublic(`/p/${projectSlug.value}/lots?${lotsParams}`)
         : Promise.resolve(null),
       !isPreview.value && projectSlug.value
         ? fetchPublic(`/p/${projectSlug.value}/lot-categories`)
+        : Promise.resolve([]),
+      !isPreview.value && projectSlug.value && corretorCode
+        ? fetchPublic(`/p/${projectSlug.value}/corretores/${corretorCode}`)
         : Promise.resolve([])
     ])
 
@@ -870,6 +885,10 @@ onMounted(async () => {
 
     if (categoriesRes.status === 'fulfilled' && Array.isArray(categoriesRes.value)) {
       lotCategories.value = categoriesRes.value
+    }
+
+    if (brokerRes.status === 'fulfilled') {
+      corretor.value = brokerRes.value || null
     }
   } catch (e: any) {
     error.value = e.message || 'Erro ao carregar projeto'
@@ -1042,7 +1061,7 @@ onMounted(async () => {
 
 /* Main Content Padding */
 .v4-main-content {
-  padding-top: 58px;
+  padding-top: 56px;
 }
 
 /* Filter Section */
@@ -1289,7 +1308,7 @@ onMounted(async () => {
 
 /* Results Section */
 .v4-results-section {
-  padding: 60px 0;
+  padding: 48px 0;
 }
 
 @media (max-width: 768px) {
@@ -1407,12 +1426,15 @@ onMounted(async () => {
   border-top: 1px solid #f5f5f7;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
+  gap: 16px;
 }
 
 @media (max-width: 768px) {
   .v4-card-footer { padding-top: 12px; }
 }
+
+.v4-price { flex: 1 1 auto; min-width: 0; }
 
 .v4-price .p-label { display: block; font-size: 11px; font-weight: 600; color: #86868b; margin-bottom: 2px; }
 
@@ -1420,13 +1442,13 @@ onMounted(async () => {
   .v4-price .p-label { font-size: 9px; }
 }
 
-.v4-price .p-val { font-size: 20px; font-weight: 700; color: var(--v4-primary); }
+.v4-price .p-val { font-size: clamp(16px, 1.6vw, 20px); font-weight: 700; color: var(--v4-primary); line-height: 1.15; }
 
 @media (max-width: 768px) {
   .v4-price .p-val { font-size: 15px; }
 }
 
-.v4-cta-arrow { font-size: 13px; font-weight: 600; color: var(--v4-text-muted); display: flex; align-items: center; gap: 6px; }
+.v4-cta-arrow { font-size: 13px; font-weight: 600; color: var(--v4-text-muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
 
 @media (max-width: 768px) {
   .v4-cta-arrow { display: none; }
