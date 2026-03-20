@@ -317,7 +317,6 @@
                 >
                   <div class="v4-lot-card-header v4-lot-card-header--compact">
                     <div class="v4-lot-id v4-lot-id--compact">
-                      <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
                       <span class="v4-lot-code v4-lot-code--compact">{{ resolveLandingLotDisplayName(lot) }}</span>
                     </div>
                     <div class="v4-lot-status">Disponível</div>
@@ -355,7 +354,6 @@
                 >
                   <div class="v4-lot-card-header v4-lot-card-header--compact">
                     <div class="v4-lot-id v4-lot-id--compact">
-                      <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
                       <span class="v4-lot-code v4-lot-code--compact">{{ resolveLandingLotDisplayName(lot) }}</span>
                     </div>
                     <div class="v4-lot-status">Disponível</div>
@@ -409,7 +407,7 @@
             <p class="v4-section-subtitle"></p>
             <div class="v4-lots-carousel-header-content">
               <h2 class="v4-section-title">Lotes em Destaque</h2>
-              <p class="v4-section-subtitle">Uma seleção curada para acelerar sua exploração do empreendimento.</p>
+              <p class="v4-section-subtitle">Uma seleção para acelerar sua exploração do empreendimento.</p>
             </div>
           </div>
         </div>
@@ -437,8 +435,12 @@
                 >
                   <div class="v4-lot-card-header v4-lot-card-header--compact">
                     <div class="v4-lot-id v4-lot-id--compact">
-                      <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
-                      <span class="v4-lot-code v4-lot-code--compact">{{ resolveLandingLotDisplayName(lot) }}</span>
+                      <span class="v4-lot-code v4-lot-code--compact">
+                        <span class="v4-featured-lot-crown" aria-hidden="true">
+                          <img src="/img/crown.svg" alt="Lote em destaque" width="24" height="24" />
+                        </span>
+                        <span class="v4-featured-lot-code-text">{{ resolveLandingLotDisplayName(lot) }}</span>
+                      </span>
                     </div>
                     <div class="v4-lot-status" :class="featuredLotsStatusClass(lot)">{{ featuredLotsStatusLabel(lot) }}</div>
                   </div>
@@ -482,13 +484,14 @@
                   class="v4-lot-card v4-lot-card--compact v4-lot-card--fallback v4-featured-lot-card"
                   @click="tracking.trackLotClick(lot.code || lot.name || lot.id, lot.id)"
                 >
-                  <div class="v4-featured-lot-card__seal" aria-hidden="true">
-                    <span>Lote em destaque</span>
-                  </div>
                   <div class="v4-lot-card-header v4-lot-card-header--compact">
                     <div class="v4-lot-id v4-lot-id--compact">
-                      <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
-                      <span class="v4-lot-code v4-lot-code--compact">{{ resolveLandingLotDisplayName(lot) }}</span>
+                      <span class="v4-lot-code v4-lot-code--compact">
+                        <span class="v4-featured-lot-crown" aria-hidden="true">
+                          <img src="/img/crown.svg" alt="Lote em destaque" width="24" height="24" />
+                        </span>
+                        <span class="v4-featured-lot-code-text">{{ resolveLandingLotDisplayName(lot) }}</span>
+                      </span>
                     </div>
                     <div class="v4-lot-status" :class="featuredLotsStatusClass(lot)">{{ featuredLotsStatusLabel(lot) }}</div>
                   </div>
@@ -544,8 +547,7 @@
             >
               <div class="v4-lot-card-header">
                 <div class="v4-lot-id">
-                  <span v-if="resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">{{ resolveLandingLotSecondaryLabel(lot) }}</span>
-                  <span v-else class="v4-lot-label">Unidade disponível</span>
+                  <span v-if="!resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">Unidade disponível</span>
                   <span class="v4-lot-code">{{ resolveLandingLotDisplayName(lot) }}</span>
                 </div>
                 <div class="v4-lot-status">Disponível</div>
@@ -5793,192 +5795,58 @@ function openLightbox(idx: number) {
 
 .v4-featured-lot-card {
   position: relative;
-  isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
   padding: 16px 16px 14px;
-  color: var(--v4-text);
-  background: transparent;
-  border: none;
+  color: inherit;
+  background: white;
+  border: 1px solid #eef1f5;
   border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.v4-featured-lot-card::before {
-  content: '';
-  position: absolute;
-  inset: -45%;
-  border-radius: inherit;
-  background: conic-gradient(
-    from 0deg,
-    rgba(255, 220, 120, 0) 0deg,
-    rgba(255, 251, 199, 0.98) 72deg,
-    rgb(255, 217, 0) 144deg,
-    rgba(255, 243, 136, 0.98) 216deg,
-    rgba(255, 220, 120, 0) 288deg,
-    rgba(255, 220, 120, 0) 360deg
-  );
-  animation: v4-featured-lot-border-spin 4s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.v4-featured-lot-card::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #fffdfa 100%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.v4-featured-lot-card:hover::before {
-  content: '';
-  position: absolute;
-  inset: -45%;
-  border-radius: inherit;
-  background: conic-gradient(
-    from 0deg,
-    rgba(255, 220, 120, 0) 0deg,
-    rgba(255, 243, 199, 0.98) 72deg,
-    rgb(255, 187, 0) 144deg,
-    rgba(255, 243, 199, 0.98) 216deg,
-    rgba(255, 220, 120, 0) 288deg,
-    rgba(255, 220, 120, 0) 360deg
-  );
-  animation: v4-featured-lot-border-spin 1s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.v4-featured-lot-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.v4-featured-lot-card__seal {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  margin-bottom: 14px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: #fffaf0;
-  border: 1px solid rgba(255, 238, 0, 0.26);
-  color: #5e4821;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .v4-featured-lot-card .v4-lot-label {
   color: var(--v4-text-muted);
 }
 
-.v4-featured-lot-card .v4-lot-code,
 .v4-featured-lot-card .v4-lot-code--compact {
-  color: #d7b500;
-  font-weight: 800;
-  font-size: 24px;
-}
-
-.v4-featured-lot-card__meta {
-  color: var(--v4-text-muted);
-  margin-top: 8px;
-  margin-bottom: 8px;
-}
-
-.v4-featured-lot-card__stats .v4-lot-mini-stat {
-  background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
-  border: 1px solid rgba(35, 121, 233, 0.18);
-  border-radius: 14px;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 8px 18px rgba(17, 24, 39, 0.04);
-}
-
-.v4-featured-lot-card__stats .v4-lot-mini-stat-label {
-  color: #696969;
-}
-
-.v4-featured-lot-card__stats .v4-lot-mini-stat strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--v4-text);
-  font-size: 13px;
-}
-
-.v4-featured-lot-card__footer {
-  border-top-color: rgba(104, 68, 7, 0.16);
-  color: #d7b500 !important;
   font-weight: 700;
 }
 
-.v4-featured-lot-card__footer .v4-icon {
-  color: #d7b500 !important;
-}
-
-.v4-featured-lot-card .v4-lot-status {
-  background: rgba(255, 248, 233, 0.58);
-  border-width: 1px;
-  box-shadow: inset 0 1px 0 rgba(255, 249, 232, 0.22);
-}
-
-.v4-featured-lot-card .v4-lot-status--available {
-  color: #295a2b;
-  border-color: rgba(41, 90, 43, 0.16);
-}
-
-.v4-featured-lot-card .v4-lot-status--reserved {
-  color: #7a4600;
-  border-color: rgba(122, 70, 0, 0.16);
-}
-
-.v4-featured-lot-card .v4-lot-status--sold {
-  color: #8b2e2e;
-  border-color: rgba(139, 46, 46, 0.16);
-}
-
-.v4-featured-lot-card .v4-lot-status--featured {
-  color: #5d4300;
-  border-color: rgba(93, 67, 0, 0.16);
-}
-
-@keyframes v4-featured-lot-border-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .v4-featured-lot-card::before {
-    animation: none;
-  }
+.v4-featured-lot-code-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .v4-lot-card-header--compact {
   margin-bottom: 2px;
   gap: 8px;
   align-items: flex-start;
+  width: 100%;
 }
 
 .v4-lot-id--compact {
+  display: flex;
+  flex: 1 1 auto;
   gap: 4px;
   min-width: 0;
 }
 
 .v4-lot-code--compact {
+  display: block;
+  max-width: 100%;
   font-size: 22px;
   line-height: 1.15;
   letter-spacing: -0.035em;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
 }
 
 .v4-lot-mini-meta {
@@ -6075,13 +5943,18 @@ function openLightbox(idx: number) {
   text-decoration: none;
   color: inherit;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #f2f2f2;
+  border: 1px solid #cacaca;
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
 @media (max-width: 768px) {
+  .v4-lot-card-header--compact {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
   .v4-lots-swiper {
     padding: 0 12px 4px;
   }
@@ -6096,15 +5969,7 @@ function openLightbox(idx: number) {
   }
 
   .v4-featured-lot-card {
-    padding: 18px 14px 14px;
-  }
-
-  .v4-featured-lot-card__seal {
-    margin-bottom: 12px;
-    padding: 7px 12px;
-    gap: 7px;
-    font-size: 9px;
-    letter-spacing: 0.14em;
+    padding: 14px 13px 12px;
   }
 
   .v4-lot-code--compact {
@@ -6155,6 +6020,8 @@ function openLightbox(idx: number) {
   justify-content: space-between; 
   align-items: flex-start;
   margin-bottom: 20px; 
+  flex-direction: column-reverse;
+  gap: 8px;
 }
 
 @media (max-width: 768px) {
@@ -6198,7 +6065,8 @@ function openLightbox(idx: number) {
 }
 
 .v4-lot-status {
-  font-size: 9px;
+  flex-shrink: 0;
+  font-size: 8px;
   font-weight: 600;
   color: #3a9d6a;
   background: rgba(34, 153, 90, 0.06);
