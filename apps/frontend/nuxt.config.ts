@@ -5,8 +5,8 @@ const configuredAssetBase = process.env.NUXT_PUBLIC_ASSET_BASE || process.env.AS
 const assetBase = configuredAssetBase.replace(/\/+$/, '')
 const ogImageUrl = `${siteUrl}/img/og-image.png`
 const facebookAppId = process.env.NUXT_PUBLIC_FB_APP_ID
-const defaultTitle = 'Lotio - Plataforma de inteligência comercial para loteamentos'
-const defaultDescription = 'Acelere as vendas do seu loteamento com a Lotio: Experiência completa para corretores, inteligência de leads e gestão eficiente. Transforme seu loteamento em um sucesso de vendas!'
+const defaultTitle = 'Lotio - Mais vendas para loteamentos'
+const defaultDescription = 'Ofereça uma experiência digital para venda de lotes, potencialize a atuação dos corretores com links exclusivos e acompanhe tudo com métricas claras de origem, interesse e conversão.'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-03-17',

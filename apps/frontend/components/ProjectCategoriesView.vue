@@ -633,4 +633,205 @@ watch(() => route.query.category, async (nextCategory) => {
     flex: 1 1 100%;
   }
 }
+
+.v4-lots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.v4-lot-card-v2 {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 16px;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.v4-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v4-card-id .v4-code {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 2px 0 0;
+}
+
+.v4-card-id .v4-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #86868b;
+  text-transform: uppercase;
+}
+
+.v4-card-status {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #32d74b;
+  background: rgba(50, 215, 75, 0.1);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+.v4-card-seals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.v4-seal {
+  background: #f0f7ff;
+  color: #0071e3;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 64px;
+  text-transform: capitalize;
+  border: 1px solid #e0efff;
+}
+
+.v4-card-body {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.v4-metric .m-val {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.v4-metric .m-unit {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #86868b;
+  text-transform: uppercase;
+  display: block;
+}
+
+.v4-card-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f5f5f7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.v4-price .p-label {
+  display: block;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: #86868b;
+  margin-bottom: 2px;
+}
+
+.v4-price .p-val {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0071e3;
+}
+
+.v4-cta-arrow {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .v4-lots-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+
+  .v4-lot-card-v2 {
+    border-radius: 20px;
+    padding: 24px;
+  }
+
+  .v4-card-header {
+    flex-direction: row;
+    margin-bottom: 16px;
+  }
+
+  .v4-card-id .v4-code {
+    font-size: 1.75rem;
+  }
+
+  .v4-card-id .v4-label {
+    font-size: 0.6875rem;
+  }
+
+  .v4-card-status {
+    font-size: 0.6875rem;
+    padding: 4px 12px;
+  }
+
+  .v4-card-seals {
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .v4-seal {
+    font-size: 0.6875rem;
+    padding: 4px 10px;
+  }
+
+  .v4-card-body {
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .v4-metric .m-val {
+    font-size: 1.25rem;
+  }
+
+  .v4-metric .m-unit {
+    font-size: 0.6875rem;
+  }
+
+  .v4-card-footer {
+    padding-top: 24px;
+  }
+
+  .v4-price .p-label {
+    font-size: 0.6875rem;
+  }
+
+  .v4-price .p-val {
+    font-size: 1.25rem;
+  }
+
+  .v4-cta-arrow {
+    display: flex;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #86868b;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .v4-lots-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1400px) {
+  .v4-lots-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 </style>

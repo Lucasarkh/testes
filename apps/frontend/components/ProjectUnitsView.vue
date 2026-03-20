@@ -24,7 +24,7 @@
       :primary-interest-label="'Entrar na fila de preferencia'"
       :tracking-label="'trust_bar_units_interest'"
       :primary-href="brokerPrimaryHref"
-      :sticky-offset="56"
+      :sticky-offset="64"
     />
 
     <!-- Main Content -->
@@ -1003,11 +1003,13 @@ onMounted(async () => {
 .v4-header-glass {
   position: fixed;
   top: 0; left: 0; right: 0;
+  height: 64px;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: saturate(180%) blur(20px);
   z-index: 1000;
   border-bottom: 1px solid var(--v4-border);
-  padding: 16px 0;
+  display: flex;
+  align-items: center;
 }
 
 .v4-header-inner {
@@ -1016,6 +1018,7 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   min-width: 0;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
@@ -1061,7 +1064,7 @@ onMounted(async () => {
 
 /* Main Content Padding */
 .v4-main-content {
-  padding-top: 56px;
+  padding-top: 64px;
 }
 
 /* Filter Section */
@@ -1317,14 +1320,20 @@ onMounted(async () => {
 
 .v4-lots-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 32px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-@media (max-width: 768px) {
+@media (min-width: 768px) {
   .v4-lots-grid { 
-    grid-template-columns: 1fr 1fr; 
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .v4-lots-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -1520,7 +1529,7 @@ onMounted(async () => {
   .v4-search-bar-wrapper { width: 100%; }
   .v4-tags-scroll { gap: 6px; }
   .v4-filter-section { padding: 18px 0 14px; }
-  .v4-main-content { padding-top: 60px; }
+  .v4-main-content { padding-top: 64px; }
   .v4-filter-stats { width: 100%; justify-content: flex-start; }
   .v4-mode-btns {
     width: 100%;

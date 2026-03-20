@@ -39,21 +39,6 @@
               <NuxtLink :to="projectUrl" class="v4-categories-btn v4-categories-btn--ghost">Voltar ao loteamento</NuxtLink>
             </div>
           </div>
-
-          <div v-if="!loading && categories.length" class="v4-categories-stats">
-            <div class="v4-categories-stat">
-              <strong>{{ categories.length }}</strong>
-              <span>Categorias publicadas</span>
-            </div>
-            <div class="v4-categories-stat">
-              <strong>{{ totalAvailableLots }}</strong>
-              <span>Lotes agrupados</span>
-            </div>
-            <div class="v4-categories-stat">
-              <strong>{{ categoriesWithImages }}</strong>
-              <span>Categorias com imagem</span>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -339,38 +324,6 @@ onMounted(async () => {
 .v4-categories-btn--ghost {
   background: #f5f5f7;
   color: #1d1d1f;
-}
-
-.v4-categories-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-top: 40px;
-  padding-top: 32px;
-  border-top: 1px solid #f5f5f7;
-}
-
-.v4-categories-stat {
-  display: flex;
-  flex-direction: column;
-}
-
-.v4-categories-stat strong {
-  display: block;
-  color: #1d1d1f;
-  font-size: 1.6rem;
-  line-height: 1;
-  font-weight: 700;
-}
-
-.v4-categories-stat span {
-  display: block;
-  margin-top: 4px;
-  color: #86868b;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
 .v4-categories-section {
