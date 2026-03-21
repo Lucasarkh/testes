@@ -6,6 +6,7 @@
 import ProjectGalleryView from '~/components/ProjectGalleryView.vue'
 import {
   buildAbsoluteUrl,
+  buildCanonicalUrl,
   buildRobotsContent,
   normalizeSiteOrigin,
   resolveSeoImage,
@@ -60,7 +61,8 @@ const seoImage = computed(() =>
     '/img/og-image.png',
   ),
 )
-const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path))
+const seoUrl = computed(() => buildCanonicalUrl(siteOrigin.value, route.path))
+const projectUrl = computed(() => buildCanonicalUrl(siteOrigin.value, `/${slug.value}`))
 const seoSchema = computed(() => ([
   {
     '@context': 'https://schema.org',
@@ -69,6 +71,15 @@ const seoSchema = computed(() => ([
     description: seoDescription.value,
     url: seoUrl.value,
     image: seoImage.value,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Lotio', item: buildCanonicalUrl(siteOrigin.value, '/') },
+      { '@type': 'ListItem', position: 2, name: projectData.value?.name || slug.value, item: projectUrl.value },
+      { '@type': 'ListItem', position: 3, name: 'Galeria' },
+    ],
   },
 ]))
 

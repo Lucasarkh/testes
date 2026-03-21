@@ -30,6 +30,7 @@ import LandingFooter from '@/components/landing/LandingFooter.vue'
 import { useTenantStore } from '~/stores/tenant'
 import {
   buildAbsoluteUrl,
+  buildCanonicalUrl,
   buildRobotsContent,
   normalizeSiteOrigin,
   resolveSeoImage,
@@ -130,7 +131,7 @@ const seoImage = computed(() => {
     '/img/og-image.png',
   )
 })
-const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path || '/'))
+const seoUrl = computed(() => buildCanonicalUrl(siteOrigin.value, route.path || '/'))
 const robotsContent = computed(() => buildRobotsContent(false))
 const seoSchema = computed(() => {
   if (resolvedProject.value?.name) {
@@ -168,6 +169,10 @@ const seoSchema = computed(() => {
       name: 'Lotio',
       url: seoUrl.value,
       description: seoDescription.value,
+      publisher: {
+        '@type': 'Organization',
+        name: 'Lotio',
+      },
     },
   ]
 })

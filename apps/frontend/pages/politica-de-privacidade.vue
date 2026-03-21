@@ -322,13 +322,31 @@
 </template>
 
 <script setup>
+import { buildCanonicalUrl, buildRobotsContent, normalizeSiteOrigin } from '~/utils/seo'
+
 definePageMeta({
   layout: 'public'
 })
 
-useHead({
-  title: 'Política de Privacidade — Lotio'
+const runtimeConfig = useRuntimeConfig()
+const requestUrl = useRequestURL()
+const siteOrigin = computed(() => normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin))
+const canonicalUrl = computed(() => buildCanonicalUrl(siteOrigin.value, '/politica-de-privacidade'))
+
+useSeoMeta({
+  title: 'Política de Privacidade — Lotio',
+  description: 'Política de privacidade da plataforma Lotio. Saiba como tratamos seus dados pessoais.',
+  ogTitle: 'Política de Privacidade — Lotio',
+  ogDescription: 'Política de privacidade da plataforma Lotio.',
+  ogUrl: canonicalUrl,
+  robots: buildRobotsContent(false),
 })
+
+useHead(() => ({
+  link: [
+    { rel: 'canonical', href: canonicalUrl.value },
+  ],
+}))
 </script>
 
 <style scoped>

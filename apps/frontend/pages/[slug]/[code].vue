@@ -6,6 +6,7 @@
 import LotDetailsView from '~/components/LotDetailsView.vue'
 import {
   buildAbsoluteUrl,
+  buildCanonicalUrl,
   buildRobotsContent,
   normalizeSiteOrigin,
   resolveSeoImage,
@@ -153,7 +154,8 @@ const seoImage = computed(() => {
     '/img/og-image.png',
   )
 })
-const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path || `/${slug.value}/${encodeURIComponent(lotCode.value)}`))
+const canonicalPath = computed(() => route.path || `/${slug.value}/${encodeURIComponent(lotCode.value)}`)
+const seoUrl = computed(() => buildCanonicalUrl(siteOrigin.value, canonicalPath.value))
 const robotsContent = computed(() => buildRobotsContent(false))
 const seoSchema = computed(() => ([
   {
@@ -166,13 +168,20 @@ const seoSchema = computed(() => ([
   },
   {
     '@context': 'https://schema.org',
-    '@type': 'Product',
+    '@type': 'RealEstateListing',
     name: isPreLaunchMode.value ? `Fila de preferencia do lote ${seoLotLabel.value}` : `Lote ${seoLotLabel.value}`,
     description: seoDescription.value,
     image: seoImage.value,
-    brand: seoProjectName.value,
-    category: 'Lote imobiliário',
     url: seoUrl.value,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Lotio', item: buildCanonicalUrl(siteOrigin.value, '/') },
+      { '@type': 'ListItem', position: 2, name: seoProjectName.value, item: buildCanonicalUrl(siteOrigin.value, `/${slug.value}`) },
+      { '@type': 'ListItem', position: 3, name: `Lote ${seoLotLabel.value}` },
+    ],
   },
 ]))
 

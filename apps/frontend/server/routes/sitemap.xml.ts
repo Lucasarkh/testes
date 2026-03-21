@@ -19,6 +19,7 @@ type SitemapEntry = {
   loc: string
   lastmod?: string
   priority?: string
+  changefreq?: string
 }
 
 const LOTS_PER_PAGE = 50
@@ -131,10 +132,10 @@ export default defineEventHandler(async (event) => {
     entries.set(loc, { loc, ...options })
   }
 
-  addEntry(buildAbsoluteUrl(siteOrigin, '/'), { priority: '1.0' })
-  addEntry(buildAbsoluteUrl(siteOrigin, '/landing'), { priority: '0.9' })
-  addEntry(buildAbsoluteUrl(siteOrigin, '/politica-de-privacidade'), { priority: '0.3' })
-  addEntry(buildAbsoluteUrl(siteOrigin, '/termos-de-uso'), { priority: '0.3' })
+  addEntry(buildAbsoluteUrl(siteOrigin, '/'), { priority: '1.0', changefreq: 'daily' })
+  addEntry(buildAbsoluteUrl(siteOrigin, '/landing'), { priority: '0.5', changefreq: 'monthly' })
+  addEntry(buildAbsoluteUrl(siteOrigin, '/politica-de-privacidade'), { priority: '0.2', changefreq: 'yearly' })
+  addEntry(buildAbsoluteUrl(siteOrigin, '/termos-de-uso'), { priority: '0.2', changefreq: 'yearly' })
 
   if (apiOrigins.length > 0) {
     try {
@@ -151,10 +152,11 @@ export default defineEventHandler(async (event) => {
           ? new Date(project.updatedAt).toISOString()
           : undefined
 
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}`), { lastmod, priority: '0.8' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/unidades`), { lastmod, priority: '0.7' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/galeria`), { lastmod, priority: '0.6' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/espelho-planta`), { lastmod, priority: '0.4' })
+        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}`), { lastmod, priority: '0.8', changefreq: 'weekly' })
+        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/unidades`), { lastmod, priority: '0.7', changefreq: 'weekly' })
+        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/categorias`), { lastmod, priority: '0.5', changefreq: 'weekly' })
+        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/galeria`), { lastmod, priority: '0.6', changefreq: 'monthly' })
+        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/espelho-planta`), { lastmod, priority: '0.4', changefreq: 'monthly' })
 
         try {
           const lotPages = await fetchLotPages(apiOrigins, slug)
@@ -166,6 +168,7 @@ export default defineEventHandler(async (event) => {
               addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/${encodeURIComponent(code)}`), {
                 lastmod,
                 priority: '0.7',
+                changefreq: 'weekly',
               })
               lotUrlsLoaded += 1
             }
@@ -185,6 +188,7 @@ export default defineEventHandler(async (event) => {
     ...Array.from(entries.values()).map((entry) => {
       const lines = ['  <url>', `    <loc>${xmlEscape(entry.loc)}</loc>`]
       if (entry.lastmod) lines.push(`    <lastmod>${xmlEscape(entry.lastmod)}</lastmod>`)
+      if (entry.changefreq) lines.push(`    <changefreq>${entry.changefreq}</changefreq>`)
       if (entry.priority) lines.push(`    <priority>${entry.priority}</priority>`)
       lines.push('  </url>')
       return lines.join('\n')

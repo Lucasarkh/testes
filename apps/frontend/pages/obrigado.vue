@@ -19,10 +19,16 @@
 </template>
 
 <script setup lang="ts">
+import { buildRobotsContent } from '~/utils/seo'
+
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(true)
+
+useSeoMeta({
+  robots: buildRobotsContent(true),
+})
 
 onMounted(() => {
   // In a real app we might verify with the backend if payment actually succeeded

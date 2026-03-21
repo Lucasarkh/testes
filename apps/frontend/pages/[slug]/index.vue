@@ -7,6 +7,7 @@ import ProjectLandingView from '~/components/ProjectLandingView.vue'
 import { useTenantStore } from '~/stores/tenant'
 import {
   buildAbsoluteUrl,
+  buildCanonicalUrl,
   buildRobotsContent,
   normalizeSiteOrigin,
   resolveSeoImage,
@@ -96,7 +97,7 @@ const seoImage = computed(
       '/img/og-image.png',
     ),
 )
-const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path || `/${slug.value}`))
+const seoUrl = computed(() => buildCanonicalUrl(siteOrigin.value, route.path || `/${slug.value}`))
 const robotsContent = computed(() => buildRobotsContent(false))
 const seoSchema = computed(() => ([
   {

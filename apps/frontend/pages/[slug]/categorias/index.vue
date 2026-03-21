@@ -6,6 +6,7 @@
 import ProjectCategoriesIndexView from '~/components/ProjectCategoriesIndexView.vue'
 import {
   buildAbsoluteUrl,
+  buildCanonicalUrl,
   buildRobotsContent,
   normalizeSiteOrigin,
   resolveSeoImage,
@@ -61,7 +62,18 @@ const seoImage = computed(() =>
     '/img/og-image.png',
   ),
 )
-const seoUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, route.path))
+const seoUrl = computed(() => buildCanonicalUrl(siteOrigin.value, route.path))
+const projectUrl = computed(() => buildCanonicalUrl(siteOrigin.value, `/${slug.value}`))
+
+const seoBreadcrumb = computed(() => ({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Lotio', item: buildCanonicalUrl(siteOrigin.value, '/') },
+    { '@type': 'ListItem', position: 2, name: projectData.value?.name || slug.value, item: projectUrl.value },
+    { '@type': 'ListItem', position: 3, name: 'Categorias' },
+  ],
+}))
 
 useSeoMeta({
   title: seoTitle,
@@ -83,6 +95,13 @@ useHead(() => ({
   link: [
     { rel: 'canonical', href: seoUrl.value },
     { rel: 'image_src', href: seoImage.value },
+  ],
+  script: [
+    {
+      key: 'categories-breadcrumb-ld-json',
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(seoBreadcrumb.value),
+    },
   ],
 }))
 

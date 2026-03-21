@@ -390,6 +390,7 @@ import LandingHeader from '@/components/landing/LandingHeader.vue'
 import LandingFooter from '@/components/landing/LandingFooter.vue'
 import {
   buildAbsoluteUrl,
+  buildCanonicalUrl,
   buildRobotsContent,
   normalizeSiteOrigin,
   resolveSeoImage,
@@ -400,7 +401,7 @@ definePageMeta({ layout: 'public', alias: ['/demo'] })
 const runtimeConfig = useRuntimeConfig()
 const requestUrl = useRequestURL()
 const siteOrigin = computed(() => normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin))
-const canonicalUrl = computed(() => buildAbsoluteUrl(requestUrl.origin, '/landing'))
+const canonicalUrl = computed(() => buildCanonicalUrl(siteOrigin.value, '/landing'))
 const seoImage = computed(() => resolveSeoImage(siteOrigin.value, '/img/landing/loteamento_desk_topo.png'))
 const seoTitle = 'Lotio | Landing para vender loteamentos com mais contexto e menos atrito'
 const seoDescription = 'Transforme PDF, planilha e atendimento sem contexto em uma operação comercial com mapa interativo, leads identificados e reserva online.'

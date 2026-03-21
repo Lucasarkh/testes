@@ -257,13 +257,31 @@
 </template>
 
 <script setup>
+import { buildCanonicalUrl, buildRobotsContent, normalizeSiteOrigin } from '~/utils/seo'
+
 definePageMeta({
   layout: 'public'
 })
 
-useHead({
-  title: 'Termos de Uso — Lotio'
+const runtimeConfig = useRuntimeConfig()
+const requestUrl = useRequestURL()
+const siteOrigin = computed(() => normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin))
+const canonicalUrl = computed(() => buildCanonicalUrl(siteOrigin.value, '/termos-de-uso'))
+
+useSeoMeta({
+  title: 'Termos de Uso — Lotio',
+  description: 'Termos de uso da plataforma Lotio. Conheça as condições para utilização dos nossos serviços.',
+  ogTitle: 'Termos de Uso — Lotio',
+  ogDescription: 'Termos de uso da plataforma Lotio.',
+  ogUrl: canonicalUrl,
+  robots: buildRobotsContent(false),
 })
+
+useHead(() => ({
+  link: [
+    { rel: 'canonical', href: canonicalUrl.value },
+  ],
+}))
 </script>
 
 <style scoped>

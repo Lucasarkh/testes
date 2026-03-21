@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 const configuredSiteUrl = process.env.NUXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || 'https://lotio.com.br'
-const siteUrl = configuredSiteUrl.replace(/\/+$/, '')
+// Always normalize to the non-www canonical hostname
+const siteUrl = configuredSiteUrl.replace(/\/+$/, '').replace(/^(https?:\/\/)www\./i, '$1')
 const configuredAssetBase = process.env.NUXT_PUBLIC_ASSET_BASE || process.env.ASSET_CDN_BASE_URL || 'https://img.lotio.com.br'
 const assetBase = configuredAssetBase.replace(/\/+$/, '')
 const ogImageUrl = `${siteUrl}/img/og-image.png`

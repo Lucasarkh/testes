@@ -27,10 +27,25 @@ export function buildAbsoluteUrl(origin: string, path = '/'): string {
   }
 
   try {
-    return new URL(safePath, `${safeOrigin}/`).toString()
+    const url = new URL(safePath, `${safeOrigin}/`)
+    // Strip trailing slash from all paths except the root "/"
+    const result = url.toString()
+    return url.pathname !== '/' ? result.replace(/\/+$/, '') : result
   } catch {
     return `${safeOrigin}${safePath.startsWith('/') ? safePath : `/${safePath}`}`
   }
+}
+
+/**
+ * Build a canonical URL using the canonical site origin (not the request origin).
+ * This ensures canonical URLs are always consistent regardless of the hostname
+ * used to access the page (www, custom domain, etc.).
+ */
+export function buildCanonicalUrl(siteOrigin: string, path: string): string {
+  const normalizedOrigin = normalizeSiteOrigin(siteOrigin)
+  // Strip query params and hash — canonical should be the clean path
+  const cleanPath = String(path || '/').split('?')[0].split('#')[0]
+  return buildAbsoluteUrl(normalizedOrigin || 'https://lotio.com.br', cleanPath)
 }
 
 export function resolveSeoImage(origin: string, ...candidates: unknown[]): string {
