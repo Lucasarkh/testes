@@ -35,7 +35,6 @@
             >
               <div class="v4-lot-card-header">
                 <div class="v4-lot-id">
-                  <span v-if="!resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">Unidade disponível</span>
                   <span class="v4-lot-code">{{ resolveLandingLotDisplayName(lot) }}</span>
                 </div>
                 <div class="v4-lot-status">Disponível</div>
@@ -73,7 +72,6 @@
             >
               <div class="v4-lot-card-header">
                 <div class="v4-lot-id">
-                  <span v-if="!resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">Unidade disponível</span>
                   <span class="v4-lot-code">{{ resolveLandingLotDisplayName(lot) }}</span>
                 </div>
                 <div class="v4-lot-status">Disponível</div>

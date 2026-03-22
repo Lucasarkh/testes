@@ -1,9 +1,21 @@
 import { getRequestURL, setResponseHeader } from 'h3'
-import { buildAbsoluteUrl, normalizeSiteOrigin } from '~/utils/seo'
+import { isKnownPlatformHostname } from '~/utils/host'
+import { buildAbsoluteUrl, normalizeSiteOrigin, resolvePublicSiteOrigin } from '~/utils/seo'
 
 type PublicProjectSummary = {
   slug: string
+  name?: string
+  customDomain?: string | null
   updatedAt?: string
+}
+
+type ResolvedProjectByDomainResponse = {
+  projectId?: string | null
+  project?: {
+    id?: string
+    slug?: string
+    name?: string
+  } | null
 }
 
 type PublicLotResponse = {
@@ -116,6 +128,7 @@ export default defineEventHandler(async (event) => {
   const runtimeConfig = useRuntimeConfig(event)
   const requestUrl = getRequestURL(event)
   const siteOrigin = normalizeSiteOrigin(runtimeConfig.public.siteUrl, runtimeConfig.public.apiBase)
+  const requestOrigin = resolvePublicSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
   const apiOrigin = normalizeSiteOrigin(runtimeConfig.public.apiBase, siteOrigin)
   const apiOrigins = expandOriginCandidates(
     apiOrigin,
@@ -132,53 +145,90 @@ export default defineEventHandler(async (event) => {
     entries.set(loc, { loc, ...options })
   }
 
-  addEntry(buildAbsoluteUrl(siteOrigin, '/'), { priority: '1.0', changefreq: 'daily' })
-  addEntry(buildAbsoluteUrl(siteOrigin, '/landing'), { priority: '0.5', changefreq: 'monthly' })
-  addEntry(buildAbsoluteUrl(siteOrigin, '/politica-de-privacidade'), { priority: '0.2', changefreq: 'yearly' })
-  addEntry(buildAbsoluteUrl(siteOrigin, '/termos-de-uso'), { priority: '0.2', changefreq: 'yearly' })
+  const isPlatformRequest = isKnownPlatformHostname(requestUrl.hostname, siteOrigin)
 
-  if (apiOrigins.length > 0) {
+  if (!isPlatformRequest && apiOrigins.length > 0) {
     try {
-      const projectsResult = await fetchJsonFromOrigins<PublicProjectSummary[]>(apiOrigins, '/api/p')
-      const projects = projectsResult.data
-      sourceOrigin = projectsResult.origin
+      const resolvedProjectResult = await fetchJsonFromOrigins<ResolvedProjectByDomainResponse>(
+        apiOrigins,
+        '/api/p/resolve-project-by-domain',
+        { domain: requestUrl.host },
+      )
 
-      for (const project of projects || []) {
-        const slug = String(project?.slug || '').trim()
-        if (!slug) continue
-        projectsLoaded += 1
+      const resolvedSlug = String(resolvedProjectResult.data?.project?.slug || '').trim()
 
-        const lastmod = project.updatedAt
-          ? new Date(project.updatedAt).toISOString()
+      if (resolvedSlug) {
+        sourceOrigin = resolvedProjectResult.origin
+
+        const currentProjectResult = await fetchJsonFromOrigins<PublicProjectSummary>(
+          apiOrigins,
+          `/api/p/${encodeURIComponent(resolvedSlug)}`,
+        )
+        const currentProject = currentProjectResult.data
+        const lastmod = currentProject?.updatedAt
+          ? new Date(currentProject.updatedAt).toISOString()
           : undefined
 
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}`), { lastmod, priority: '0.8', changefreq: 'weekly' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/unidades`), { lastmod, priority: '0.7', changefreq: 'weekly' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/categorias`), { lastmod, priority: '0.5', changefreq: 'weekly' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/galeria`), { lastmod, priority: '0.6', changefreq: 'monthly' })
-        addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/espelho-planta`), { lastmod, priority: '0.4', changefreq: 'monthly' })
-
-        try {
-          const lotPages = await fetchLotPages(apiOrigins, slug)
-
-          for (const page of lotPages) {
-            for (const lot of page?.data || []) {
-              const code = String(lot?.code || lot?.name || lot?.id || '').trim()
-              if (!code) continue
-              addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/${encodeURIComponent(code)}`), {
-                lastmod,
-                priority: '0.7',
-                changefreq: 'weekly',
-              })
-              lotUrlsLoaded += 1
-            }
-          }
-        } catch {
-          // Keep the project-level URLs in the sitemap even if lot listing fails.
-        }
+        projectsLoaded = 1
+        addEntry(buildAbsoluteUrl(requestOrigin, '/'), { lastmod, priority: '1.0', changefreq: 'weekly' })
+        addEntry(buildAbsoluteUrl(requestOrigin, '/unidades'), { lastmod, priority: '0.8', changefreq: 'weekly' })
+        addEntry(buildAbsoluteUrl(requestOrigin, '/categorias'), { lastmod, priority: '0.6', changefreq: 'weekly' })
+        addEntry(buildAbsoluteUrl(requestOrigin, '/galeria'), { lastmod, priority: '0.6', changefreq: 'monthly' })
       }
     } catch {
-      // Keep sitemap available even if the upstream public API is temporarily unavailable.
+      // Fall back to the platform sitemap shape if the current host cannot be resolved.
+    }
+  }
+
+  if (entries.size === 0) {
+    addEntry(buildAbsoluteUrl(siteOrigin, '/'), { priority: '1.0', changefreq: 'daily' })
+    addEntry(buildAbsoluteUrl(siteOrigin, '/landing'), { priority: '0.5', changefreq: 'monthly' })
+    addEntry(buildAbsoluteUrl(siteOrigin, '/politica-de-privacidade'), { priority: '0.2', changefreq: 'yearly' })
+    addEntry(buildAbsoluteUrl(siteOrigin, '/termos-de-uso'), { priority: '0.2', changefreq: 'yearly' })
+
+    if (apiOrigins.length > 0) {
+      try {
+        const projectsResult = await fetchJsonFromOrigins<PublicProjectSummary[]>(apiOrigins, '/api/p')
+        const projects = projectsResult.data
+        sourceOrigin = projectsResult.origin
+
+        for (const project of projects || []) {
+          const slug = String(project?.slug || '').trim()
+          if (!slug) continue
+          projectsLoaded += 1
+
+          const lastmod = project.updatedAt
+            ? new Date(project.updatedAt).toISOString()
+            : undefined
+
+          addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}`), { lastmod, priority: '0.8', changefreq: 'weekly' })
+          addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/unidades`), { lastmod, priority: '0.7', changefreq: 'weekly' })
+          addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/categorias`), { lastmod, priority: '0.5', changefreq: 'weekly' })
+          addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/galeria`), { lastmod, priority: '0.6', changefreq: 'monthly' })
+          addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/espelho-planta`), { lastmod, priority: '0.4', changefreq: 'monthly' })
+
+          try {
+            const lotPages = await fetchLotPages(apiOrigins, slug)
+
+            for (const page of lotPages) {
+              for (const lot of page?.data || []) {
+                const code = String(lot?.code || lot?.name || lot?.id || '').trim()
+                if (!code) continue
+                addEntry(buildAbsoluteUrl(siteOrigin, `/${slug}/${encodeURIComponent(code)}`), {
+                  lastmod,
+                  priority: '0.7',
+                  changefreq: 'weekly',
+                })
+                lotUrlsLoaded += 1
+              }
+            }
+          } catch {
+            // Keep the project-level URLs in the sitemap even if lot listing fails.
+          }
+        }
+      } catch {
+        // Keep sitemap available even if the upstream public API is temporarily unavailable.
+      }
     }
   }
 

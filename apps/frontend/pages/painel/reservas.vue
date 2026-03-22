@@ -2,7 +2,7 @@
   <div class="reservations-page">
     <div class="page-header">
       <div>
-        <h1>Reservas</h1>
+        <h1 class="text-white">Reservas</h1>
         <p>Escolha um projeto para abrir a central de reservas.</p>
       </div>
       <NuxtLink to="/painel/projetos" class="btn btn-secondary">Ver projetos</NuxtLink>

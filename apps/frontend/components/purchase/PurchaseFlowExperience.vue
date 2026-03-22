@@ -4,9 +4,9 @@
       <div class="purchase-shell purchase-hero__content">
         <div>
           <p class="purchase-eyebrow">Acompanhe sua reserva</p>
-          <h1>Sua compra continua daqui, com validacao em duas etapas.</h1>
+          <h1>Sua compra continua daqui, com validação em duas etapas.</h1>
           <p class="purchase-hero__text">
-            Valide seu acesso por e-mail e WhatsApp, acompanhe o andamento da reserva e conclua as proximas etapas com a mesma identidade do loteamento.
+            Valide seu acesso por e-mail e WhatsApp, acompanhe o andamento da reserva e conclua as próximas etapas com a mesma identidade do loteamento.
           </p>
         </div>
 
@@ -14,7 +14,7 @@
           <span class="purchase-reservation-card__label">Reserva ativa</span>
           <strong>{{ flow.project?.name || 'Empreendimento' }}</strong>
           <p>
-            Lote {{ flow.lot?.code || flow.reservation?.lotCode || 'em definicao' }}
+            Lote {{ flow.lot?.code || flow.reservation?.lotCode || 'em definição' }}
             <span v-if="flow.lot?.block">, quadra {{ flow.lot.block }}</span>
           </p>
           <p v-if="countdownLabel">Expira em {{ countdownLabel }}</p>
@@ -36,7 +36,7 @@
           <div class="purchase-state-card__header">
             <p class="purchase-kicker">Sou cliente</p>
             <h2>Acompanhe sua reserva</h2>
-            <p>Informe o e-mail usado na reserva. Vamos enviar um codigo por e-mail e outro por WhatsApp antes de liberar seus dados.</p>
+            <p>Informe o e-mail usado na reserva. Vamos enviar um código por e-mail e outro por WhatsApp antes de liberar seus dados.</p>
           </div>
 
           <form class="purchase-form" @submit.prevent="requestOtp">
@@ -45,12 +45,12 @@
               <input v-model="otpForm.email" type="email" placeholder="cliente@exemplo.com" required />
             </label>
             <button class="purchase-button purchase-button--primary" type="submit" :disabled="submittingOtp">
-              {{ submittingOtp ? 'Enviando codigos...' : 'Continuar com verificacao' }}
+              {{ submittingOtp ? 'Enviando códigos...' : 'Continuar com verificação' }}
             </button>
           </form>
 
           <div v-if="otpRequested" class="purchase-otp-box">
-            <p>Enviamos dois codigos para confirmar que esta reserva pertence a voce.</p>
+            <p>Enviamos dois códigos para confirmar que esta reserva pertence a você.</p>
             <div class="purchase-delivery-grid">
               <div class="purchase-delivery-pill">
                 <span>E-mail</span>
@@ -63,11 +63,11 @@
             </div>
             <form class="purchase-form purchase-form--compact" @submit.prevent="verifyOtp">
               <label class="purchase-field">
-                <span>Codigo recebido por e-mail</span>
+                <span>Código recebido por e-mail</span>
                 <input v-model="otpForm.emailCode" type="text" maxlength="6" placeholder="000000" required />
               </label>
               <label class="purchase-field">
-                <span>Codigo recebido por WhatsApp</span>
+                <span>Código recebido por WhatsApp</span>
                 <input v-model="otpForm.whatsappCode" type="text" maxlength="6" placeholder="000000" required />
               </label>
               <button class="purchase-button" type="submit" :disabled="verifyingOtp">
@@ -80,12 +80,12 @@
         </article>
 
         <aside class="purchase-state-card purchase-benefits-card">
-          <p class="purchase-kicker">Seguranca e continuidade</p>
+          <p class="purchase-kicker">Segurança e continuidade</p>
           <ul class="purchase-benefits-list">
             <li>Retomar sua reserva exatamente da etapa em que ela parou.</li>
             <li>Validar seu acesso sem expor dados da compra antes do 2FA.</li>
-            <li>Enviar documentos e confirmar condicoes com clareza operacional.</li>
-            <li>Avancar com contrato e assinatura em um ambiente unico e seguro.</li>
+            <li>Enviar documentos e confirmar condições com clareza operacional.</li>
+            <li>Avançar com contrato e assinatura em um ambiente único e seguro.</li>
           </ul>
         </aside>
       </div>
@@ -95,7 +95,7 @@
           <div class="purchase-sidebar-card__header">
             <p class="purchase-kicker">Andamento</p>
             <h2>{{ flow.project?.name }}</h2>
-            <p>Lote {{ flow.lot?.code || flow.reservation?.lotCode || 'em definicao' }}</p>
+            <p>Lote {{ flow.lot?.code || flow.reservation?.lotCode || 'em definição' }}</p>
           </div>
 
           <div class="purchase-progress-list">
@@ -114,9 +114,9 @@
           </div>
 
           <div class="purchase-sidebar-card__meta">
-            <p><strong>Cliente:</strong> {{ flow.lead?.name || 'Nao informado' }}</p>
-            <p><strong>E-mail:</strong> {{ flow.lead?.email || 'Nao informado' }}</p>
-            <p v-if="countdownLabel"><strong>Expiracao:</strong> {{ countdownLabel }}</p>
+            <p><strong>Cliente:</strong> {{ flow.lead?.name || 'Não informado' }}</p>
+            <p><strong>E-mail:</strong> {{ flow.lead?.email || 'Não informado' }}</p>
+            <p v-if="countdownLabel"><strong>Expiração:</strong> {{ countdownLabel }}</p>
           </div>
 
           <NuxtLink
@@ -149,7 +149,7 @@
             <div class="purchase-callout">
               <h3>Reserva confirmada</h3>
               <p>
-                O pagamento inicial foi identificado. A proxima etapa e completar seus dados para seguirmos com a simulacao e o contrato.
+                O pagamento inicial foi identificado. A próxima etapa é completar seus dados para seguirmos com a simulação e o contrato.
               </p>
             </div>
             <button class="purchase-button purchase-button--primary" type="button" @click="goToCurrentFlowStep('cadastro-cliente')">
@@ -204,15 +204,15 @@
 
             <div class="purchase-form-actions purchase-field--full">
               <button class="purchase-button purchase-button--primary" type="submit" :disabled="savingSpouse">
-                {{ savingSpouse ? 'Salvando...' : 'Salvar conjugue' }}
+                {{ savingSpouse ? 'Salvando...' : 'Salvar cônjuge' }}
               </button>
             </div>
           </form>
 
           <section v-else-if="currentStepSlug === 'upload-documentos'" class="purchase-section-stack">
             <div class="purchase-callout">
-              <h3>Documentos obrigatorios</h3>
-              <p>Envie os arquivos exigidos para liberar a simulacao financeira.</p>
+              <h3>Documentos obrigatórios</h3>
+              <p>Envie os arquivos exigidos para liberar a simulação financeira.</p>
             </div>
 
             <div class="purchase-doc-grid">
@@ -254,8 +254,8 @@
 
           <section v-else-if="currentStepSlug === 'simulacao-pagamento'" class="purchase-section-stack">
             <div class="purchase-callout">
-              <h3>Escolha sua condicao</h3>
-              <p>Selecione uma tabela e a combinacao que melhor atende sua compra.</p>
+              <h3>Escolha sua condição</h3>
+              <p>Selecione uma tabela e a combinação que melhor atende sua compra.</p>
             </div>
 
             <div class="purchase-simulation-list">
@@ -263,7 +263,7 @@
                 <div class="purchase-simulation-card__header">
                   <div>
                     <h3>{{ table.name }}</h3>
-                    <p>Entrada minima de {{ formatPercent(table.entryMinPercent) }} e correcao por {{ table.correctionIndex }}</p>
+                    <p>Entrada mínima de {{ formatPercent(table.entryMinPercent) }} e correção por {{ table.correctionIndex }}</p>
                   </div>
                 </div>
 
@@ -295,8 +295,8 @@
 
           <section v-else-if="currentStepSlug === 'confirmacao-condicoes'" class="purchase-section-stack">
             <div class="purchase-callout">
-              <h3>Confirme as condicoes aprovadas</h3>
-              <p>Revise o resumo abaixo antes de seguir para a geracao do contrato.</p>
+              <h3>Confirme as condições aprovadas</h3>
+              <p>Revise o resumo abaixo antes de seguir para a geração do contrato.</p>
             </div>
 
             <div class="purchase-summary-grid">
@@ -320,18 +320,18 @@
 
             <label class="purchase-checkbox">
               <input v-model="conditionsAccepted" type="checkbox" />
-              <span>Confirmo que revisei e concordo com as condicoes desta simulacao.</span>
+              <span>Confirmo que revisei e concordo com as condições desta simulação.</span>
             </label>
 
             <button class="purchase-button purchase-button--primary" type="button" :disabled="confirmingConditions || !conditionsAccepted" @click="confirmConditions">
-              {{ confirmingConditions ? 'Confirmando...' : 'Confirmar condicoes' }}
+              {{ confirmingConditions ? 'Confirmando...' : 'Confirmar condições' }}
             </button>
           </section>
 
           <section v-else-if="currentStepSlug === 'gerar-contrato'" class="purchase-section-stack">
             <div class="purchase-callout">
-              <h3>Geracao do contrato</h3>
-              <p>Quando estiver pronto, gere o contrato com os dados do titular, do lote e da simulacao aprovada.</p>
+              <h3>Geração do contrato</h3>
+              <p>Quando estiver pronto, gere o contrato com os dados do titular, do lote e da simulação aprovada.</p>
             </div>
 
             <button class="purchase-button purchase-button--primary" type="button" :disabled="generatingContract" @click="generateContract">
@@ -342,7 +342,7 @@
           <section v-else-if="currentStepSlug === 'assinar-contrato'" class="purchase-section-stack">
             <div class="purchase-callout">
               <h3>Assinatura</h3>
-              <p>O contrato ja foi gerado. Confira o arquivo e conclua a assinatura manual para registrar o aceite.</p>
+              <p>O contrato já foi gerado. Confira o arquivo e conclua a assinatura manual para registrar o aceite.</p>
             </div>
 
             <a
@@ -357,7 +357,7 @@
 
             <label class="purchase-field">
               <span>Nome do assinante</span>
-              <input v-model="contractSignerName" type="text" placeholder="Nome completo de quem esta assinando" />
+              <input v-model="contractSignerName" type="text" placeholder="Nome completo de quem está assinando" />
             </label>
 
             <button class="purchase-button purchase-button--primary" type="button" :disabled="signingContract" @click="signContract">
@@ -367,9 +367,9 @@
 
           <section v-else class="purchase-section-stack">
             <div class="purchase-callout purchase-callout--success">
-              <h3>Processo concluido</h3>
+              <h3>Processo concluído</h3>
               <p>
-                O fluxo chegou na etapa final. Nossa equipe comercial pode concluir a confirmacao da venda no painel interno a qualquer momento.
+                O fluxo chegou na etapa final. Nossa equipe comercial pode concluir a confirmação da venda no painel interno a qualquer momento.
               </p>
             </div>
 
@@ -380,11 +380,11 @@
               </div>
               <div class="purchase-summary-card">
                 <span>Contrato</span>
-                <strong>{{ flow.latestContract?.status || 'Nao gerado' }}</strong>
+                <strong>{{ flow.latestContract?.status || 'Não gerado' }}</strong>
               </div>
               <div class="purchase-summary-card">
-                <span>Simulacao</span>
-                <strong>{{ flow.simulationSnapshot?.paymentTableName || 'Nao selecionada' }}</strong>
+                <span>Simulação</span>
+                <strong>{{ flow.simulationSnapshot?.paymentTableName || 'Não selecionada' }}</strong>
               </div>
             </div>
           </section>
@@ -469,9 +469,9 @@ const documentLabels: Record<string, string> = {
   RG: 'RG',
   CPF: 'CPF',
   CNH: 'CNH',
-  CERTIDAO_CASAMENTO: 'Certidao de casamento',
+  CERTIDAO_CASAMENTO: 'Certidão de casamento',
   COMPROVANTE_RENDA: 'Comprovante de renda',
-  COMPROVANTE_RESIDENCIA: 'Comprovante de residencia',
+  COMPROVANTE_RESIDENCIA: 'Comprovante de residência',
   CONTRATO_SOCIAL: 'Contrato social',
   OUTROS: 'Outros',
 }
@@ -482,10 +482,10 @@ const fieldCatalog = [
   { key: 'phone', label: 'Telefone', type: 'text', placeholder: '(11) 99999-0000' },
   { key: 'cpf', label: 'CPF', type: 'text', placeholder: '000.000.000-00', inputmode: 'numeric' },
   { key: 'rg', label: 'RG', type: 'text', placeholder: '00.000.000-0' },
-  { key: 'maritalStatus', label: 'Estado civil', type: 'text', placeholder: 'Casado, solteiro, uniao estavel...' },
-  { key: 'occupation', label: 'Profissao', type: 'text', placeholder: 'Sua ocupacao atual' },
+  { key: 'maritalStatus', label: 'Estado civil', type: 'text', placeholder: 'Casado, solteiro, união estável...' },
+  { key: 'occupation', label: 'Profissão', type: 'text', placeholder: 'Sua ocupação atual' },
   { key: 'monthlyIncome', label: 'Renda mensal', type: 'number', placeholder: '0,00', inputmode: 'decimal' },
-  { key: 'address', label: 'Endereco', type: 'textarea', placeholder: 'Rua, numero, complemento', fullWidth: true },
+  { key: 'address', label: 'Endereço', type: 'textarea', placeholder: 'Rua, número, complemento', fullWidth: true },
   { key: 'addressCity', label: 'Cidade', type: 'text', placeholder: 'Cidade' },
   { key: 'addressState', label: 'Estado', type: 'text', placeholder: 'UF' },
   { key: 'addressZip', label: 'CEP', type: 'text', placeholder: '00000-000', inputmode: 'numeric' },
@@ -516,30 +516,30 @@ const stepMeta = computed(() => {
   const map: Record<string, { title: string; description: string }> = {
     'pagamento-reserva-confirmado': {
       title: 'Pagamento da reserva confirmado',
-      description: 'Sua reserva esta ativa. Agora precisamos concluir o cadastro para seguir com a venda.',
+      description: 'Sua reserva está ativa. Agora precisamos concluir o cadastro para seguir com a venda.',
     },
     'cadastro-cliente': {
       title: 'Cadastro do titular',
       description: 'Preencha os dados principais do comprador conforme os requisitos deste empreendimento.',
     },
     'cadastro-conjuge': {
-      title: 'Cadastro do conjugue',
-      description: 'Este projeto exige os dados do conjugue antes do envio dos documentos.',
+      title: 'Cadastro do cônjuge',
+      description: 'Este projeto exige os dados do cônjuge antes do envio dos documentos.',
     },
     'upload-documentos': {
       title: 'Envio de documentos',
-      description: 'Anexe os arquivos obrigatorios para validar a compra e liberar o contrato.',
+      description: 'Anexe os arquivos obrigatórios para validar a compra e liberar o contrato.',
     },
     'simulacao-pagamento': {
-      title: 'Simulacao de pagamento',
-      description: 'Escolha uma tabela comercial e aprove a condicao financeira desejada.',
+      title: 'Simulação de pagamento',
+      description: 'Escolha uma tabela comercial e aprove a condição financeira desejada.',
     },
     'confirmacao-condicoes': {
-      title: 'Confirmacao das condicoes',
-      description: 'Revise a simulacao selecionada e confirme o aceite antes do contrato.',
+      title: 'Confirmação das condições',
+      description: 'Revise a simulação selecionada e confirme o aceite antes do contrato.',
     },
     'gerar-contrato': {
-      title: 'Geracao do contrato',
+      title: 'Geração do contrato',
       description: 'O sistema vai montar o contrato com base no template ativo do empreendimento.',
     },
     'assinar-contrato': {
@@ -548,7 +548,7 @@ const stepMeta = computed(() => {
     },
     'venda-confirmada': {
       title: 'Venda em etapa final',
-      description: 'Seu processo chegou ao fim do fluxo do cliente e aguarda confirmacao comercial.',
+      description: 'Seu processo chegou ao fim do fluxo do cliente e aguarda confirmação comercial.',
     },
   }
   return map[currentStepSlug.value] || map['pagamento-reserva-confirmado']
@@ -623,7 +623,7 @@ async function loadFlow(syncRoute = true) {
   } catch (error: any) {
     flow.value = null
     if (error?.status && error.status !== 401) {
-      errorMessage.value = error.message || 'Nao foi possivel recuperar seu fluxo de compra.'
+      errorMessage.value = error.message || 'Não foi possível recuperar seu fluxo de compra.'
     }
   } finally {
     loadingFlow.value = false
@@ -652,9 +652,9 @@ async function requestOtp() {
     otpRequested.value = true
     otpDelivery.email = response?.channels?.email || otpForm.email
     otpDelivery.whatsapp = response?.channels?.whatsapp || 'WhatsApp cadastrado'
-    successMessage.value = 'Codigos enviados. Valide os dois canais para continuar.'
+    successMessage.value = 'Códigos enviados. Valide os dois canais para continuar.'
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel enviar o codigo.'
+    errorMessage.value = error.message || 'Não foi possível enviar o código.'
   } finally {
     submittingOtp.value = false
   }
@@ -672,7 +672,7 @@ async function verifyOtp() {
     successMessage.value = 'Acesso liberado. Carregando processo salvo...'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Codigo invalido ou expirado.'
+    errorMessage.value = error.message || 'Código inválido ou expirado.'
   } finally {
     verifyingOtp.value = false
   }
@@ -689,7 +689,7 @@ async function saveCustomerProfile() {
     successMessage.value = 'Cadastro do titular salvo.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel salvar o cadastro.'
+    errorMessage.value = error.message || 'Não foi possível salvar o cadastro.'
   } finally {
     savingCustomer.value = false
   }
@@ -703,10 +703,10 @@ async function saveSpouseProfile() {
       ...spouseForm,
       monthlyIncome: normalizeMoneyValue(spouseForm.monthlyIncome),
     })
-    successMessage.value = 'Cadastro do conjugue salvo.'
+    successMessage.value = 'Cadastro do cônjuge salvo.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel salvar o cadastro do conjugue.'
+    errorMessage.value = error.message || 'Não foi possível salvar o cadastro do cônjuge.'
   } finally {
     savingSpouse.value = false
   }
@@ -751,7 +751,7 @@ async function handleDocumentUpload(documentType: string, event: Event) {
     successMessage.value = 'Documento enviado com sucesso.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel enviar o documento.'
+    errorMessage.value = error.message || 'Não foi possível enviar o documento.'
   } finally {
     uploadingDocumentType.value = ''
     input.value = ''
@@ -766,10 +766,10 @@ async function saveSimulation() {
       paymentTableId: selectedPaymentTableId.value,
       paymentConditionId: selectedPaymentConditionId.value,
     })
-    successMessage.value = 'Simulacao aprovada com sucesso.'
+    successMessage.value = 'Simulação aprovada com sucesso.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel aprovar a simulacao.'
+    errorMessage.value = error.message || 'Não foi possível aprovar a simulação.'
   } finally {
     savingSimulation.value = false
   }
@@ -780,10 +780,10 @@ async function confirmConditions() {
   clearMessages()
   try {
     await publicApi.post('/cliente/processo-compra/confirmar-condicoes', { accepted: true })
-    successMessage.value = 'Condicoes confirmadas.'
+    successMessage.value = 'Condições confirmadas.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel confirmar as condicoes.'
+    errorMessage.value = error.message || 'Não foi possível confirmar as condições.'
   } finally {
     confirmingConditions.value = false
   }
@@ -797,7 +797,7 @@ async function generateContract() {
     successMessage.value = 'Contrato gerado com sucesso.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel gerar o contrato.'
+    errorMessage.value = error.message || 'Não foi possível gerar o contrato.'
   } finally {
     generatingContract.value = false
   }
@@ -813,7 +813,7 @@ async function signContract() {
     successMessage.value = 'Assinatura registrada.'
     await loadFlow(true)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Nao foi possivel registrar a assinatura.'
+    errorMessage.value = error.message || 'Não foi possível registrar a assinatura.'
   } finally {
     signingContract.value = false
   }

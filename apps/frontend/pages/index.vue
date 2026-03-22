@@ -32,7 +32,7 @@ import {
   buildAbsoluteUrl,
   buildCanonicalUrl,
   buildRobotsContent,
-  normalizeSiteOrigin,
+  resolvePublicSiteOrigin,
   resolveSeoImage,
 } from '~/utils/seo'
 import { isKnownPlatformHostname, normalizeHostname } from '~/utils/host'
@@ -48,7 +48,7 @@ const incomingHeaders = useRequestHeaders(['host', 'x-forwarded-host', 'x-forwar
 
 const apiBase = computed(() => String(runtimeConfig.public.apiBase || '').replace(/\/+$/, ''))
 const siteOrigin = computed(() => {
-  return normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
+  return resolvePublicSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
 })
 const requestHost = computed(() => {
   const forwarded = String(incomingHeaders['x-forwarded-host'] || '').split(',')[0].trim()

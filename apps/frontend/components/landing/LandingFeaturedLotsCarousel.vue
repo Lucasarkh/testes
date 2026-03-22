@@ -38,7 +38,6 @@
             >
               <div class="v4-lot-card-header">
                 <div class="v4-lot-id">
-                  <span v-if="!resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">Unidade disponível</span>
                   <span class="v4-lot-code">
                     <span class="v4-featured-lot-crown" aria-hidden="true">
                       <img src="/img/crown.svg" alt="Lote em destaque" width="24" height="24" />
@@ -90,7 +89,6 @@
             >
               <div class="v4-lot-card-header">
                 <div class="v4-lot-id">
-                  <span v-if="!resolveLandingLotSecondaryLabel(lot)" class="v4-lot-label">Unidade disponível</span>
                   <span class="v4-lot-code">
                     <span class="v4-featured-lot-crown" aria-hidden="true">
                       <img src="/img/crown.svg" alt="Lote em destaque" width="24" height="24" />

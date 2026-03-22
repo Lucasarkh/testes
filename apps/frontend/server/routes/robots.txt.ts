@@ -1,9 +1,10 @@
-import { setResponseHeader } from 'h3'
-import { normalizeSiteOrigin } from '~/utils/seo'
+import { getRequestURL, setResponseHeader } from 'h3'
+import { resolvePublicSiteOrigin } from '~/utils/seo'
 
 export default defineEventHandler((event) => {
   const runtimeConfig = useRuntimeConfig(event)
-  const siteOrigin = normalizeSiteOrigin(runtimeConfig.public.siteUrl, runtimeConfig.public.apiBase)
+  const requestUrl = getRequestURL(event)
+  const siteOrigin = resolvePublicSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
 
   const lines = [
     'User-agent: *',

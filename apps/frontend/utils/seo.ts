@@ -1,3 +1,5 @@
+import { isKnownPlatformHostname, normalizeHostname } from '~/utils/host'
+
 function normalizeLotioCanonicalHostname(url: URL): URL {
   if (url.hostname === 'www.lotio.com.br') {
     url.hostname = 'lotio.com.br'
@@ -34,6 +36,36 @@ export function buildAbsoluteUrl(origin: string, path = '/'): string {
   } catch {
     return `${safeOrigin}${safePath.startsWith('/') ? safePath : `/${safePath}`}`
   }
+}
+
+export function resolvePublicSiteOrigin(
+  configuredSiteUrl: unknown,
+  requestOriginInput: unknown,
+  preferredOrigin?: unknown,
+): string {
+  const configuredOrigin = normalizeSiteOrigin(configuredSiteUrl)
+  const requestOrigin = normalizeSiteOrigin(requestOriginInput, configuredOrigin)
+  const resolvedPreferredOrigin = normalizeSiteOrigin(preferredOrigin)
+
+  if (resolvedPreferredOrigin) {
+    return resolvedPreferredOrigin
+  }
+
+  if (!requestOrigin) {
+    return configuredOrigin
+  }
+
+  const requestHost = normalizeHostname(requestOrigin)
+
+  if (!requestHost) {
+    return configuredOrigin || requestOrigin
+  }
+
+  if (!configuredOrigin || !isKnownPlatformHostname(requestHost, configuredOrigin)) {
+    return requestOrigin
+  }
+
+  return configuredOrigin || requestOrigin
 }
 
 /**

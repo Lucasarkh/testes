@@ -9,7 +9,7 @@ import {
   buildAbsoluteUrl,
   buildCanonicalUrl,
   buildRobotsContent,
-  normalizeSiteOrigin,
+  resolvePublicSiteOrigin,
   resolveSeoImage,
 } from '~/utils/seo'
 
@@ -36,7 +36,7 @@ const requestUrl = useRequestURL()
 const slug = computed(() => String(route.params.slug || '').trim())
 const apiBase = computed(() => String(runtimeConfig.public.apiBase || '').replace(/\/+$/, ''))
 const siteOrigin = computed(() => {
-  return normalizeSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
+  return resolvePublicSiteOrigin(runtimeConfig.public.siteUrl, requestUrl.origin)
 })
 
 const { data: projectData } = await useAsyncData<PublicProject | null>(
